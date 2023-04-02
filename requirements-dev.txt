@@ -1,0 +1,4 @@
+commonX
+curl_cffi
+PyYAML
+Pillow

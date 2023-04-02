@@ -1,0 +1,56 @@
+!!python/object:jmcomic.jm_option.JmOption
+dir_tree: !!python/object:jmcomic.jm_option.DownloadDirTree
+  Bd: D:/jmcomic/download/
+  flag: Bd_Title_Image
+
+disable_jm_module_debug: false
+download_convert_image_suffix: .png
+download_image_then_decode: true
+download_multi_thread_photo_batch_count: 10 # 一次多线程批量下载的数量，太多了禁漫服务器可能顶不住
+download_multi_thread_photo_len_limit: 30
+download_use_disk_cache: true
+filepath: null
+
+client_config:
+  domain: 18comic.vip
+  # 请求失败时，重试的次数，配个正数就行，不配默认是5
+  retry_times: 5
+  postman_type: cffi
+  postman_type_list:
+    - requests
+    - requests_Session
+    - cffi
+    - cffi_Session
+  meta_data:
+    # 以下proxies的写法都可以:
+    # proxies: clash
+    # proxies: v2ray
+    # proxies: 127.0.0.1:7890
+    # proxies:
+    #   http: http://127.0.0.1:7890
+    #   https: https://127.0.0.1:7890
+    proxies: clash
+    # 允许重定向
+    allow_redirects: true
+    headers:
+      accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
+      accept-language: zh-CN,zh;q=0.9
+      authority: 18comic.vip
+      cache-control: no-cache
+      pragma: no-cache
+      sec-ch-ua: '"Google Chrome";v="111", "Not(A:Brand";v="8", "Chromium";v="111"'
+      sec-ch-ua-mobile: ?0
+      sec-ch-ua-platform: '"Windows"'
+      sec-fetch-dest: document
+      sec-fetch-mode: navigate
+      sec-fetch-site: none
+      sec-fetch-user: ?1
+      upgrade-insecure-requests: '1'
+      user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
+        like Gecko) Chrome/111.0.0.0 Safari/537.36
+    # cookies为null，作用是以非登录状态访问JM
+    cookies: null
+    # 但如果你要下载的是需要登录才能看的漫画，你需要配置cookies的AVS的值，如下。
+#    cookies:
+#      AVS: 你的AVS
+

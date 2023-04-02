@@ -1,0 +1,51 @@
+# 这个工作流使用workflow_local分支的jmcomic模块。
+# 你可以在workflow_local分支修改jmcomic的源码，
+# 这样工作流就会使用你修改后的代码来下载禁漫本子。
+
+name: 下载JM本子 (Local)
+
+on:
+  push:
+    branches: [ "workflow_local" ]
+    paths:
+      - 'src/**/*.py' # 源码
+      - 'usage/**/*.py' # 工作流脚本
+      - 'assets/config/*.yml' # 工作流配置
+  pull_request:
+    branches: [ "workflow_local" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.10"
+
+      - name: 安装依赖项
+        run: |
+          python -m pip install --upgrade pip
+          pip install commonX -i https://pypi.org/project --upgrade
+          pip install -e ./
+
+      - name: 运行下载脚本
+        run: |
+          cd ./usage/
+          python jmcomic_workflows.py
+
+      - name: 上传结果
+        uses: actions/upload-artifact@v3.1.2
+        with:
+          # Artifact name
+          name: 下载完成的本子
+          # A file, directory or wildcard pattern that describes what to upload
+          path: /home/runner/work/jmcomic/download/
+          # The desired behavior if no files are found using the provided path.
+          if-no-files-found: warn
+          # Duration after which artifact will expire in days. 0 means using default retention.Minimum 1 day. Maximum 90 days unless changed from the repository settings page.
+          retention-days: 90

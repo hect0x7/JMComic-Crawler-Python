@@ -1,0 +1,45 @@
+name: 下载JM本子
+
+on:
+  push:
+    branches: [ "workflow" ]
+    paths:
+      - 'usage/**/*.py' # 工作流脚本
+      - 'assets/config/*.yml' # 工作流配置
+  pull_request:
+    branches: [ "workflow" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.10"
+
+      - name: 安装依赖项
+        run: |
+          python -m pip install --upgrade pip
+          pip install jmcomic -i https://pypi.org/project --upgrade
+
+      - name: 运行下载脚本
+        run: |
+          cd ./usage/
+          python jmcomic_workflows.py
+
+      - name: 上传结果
+        uses: actions/upload-artifact@v3.1.2
+        with:
+          # Artifact name
+          name: 下载完成的本子
+          # A file, directory or wildcard pattern that describes what to upload
+          path: /home/runner/work/jmcomic/download/
+          # The desired behavior if no files are found using the provided path.
+          if-no-files-found: warn
+          # Duration after which artifact will expire in days. 0 means using default retention.Minimum 1 day. Maximum 90 days unless changed from the repository settings page.
+          retention-days: 90
