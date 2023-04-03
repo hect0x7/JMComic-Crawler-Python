@@ -43,6 +43,10 @@ class JmTestConfigurable(unittest.TestCase):
 
     @classmethod
     def try_update_jm_cookies(cls):
+        import platform
+        if platform.system() != 'Windows':
+            return
+
         # 尝试更新 cookies
         cookies = ChromePluginCookieParser({'remember', 'comic'}) \
             .apply(when_valid_message="更新jmcomic-option成功！！！！")
