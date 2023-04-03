@@ -1,7 +1,3 @@
-import sys
-
-sys.stdout.encoding = 'utf-8'
-
 import unittest
 
 # noinspection PyUnresolvedReferences
@@ -21,6 +17,11 @@ class JmTestConfigurable(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        import sys
+        import io
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, 'utf-8')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, 'utf-8')
+
         # 获取项目根目录
         application_workspace = os.path.abspath(os.path.dirname(__file__) + '/../..')
 
