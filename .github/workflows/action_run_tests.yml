@@ -16,19 +16,20 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
-      - name: 切换到dev分支
-        run: git checkout dev
+        with:
+          refs: dev
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+
       - name: Install dependencies
         if: matrix.os != 'windows-latest'
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+
       - name: Install dependencies on Windows
         if: matrix.os == 'windows-latest'
         run: |
@@ -41,5 +42,5 @@ jobs:
 
       - name: 跑测试
         run: |
-          python -m unittest tests
+          python -m unittest discover -s tests/
 
