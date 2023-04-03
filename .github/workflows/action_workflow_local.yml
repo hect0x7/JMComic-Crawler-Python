@@ -8,9 +8,11 @@ on:
   push:
     branches: [ "workflow_local" ]
     paths:
-      - 'src/**/*.py' # 源码
+      - '.github/workflows/*.yml' # 工作流定义
       - 'usage/**/*.py' # 工作流脚本
       - 'assets/config/*.yml' # 工作流配置
+      - 'src/**/*.py' # 源码
+
   pull_request:
     branches: [ "workflow_local" ]
 
@@ -22,10 +24,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Python 3.10
+      - name: Set up Python 3.11
         uses: actions/setup-python@v3
         with:
-          python-version: "3.10"
+          python-version: "3.11"
 
       - name: 安装依赖项
         run: |
@@ -40,13 +42,14 @@ jobs:
 
       - name: 压缩下载的漫画
         run: |
-          zip -r /home/runner/work/jmcomic/download/下载完成的本子.zip /home/runner/work/jmcomic/download/*
+          cd /home/runner/work/jmcomic/download/
+          zip -r ./下载完成的本子.zip ./*
 
       - name: 上传结果
         uses: actions/upload-artifact@v3
         with:
           # Artifact name
-          name: 下载完成的本子.zip
+          name: 下载完成的本子
           # A file, directory or wildcard pattern that describes what to upload
           path: /home/runner/work/jmcomic/download/下载完成的本子.zip
           # The desired behavior if no files are found using the provided path.
