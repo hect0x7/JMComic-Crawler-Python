@@ -9,6 +9,7 @@ def get_option():
 # 每行的首尾可以有空白字符
 jm_albums = str_to_list('''
 422866
+390129
 
 
 
