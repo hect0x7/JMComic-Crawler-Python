@@ -3,6 +3,9 @@ name: 跑测试
 on:
   push:
     branches: [ "dev", "master" ]
+    paths:
+      - 'src/**/*.py' # 源码
+      - 'tests/**/*.py' # 测试代码
 
 jobs:
   test: # This code is based on https://github.com/gaogaotiantian/viztracer/blob/master/.github/workflows/python-package.yml
