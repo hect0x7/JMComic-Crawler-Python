@@ -1,3 +1,7 @@
+import sys
+
+sys.stdout.encoding = 'utf-8'
+
 import unittest
 
 # noinspection PyUnresolvedReferences
