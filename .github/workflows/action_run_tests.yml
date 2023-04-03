@@ -39,7 +39,12 @@ jobs:
           pip install -e ./
 
       - name: 跑测试
+        if: matrix.os != 'windows-latest'
         run: |
           cd ./tests/
           python -m unittest
 
+      - name: 跑测试（Windows系统）
+        if: matrix.os == 'windows-latest'
+        run: |
+          python -m unittest discover -s ./tests -p "test_*.py"
