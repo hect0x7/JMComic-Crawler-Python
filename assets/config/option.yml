@@ -28,7 +28,7 @@ client_config:
     headers:
       accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9
       accept-language: zh-CN,zh;q=0.9
-      authority: jmcomic1.rocks
+      authority: jmcomic1.group
       sec-ch-ua: '"Not_A Brand";v="99", "Google Chrome";v="109", "Chromium";v="109"'
       sec-ch-ua-mobile: ?0
       sec-ch-ua-platform: '"Windows"'

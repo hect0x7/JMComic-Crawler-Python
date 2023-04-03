@@ -40,5 +40,6 @@ jobs:
 
       - name: 跑测试
         run: |
-          python -m unittest discover -s tests/
+          cd ./tests/
+          python -m unittest
 
