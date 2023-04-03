@@ -85,11 +85,21 @@ class DownloadDirTree:
     AdditionalHandler = Callable[[Optional[JmAlbumDetail], JmPhotoDetail], str]
     additional_tree_flag_handler_mapping: Dict[int, AdditionalHandler] = {}
 
+    dsl_support = {
+        '${workspace}': lambda text: workspace(),
+    }
+
+    def fix_bd(self, Bd):
+        for dsl_k, func in self.dsl_support.items():
+            if dsl_k in Bd:
+                Bd = Bd.replace(dsl_k, func(Bd))
+        return fix_filepath(os.path.abspath(Bd), True)
+
     def __init__(self,
                  Bd: str,
                  flag: Union[str, int],
                  ):
-        self.Bd = fix_filepath(Bd)
+        self.Bd = self.fix_bd(Bd)
         self.flag = self.get_flag_enum(flag)
 
     def get_flag_enum(self, flag):
@@ -119,12 +129,12 @@ class DownloadDirTree:
             @param photo_dir: 章节文件夹名
             """
             from common import fix_windir_name
-            photo_dir = fix_windir_name(photo_dir)
+            photo_dir = fix_windir_name(photo_dir.strip())
 
             if album_dir is None:
                 return f'{self.Bd}{photo_dir}/'
 
-            album_dir = fix_windir_name(album_dir)
+            album_dir = fix_windir_name(album_dir.strip())
             return f'{self.Bd}{album_dir}/{photo_dir}/'
 
         def photo_dir(flag_for_title):

@@ -46,9 +46,9 @@ class JmModuleConfig:
 
     # noinspection PyUnusedLocal
     @classmethod
-    def jm_debug(cls, topic: str, *args, sep='', end='\n', file=None, from_class='api'):
+    def jm_debug(cls, topic: str, msg: str, from_class=None):
         if cls.enable_jm_debug is True:
-            cls.debug_printer(f'【{topic}】', *args, sep=sep, end=end, file=file)
+            cls.debug_printer(f'【{topic}】{msg}')
 
     @classmethod
     def disable_jm_debug(cls):

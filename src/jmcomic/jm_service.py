@@ -131,7 +131,6 @@ class CdnFetchService:
                  ):
         self.client = client
         self.config = config
-        self.debug = self.client.debug
 
     def download_photo_from_cdn_directly(self,
                                          req: CdnRequest,
@@ -172,16 +171,16 @@ class CdnFetchService:
             if resp_info[0] is None:
                 # 是，表示命中缓存，直接返回
                 save_path = resp_info[2]
-                self.debug('图片下载成功',
-                           f'photo-{photo_id}: {index}{suffix}命中磁盘缓存 ({save_path})')
+                jm_debug('图片下载成功',
+                         f'photo-{photo_id}: {index}{suffix}命中磁盘缓存 ({save_path})')
                 return
 
             # 2. 判断是否命中缓存
             save_path = req.save_path_provider(img_url, suffix, index, decode_image)
             if use_cache is True and file_exists(save_path):
                 # 命中，直接返回
-                self.debug('图片下载成功',
-                           f'photo-{photo_id}: {index}{suffix}命中磁盘缓存 ({save_path})')
+                jm_debug('图片下载成功',
+                         f'photo-{photo_id}: {index}{suffix}命中磁盘缓存 ({save_path})')
                 return
 
             # 3. 保存图片
@@ -195,10 +194,10 @@ class CdnFetchService:
                 )
 
             # 4. debug 消息
-            self.debug('图片下载成功',
-                       f'photo-{photo_id}: {index}{suffix}下载完成 ('
-                       + ('已解码' if decode_image is True else '未解码') +
-                       f') [{img_url}] → [{save_path}]')
+            jm_debug('图片下载成功',
+                     f'photo-{photo_id}: {index}{suffix}下载完成 ('
+                     + ('已解码' if decode_image is True else '未解码') +
+                     f') [{img_url}] → [{save_path}]')
 
         # 调用爬虫策略
         self.config.fetch_strategy(
@@ -223,7 +222,7 @@ class CdnFetchService:
             return resp, suffix, url
 
         # 下面进行重试
-        client.debug(
+        jm_debug(
             '图片获取重试',
             f'photo-{photo_id}，图片序号为{index}，url=[{url}]'
         )
@@ -233,14 +232,14 @@ class CdnFetchService:
             url = change_file_suffix(url, alter_suffix)
             resp = client.jm_get(url, False, False)
             if not client.is_empty_image(resp):
-                client.debug(
+                jm_debug(
                     '图片获取重试 → 成功√',
                     f'更改请求后缀（{suffix} -> {alter_suffix}），url={url}'
                 )
                 return resp, alter_suffix, url
 
         # 结论：可能是图片到头了
-        client.debug(
+        jm_debug(
             '图片获取重试 ← 失败×',
             f'更换后缀名不成功，停止爬取。'
             f'(推断本子长度<={index - 1}。当前图片序号为{index}，已经到达尽头，'
