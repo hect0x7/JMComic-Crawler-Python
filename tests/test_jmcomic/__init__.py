@@ -54,7 +54,7 @@ class JmTestConfigurable(unittest.TestCase):
 
         # 尝试更新 cookies
         cookies = ChromePluginCookieParser({'remember', 'comic'}) \
-            .apply(when_valid_message="更新jmcomic-option成功！！！！")
+            .apply(when_valid_message="更新jmcomic-option成功！")
         if cookies is not None:
             cls.option.client_config['meta_data']['cookies'] = cookies
             cls.option.save_to_file()
