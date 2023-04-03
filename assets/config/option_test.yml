@@ -1,6 +1,6 @@
 !!python/object:jmcomic.jm_option.JmOption
 dir_tree: !!python/object:jmcomic.jm_option.DownloadDirTree
-  Bd: /home/runner/work/jmcomic/tests/download/
+  Bd: $(workspace}/download/
   flag: Bd_Id_Image
 
 disable_jm_module_debug: false

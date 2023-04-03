@@ -85,11 +85,21 @@ class DownloadDirTree:
     AdditionalHandler = Callable[[Optional[JmAlbumDetail], JmPhotoDetail], str]
     additional_tree_flag_handler_mapping: Dict[int, AdditionalHandler] = {}
 
+    dsl_support = {
+        '${workspace}': lambda text: workspace(),
+    }
+
+    def fix_bd(self, Bd):
+        for dsl_k, func in self.dsl_support.items():
+            if dsl_k in Bd:
+                Bd = Bd.replace(dsl_k, func(Bd))
+        return fix_filepath(os.path.abspath(Bd), True)
+
     def __init__(self,
                  Bd: str,
                  flag: Union[str, int],
                  ):
-        self.Bd = fix_filepath(Bd)
+        self.Bd = self.fix_bd(Bd)
         self.flag = self.get_flag_enum(flag)
 
     def get_flag_enum(self, flag):
