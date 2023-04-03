@@ -29,13 +29,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           if (Test-Path -Path '.\requirements-dev.txt' -PathType Leaf) {pip install -r requirements-dev.txt}
-      - name: Install local and test with unittest
-        if: matrix.os != 'windows-latest'
+
+      - name: Install local
         run: |
           pip install -e ./
-          python -m unittest
-      - name: Install local and test with unittest on Windows
-        if: matrix.os == 'windows-latest'
+
+      - name: 跑测试
         run: |
-          pip install -e ./
-          python -m unittest
+          python -m unittest tests
+
