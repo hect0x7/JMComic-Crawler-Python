@@ -9,7 +9,7 @@ class Test_Client(JmTestConfigurable):
         cls.move_workspace('download')
 
     def test_download_from_cdn_directly(self):
-        photo_id = 'JM15193'
+        photo_id = 'JM438516'
         option = self.option
         cdn_crawler = option.build_cdn_crawler()
         cdn_crawler.download_photo_from_cdn_directly(
@@ -17,7 +17,7 @@ class Test_Client(JmTestConfigurable):
         )
 
     def test_download_image(self):
-        jm_photo_id = 'JM15193'
+        jm_photo_id = 'JM438516'
         photo_detail = self.client.get_photo_detail(jm_photo_id)
         self.client.download_by_image_detail(
             photo_detail[0],
@@ -25,14 +25,14 @@ class Test_Client(JmTestConfigurable):
         )
 
     def test_get_album_detail_by_jm_photo_id(self):
-        album_id = "JM15193"
+        album_id = "JM438516"
         print_obj_dict(self.client.get_album_detail(album_id))
 
     def test_get_photo_detail_by_jm_photo_id(self):
         """
         测试通过 JmcomicClient 和 jm_photo_id 获取 JmPhotoDetail对象
         """
-        jm_photo_id = 'JM15193'
+        jm_photo_id = 'JM438516'
         photo_detail = self.client.get_photo_detail(jm_photo_id)
         photo_detail.when_del_save_file = True
         photo_detail.after_save_print_info = True

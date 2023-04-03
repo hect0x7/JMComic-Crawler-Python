@@ -12,26 +12,21 @@ class Test_Api(JmTestConfigurable):
         """
         测试jmcomic模块的api的使用
         """
-        photo_id = "15193"
+        photo_id = "438516"
         jmcomic.download_photo(photo_id, self.option)
 
     def test_download_album_by_id(self):
         """
         测试jmcomic模块的api的使用
         """
-        album_id_ls = [
-            # '219757',
-            '15193',
-            # 'JM15193'
-        ]
-
-        jmcomic.download_album(album_id_ls[0], self.option)
+        album_id = '438516'
+        jmcomic.download_album(album_id, self.option)
 
     def test_batch(self):
         album_ls = str_to_list('''
         326361
         366867
-        15193
+        438516
         ''')
 
         test_cases: Iterable = [

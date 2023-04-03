@@ -13,7 +13,7 @@ download_use_disk_cache: true
 
 client_config:
   # 请求失败时，重试的次数，配个正数就行
-  retry_times: 3
+  retry_times: 10
   domain: jmcomic1.group
   postman_type: cffi
   postman_type_list:
