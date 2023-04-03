@@ -2,7 +2,7 @@ name: 跑测试
 
 on:
   push:
-    branches: [ "dev" ]
+    branches: [ "dev", "master" ]
 
 jobs:
   test: # This code is based on https://github.com/gaogaotiantian/viztracer/blob/master/.github/workflows/python-package.yml
