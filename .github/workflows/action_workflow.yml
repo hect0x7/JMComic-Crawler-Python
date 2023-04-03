@@ -34,7 +34,8 @@ jobs:
 
       - name: 压缩下载的漫画
         run: |
-          zip -r /home/runner/work/jmcomic/download/下载完成的本子.zip /home/runner/work/jmcomic/download/*
+          cd /home/runner/work/jmcomic/download/
+          zip -r ./下载完成的本子.zip ./*
 
       - name: 上传结果
         uses: actions/upload-artifact@v3
