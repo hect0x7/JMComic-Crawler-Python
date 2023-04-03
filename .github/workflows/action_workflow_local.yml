@@ -8,9 +8,11 @@ on:
   push:
     branches: [ "workflow_local" ]
     paths:
-      - 'src/**/*.py' # 源码
+      - '.github/workflows/*.yml' # 工作流定义
       - 'usage/**/*.py' # 工作流脚本
       - 'assets/config/*.yml' # 工作流配置
+      - 'src/**/*.py' # 源码
+
   pull_request:
     branches: [ "workflow_local" ]
 
