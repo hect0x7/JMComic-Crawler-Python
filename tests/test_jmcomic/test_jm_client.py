@@ -55,7 +55,6 @@ class Test_Client(JmTestConfigurable):
     def test_gt_300_photo(self):
         photo_id = '147643'
         photo_detail: JmPhotoDetail = self.client.get_photo_detail(photo_id)
-        for image_detail in photo_detail:
-            image_detail: JmImageDetail
-            print(image_detail.img_url)
-        self.client.download_by_image_detail(photo_detail[3000], workspace('3000.png'))
+        image = photo_detail[3000]
+        print(image.img_url)
+        self.client.download_by_image_detail(image, workspace('3000.png'))
