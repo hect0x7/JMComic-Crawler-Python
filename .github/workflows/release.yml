@@ -9,6 +9,9 @@ jobs:
     name: 构建并发布 jmcomic 到 PyPI
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
       - name: 切换到master分支
         run: git checkout master
 
