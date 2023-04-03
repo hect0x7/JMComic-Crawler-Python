@@ -2,7 +2,6 @@ from .jm_toolkit import *
 
 
 class JmcomicClient(PostmanProxy):
-    debug_from_class = 'jm-client'
     retry_postman_type = RetryPostman
 
     def __init__(self, postman: Postman, domain, retry_times=None):
@@ -98,11 +97,9 @@ class JmcomicClient(PostmanProxy):
         photo_detail.from_album = album_detail
         return album_detail
 
-    def fill_page_arr(self, photo_detail: JmPhotoDetail):
+    def update(self, photo_detail: JmPhotoDetail):
         new = self.get_photo_detail(photo_detail.photo_id)
-        photo_detail.page_arr = new.page_arr
-        photo_detail.data_original_domain = new.data_original_domain
-        return new
+        photo_detail.__dict__.update(new.__dict__)
 
     # -- search --
 
@@ -127,7 +124,7 @@ class JmcomicClient(PostmanProxy):
         """
         url = self.of_api_url(url) if is_api is True else url
         if is_api is True:
-            self.debug("api", url)
+            jm_debug("api", url)
 
         resp = self.get(url, **kwargs)
 
@@ -151,10 +148,6 @@ class JmcomicClient(PostmanProxy):
     @classmethod
     def is_empty_image(cls, resp):
         return resp.status_code != 200 or len(resp.content) == 0
-
-    @staticmethod
-    def debug(topic: str, *args, sep='', end='\n', file=None, from_class=debug_from_class):
-        jm_debug(topic, *args, sep=sep, end=end, file=file, from_class=from_class)
 
     @classmethod
     def img_is_not_need_to_decode(cls, data_original: str, _resp):

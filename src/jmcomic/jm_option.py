@@ -119,12 +119,12 @@ class DownloadDirTree:
             @param photo_dir: 章节文件夹名
             """
             from common import fix_windir_name
-            photo_dir = fix_windir_name(photo_dir)
+            photo_dir = fix_windir_name(photo_dir.strip())
 
             if album_dir is None:
                 return f'{self.Bd}{photo_dir}/'
 
-            album_dir = fix_windir_name(album_dir)
+            album_dir = fix_windir_name(album_dir.strip())
             return f'{self.Bd}{album_dir}/{photo_dir}/'
 
         def photo_dir(flag_for_title):
