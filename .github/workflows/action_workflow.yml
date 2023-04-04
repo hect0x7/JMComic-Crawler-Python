@@ -36,8 +36,8 @@ jobs:
       - name: 压缩下载的漫画
         run: |
           sudo apt-get update
-          cd /home/runner/work/jmcomic
-          tar -zcvf 下载完成的本子.tar.gz ./download/
+          cd /home/runner/work/jmcomic/download/
+          tar -zcvf ../下载完成的本子.tar.gz ./
 
       - name: 上传结果
         uses: actions/upload-artifact@v3
