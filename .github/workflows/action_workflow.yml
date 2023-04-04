@@ -36,9 +36,8 @@ jobs:
       - name: 压缩下载的漫画
         run: |
           sudo apt-get update
-          sudo apt-get install p7zip-full
-          cd /home/runner/work/jmcomic/download/
-          7z a -r ./下载完成的本子.zip *
+          cd /home/runner/work/jmcomic
+          tar -zcvf 下载完成的本子.tar.gz ./download/
 
       - name: 上传结果
         uses: actions/upload-artifact@v3
@@ -46,7 +45,7 @@ jobs:
           # Artifact name
           name: 下载完成的本子
           # A file, directory or wildcard pattern that describes what to upload
-          path: /home/runner/work/jmcomic/download/
+          path: /home/runner/work/jmcomic/下载完成的本子.tar.gz
           # The desired behavior if no files are found using the provided path.
           if-no-files-found: warn
           # Duration after which artifact will expire in days. 0 means using default retention.Minimum 1 day. Maximum 90 days unless changed from the repository settings page.
