@@ -33,10 +33,12 @@ jobs:
           cd ./usage/
           python jmcomic_workflows.py
 
-#      - name: 压缩下载的漫画
-#        run: |
-#          cd /home/runner/work/jmcomic/download/
-#          zip -r ./下载完成的本子.zip ./*
+      - name: 压缩下载的漫画
+        run: |
+          sudo apt-get update
+          sudo apt-get install p7zip-full
+          cd /home/runner/work/jmcomic/download/
+          7z a -r ./下载完成的本子.zip *
 
       - name: 上传结果
         uses: actions/upload-artifact@v3
