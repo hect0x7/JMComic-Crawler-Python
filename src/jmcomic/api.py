@@ -98,7 +98,7 @@ def download_by_photo_detail(photo_detail: JmPhotoDetail,
         jm_client.update(photo_detail)
 
     # 下载每个图片的函数
-    def download_image(index,img_detail, debug_topic='download_images_of_photo'):
+    def download_image(index, img_detail, debug_topic='download_images_of_photo'):
         img_save_path = option.decide_image_filepath(photo_detail, index)
 
         # 已下载过，缓存命中

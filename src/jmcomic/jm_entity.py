@@ -38,7 +38,7 @@ class WorkEntity(JmBaseEntity, SaveableEntity, IterableEntity):
     def __len__(self):
         raise NotImplementedError
 
-    def __getitem__(self, item):
+    def __getitem__(self, item) -> Union['JmAlbumDetail', 'JmPhotoDetail']:
         raise NotImplementedError
 
 
@@ -99,6 +99,7 @@ class JmPhotoDetail(WorkEntity):
                  title,
                  keywords,
                  series_id,
+                 sort,
                  page_arr=None,
                  data_original_domain=None,
                  author=None,
@@ -107,6 +108,7 @@ class JmPhotoDetail(WorkEntity):
         self.photo_id: str = photo_id
         self.scramble_id: str = scramble_id
         self.title: str = title
+        self.sort: int = int(sort)
         self._keywords: str = keywords
         self._series_id: int = int(series_id)
 
@@ -120,8 +122,10 @@ class JmPhotoDetail(WorkEntity):
 
         # 该photo的所有图片名 img_name
         self.page_arr: List[str] = page_arr
-        self.data_original_domain = data_original_domain
+        # 图片域名
+        self.data_original_domain: StrNone = data_original_domain
 
+    @property
     def is_single_album(self) -> bool:
         return self._series_id == 0
 
@@ -131,7 +135,20 @@ class JmPhotoDetail(WorkEntity):
 
     @property
     def album_id(self) -> str:
-        return self.photo_id if self.is_single_album() else self._series_id
+        return self.photo_id if self.is_single_album else self._series_id
+
+    @property
+    def album_index(self) -> int:
+        """
+        返回这个章节在本子中的序号，从1开始
+        """
+
+        # 如果是单章本子，JM给的sort为2。
+        # 这里返回1比较符合语义定义
+        if self.is_single_album and self.sort == 2:
+            return 1
+
+        return self.sort
 
     @property
     def author(self) -> str:
@@ -167,7 +184,11 @@ class JmPhotoDetail(WorkEntity):
         例如：img_name = 01111.webp
         返回：https://cdn-msp2.18comic.org/media/photos/147643/01111.webp
         """
-        return f'https://{self.data_original_domain}/media/photos/{self.photo_id}/{img_name}'
+        data_original_domain = self.data_original_domain
+        if data_original_domain is None:
+            raise AssertionError(f'图片域名为空: {self.__dict__}')
+
+        return f'https://{data_original_domain}/media/photos/{self.photo_id}/{img_name}'
 
     def __getitem__(self, item) -> JmImageDetail:
         return self.create_image_detail(item)
@@ -224,6 +245,7 @@ class JmAlbumDetail(WorkEntity):
             title=photo_title,
             keywords='',
             series_id=self.album_id,
+            sort=index + 1,
             author=self.author,
             from_album=self,
             page_arr=None,

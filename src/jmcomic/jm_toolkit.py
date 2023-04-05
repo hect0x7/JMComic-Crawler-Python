@@ -14,6 +14,7 @@ class JmcomicText:
     pattern_html_photo_data_original_domain = compile('src="https://(.*?)/media/albums/blank')
     pattern_html_photo_keywords = compile('<meta name="keywords" content="(.*?)" />')
     pattern_html_photo_series_id = compile('var series_id = (\d+);')
+    pattern_html_photo_sort = compile('var sort = (\d+);')
     pattern_html_photo_page_arr = compile('var page_arr = (.*?);')
 
     pattern_html_album_album_id = compile('<span class="number">.*?：JM(\d+)</span>')
