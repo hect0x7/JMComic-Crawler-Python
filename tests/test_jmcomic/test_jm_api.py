@@ -60,3 +60,56 @@ class Test_Api(JmTestConfigurable):
         option = JmOption.default()
         option.register_advice(MyAdvice())
         jmcomic.download_album('366867', option)
+
+    def test_photo_sort(self):
+        client = JmOption.default().build_jm_client()
+
+        # 测试用例 - 单章本子
+        single_photo_album_is = str_to_list('''
+        430371
+        438696
+        432888
+        ''')
+
+        # 测试用例 - 多章本子
+        multi_photo_album_is = str_to_list('''
+        400222
+        122061
+        ''')
+
+        photo_dict: Dict[str, JmPhotoDetail] = multi_call(client.get_photo_detail, single_photo_album_is)
+        album_dict: Dict[str, JmAlbumDetail] = multi_call(client.get_album_detail, single_photo_album_is)
+
+        for each in photo_dict.values():
+            each: JmPhotoDetail
+            self.assertEqual(each.album_index, 1)
+
+        for each in album_dict.values():
+            each: JmAlbumDetail
+            self.assertEqual(each[0].album_index, 1)
+
+        print_eye_catching('【通过】测试用例 - 单章本子')
+        multi_photo_album_dict: Dict[JmAlbumDetail, List[JmPhotoDetail]] = {}
+
+        def run(aid):
+            album = client.get_album_detail(aid)
+
+            photo_dict = multi_call(
+                client.get_photo_detail,
+                (photo.photo_id for photo in album),
+                launcher=thread_pool_executor,
+            )
+
+            multi_photo_album_dict[album] = list(photo_dict.values())
+
+        multi_thread_launcher(
+            iter_objs=multi_photo_album_is,
+            apply_each_obj_func=run,
+        )
+
+        for album, photo_ls in multi_photo_album_dict.items():
+            self.assertListEqual(
+                sorted([each.sort for each in album]),
+                sorted([ans.sort for ans in photo_ls]),
+                album.album_id
+            )

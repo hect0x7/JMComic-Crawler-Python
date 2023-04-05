@@ -82,7 +82,10 @@ class DownloadDirTree:
     # 根目录 / Photo号 / 图片文件
     Bd_Id_Image = 5
 
-    AdditionalHandler = Callable[[Optional[JmAlbumDetail], JmPhotoDetail], str]
+    AdditionalHandler = Callable[
+        ['DownloadDirTree', Optional[JmAlbumDetail], JmPhotoDetail],
+        str
+    ]
     additional_tree_flag_handler_mapping: Dict[int, AdditionalHandler] = {}
 
     dsl_support = {
@@ -164,7 +167,7 @@ class DownloadDirTree:
 
         else:
             if flag in self.additional_tree_flag_handler_mapping:
-                return self.additional_tree_flag_handler_mapping[flag](album, photo)
+                return self.additional_tree_flag_handler_mapping[flag](self, album, photo)
             else:
                 raise NotImplementedError
 
