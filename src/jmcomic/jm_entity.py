@@ -21,18 +21,14 @@ class WorkEntity(JmBaseEntity, SaveableEntity, IterableEntity):
         return self.detail_save_base_dir
 
     def save_file_name(self) -> str:
-        return f"【{self.get_id_prefix_of_filename()}{self.get_id()}】{self.get_title()}{self.detail_save_file_suffix}"
+        def jm_type():
+            # "JmAlbumDetail" -> "album"
+            cls_name = self.__class__.__name__
+            return cls_name[cls_name.index("m") + 1: cls_name.rfind("Detail")].lower()
 
-    def get_id_prefix_of_filename(self):
-        # "JmAlbumDetail" -> "album"
-        cls_name = self.__class__.__name__
-        id_prefix = cls_name[cls_name.index("m") + 1: cls_name.rfind("Detail")]
-        return f'{id_prefix}-'
+        return '[{}]{}{}'.format(jm_type(), self.get_id(), self.detail_save_file_suffix)
 
     def get_id(self) -> str:
-        raise NotImplementedError
-
-    def get_title(self) -> str:
         raise NotImplementedError
 
     def __len__(self):
@@ -152,15 +148,14 @@ class JmPhotoDetail(WorkEntity):
 
     @property
     def author(self) -> str:
-        # self._author 不为空字符串
-        if self._author is not None and self._author != '':
-            return self._author.strip()
-
-        # self._author 为空，先向上找
+        # 优先使用 from_album
         if self.from_album is not None:
             return self.from_album.author
 
-        # 无向上元素，使用默认
+        if self._author is not None and self._author != '':
+            return self._author.strip()
+
+        # 使用默认
         return JmModuleConfig.default_author
 
     def create_image_detail(self, index) -> JmImageDetail:
@@ -196,9 +191,6 @@ class JmPhotoDetail(WorkEntity):
     def get_id(self):
         return self.photo_id
 
-    def get_title(self):
-        return self.title
-
     def __len__(self):
         return len(self.page_arr)
 
@@ -213,13 +205,15 @@ class JmAlbumDetail(WorkEntity):
                  page_count,
                  author_list,
                  pub_date,
+                 update_date,
                  ):
         self.album_id: str = album_id
         self.scramble_id: str = scramble_id
         self.title: str = title
         self.page_count = int(page_count)
         self._author_list: List[str] = author_list
-        self.pub_date = pub_date
+        self.pub_date: str = pub_date  # 发布日期
+        self.update_date: str = update_date  # 更新日期
 
         # 有的 album 没有章节，则自成一章。
         if len(episode_list) == 0:
@@ -262,9 +256,6 @@ class JmAlbumDetail(WorkEntity):
 
     def get_id(self):
         return self.album_id
-
-    def get_title(self):
-        return self.title
 
     def __len__(self):
         return len(self.episode_list)

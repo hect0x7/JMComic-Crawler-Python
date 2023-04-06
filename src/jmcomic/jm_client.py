@@ -78,28 +78,32 @@ class JmcomicClient(PostmanProxy):
         # 用 JmcomicText 解析 html，返回实体类
         return JmcomicText.analyse_jm_album_html(resp.text)
 
-    def get_photo_detail(self, jm_photo_id: str) -> JmPhotoDetail:
+    def get_photo_detail(self, photo_id: str, album=True) -> JmPhotoDetail:
         # 参数校验
-        photo_id = JmcomicText.parse_to_photo_id(jm_photo_id)
+        photo_id = JmcomicText.parse_to_photo_id(photo_id)
 
         # 请求
         resp = self.jm_get(f"/photo/{photo_id}")
 
         # 用 JmcomicText 解析 html，返回实体类
-        return JmcomicText.analyse_jm_photo_html(resp.text)
+        photo_detail = JmcomicText.analyse_jm_photo_html(resp.text)
 
-    def fill_from_album(self, photo_detail: JmPhotoDetail) -> JmAlbumDetail:
-        """
-        获取 photo_detail 所在的 album。
-        并把 album_detail 赋值给 photo_detail.from_album
-        """
-        album_detail = self.get_album_detail(photo_detail.album_id)
-        photo_detail.from_album = album_detail
-        return album_detail
+        # 一并获取该章节的所处本子
+        if album is True:
+            photo_detail.from_album = self.get_album_detail(photo_detail.album_id)
 
-    def update(self, photo_detail: JmPhotoDetail):
-        new = self.get_photo_detail(photo_detail.photo_id)
-        photo_detail.__dict__.update(new.__dict__)
+        return photo_detail
+
+    def ensure_photo_can_use(self, photo_detail: JmPhotoDetail):
+        # 检查 from_album
+        if photo_detail.from_album is None:
+            photo_detail.from_album = self.get_album_detail(photo_detail.album_id)
+
+        # 检查 page_arr 和 data_original_domain
+        if photo_detail.page_arr is None or photo_detail.data_original_domain is None:
+            new = self.get_photo_detail(photo_detail.photo_id, False)
+            photo_detail.page_arr = new.page_arr
+            photo_detail.data_original_domain = new.data_original_domain
 
     # -- search --
 

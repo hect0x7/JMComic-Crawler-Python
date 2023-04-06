@@ -5,13 +5,11 @@ class JmOptionAdvice:
 
     def decide_image_save_dir(self,
                               option: 'JmOption',
-                              album_detail: Optional[JmAlbumDetail],
                               photo_detail: JmPhotoDetail,
                               ) -> StrNone:
         """
         决定一个本子图片的下载文件夹
         @param option: JmOption对象
-        @param album_detail: 本子集实体类
         @param photo_detail: 本子章节实体类
         @return: 下载文件夹，为空表示不处理
         """
@@ -245,19 +243,16 @@ class JmOption(SaveableEntity):
     下面是决定图片保存路径的方法
     """
 
-    def decide_image_save_dir(self, album_detail, photo_detail) -> str:
-        if album_detail is None and photo_detail is None:
-            raise AssertionError('album和photo不能同时为None')
-
+    def decide_image_save_dir(self, photo_detail) -> str:
         # 先检查advice的回调，如果回调支持，则优先使用回调
         for advice in JmAdviceRegistry.get_advice(self):
-            save_dir = advice.decide_image_save_dir(self, album_detail, photo_detail)
+            save_dir = advice.decide_image_save_dir(self, photo_detail)
             if save_dir is not None:
                 return save_dir
 
         # 使用 self.dir_tree 决定 save_dir
         save_dir = self.dir_tree.deside_image_save_dir(
-            album_detail or photo_detail.from_album,
+            photo_detail.from_album,
             photo_detail
         )
 
@@ -287,7 +282,7 @@ class JmOption(SaveableEntity):
                 return filepath
 
         # 通过拼接生成绝对路径
-        save_dir = self.decide_image_save_dir(photo_detail.from_album, photo_detail)
+        save_dir = self.decide_image_save_dir(photo_detail)
         image: JmImageDetail = photo_detail[index]
         suffix = self.decide_image_suffix(image)
         return save_dir + image.img_file_name + suffix
@@ -451,15 +446,13 @@ class JmOption(SaveableEntity):
 
         if use_all_default_save_path is True:
             # 不通过请求获取 photo 的信息，相当于使用【空本子】和【空集】
-            photo_detail, album_detail = None, None
+            photo_detail = None
         else:
             # 通过请求获得 photo 的本子信息
-            client = self.build_jm_client()
-            photo_detail = client.get_photo_detail(photo_id)
-            album_detail = client.fill_from_album(photo_detail)
+            photo_detail = self.build_jm_client().get_photo_detail(photo_id)
 
         def save_path_provider(url, _suffix: str, _index, _is_decode):
-            return '{0}{1}{2}'.format(self.decide_image_save_dir(album_detail, photo_detail),
+            return '{0}{1}{2}'.format(self.decide_image_save_dir(photo_detail),
                                       of_file_name(url, trim_suffix=True),
                                       self.download_convert_image_suffix or _suffix)
 

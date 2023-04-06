@@ -57,12 +57,12 @@ class Test_Api(JmTestConfigurable):
                                       ) -> StrNone:
                 return workspace(f'{time_stamp()}_{photo_detail[index].img_file_name}.test.png')
 
-        option = JmOption.default()
+        option = self.option
         option.register_advice(MyAdvice())
         jmcomic.download_album('366867', option)
 
     def test_photo_sort(self):
-        client = JmOption.default().build_jm_client()
+        client = self.option.build_jm_client()
 
         # 测试用例 - 单章本子
         single_photo_album_is = str_to_list('''
