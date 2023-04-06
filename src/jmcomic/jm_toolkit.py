@@ -24,7 +24,8 @@ class JmcomicText:
                                               '<li.*>\n第(\d+)話\n(.*)\n'
                                               '<[\s\S]*?>(\d+-\d+-\d+).*?')
     pattern_html_album_page_count = compile('<span class="pagecount">.*?:(\d+)</span>')
-    pattern_html_album_pub_date = compile('itemprop="datePublished" content=".*?">更新日期 : (.*?)</span>')
+    pattern_html_album_pub_date = compile('>上架日期 : (.*?)</span>')
+    pattern_html_album_update_date = compile('>更新日期 : (.*?)</span>')
 
     # album 作者
     pattern_html_album_author_list = [

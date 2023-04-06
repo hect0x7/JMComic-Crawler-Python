@@ -35,7 +35,12 @@ class JmTestConfigurable(unittest.TestCase):
         # 设置 JmOption，JmcomicClient
         option = cls.use_option('option_test.yml')
         cls.option = option
-        cls.client = option.build_jm_client()
+
+        client = option.build_jm_client()
+        # enable cache
+        client.get_photo_detail = enable_cache()(client.get_photo_detail)
+        client.get_album_detail = enable_cache()(client.get_album_detail)
+        cls.client = client
 
         # 跨平台设置
         cls.adapt_os()

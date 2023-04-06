@@ -23,7 +23,7 @@ def download_album(jm_album_id, option=None):
                        photo_detail: JmPhotoDetail,
                        debug_topic='download_album_photo',
                        ):
-        jm_client.update(photo_detail)
+        jm_client.ensure_photo_can_use(photo_detail)
 
         jm_debug(debug_topic,
                  f"下载第[{index + 1}]集: "
@@ -90,12 +90,7 @@ def download_by_photo_detail(photo_detail: JmPhotoDetail,
     # 下载准备
     use_cache = option.download_use_disk_cache
     decode_image = option.download_image_then_decode
-
-    if photo_detail.from_album is None:
-        jm_client.fill_from_album(photo_detail)
-
-    if photo_detail.page_arr is None:
-        jm_client.update(photo_detail)
+    jm_client.ensure_photo_can_use(photo_detail)
 
     # 下载每个图片的函数
     def download_image(index, img_detail, debug_topic='download_images_of_photo'):
@@ -114,6 +109,7 @@ def download_by_photo_detail(photo_detail: JmPhotoDetail,
             img_save_path,
             decode_image=decode_image,
         )
+
         jm_debug(debug_topic, f'photo-{img_detail.aid}: '
                               f'图片{img_detail.filename}下载完成：'
                               f'[{img_detail.img_url}] → [{img_save_path}]')
