@@ -317,10 +317,10 @@ class JmOption(SaveableEntity):
     @classmethod
     def default_client_config(cls):
         return {
-            'domain': JmModuleConfig.DOMAIN,
+            'domain': JmModuleConfig.domain(),
             'meta_data': {
                 'cookies': None,
-                'headers': JmModuleConfig.default_headers(),
+                'headers': JmModuleConfig.headers(),
                 'allow_redirects': True,
             },
             'postman_type_list': [
@@ -364,9 +364,13 @@ class JmOption(SaveableEntity):
 
     def new_jm_client(self) -> JmcomicClient:
         meta_data = self.client_config['meta_data']
+        postman_clazz = Postmans.get_impl_clazz(self.client_config.get('postman_type', 'cffi'))
+        proxies = None
+        domain = None
+        postman: Optional[Postman] = None
 
-        # 处理代理
-        def handle_proxies(key='proxies'):
+        def decide_proxies(key='proxies'):
+            nonlocal proxies
             proxies = meta_data.get(key, None)
 
             # 无代理，或代理已配置好好的
@@ -381,25 +385,46 @@ class JmOption(SaveableEntity):
 
             meta_data[key] = proxies
 
-        # 处理 headers
+        def decide_domain(key='domain') -> str:
+            nonlocal domain
+            domain = self.client_config.get(key, None)
+            if domain is None:
+                temp_postman = postman_clazz.create(
+                    headers=JmModuleConfig.headers(JmModuleConfig.JM_REDIRECT_URL),
+                    proxies=proxies,
+                )
+                domain = JmModuleConfig.domain(temp_postman)
+
+            domain = JmcomicText.parse_to_jm_domain(domain)
+            self.client_config[key] = domain
+            return domain
+
         def handle_headers(key='headers'):
             headers = meta_data.get(key, None)
             if headers is None or (not isinstance(headers, dict)) or len(headers) == 0:
-                meta_data[key] = JmModuleConfig.default_headers()
+                # 未配置headers，使用默认headers
+                headers = JmModuleConfig.headers()
 
-        # 处理【特殊配置项】
-        handle_proxies()
+            meta_data[key] = headers
+
+        def handle_postman():
+            nonlocal postman
+            postman = postman_clazz(meta_data)
+
+        # 1. 决定 代理
+        decide_proxies()
+        # 2. 指定 JM域名
+        decide_domain()
+        # 3. 处理 headers
         handle_headers()
-
-        # 决定Postman的实现类，根据配置项 client_config.postman
-        postman_clazz = Postmans.get_impl_clazz(self.client_config.get('postman_type', 'cffi'))
-        # 决定域名
-        domain = self.client_config.get('domain', JmModuleConfig.DOMAIN)
+        # 4. 创建 postman
+        handle_postman()
 
         jm_debug('创建JmcomicClient', f'使用域名: {domain}，使用Postman实现: {postman_clazz}')
-        # 创建 JmcomicClient 实例
+
+        # 创建 JmcomicClient 对象
         client = JmcomicClient(
-            postman=postman_clazz(meta_data),
+            postman=postman,
             domain=domain,
             retry_times=self.client_config.get('retry_times', None)
         )
@@ -413,7 +438,7 @@ class JmOption(SaveableEntity):
     def build_cdn_option(self, use_multi_thread_strategy=True):
 
         return CdnConfig.create(
-            cdn_domain=self.client_config.get('domain', JmModuleConfig.DOMAIN),
+            cdn_domain=self.client_config.get('domain', JmModuleConfig.domain()),
             fetch_strategy=MultiThreadFetch if use_multi_thread_strategy else InOrderFetch,
             cdn_image_suffix=None,
             use_cache=self.download_use_disk_cache,

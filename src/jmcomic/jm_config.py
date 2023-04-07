@@ -1,10 +1,10 @@
 class JmModuleConfig:
     # 网站相关
-    HTTP = "https://"
-    DOMAIN = "jmcomic1.group"  # jmcomic默认域名
-    JM_REDIRECT_URL = f'{HTTP}jm365.xyz/3YeBdF'  # 永久網域，怕走失的小伙伴收藏起来↓
-    JM_PUB_URL = f'{HTTP}jmcomic1.bet'
-    JM_CDN_IMAGE_URL_TEMPLATE = HTTP + 'cdn-msp.{domain}/media/photos/{photo_id}/{index:05}{suffix}'  # index 从1开始
+    PROT = "https://"
+    _DOMAIN = None
+    JM_REDIRECT_URL = f'{PROT}jm365.xyz/3YeBdF'  # 永久網域，怕走失的小伙伴收藏起来
+    JM_PUB_URL = f'{PROT}jmcomic1.bet'
+    JM_CDN_IMAGE_URL_TEMPLATE = PROT + 'cdn-msp.{domain}/media/photos/{photo_id}/{index:05}{suffix}'  # index 从1开始
     JM_SERVER_ERROR_HTML = "Could not connect to mysql! Please check your database settings!"
     JM_IMAGE_SUFFIX = ['.jpg', '.webp', '.png', '.gif']
 
@@ -26,9 +26,21 @@ class JmModuleConfig:
     jm_client_caches = {}
 
     @classmethod
-    def default_headers(cls):
+    def domain(cls, postman=None):
+        """
+        由于禁漫的域名经常变化，调用此方法可以获取一个当前可用的最新的域名 domain，
+        并且设置把 domain 设置为禁漫模块的默认域名。
+        这样一来，配置文件也不用配置域名了，一切都在运行时动态获取。
+        """
+        if cls._DOMAIN is None:
+            cls._DOMAIN = cls.get_jmcomic_url(postman).replace(cls.PROT, '')
+
+        return cls._DOMAIN  # jmcomic默认域名
+
+    @classmethod
+    def headers(cls, authority=None):
         return {
-            'authority': cls.DOMAIN,
+            'authority': authority or cls.domain(),
             'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,'
                       'application/signed-exchange;v=b3;q=0.7',
             'accept-language': 'zh-CN,zh;q=0.9',
@@ -55,16 +67,16 @@ class JmModuleConfig:
         cls.enable_jm_debug = False
 
     @classmethod
-    def get_jmcomic_url(cls):
+    def get_jmcomic_url(cls, postman=None):
         """
         访问禁漫的永久网域，从而得到一个可用的禁漫网址，
         """
-        from common import Postmans
+        if postman is None:
+            from common import Postmans
+            postman = Postmans.get_impl_clazz('cffi') \
+                .create(headers=cls.headers(cls.JM_REDIRECT_URL))
 
-        domain = Postmans \
-            .get_impl_clazz('cffi') \
-            .create(headers=cls.default_headers()) \
-            .with_wrap_resp() \
+        domain = postman.with_wrap_resp() \
             .get(cls.JM_REDIRECT_URL, allow_redirects=False) \
             .redirect_url
 

@@ -131,7 +131,7 @@ class JmPhotoDetail(WorkEntity):
 
     @property
     def album_id(self) -> str:
-        return self.photo_id if self.is_single_album else self._series_id
+        return self.photo_id if self.is_single_album else str(self._series_id)
 
     @property
     def album_index(self) -> int:
