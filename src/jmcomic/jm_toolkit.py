@@ -4,7 +4,7 @@ from .jm_entity import *
 
 
 class JmcomicText:
-    pattern_jm_domain = compile('https://([\w.]+)')
+    pattern_jm_domain = compile('https://([\w.-]+)')
     pattern_jm_pa_id = compile('/(photos?|album)/(\d+)')
 
     pattern_html_photo_photo_id = compile('<meta property="og:url" content=".*?/photo/(\d+)/?.*?">')
