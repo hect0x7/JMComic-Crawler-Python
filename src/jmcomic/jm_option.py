@@ -403,7 +403,7 @@ class JmOption(SaveableEntity):
             headers = meta_data.get(key, None)
             if headers is None or (not isinstance(headers, dict)) or len(headers) == 0:
                 # 未配置headers，使用默认headers
-                headers = JmModuleConfig.headers()
+                headers = JmModuleConfig.headers(domain)
 
             meta_data[key] = headers
 

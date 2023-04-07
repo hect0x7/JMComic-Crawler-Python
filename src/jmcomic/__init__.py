@@ -2,6 +2,6 @@
 # 被依赖方 <--- 使用方
 # config <--- entity <--- toolkit <--- client <--- service <--- option
 
-__version__ = '1.5.0'
+__version__ = '1.5.1'
 
 from .api import *
