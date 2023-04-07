@@ -131,37 +131,17 @@ def download_by_photo_detail(photo_detail: JmPhotoDetail,
         )
 
 
-def renew_jm_default_domain():
-    """
-    由于禁漫的域名经常变化，调用此方法可以获取一个当前可用的最新的域名 domain，
-    并且设置把 domain 设置为禁漫模块的默认域名。
-    这样一来，配置文件也不用配置域名了，一切都在运行时动态获取。
-    """
-    domain = JmcomicText.parse_to_jm_domain(JmModuleConfig.get_jmcomic_url())
-    JmModuleConfig.DOMAIN = domain
-    return domain
-
-
 def build_client(option: Optional[JmOption]) -> Tuple[JmOption, JmcomicClient]:
     """
     处理option的判空，并且创建jm_client
     """
     if option is None:
         option = JmOption.default()
-        option.client_config['domain'] = renew_jm_default_domain()
+
     jm_client = option.build_jm_client()
     return option, jm_client
 
 
 def create_option(filepath: str) -> JmOption:
-    """
-    创建 JmOption，同时检查域名是否配置，未配置则补上配置
-    @param filepath:
-    @return:
-    """
     option = JmOption.create_from_file(filepath)
-    client_config = option.client_config
-    key = 'domain'
-    if client_config.get(key, None) is None or client_config[key] is None:
-        client_config[key] = renew_jm_default_domain()
     return option

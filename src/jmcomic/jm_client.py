@@ -120,7 +120,7 @@ class JmcomicClient(PostmanProxy):
     # -- 对象方法 --
 
     def of_api_url(self, api_path):
-        return f"{JmModuleConfig.HTTP}{self.domain}{api_path}"
+        return f"{JmModuleConfig.PROT}{self.domain}{api_path}"
 
     def jm_get(self, url, is_api=True, require_200=True, **kwargs):
         """
@@ -156,6 +156,28 @@ class JmcomicClient(PostmanProxy):
     @classmethod
     def img_is_not_need_to_decode(cls, data_original: str, _resp):
         return data_original.endswith('.gif')
+
+    # noinspection PyAttributeOutsideInit
+    def enable_cache(self):
+        def wrap_func_cache(func_name, cache_dict_name):
+            if hasattr(self, cache_dict_name):
+                return
+
+            cache_dict = {}
+            setattr(self, cache_dict_name, cache_dict)
+
+            # 重载本对象的方法
+            func = getattr(self, func_name)
+            wrap_func = enable_cache(
+                cache_dict=cache_dict,
+                cache_hit_msg=f'命中 {cache_dict_name} ' + '→ [{}]]',
+                cache_miss_msg=f'缺失 {cache_dict_name} ' + '← [{}]',
+            )(func)
+
+            setattr(self, func_name, wrap_func)
+
+        wrap_func_cache('get_photo_detail', 'album_cache_dict')
+        wrap_func_cache('get_album_detail', 'photo_cache_dict')
 
 
 # 爬取策略

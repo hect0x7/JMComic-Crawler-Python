@@ -55,7 +55,7 @@ class Test_Api(JmTestConfigurable):
                                       photo_detail: JmPhotoDetail,
                                       index: int,
                                       ) -> StrNone:
-                return workspace(f'{time_stamp()}_{photo_detail[index].img_file_name}.test.png')
+                return workspace(f'advice_{photo_detail[index].img_file_name}.test.png')
 
         option = self.option
         option.register_advice(MyAdvice())
