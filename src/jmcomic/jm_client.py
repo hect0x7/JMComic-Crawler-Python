@@ -158,7 +158,7 @@ class JmcomicClient(PostmanProxy):
         return data_original.endswith('.gif')
 
     # noinspection PyAttributeOutsideInit
-    def enable_cache(self):
+    def enable_cache(self, debug=False):
         def wrap_func_cache(func_name, cache_dict_name):
             if hasattr(self, cache_dict_name):
                 return
@@ -168,10 +168,14 @@ class JmcomicClient(PostmanProxy):
 
             # 重载本对象的方法
             func = getattr(self, func_name)
+
+            cache_hit_msg = f'【缓存命中】{cache_dict_name} ' + '→ [{}]' if debug is True else None
+            cache_miss_msg = f'【缓存缺失】{cache_dict_name} ' + '← [{}]' if debug is True else None
+
             wrap_func = enable_cache(
                 cache_dict=cache_dict,
-                cache_hit_msg=f'【缓存命中】{cache_dict_name} ' + '→ [{}]',
-                cache_miss_msg=f'【缓存缺失】{cache_dict_name} ' + '← [{}]',
+                cache_hit_msg=cache_hit_msg,
+                cache_miss_msg=cache_miss_msg,
             )(func)
 
             setattr(self, func_name, wrap_func)
