@@ -239,7 +239,7 @@ class JmAlbumDetail(WorkEntity):
             title=photo_title,
             keywords='',
             series_id=self.album_id,
-            sort=episode_info[1],
+            sort=episode_info[1] if len(self) != 1 else 1,
             author=self.author,
             from_album=self,
             page_arr=None,
