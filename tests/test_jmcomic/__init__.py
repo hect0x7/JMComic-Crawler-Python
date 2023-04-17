@@ -11,8 +11,6 @@ from jmcomic import *
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, 'utf-8')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, 'utf-8')
 
-print(JmModuleConfig.get_jmcomic_url())
-
 
 class JmTestConfigurable(unittest.TestCase):
     option: JmOption = None
