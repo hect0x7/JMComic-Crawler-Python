@@ -142,8 +142,8 @@ class JmcomicClient(PostmanProxy):
                                   f'响应文本过长(len={len(resp.text)})，不打印')
                                  )
 
-        if is_api is True and resp.text.strip() == JmModuleConfig.JM_SERVER_ERROR_HTML:
-            raise AssertionError("【JM异常】Could not connect to mysql! Please check your database settings!")
+        if is_api is True:
+            JmModuleConfig.check_html(resp.text.strip(), url)
 
         return resp
 
@@ -170,8 +170,8 @@ class JmcomicClient(PostmanProxy):
             func = getattr(self, func_name)
             wrap_func = enable_cache(
                 cache_dict=cache_dict,
-                cache_hit_msg=f'命中 {cache_dict_name} ' + '→ [{}]]',
-                cache_miss_msg=f'缺失 {cache_dict_name} ' + '← [{}]',
+                cache_hit_msg=f'【缓存命中】{cache_dict_name} ' + '→ [{}]',
+                cache_miss_msg=f'【缓存缺失】{cache_dict_name} ' + '← [{}]',
             )(func)
 
             setattr(self, func_name, wrap_func)

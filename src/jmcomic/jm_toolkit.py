@@ -29,8 +29,8 @@ class JmcomicText:
 
     # album 作者
     pattern_html_album_author_list = [
-        compile('作者： <span itemprop="author" data-type="author">(\s*<a.*?>(.*?)</a>)*\s*</span>'),
-        compile("<a.*?>(.*?)</a>"),
+        compile('作者： *<span itemprop="author" data-type="author">([\s\S]*?)</span>'),
+        compile("<a[\s\S]*?>(.*?)</a>"),
     ]
 
     @classmethod
@@ -127,7 +127,8 @@ class JmcomicText:
             field_value = match_field(field_name, pattern_value, html)
 
             if field_value is None:
-                raise AssertionError(f"文本没有匹配上字段：字段名为{field_name}，pattern为cls.{pattern_name}")
+                write_text('./resp.txt', html)  # debug
+                raise AssertionError(f"文本没有匹配上字段：字段名为'{field_name}'，pattern: [{pattern_value.pattern}]")
 
             # 保存字段
             field_dict[field_name] = field_value

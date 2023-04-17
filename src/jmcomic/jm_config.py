@@ -5,8 +5,13 @@ class JmModuleConfig:
     JM_REDIRECT_URL = f'{PROT}jm365.xyz/3YeBdF'  # 永久網域，怕走失的小伙伴收藏起来
     JM_PUB_URL = f'{PROT}jmcomic1.bet'
     JM_CDN_IMAGE_URL_TEMPLATE = PROT + 'cdn-msp.{domain}/media/photos/{photo_id}/{index:05}{suffix}'  # index 从1开始
-    JM_SERVER_ERROR_HTML = "Could not connect to mysql! Please check your database settings!"
     JM_IMAGE_SUFFIX = ['.jpg', '.webp', '.png', '.gif']
+
+    # 访问JM可能会遇到的异常网页
+    JM_ERROR_RESPONSE_HTML = {
+        "Could not connect to mysql! Please check your database settings!": "禁漫服务器内部报错",
+        "Restricted Access!": "禁漫拒绝你所在ip地区的访问，你可以选择: 换域名/换代理",
+    }
 
     # 图片分隔相关
     SCRAMBLE_0 = 220980
@@ -73,15 +78,22 @@ class JmModuleConfig:
         """
         if postman is None:
             from common import Postmans
-            postman = Postmans.get_impl_clazz('cffi') \
+            postman = Postmans \
+                .get_impl_clazz('cffi') \
                 .create(headers=cls.headers(cls.JM_REDIRECT_URL))
 
-        domain = postman.with_wrap_resp() \
-            .get(cls.JM_REDIRECT_URL, allow_redirects=False) \
-            .redirect_url
-
-        cls.jm_debug('获取禁漫地址', f'获取成功，最新可用的禁漫地址: {domain}')
+        domain = postman.with_redirect_catching().get(cls.JM_REDIRECT_URL)
+        cls.jm_debug('获取禁漫地址', f'[{cls.JM_REDIRECT_URL}] → [{domain}]')
         return domain
+
+    @classmethod
+    def check_html(cls, html: str, url=None):
+        html = html.strip()
+        error_msg = cls.JM_ERROR_RESPONSE_HTML.get(html, None)
+        if error_msg is None:
+            return
+
+        raise AssertionError(f'{error_msg}' + f': {url}' if url is not None else '')
 
 
 jm_debug = JmModuleConfig.jm_debug
