@@ -11,7 +11,8 @@ download_multi_thread_photo_len_limit: 35
 download_use_disk_cache: true
 
 client_config:
-  domain: null # null表明动态获取最新可用的禁漫域名
+#   domain: null # null表明动态获取最新可用的禁漫域名
+  domain: 18comic.vip
   retry_times: 5 # 请求失败时，重试的次数，配个正数就行，不配默认是5
   postman_type: cffi
   postman_type_list:
