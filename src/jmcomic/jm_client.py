@@ -102,8 +102,8 @@ class JmcomicClient(PostmanProxy):
         # 检查 page_arr 和 data_original_domain
         if photo_detail.page_arr is None or photo_detail.data_original_domain is None:
             new = self.get_photo_detail(photo_detail.photo_id, False)
-            photo_detail.page_arr = new.page_arr
-            photo_detail.data_original_domain = new.data_original_domain
+            new.from_album = photo_detail.from_album
+            photo_detail.__dict__.update(new.__dict__)
 
     # -- search --
 
