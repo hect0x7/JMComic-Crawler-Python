@@ -78,9 +78,7 @@ class JmModuleConfig:
         """
         if postman is None:
             from common import Postmans
-            postman = Postmans \
-                .get_impl_clazz('cffi') \
-                .create(headers=cls.headers(cls.JM_REDIRECT_URL))
+            postman = Postmans.get_impl_clazz('cffi_Session').create()
 
         domain = postman.with_redirect_catching().get(cls.JM_REDIRECT_URL)
         cls.jm_debug('获取禁漫地址', f'[{cls.JM_REDIRECT_URL}] → [{domain}]')
