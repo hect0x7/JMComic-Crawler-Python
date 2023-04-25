@@ -4,6 +4,7 @@
 --------------------
 """
 import jmcomic  # 导入此模块，需要先安装.
+
 jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载整个album到本地.
 # 上面的这行代码，还有一个可选参数option: JmOption，表示配置项，
 # 配置项的作用是告诉程序下载时候的一些选择，
@@ -22,6 +23,22 @@ jmcomic.download_album(['422866', '1', '2', '3'])  # list
 jmcomic.download_album({'422866', '1', '2', '3'})  # set
 jmcomic.download_album(('422866', '1', '2', '3'))  # tuple
 jmcomic.download_album(aid for aid in ('422866', '1', '2', '3'))  # 生成器
+
+
+"""
+--------------------
+    获取域名介绍
+--------------------
+"""
+
+# 方式1: 访问禁漫发布页
+url_ls = jmcomic.JmModuleConfig.get_jmcomic_url_all()
+print(url_ls)
+
+# 方式2（可能会报错，需要你自己配置梯子）
+url = jmcomic.JmModuleConfig.get_jmcomic_url()
+print(url)
+
 
 """
 --------------------

@@ -113,3 +113,8 @@ class Test_Api(JmTestConfigurable):
                 sorted([ans.sort for ans in photo_ls]),
                 album.album_id
             )
+
+    def test_get_jmcomic_url(self):
+        print(JmModuleConfig.get_jmcomic_url_all())
+        print(self.client.get_jmcomic_url())
+        print(self.client.get_jmcomic_url_all())
