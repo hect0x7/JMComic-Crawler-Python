@@ -6,6 +6,7 @@ from .jm_entity import *
 class JmcomicText:
     pattern_jm_domain = compile('https://([\w.-]+)')
     pattern_jm_pa_id = compile('/(photos?|album)/(\d+)')
+    pattern_html_jm_pub_domain = compile('[\w-]+\.\w+/?\w+')
 
     pattern_html_photo_photo_id = compile('<meta property="og:url" content=".*?/photo/(\d+)/?.*?">')
     pattern_html_photo_scramble_id = compile('var scramble_id = (\d+);')
@@ -72,6 +73,15 @@ class JmcomicText:
     @classmethod
     def parse_to_album_id(cls, text) -> str:
         return cls.parse_to_photo_id(text)
+
+    @classmethod
+    def analyse_jm_pub_html(cls, html: str, domain_keyword=('jm', 'comic')) -> List[str]:
+        domain_ls = cls.pattern_html_jm_pub_domain.findall(html)
+
+        return list(filter(
+            lambda domain: any(kw in domain for kw in domain_keyword),
+            domain_ls
+        ))
 
     @classmethod
     def analyse_jm_photo_html(cls, html: str) -> JmPhotoDetail:

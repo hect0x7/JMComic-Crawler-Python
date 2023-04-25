@@ -183,6 +183,12 @@ class JmcomicClient(PostmanProxy):
         wrap_func_cache('get_photo_detail', 'album_cache_dict')
         wrap_func_cache('get_album_detail', 'photo_cache_dict')
 
+    def get_jmcomic_url(self, postman=None):
+        return JmModuleConfig.get_jmcomic_url(postman or self)
+
+    def get_jmcomic_url_all(self, postman=None):
+        return JmModuleConfig.get_jmcomic_url_all(postman or self)
+
 
 # 爬取策略
 class FetchStrategy:

@@ -74,15 +74,33 @@ class JmModuleConfig:
     @classmethod
     def get_jmcomic_url(cls, postman=None):
         """
-        访问禁漫的永久网域，从而得到一个可用的禁漫网址，
+        访问禁漫的永久网域，从而得到一个可用的禁漫网址
+        @return: https://jm-comic2.cc
         """
         if postman is None:
             from common import Postmans
             postman = Postmans.get_impl_clazz('cffi_Session').create()
 
-        domain = postman.with_redirect_catching().get(cls.JM_REDIRECT_URL)
-        cls.jm_debug('获取禁漫地址', f'[{cls.JM_REDIRECT_URL}] → [{domain}]')
-        return domain
+        url = postman.with_redirect_catching().get(cls.JM_REDIRECT_URL)
+        cls.jm_debug('获取禁漫地址', f'[{cls.JM_REDIRECT_URL}] → [{url}]')
+        return url
+
+    @classmethod
+    def get_jmcomic_url_all(cls, postman=None):
+        """
+        访问禁漫发布页，得到所有禁漫的域名
+        @return：['18comic.vip', ..., 'jm365.xyz/ZNPJam'], 最后一个是【APP軟件下載】
+        """
+        if postman is None:
+            from common import Postmans
+            postman = Postmans.get_impl_clazz('cffi').create()
+
+        resp = postman.get(cls.JM_PUB_URL)
+        if resp.status_code != 200:
+            raise AssertionError(resp.text)
+
+        from .jm_toolkit import JmcomicText
+        return JmcomicText.analyse_jm_pub_html(resp.text)
 
     @classmethod
     def check_html(cls, html: str, url=None):

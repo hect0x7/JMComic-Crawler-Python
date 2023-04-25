@@ -16,7 +16,6 @@
 * 本地安装
 
   ```shell
-  cd ./modules/core/
   pip install -e ./
   ```
 
