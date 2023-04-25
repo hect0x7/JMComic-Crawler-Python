@@ -115,6 +115,6 @@ class Test_Api(JmTestConfigurable):
             )
 
     def test_get_jmcomic_url(self):
-        JmModuleConfig.get_jmcomic_url_all()
+        print(JmModuleConfig.get_jmcomic_url_all())
         print(self.client.get_jmcomic_url())
         print(self.client.get_jmcomic_url_all())
