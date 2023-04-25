@@ -35,7 +35,7 @@ jmcomic.download_album(aid for aid in ('422866', '1', '2', '3'))  # 生成器
 url_ls = jmcomic.JmModuleConfig.get_jmcomic_url_all()
 print(url_ls)
 
-# 方式2（可能会报错，因为你自己配置梯子）
+# 方式2（可能会报错，需要你自己配置梯子）
 url = jmcomic.JmModuleConfig.get_jmcomic_url()
 print(url)
 
