@@ -25,9 +25,7 @@ def main():
             import os
             value = os.getenv(name, None)
 
-            if value is None:
-                return None
-            if len(value) == '':
+            if value is None or value == '':
                 return None
 
             return value
