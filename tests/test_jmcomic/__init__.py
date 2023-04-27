@@ -76,7 +76,7 @@ class JmTestConfigurable(unittest.TestCase):
 
     @classmethod
     def adapt_macos(cls):
-        cls.client.get_root_postman()['headers']['user-agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/27.0.1453.93 Safari/537.36'
+        cls.client.domain = JmModuleConfig.domain(cls.client)
 
     @classmethod
     def enable_client_cache(cls):
