@@ -20,9 +20,20 @@ def main():
         client.enable_cache()
 
         # 检查环境变量中是否有禁漫的用户名和密码，如果有则登录
-        from os import getenv
-        username = getenv('JM_USERNAME', None)
-        password = getenv('JM_PASSWORD', None)
+
+        def get_env(name):
+            import os
+            value = os.getenv(name, None)
+
+            if value is None:
+                return None
+            if len(value) == '':
+                return None
+
+            return value
+
+        username = get_env('JM_USERNAME')
+        password = get_env('JM_PASSWORD')
 
         if username is not None and password is not None:
             client.login(username, password, True)
