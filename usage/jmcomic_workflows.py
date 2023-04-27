@@ -9,7 +9,7 @@ jm_albums = '''
 
 
 def main():
-    from jmcomic import create_option, str_to_list, download_album
+    from jmcomic import create_option, str_to_list, download_album, print_eye_catching
 
     def get_option():
         # 读取 option 配置文件
@@ -26,6 +26,7 @@ def main():
 
         if username is not None and password is not None:
             client.login(username, password, True)
+            print_eye_catching('登录禁漫成功')
 
         return option
 
