@@ -26,7 +26,7 @@ def main():
 
         if username is not None and password is not None:
             client.login(username, password, True)
-            print_eye_catching(f'登录禁漫成功 {username}:{password}')
+            print_eye_catching(f'登录禁漫成功')
 
         return option
 
