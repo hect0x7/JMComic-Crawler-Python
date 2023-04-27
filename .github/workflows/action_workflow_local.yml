@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  crawler:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

@@ -102,15 +102,6 @@ class JmModuleConfig:
         from .jm_toolkit import JmcomicText
         return JmcomicText.analyse_jm_pub_html(resp.text)
 
-    @classmethod
-    def check_html(cls, html: str, url=None):
-        html = html.strip()
-        error_msg = cls.JM_ERROR_RESPONSE_HTML.get(html, None)
-        if error_msg is None:
-            return
-
-        raise AssertionError(f'{error_msg}' + f': {url}' if url is not None else '')
-
 
 jm_debug = JmModuleConfig.jm_debug
 disable_jm_debug = JmModuleConfig.disable_jm_debug

@@ -58,3 +58,10 @@ class Test_Client(JmTestConfigurable):
         image = photo_detail[3000]
         print(image.img_url)
         self.client.download_by_image_detail(image, workspace('3000.png'))
+
+    def test_album_missing(self):
+        self.assertRaises(
+            AssertionError,
+            self.client.get_album_detail,
+            '332583'
+        )

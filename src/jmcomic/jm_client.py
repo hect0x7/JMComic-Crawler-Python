@@ -141,9 +141,12 @@ class JmcomicClient(PostmanProxy):
                                  (f"响应文本=[{resp.text}]" if len(resp.text) < 50 else
                                   f'响应文本过长(len={len(resp.text)})，不打印')
                                  )
+        # 图片请求，直接返回
+        if is_api is False:
+            return resp
 
-        if is_api is True:
-            JmModuleConfig.check_html(resp.text.strip(), url)
+        # 检查请求是否成功
+        self.require_resp_success_else_raise(resp, url)
 
         return resp
 
@@ -188,6 +191,27 @@ class JmcomicClient(PostmanProxy):
 
     def get_jmcomic_url_all(self, postman=None):
         return JmModuleConfig.get_jmcomic_url_all(postman or self)
+
+    @classmethod
+    def require_resp_success_else_raise(cls, resp, url):
+        # 1. 是否 album_missing
+        if resp.url.endswith('/error/album_missing'):
+            raise AssertionError(f'请求的本子不存在！({url})\n'
+                                 '原因可能为:\n'
+                                 '1. id有误，检查你的本子/章节id\n'
+                                 '2. 该漫画只对登录用户可见，请配置你的cookies\n')
+
+        # 2. 是否是特殊html页
+        cls.check_special_html(resp.text.strip(), url)
+
+    @classmethod
+    def check_special_html(cls, html: str, url=None):
+        html = html.strip()
+        error_msg = JmModuleConfig.JM_ERROR_RESPONSE_HTML.get(html, None)
+        if error_msg is None:
+            return
+
+        raise AssertionError(f'{error_msg}' + f': {url}' if url is not None else '')
 
 
 # 爬取策略
