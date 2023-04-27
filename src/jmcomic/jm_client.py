@@ -192,6 +192,35 @@ class JmcomicClient(PostmanProxy):
     def get_jmcomic_url_all(self, postman=None):
         return JmModuleConfig.get_jmcomic_url_all(postman or self)
 
+    def login(self,
+              username,
+              password,
+              refresh_client_cookies=True,
+              id_remember='on',
+              login_remember='on',
+              ):
+
+        data = {
+            'username': username,
+            'password': password,
+            'id_remember': id_remember,
+            'login_remember': login_remember,
+            'submit_login': '',
+        }
+
+        resp = self.post(self.of_api_url('/login'),
+                         data=data,
+                         allow_redirects=False,
+                         )
+
+        if resp.status_code != 301:
+            raise AssertionError(f'登录失败，状态码为{resp.status_code}')
+
+        if refresh_client_cookies is True:
+            self['cookies'] = resp.cookies
+
+        return resp
+
     @classmethod
     def require_resp_success_else_raise(cls, resp, url):
         # 1. 是否 album_missing
@@ -212,28 +241,3 @@ class JmcomicClient(PostmanProxy):
             return
 
         raise AssertionError(f'{error_msg}' + f': {url}' if url is not None else '')
-
-
-# 爬取策略
-class FetchStrategy:
-
-    def __init__(self,
-                 from_index,
-                 photo_len,
-                 resp_getter,
-                 resp_consumer,
-                 ):
-        self.from_index = from_index
-        self.photo_len = photo_len
-        self.resp_getter = resp_getter
-        self.resp_consumer = resp_consumer
-
-    def do_fetch(self):
-        raise NotImplementedError
-
-    def args(self):
-        return (self.from_index,
-                self.photo_len,
-                self.resp_getter,
-                self.resp_consumer,
-                )

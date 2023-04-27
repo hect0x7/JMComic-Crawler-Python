@@ -27,6 +27,10 @@ class JmcomicText:
     pattern_html_album_page_count = compile('<span class="pagecount">.*?:(\d+)</span>')
     pattern_html_album_pub_date = compile('>上架日期 : (.*?)</span>')
     pattern_html_album_update_date = compile('>更新日期 : (.*?)</span>')
+    pattern_html_album_keywords_list = [
+        compile('<span itemprop="genre" data-type="tags">([\s\S]*?)</span>'),
+        compile('<a[\s\S]*?>(.*?)</a>')
+    ]
 
     # album 作者
     pattern_html_album_author_list = [

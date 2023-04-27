@@ -8,14 +8,6 @@ class Test_Client(JmTestConfigurable):
         super().setUpClass()
         cls.move_workspace('download')
 
-    def test_download_from_cdn_directly(self):
-        photo_id = 'JM438516'
-        option = self.option
-        cdn_crawler = option.build_cdn_crawler()
-        cdn_crawler.download_photo_from_cdn_directly(
-            option.build_cdn_request(photo_id),
-        )
-
     def test_download_image(self):
         jm_photo_id = 'JM438516'
         photo_detail = self.client.get_photo_detail(jm_photo_id)

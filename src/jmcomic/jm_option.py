@@ -1,4 +1,4 @@
-from .jm_service import *
+from .jm_client import *
 
 
 class JmOptionAdvice:
@@ -430,58 +430,6 @@ class JmOption(SaveableEntity):
         )
 
         return client
-
-    """
-    下面的方法是对【CdnOption】的支持，已弃用
-    """
-
-    def build_cdn_option(self, use_multi_thread_strategy=True):
-
-        return CdnConfig.create(
-            cdn_domain=self.client_config.get('domain', JmModuleConfig.domain()),
-            fetch_strategy=MultiThreadFetch if use_multi_thread_strategy else InOrderFetch,
-            cdn_image_suffix=None,
-            use_cache=self.download_use_disk_cache,
-            decode_image=self.download_image_then_decode
-        )
-
-    def build_cdn_crawler(self, use_multi_thread_strategy=True):
-        return CdnFetchService(self.build_cdn_option(use_multi_thread_strategy),
-                               self.build_jm_client())
-
-    def build_cdn_request(self,
-                          photo_id: str,
-                          scramble_id=str(JmModuleConfig.SCRAMBLE_10),
-                          from_index=1,
-                          photo_len=None,
-                          use_default=False
-                          ) -> CdnRequest:
-        return CdnRequest.create(
-            photo_id,
-            self.build_save_path_provider(use_default, None if use_default else photo_id),
-            scramble_id,
-            from_index,
-            photo_len,
-        )
-
-    def build_save_path_provider(self,
-                                 use_all_default_save_path,
-                                 photo_id=None,
-                                 ) -> CdnRequest.SavePathProvider:
-
-        if use_all_default_save_path is True:
-            # 不通过请求获取 photo 的信息，相当于使用【空本子】和【空集】
-            photo_detail = None
-        else:
-            # 通过请求获得 photo 的本子信息
-            photo_detail = self.build_jm_client().get_photo_detail(photo_id)
-
-        def save_path_provider(url, _suffix: str, _index, _is_decode):
-            return '{0}{1}{2}'.format(self.decide_image_save_dir(photo_detail),
-                                      of_file_name(url, trim_suffix=True),
-                                      self.download_convert_image_suffix or _suffix)
-
-        return save_path_provider
 
 
 def _register_yaml_constructor():
