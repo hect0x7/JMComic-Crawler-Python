@@ -36,6 +36,9 @@ jobs:
           pip install -e ./
 
       - name: 运行下载脚本
+        env:
+          JM_USERNAME: ${{ secrets.JM_USERNAME }}
+          JM_PASSWORD: ${{ secrets.JM_PASSWORD }}
         run: |
           cd ./usage/
           python jmcomic_workflows.py

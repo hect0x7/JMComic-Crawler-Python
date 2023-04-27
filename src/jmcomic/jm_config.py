@@ -38,7 +38,8 @@ class JmModuleConfig:
         这样一来，配置文件也不用配置域名了，一切都在运行时动态获取。
         """
         if cls._DOMAIN is None:
-            cls._DOMAIN = cls.get_jmcomic_url(postman).replace(cls.PROT, '')
+            from .jm_toolkit import JmcomicText
+            cls._DOMAIN = JmcomicText.parse_to_jm_domain(cls.get_jmcomic_url(postman))
 
         return cls._DOMAIN  # jmcomic默认域名
 
@@ -81,7 +82,8 @@ class JmModuleConfig:
             from common import Postmans
             postman = Postmans.get_impl_clazz('cffi_Session').create()
 
-        url = postman.with_redirect_catching().get(cls.JM_REDIRECT_URL)
+        resp = postman.get(cls.JM_REDIRECT_URL)
+        url = resp.url
         cls.jm_debug('获取禁漫地址', f'[{cls.JM_REDIRECT_URL}] → [{url}]')
         return url
 
