@@ -20,6 +20,4 @@ client_config:
     - cffi
     - cffi_Session
   meta_data:
-    proxies: null
-    allow_redirects: true
     cookies: null
