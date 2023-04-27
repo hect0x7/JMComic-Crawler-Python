@@ -62,6 +62,6 @@ class Test_Client(JmTestConfigurable):
     def test_album_missing(self):
         self.assertRaises(
             AssertionError,
-            self.client.get,
+            self.client.get_album_detail,
             '332583'
         )
