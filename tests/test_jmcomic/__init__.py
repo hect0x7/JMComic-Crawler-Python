@@ -76,7 +76,7 @@ class JmTestConfigurable(unittest.TestCase):
 
     @classmethod
     def adapt_macos(cls):
-        cls.client.domain = JmModuleConfig.domain(cls.client)
+        pass
 
     @classmethod
     def enable_client_cache(cls):
