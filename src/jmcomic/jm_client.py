@@ -208,10 +208,12 @@ class JmcomicClient(PostmanProxy):
             'submit_login': '',
         }
 
-        resp = self.post(self.of_api_url('/login'),
-                         data=data,
-                         allow_redirects=False,
-                         )
+        resp = self \
+            .get_root_postman() \
+            .post(self.of_api_url('/login'),
+                  data=data,
+                  allow_redirects=False,
+                  )
 
         if resp.status_code != 301:
             raise AssertionError(f'登录失败，状态码为{resp.status_code}')
