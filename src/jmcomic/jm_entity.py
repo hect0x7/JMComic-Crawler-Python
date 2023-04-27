@@ -126,7 +126,10 @@ class JmPhotoDetail(WorkEntity):
         return self._series_id == 0
 
     @property
-    def keyword_list(self) -> List[str]:
+    def keywords(self) -> List[str]:
+        if self.from_album is not None:
+            return self.from_album.keywords
+
         return self._keywords.split(',')
 
     @property
@@ -204,6 +207,7 @@ class JmAlbumDetail(WorkEntity):
                  episode_list,
                  page_count,
                  author_list,
+                 keywords_list,
                  pub_date,
                  update_date,
                  ):
@@ -212,6 +216,7 @@ class JmAlbumDetail(WorkEntity):
         self.title: str = title
         self.page_count = int(page_count)
         self._author_list: List[str] = author_list
+        self._keywords_list: List[str] = keywords_list
         self.pub_date: str = pub_date  # 发布日期
         self.update_date: str = update_date  # 更新日期
 
@@ -253,6 +258,10 @@ class JmAlbumDetail(WorkEntity):
         if len(self._author_list) >= 1:
             return self._author_list[0]
         return JmModuleConfig.default_author
+
+    @property
+    def keywords(self) -> List[str]:
+        return self._keywords_list
 
     def get_id(self):
         return self.album_id

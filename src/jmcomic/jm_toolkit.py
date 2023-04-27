@@ -13,7 +13,7 @@ class JmcomicText:
     pattern_html_photo_title = compile('<title>(.*?)\|.*</title>')
     # pattern_html_photo_data_original_list = compile('data-original="(.*?)" id="album_photo_.+?"')
     pattern_html_photo_data_original_domain = compile('src="https://(.*?)/media/albums/blank')
-    pattern_html_photo_keywords = compile('<meta name="keywords" content="(.*?)" />')
+    pattern_html_photo_keywords = compile('<meta name="keywords"[\s\S]*?content="(.*?)"')
     pattern_html_photo_series_id = compile('var series_id = (\d+);')
     pattern_html_photo_sort = compile('var sort = (\d+);')
     pattern_html_photo_page_arr = compile('var page_arr = (.*?);')
@@ -27,6 +27,10 @@ class JmcomicText:
     pattern_html_album_page_count = compile('<span class="pagecount">.*?:(\d+)</span>')
     pattern_html_album_pub_date = compile('>上架日期 : (.*?)</span>')
     pattern_html_album_update_date = compile('>更新日期 : (.*?)</span>')
+    pattern_html_album_keywords_list = [
+        compile('<span itemprop="genre" data-type="tags">([\s\S]*?)</span>'),
+        compile('<a[\s\S]*?>(.*?)</a>')
+    ]
 
     # album 作者
     pattern_html_album_author_list = [
