@@ -80,6 +80,9 @@ class DownloadDirTree:
     # 根目录 / Photo号 / 图片文件
     Bd_Id_Image = 5
 
+    # 根目录 / AlbumId / Photo序号 / 图片文件
+    Bd_Id_Index_image = 6  # 禁漫网站的默认下载方式
+
     AdditionalHandler = Callable[
         ['DownloadDirTree', Optional[JmAlbumDetail], JmPhotoDetail],
         str
@@ -162,6 +165,10 @@ class DownloadDirTree:
             # 根目录 / Photo号 / 图片文件
 
             return dirpath(None, photo_dir(4))
+
+        elif flag == 6:
+            # 根目录 / AlbumId / Photo序号 / 图片文件
+            return dirpath(photo.album_id, str(photo.album_index))
 
         else:
             if flag in self.additional_tree_flag_handler_mapping:
