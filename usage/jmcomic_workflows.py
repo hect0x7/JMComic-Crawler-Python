@@ -1,8 +1,7 @@
 # 下方填入你要下载的本子的id，一行一个。
 # 每行的首尾可以有空白字符
 jm_albums = '''
-380460
-
+438696
 
 
 '''
@@ -20,6 +19,12 @@ def main():
         client.enable_cache()
 
         # 检查环境变量中是否有禁漫的用户名和密码，如果有则登录
+        # 禁漫的大部分本子，下载是不需要登录的，少部分敏感题材需要登录
+        # 如果你希望以登录状态下载本子，你需要自己配置一下Github Actions的 `secrets`
+        # 配置的方式很简单，网页上点一点就可以了
+        # 具体做法请去看官方教程：https://docs.github.com/en/actions/security-guides/encrypted-secrets
+
+        # 萌新注意！！！如果你想 `开源` 你的禁漫帐号，你也可以直接把账号密码写到下面的代码😅
 
         def get_env(name):
             import os

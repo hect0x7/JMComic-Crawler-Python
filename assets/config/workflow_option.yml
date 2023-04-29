@@ -21,3 +21,4 @@ client_config:
     - cffi_Session
   meta_data:
     cookies: null
+    impersonate: chrome110
