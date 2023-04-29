@@ -2,7 +2,7 @@ name: 下载JM本子
 
 on:
   push:
-    branches: &b [ 'workflow', 'workflow_local' ]
+    branches: [ 'workflow', 'workflow_local' ]
     paths:
       - '.github/workflows/*.yml' # 工作流定义
       - 'usage/**/*.py' # 工作流脚本
@@ -10,7 +10,7 @@ on:
       - 'src/**/*.py' # 源码
 
   pull_request:
-    branches: *b
+    branches: [ 'workflow', 'workflow_local' ]
 
 jobs:
   crawler:
