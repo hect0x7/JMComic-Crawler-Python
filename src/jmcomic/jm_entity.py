@@ -305,37 +305,3 @@ class JmSearchPage(IterableEntity):
 
     def __getitem__(self, item):
         return self.data[item]
-
-
-# cdn爬取请求
-class CdnRequest:
-    SavePathProvider = Callable[[str, str, int, bool], str]
-
-    def __init__(self,
-                 photo_id,
-                 scramble_id,
-                 from_index: int,
-                 photo_len: Optional[int],
-                 save_path_provider: SavePathProvider,
-                 ):
-        self.photo_id = photo_id
-        self.scramble_id = scramble_id
-        self.from_index = from_index
-        self.photo_len = photo_len
-        self.save_path_provider = save_path_provider
-
-    @classmethod
-    def create(cls,
-               photo_id,
-               save_path_provider: SavePathProvider,
-               scramble_id,
-               from_index=1,
-               photo_len=None,
-               ):
-        return CdnRequest(
-            photo_id,
-            scramble_id,
-            from_index,
-            photo_len,
-            save_path_provider,
-        )

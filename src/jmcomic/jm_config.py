@@ -1,3 +1,7 @@
+def default_jm_debug(topic: str, msg: str):
+    print(f'【{topic}】{msg}')
+
+
 class JmModuleConfig:
     # 网站相关
     PROT = "https://"
@@ -25,7 +29,7 @@ class JmModuleConfig:
 
     # debug
     enable_jm_debug = True
-    debug_printer = print
+    debug_executor = default_jm_debug
 
     # 缓存
     jm_client_caches = {}
@@ -64,9 +68,9 @@ class JmModuleConfig:
 
     # noinspection PyUnusedLocal
     @classmethod
-    def jm_debug(cls, topic: str, msg: str, from_class=None):
+    def jm_debug(cls, topic: str, msg: str):
         if cls.enable_jm_debug is True:
-            cls.debug_printer(f'【{topic}】{msg}')
+            cls.debug_executor(topic, msg)
 
     @classmethod
     def disable_jm_debug(cls):

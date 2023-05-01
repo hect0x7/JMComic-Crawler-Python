@@ -1,4 +1,4 @@
-from .jm_client import *
+from .jm_client_impl import *
 
 
 class JmOptionAdvice:
@@ -369,7 +369,7 @@ class JmOption(SaveableEntity):
 
         return client
 
-    def new_jm_client(self) -> JmcomicClient:
+    def new_jm_client(self) -> HtmlImplClient:
         meta_data = self.client_config['meta_data']
         postman_clazz = Postmans.get_impl_clazz(self.client_config.get('postman_type', 'cffi'))
         proxies = None
@@ -427,10 +427,10 @@ class JmOption(SaveableEntity):
         # 4. 创建 postman
         handle_postman()
 
-        jm_debug('创建JmcomicClient', f'使用域名: {domain}，使用Postman实现: {postman_clazz}')
+        jm_debug('option', f'New Client → [{domain}], impl: {postman_clazz}')
 
-        # 创建 JmcomicClient 对象
-        client = JmcomicClient(
+        # 创建 JmHtmlClient 对象
+        client = HtmlImplClient(
             postman=postman,
             domain=domain,
             retry_times=self.client_config.get('retry_times', None)

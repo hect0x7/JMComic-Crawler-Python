@@ -207,7 +207,7 @@ class JmImageSupport:
                               filepath: str
                               ) -> None:
         cls.decode_and_save(
-            cls.calculate_segmentation_num(img_detail),
+            cls.get_num_by_detail(img_detail),
             cls.open_Image(resp.content),
             filepath
         )
@@ -219,7 +219,7 @@ class JmImageSupport:
                         decoded_save_path: str
                         ) -> None:
         cls.decode_and_save(
-            cls.calculate_segmentation_num(img_detail),
+            cls.get_num_by_detail(img_detail),
             cls.open_Image(img_filepath),
             decoded_save_path
         )
@@ -275,12 +275,13 @@ class JmImageSupport:
         return Image.open(fp)
 
     @classmethod
-    def calculate_segmentation_num(cls, detail: JmImageDetail) -> int:
+    def get_num(cls, scramble_id, aid, filename: str) -> int:
         """
         获得图片分割数
         """
-        scramble_id = int(detail.scramble_id)
-        aid = int(detail.aid)
+
+        scramble_id = int(scramble_id)
+        aid = int(aid)
 
         if aid < scramble_id:
             return 0
@@ -289,10 +290,28 @@ class JmImageSupport:
         else:
             import hashlib
             x = 10 if aid < JmModuleConfig.SCRAMBLE_NUM_8 else 8
-            s = f"{aid}{detail.img_file_name}"  # 拼接
+            s = f"{aid}{filename}"  # 拼接
             s = s.encode()
             s = hashlib.md5(s).hexdigest()
             num = ord(s[-1])
             num %= x
             num = num * 2 + 2
             return num
+
+    @classmethod
+    def get_num_by_url(cls, scramble_id, url) -> int:
+        """
+        获得图片分割数
+        """
+        return cls.get_num(
+            scramble_id,
+            aid=JmcomicText.parse_to_photo_id(url),
+            filename=of_file_name(url),
+        )
+
+    @classmethod
+    def get_num_by_detail(cls, detail: JmImageDetail) -> int:
+        """
+        获得图片分割数
+        """
+        return cls.get_num(detail.scramble_id, detail.aid, detail.img_file_name)
