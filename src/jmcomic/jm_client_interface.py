@@ -11,7 +11,7 @@ class JmResp(CommonResp):
 
     @property
     def is_success(self) -> bool:
-        return self.http_code == 200 and len(self.content) == 0
+        return self.http_code == 200 and len(self.content) != 0
 
 
 class JmImageResp(JmResp):
