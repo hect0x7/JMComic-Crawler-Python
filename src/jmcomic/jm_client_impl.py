@@ -54,6 +54,7 @@ class AbstractJmClient(
 
         wrap_func_cache('get_photo_detail', 'album_cache_dict')
         wrap_func_cache('get_album_detail', 'photo_cache_dict')
+        wrap_func_cache('search_album', 'search_album_cache_dict')
 
 
 # 基于网页实现的JmClient
@@ -133,12 +134,10 @@ class HtmlImplClient(AbstractJmClient):
             'submit_login': '',
         }
 
-        resp = self \
-            .get_root_postman() \
-            .post(self.of_api_url('/login'),
-                  data=data,
-                  allow_redirects=False,
-                  )
+        resp = self.post(self.of_api_url('/login'),
+                         data=data,
+                         allow_redirects=False,
+                         )
 
         if resp.status_code != 301:
             raise AssertionError(f'登录失败，状态码为{resp.status_code}')

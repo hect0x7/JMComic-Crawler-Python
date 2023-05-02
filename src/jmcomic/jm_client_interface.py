@@ -28,12 +28,12 @@ class JmImageResp(JmResp):
 
         raise AssertionError(msg)
 
-    def transfer(self,
-                 path,
-                 scramble_id,
-                 decode_image=True,
-                 img_url=None,
-                 ):
+    def transfer_to(self,
+                    path,
+                    scramble_id,
+                    decode_image=True,
+                    img_url=None,
+                    ):
         img_url = img_url or self.url
 
         if decode_image is False:
@@ -52,7 +52,8 @@ class JmImageResp(JmResp):
             )
 
 
-class JmTextResp(JmResp):
+class JmApiResp(JmResp):
+
     pass
 
 
@@ -123,7 +124,7 @@ class JmImageClient:
         if self.img_is_not_need_to_decode(img_url, resp):
             JmImageSupport.save_resp_img(resp, img_save_path, False)
         else:
-            resp.transfer(img_save_path, scramble_id, decode_image, img_url)
+            resp.transfer_to(img_save_path, scramble_id, decode_image, img_url)
 
     def download_by_image_detail(self,
                                  img_detail: JmImageDetail,

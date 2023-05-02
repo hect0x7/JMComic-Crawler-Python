@@ -306,7 +306,7 @@ class JmImageSupport:
         return cls.get_num(
             scramble_id,
             aid=JmcomicText.parse_to_photo_id(url),
-            filename=of_file_name(url),
+            filename=of_file_name(url, True),
         )
 
     @classmethod
