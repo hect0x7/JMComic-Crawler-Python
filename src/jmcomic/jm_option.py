@@ -369,7 +369,7 @@ class JmOption(SaveableEntity):
 
         return client
 
-    def new_jm_client(self) -> HtmlImplClient:
+    def new_jm_client(self) -> JmHtmlClient:
         meta_data = self.client_config['meta_data']
         postman_clazz = Postmans.get_impl_clazz(self.client_config.get('postman_type', 'cffi'))
         proxies = None
@@ -430,7 +430,7 @@ class JmOption(SaveableEntity):
         jm_debug('option', f'New Client → [{domain}], impl: {postman_clazz}')
 
         # 创建 JmHtmlClient 对象
-        client = HtmlImplClient(
+        client = JmHtmlClient(
             postman=postman,
             domain=domain,
             retry_times=self.client_config.get('retry_times', None)

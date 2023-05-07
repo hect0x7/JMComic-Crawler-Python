@@ -58,7 +58,7 @@ class AbstractJmClient(
 
 
 # 基于网页实现的JmClient
-class HtmlImplClient(AbstractJmClient):
+class JmHtmlClient(AbstractJmClient):
     retry_postman_type = RetryPostman
 
     def __init__(self,
@@ -161,12 +161,12 @@ class HtmlImplClient(AbstractJmClient):
 
         if require_200 is True and resp.status_code != 200:
             write_text('./resp.html', resp.text)
+            self.check_special_http_code(resp.status_code, url)
             raise AssertionError(f"请求失败，"
                                  f"响应状态码为{resp.status_code}，"
                                  f"URL=[{resp.url}]，"
-                                 +
-                                 (f"响应文本=[{resp.text}]" if len(resp.text) < 50 else
-                                  f'响应文本过长(len={len(resp.text)})，不打印')
+                                 + (f"响应文本=[{resp.text}]" if len(resp.text) < 50 else
+                                    f'响应文本过长(len={len(resp.text)})，不打印')
                                  )
         # 检查请求是否成功
         self.require_resp_success_else_raise(resp, url)
@@ -185,14 +185,72 @@ class HtmlImplClient(AbstractJmClient):
                                  '1. id有误，检查你的本子/章节id\n'
                                  '2. 该漫画只对登录用户可见，请配置你的cookies\n')
 
-        # 2. 是否是特殊html页
-        cls.check_special_html(resp.text.strip(), url)
+        # 2. 是否是错误html页
+        cls.check_error_html(resp.text.strip(), url)
 
     @classmethod
-    def check_special_html(cls, html: str, url=None):
+    def check_error_html(cls, html: str, url=None):
         html = html.strip()
         error_msg = JmModuleConfig.JM_ERROR_RESPONSE_HTML.get(html, None)
         if error_msg is None:
             return
 
-        raise AssertionError(f'{error_msg}' + f': {url}' if url is not None else '')
+        raise AssertionError(f'{error_msg}'
+                             + (f': {url}' if url is not None else ''))
+
+    @classmethod
+    def check_special_http_code(cls, code, url=None):
+        error_msg = JmModuleConfig.JM_ERROR_STATUS_CODE.get(int(code), None)
+        if error_msg is None:
+            return
+
+        raise AssertionError(f"请求失败，"
+                             f"响应状态码为{code}，"
+                             f'原因为: [{error_msg}], '
+                             + (f'URL=[{url}]' if url is not None else '')
+                             )
+
+
+class JmApiClient(AbstractJmClient):
+    API_SEARCH = '/search'
+
+    def __init__(self,
+                 base_url,
+                 postman: Postman,
+                 retry_times=5,
+                 ):
+        super().__init__(postman, retry_times)
+        self.base_url: str = base_url
+
+    def search_album(self, search_query: str, main_tag=0) -> JmApiResp:
+        return self.get(
+            self.API_SEARCH,
+            params={
+                'search_query': search_query,
+            }
+        )
+
+    def get(self, url, concat_domain=True, **kwargs) -> JmApiResp:
+        api_url = self.of_api_url(url) if concat_domain else url
+
+        # set headers
+        headers, key_ts = self.headers_key_ts
+        kwargs.setdefault('headers', headers)
+
+        resp = super().get(api_url, **kwargs)
+        return JmApiResp.wrap(resp, key_ts)
+
+    @property
+    def headers_key_ts(self):
+        key_ts = time_stamp()
+        import hashlib
+        token = hashlib.md5(f"{key_ts}{JmModuleConfig.MAGIC_18COMICAPPCONTENT}".encode()).hexdigest()
+        return {
+            "token": token,
+            "tokenparam": f"{key_ts},1.5.2",
+            "user-agent": "okhttp/3.12.1",
+            "accept-encoding": "gzip",
+        }, key_ts
+
+    def of_api_url(self, api_path):
+        return self.base_url + api_path

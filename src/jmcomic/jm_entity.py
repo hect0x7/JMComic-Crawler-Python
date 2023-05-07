@@ -292,16 +292,12 @@ class JmAlbumDetail(WorkEntity):
 
 class JmSearchPage(IterableEntity):
 
-    def __init__(self, album_info_list) -> None:
+    def __init__(self, album_info_list):
         # (album_id, title, category_none, label_sub_none, tag_list)
-        self.data: List[Tuple[str, str, StrNone, StrNone, List[str]]] = album_info_list
-
-    def album_id_iter(self):
-        for album_info in self.data:
-            yield album_info[0]
+        self.album_info_list: List[Tuple[str, str, StrNone, StrNone, List[str]]] = album_info_list
 
     def __len__(self):
-        return len(self.data)
+        return len(self.album_info_list)
 
     def __getitem__(self, item):
-        return self.data[item]
+        return self.album_info_list[item][0:2]

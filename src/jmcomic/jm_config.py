@@ -17,10 +17,18 @@ class JmModuleConfig:
         "Restricted Access!": "禁漫拒绝你所在ip地区的访问，你可以选择: 换域名/换代理",
     }
 
+    JM_ERROR_STATUS_CODE = {
+        520: '520: Web server is returning an unknown error (禁漫服务器内部报错)',
+        524: '524: The origin web server timed out responding to this request. (禁漫服务器处理超时)',
+    }
+
     # 图片分隔相关
     SCRAMBLE_0 = 220980
     SCRAMBLE_10 = 268850
     SCRAMBLE_NUM_8 = 421926  # 2023-02-08后改了图片切割算法
+
+    # API的相关配置
+    MAGIC_18COMICAPPCONTENT = '18comicAPPContent'
 
     # 下载时的一些默认值
     default_author = 'default-author'

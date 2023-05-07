@@ -54,7 +54,65 @@ class JmImageResp(JmResp):
 
 class JmApiResp(JmResp):
 
-    pass
+    @classmethod
+    def wrap(cls, resp, key_ts):
+        if isinstance(resp, JmApiResp):
+            raise AssertionError('重复包装')
+
+        return cls(resp, key_ts)
+
+    def __init__(self, resp, key_ts):
+        super().__init__(resp)
+        self.key_ts = key_ts
+        self.cache_decode_data = None
+
+    @staticmethod
+    def parseData(text, time):
+        import hashlib
+        import base64
+        from Crypto.Cipher import AES
+        # key为时间+18comicAPPContent的md5结果
+        key = hashlib.md5(f"{time}18comicAPPContent".encode()).hexdigest().encode()
+        cipher = AES.new(key, AES.MODE_ECB)
+        # 先将数据进行base64解码
+        data = base64.b64decode(text)
+        # 再进行AES-ECB解密
+        paddedPlainText = cipher.decrypt(data)
+        # 将得到的数据进行Utf8解码
+        res = paddedPlainText.decode('utf-8')
+        # 得到的数据再末尾有一些乱码
+        i = len(res) - 1
+        while i >= 0 and res[i] == '\x0c':
+            i -= 1
+        return res[:i + 1]
+
+    @property
+    def decoded_data(self) -> str:
+        if self.cache_decode_data is None:
+            self.cache_decode_data = self.parseData(self.encoded_data, self.key_ts)
+
+        return self.cache_decode_data
+
+    @property
+    def encoded_data(self) -> str:
+        return self.json()['data']
+
+    @property
+    def res_data(self) -> Any:
+        self.require_success()
+        from json import loads
+        return loads(self.decoded_data)
+
+    def json(self, **kwargs) -> Dict:
+        return self.resp.json()
+
+    def model(self) -> DictModel:
+        return DictModel(self.json())
+
+    @property
+    def model_data(self) -> DictModel:
+        self.require_success()
+        return DictModel(self.res_data)
 
 
 """
