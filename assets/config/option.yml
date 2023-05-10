@@ -1,0 +1,24 @@
+version: '2.0'
+debug: true
+
+dir_rule:
+  base_dir: ${workspace}/download/
+  rule: Bd_Ptitle
+
+client:
+  domain: []
+  impl: html
+  postman:
+    meta_data:
+      cookies: null
+      impersonate: chrome110
+    type: cffi
+  retry_times: 5
+
+download:
+  cache: true
+  image:
+    decode: true
+    suffix: .jpg
+  threading:
+    batch_count: 30

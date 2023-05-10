@@ -48,7 +48,7 @@ jobs:
           JM_PASSWORD: ${{ secrets.JM_PASSWORD }}
         run: |
           cd ./usage/
-          python jmcomic_github_actions.py
+          python jmcomic_workflow_download.py
 
       - name: 压缩下载的漫画
         run: |

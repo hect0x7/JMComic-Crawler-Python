@@ -9,7 +9,7 @@ jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载�
 # 上面的这行代码，还有一个可选参数option: JmOption，表示配置项，
 # 配置项的作用是告诉程序下载时候的一些选择，
 # 比如，要下载到哪个文件夹，使用怎样的路径组织方式（比如[/作者/本子id/图片] 或者 [/作者/本子名称/图片]）.
-# 如果没有配置，则会使用 JmOption.default()，下载的路径是[当前工作文件夹/本子名称/图片].
+# 如果没有配置，则会使用 JmOption.default()，下载的路径是[当前工作文件夹/本子章节名称/图片].
 
 
 """
@@ -48,10 +48,10 @@ print(url)
 # 先获取默认的JmOption对象
 jm_option = jmcomic.JmOption.default()
 
-# 可以把对象保存为yml文件，方便日后修改。保存格式会根据后缀名智能转换。
-jm_option.save_to_file('./禁漫下载默认配置.yml')  # yml格式，推荐
-jm_option.save_to_file('./禁漫下载默认配置.json')  # json格式
+# 可以把对象保存为文件，方便编辑
+jm_option.to_file('./你的配置文件路名称.yml')  # yml格式
+jm_option.to_file('./你的配置文件路名称.json')  # json格式
 
 # 如果你修改了默认配置，现在想用你修改后的配置来下载，使用如下代码
-jm_option = jmcomic.create_option('./禁漫下载默认配置.yml')
+jm_option = jmcomic.create_option('./你的配置文件路名称.yml')
 jmcomic.download_album('23333', jm_option)
