@@ -71,11 +71,11 @@ class DirRule:
         # 根目录 / Album-作者 / Album-标题 / Photo-序号 /
         'Bd_Aauthor_Atitle_Pindex',
 
-        '{workspace}_Aid_Pindex',
+        '${workspace}_Aid_Pindex',
     ]
 
     dsl_support = {
-        '{workspace}': lambda text: workspace(),
+        '${workspace}': lambda text: workspace(),
     }
 
     RuleFunc = Callable[[Union[JmAlbumDetail, JmPhotoDetail, None]], str]
