@@ -1,3 +1,7 @@
+def default_jm_debug(topic: str, msg: str):
+    print(f'【{topic}】{msg}')
+
+
 class JmModuleConfig:
     # 网站相关
     PROT = "https://"
@@ -13,10 +17,18 @@ class JmModuleConfig:
         "Restricted Access!": "禁漫拒绝你所在ip地区的访问，你可以选择: 换域名/换代理",
     }
 
+    JM_ERROR_STATUS_CODE = {
+        520: '520: Web server is returning an unknown error (禁漫服务器内部报错)',
+        524: '524: The origin web server timed out responding to this request. (禁漫服务器处理超时)',
+    }
+
     # 图片分隔相关
     SCRAMBLE_0 = 220980
     SCRAMBLE_10 = 268850
     SCRAMBLE_NUM_8 = 421926  # 2023-02-08后改了图片切割算法
+
+    # API的相关配置
+    MAGIC_18COMICAPPCONTENT = '18comicAPPContent'
 
     # 下载时的一些默认值
     default_author = 'default-author'
@@ -25,7 +37,7 @@ class JmModuleConfig:
 
     # debug
     enable_jm_debug = True
-    debug_printer = print
+    debug_executor = default_jm_debug
 
     # 缓存
     jm_client_caches = {}
@@ -64,9 +76,9 @@ class JmModuleConfig:
 
     # noinspection PyUnusedLocal
     @classmethod
-    def jm_debug(cls, topic: str, msg: str, from_class=None):
+    def jm_debug(cls, topic: str, msg: str):
         if cls.enable_jm_debug is True:
-            cls.debug_printer(f'【{topic}】{msg}')
+            cls.debug_executor(topic, msg)
 
     @classmethod
     def disable_jm_debug(cls):

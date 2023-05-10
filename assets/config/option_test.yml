@@ -1,7 +1,7 @@
 !!python/object:jmcomic.jm_option.JmOption
-dir_tree: !!python/object:jmcomic.jm_option.DownloadDirTree
-  Bd: $(workspace}/download/
-  flag: Bd_Id_Image
+dir_rule: !!python/object:jmcomic.jm_option.DirRule
+  base_dir: ${workspace}/download/
+  rule: Bd_Aauthor_Atitle_Pindex
 
 disable_jm_module_debug: false
 download_convert_image_suffix: null
@@ -23,5 +23,4 @@ client_config:
     - cffi_Session
   meta_data:
     proxies: null
-    allow_redirects: true
     cookies: null

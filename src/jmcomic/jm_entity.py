@@ -26,9 +26,10 @@ class WorkEntity(JmBaseEntity, SaveableEntity, IterableEntity):
             cls_name = self.__class__.__name__
             return cls_name[cls_name.index("m") + 1: cls_name.rfind("Detail")].lower()
 
-        return '[{}]{}{}'.format(jm_type(), self.get_id(), self.detail_save_file_suffix)
+        return '[{}]{}{}'.format(jm_type(), self.id, self.detail_save_file_suffix)
 
-    def get_id(self) -> str:
+    @property
+    def id(self) -> str:
         raise NotImplementedError
 
     def __len__(self):
@@ -120,6 +121,7 @@ class JmPhotoDetail(WorkEntity):
         self.page_arr: List[str] = page_arr
         # 图片域名
         self.data_original_domain: StrNone = data_original_domain
+        self.index = self.album_index
 
     @property
     def is_single_album(self) -> bool:
@@ -191,7 +193,8 @@ class JmPhotoDetail(WorkEntity):
     def __getitem__(self, item) -> JmImageDetail:
         return self.create_image_detail(item)
 
-    def get_id(self):
+    @property
+    def id(self):
         return self.photo_id
 
     def __len__(self):
@@ -263,7 +266,8 @@ class JmAlbumDetail(WorkEntity):
     def keywords(self) -> List[str]:
         return self._keywords_list
 
-    def get_id(self):
+    @property
+    def id(self):
         return self.album_id
 
     def __len__(self):
@@ -292,50 +296,12 @@ class JmAlbumDetail(WorkEntity):
 
 class JmSearchPage(IterableEntity):
 
-    def __init__(self, album_info_list) -> None:
+    def __init__(self, album_info_list):
         # (album_id, title, category_none, label_sub_none, tag_list)
-        self.data: List[Tuple[str, str, StrNone, StrNone, List[str]]] = album_info_list
-
-    def album_id_iter(self):
-        for album_info in self.data:
-            yield album_info[0]
+        self.album_info_list: List[Tuple[str, str, StrNone, StrNone, List[str]]] = album_info_list
 
     def __len__(self):
-        return len(self.data)
+        return len(self.album_info_list)
 
     def __getitem__(self, item):
-        return self.data[item]
-
-
-# cdn爬取请求
-class CdnRequest:
-    SavePathProvider = Callable[[str, str, int, bool], str]
-
-    def __init__(self,
-                 photo_id,
-                 scramble_id,
-                 from_index: int,
-                 photo_len: Optional[int],
-                 save_path_provider: SavePathProvider,
-                 ):
-        self.photo_id = photo_id
-        self.scramble_id = scramble_id
-        self.from_index = from_index
-        self.photo_len = photo_len
-        self.save_path_provider = save_path_provider
-
-    @classmethod
-    def create(cls,
-               photo_id,
-               save_path_provider: SavePathProvider,
-               scramble_id,
-               from_index=1,
-               photo_len=None,
-               ):
-        return CdnRequest(
-            photo_id,
-            scramble_id,
-            from_index,
-            photo_len,
-            save_path_provider,
-        )
+        return self.album_info_list[item][0:2]
