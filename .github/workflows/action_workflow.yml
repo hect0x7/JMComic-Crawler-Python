@@ -35,6 +35,13 @@ jobs:
           pip install commonX -i https://pypi.org/project --upgrade
           pip install -e ./
 
+      - name: 安装依赖项（pull_request）
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install commonX -i https://pypi.org/project --upgrade
+          pip install -e ./
+
       - name: 运行下载脚本
         env:
           JM_USERNAME: ${{ secrets.JM_USERNAME }}
