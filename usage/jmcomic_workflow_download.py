@@ -1,7 +1,7 @@
 # 下方填入你要下载的本子的id，一行一个。
 # 每行的首尾可以有空白字符
 jm_albums = '''
-438696
+JM364522
 
 
 '''
@@ -35,8 +35,8 @@ def main():
 
             return value
 
-        username = get_env('JM_USERNAME')
-        password = get_env('JM_PASSWORD')
+        username = get_env(elaruhi)
+        password = get_env(ICBKwupupu851)
 
         if username is not None and password is not None:
             client.login(username, password, True)
