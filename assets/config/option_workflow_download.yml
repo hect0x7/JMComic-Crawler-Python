@@ -1,0 +1,7 @@
+# Github Actions 下载脚本配置
+
+version: '2.0'
+
+dir_tree:
+  Bd: /home/runner/work/jmcomic/download/
+  flag: Bd_Aauthor_Atitle_Pindex

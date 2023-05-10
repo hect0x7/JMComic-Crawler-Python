@@ -1,3 +1,8 @@
+def default_jm_debug(topic: str, msg: str):
+    from common import format_ts
+    print(f'{format_ts()}:【{topic}】{msg}')
+
+
 class JmModuleConfig:
     # 网站相关
     PROT = "https://"
@@ -13,10 +18,18 @@ class JmModuleConfig:
         "Restricted Access!": "禁漫拒绝你所在ip地区的访问，你可以选择: 换域名/换代理",
     }
 
+    JM_ERROR_STATUS_CODE = {
+        520: '520: Web server is returning an unknown error (禁漫服务器内部报错)',
+        524: '524: The origin web server timed out responding to this request. (禁漫服务器处理超时)',
+    }
+
     # 图片分隔相关
     SCRAMBLE_0 = 220980
     SCRAMBLE_10 = 268850
     SCRAMBLE_NUM_8 = 421926  # 2023-02-08后改了图片切割算法
+
+    # API的相关配置
+    MAGIC_18COMICAPPCONTENT = '18comicAPPContent'
 
     # 下载时的一些默认值
     default_author = 'default-author'
@@ -25,10 +38,7 @@ class JmModuleConfig:
 
     # debug
     enable_jm_debug = True
-    debug_printer = print
-
-    # 缓存
-    jm_client_caches = {}
+    debug_executor = default_jm_debug
 
     @classmethod
     def domain(cls, postman=None):
@@ -46,7 +56,7 @@ class JmModuleConfig:
     @classmethod
     def headers(cls, authority=None):
         return {
-            'authority': authority or cls.domain(),
+            'authority': authority or '18comic.vip',
             'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,'
                       'application/signed-exchange;v=b3;q=0.7',
             'accept-language': 'zh-CN,zh;q=0.9',
@@ -64,9 +74,9 @@ class JmModuleConfig:
 
     # noinspection PyUnusedLocal
     @classmethod
-    def jm_debug(cls, topic: str, msg: str, from_class=None):
+    def jm_debug(cls, topic: str, msg: str):
         if cls.enable_jm_debug is True:
-            cls.debug_printer(f'【{topic}】{msg}')
+            cls.debug_executor(topic, msg)
 
     @classmethod
     def disable_jm_debug(cls):
@@ -88,7 +98,7 @@ class JmModuleConfig:
         return url
 
     @classmethod
-    def get_jmcomic_url_all(cls, postman=None):
+    def get_jmcomic_domain_all(cls, postman=None):
         """
         访问禁漫发布页，得到所有禁漫的域名
         @return：['18comic.vip', ..., 'jm365.xyz/ZNPJam'], 最后一个是【APP軟件下載】

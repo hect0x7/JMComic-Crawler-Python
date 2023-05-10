@@ -1,4 +1,4 @@
-from .jm_client import *
+from .jm_client_impl import *
 
 
 class JmOptionAdvice:
@@ -63,188 +63,138 @@ class JmAdviceRegistry:
         return cls.advice_registration.setdefault(base, [])
 
 
-# 目录树的组成
-class DownloadDirTree:
-    # 根目录 / Album作者 / Photo标题 / 图片文件
-    Bd_Author_Title_Image = 0
-    # 根目录 / Album作者 / Photo号 / 图片文件
-    Bd_Author_Id_Image = 1
-
-    # 根目录 / Album标题 / Photo标题 / 图片文件
-    Bd_Title_Title_Image = 2
-    # 根目录 / Album标题 / Photo号 / 图片文件
-    Bd_Title_Id_Image = 3
-
-    # 根目录 / Photo标题 / 图片文件
-    Bd_Title_Image = 4
-    # 根目录 / Photo号 / 图片文件
-    Bd_Id_Image = 5
-
-    # 根目录 / AlbumId / Photo序号 / 图片文件
-    Bd_Id_Index_image = 6  # 禁漫网站的默认下载方式
-
-    AdditionalHandler = Callable[
-        ['DownloadDirTree', Optional[JmAlbumDetail], JmPhotoDetail],
-        str
+class DirRule:
+    rule_sample = [
+        # 根目录 / Album-id / Photo-序号 /
+        'Bd_Aid_Pindex',  # 禁漫网站的默认下载方式
+        # 根目录 / Album-作者 / Album-标题 / Photo-序号 /
+        'Bd_Aauthor_Atitle_Pindex',
     ]
-    additional_tree_flag_handler_mapping: Dict[int, AdditionalHandler] = {}
+
+    RuleFunc = Callable[[Union[JmAlbumDetail, JmPhotoDetail, None]], str]
+    RuleSolver = List[Tuple[int, RuleFunc]]
+
+    rule_solver_cache: Dict[Tuple[str, str], RuleSolver] = dict()
+
+    def __init__(self, rule, base_dir=None):
+        self.base_dir = self.parse_dsl(base_dir)
+        self.rule_dsl = rule
+        self.get_rule_solver()
+
+    def deside_image_save_dir(self,
+                              album: JmAlbumDetail,
+                              photo: JmPhotoDetail,
+                              ) -> str:
+        def choose_param(key):
+            if key == 0:
+                return None
+            if key == 1:
+                return album
+            if key == 2:
+                return photo
+
+        solver_ls = self.get_rule_solver()
+
+        path_ls = []
+        for i, (key, func) in enumerate(solver_ls):
+            try:
+                param = choose_param(key)
+                ret = func(param)
+                path_ls.append(str(ret))
+            except BaseException as e:
+                # noinspection PyUnboundLocalVariable
+                raise AssertionError(f'路径规则"{self.rule_dsl}"的第{i + 1}个解析出错: {e},'
+                                     f'param is {param}')
+
+        return fix_filepath('/'.join(path_ls), is_dir=True)
+
+    def get_rule_solver(self):
+        key = self.rule_dsl, self.base_dir
+        solver_ls = self.rule_solver_cache.get(key, None)
+
+        if solver_ls is None:
+            solver_ls = self.solve_rule_dsl(*key)
+            self.rule_solver_cache[key] = solver_ls
+
+        return solver_ls
+
+    def solve_rule_dsl(self, rule_dsl: str, base_dir: str) -> RuleSolver:
+        """
+        解析下载路径dsl，得到一个路径规则解析列表
+        """
+
+        if '_' not in rule_dsl:
+            raise NotImplementedError(f'不支持的dsl: "{rule_dsl}"')
+
+        rule_ls = rule_dsl.split('_')
+        solver_ls = []
+
+        for rule in rule_ls:
+            if rule == 'Bd':
+                solver_ls.append((0, lambda _: base_dir))
+                continue
+
+            # Axxx or Pyyy
+            if not rule.startswith(('A', 'P')):
+                raise NotImplementedError(f'不支持的dsl: "{rule}" in "{rule_dsl}"')
+
+            key = 1 if rule[0] == 'A' else 2
+            solver_ls.append((
+                key,
+                lambda entity, ref=rule[1:]: fix_windir_name(str(getattr(entity, ref)))
+            ))
+
+        return solver_ls
 
     dsl_support = {
         '${workspace}': lambda text: workspace(),
     }
 
-    def fix_bd(self, Bd):
-        for dsl_k, func in self.dsl_support.items():
-            if dsl_k in Bd:
-                Bd = Bd.replace(dsl_k, func(Bd))
-        return fix_filepath(os.path.abspath(Bd), True)
+    def parse_dsl(self, base_dir: str):
+        for k, func in self.dsl_support.items():
+            if k in base_dir:
+                base_dir = base_dir.replace(k, func(base_dir))
+        return base_dir
+
+
+class JmOption:
+    JM_OP_VER = '2.0'
 
     def __init__(self,
-                 Bd: str,
-                 flag: Union[str, int],
+                 dir_rule: Dict,
+                 download: Dict,
+                 client: Dict,
+                 filepath=None,
                  ):
-        self.Bd = self.fix_bd(Bd)
-        self.flag = self.get_flag_enum(flag)
-
-    def get_flag_enum(self, flag):
-        if isinstance(flag, int):
-            return flag
-
-        if not isinstance(flag, str):
-            raise NotImplementedError(flag)
-
-        ret = self.__class__.__dict__.get(flag, None)
-        if ret is None:
-            raise NotImplementedError(flag)
-
-        return ret
-
-    def deside_image_save_dir(self,
-                              album: Optional[JmAlbumDetail],
-                              photo: JmPhotoDetail,
-                              ) -> str:
-
-        if photo is None:
-            raise AssertionError('章节信息不能为None')
-
-        def dirpath(album_dir: Optional[str], photo_dir: str):
-            """
-            @param album_dir: 相册文件夹名
-            @param photo_dir: 章节文件夹名
-            """
-            from common import fix_windir_name
-            photo_dir = fix_windir_name(photo_dir.strip())
-
-            if album_dir is None:
-                return f'{self.Bd}{photo_dir}/'
-
-            album_dir = fix_windir_name(album_dir.strip())
-            return f'{self.Bd}{album_dir}/{photo_dir}/'
-
-        def photo_dir(flag_for_title):
-            return photo.title if flag == flag_for_title else photo.photo_id
-
-        flag = self.flag
-
-        if flag in (0, 1):
-            # 根目录 / Album作者 / Photo标题 / 图片文件
-            # 根目录 / Album作者 / Photo号 / 图片文件
-
-            author = album.author if album is not None else JmModuleConfig.default_author
-            return dirpath(author, photo_dir(0))
-
-        elif flag in (2, 3):
-            # 根目录 / Album标题 / Photo标题 / 图片文件
-            # 根目录 / Album标题 / Photo号 / 图片文件
-
-            album_title = album.title if album is not None else photo.title
-            return dirpath(album_title, photo_dir(2))
-
-        elif flag in (4, 5):
-            # 根目录 / Photo标题 / 图片文件
-            # 根目录 / Photo号 / 图片文件
-
-            return dirpath(None, photo_dir(4))
-
-        elif flag == 6:
-            # 根目录 / AlbumId / Photo序号 / 图片文件
-            return dirpath(photo.album_id, str(photo.album_index))
-
-        else:
-            if flag in self.additional_tree_flag_handler_mapping:
-                return self.additional_tree_flag_handler_mapping[flag](self, album, photo)
-            else:
-                raise NotImplementedError
-
-    @staticmethod
-    def random_id():
-        import common
-        return common.time_stamp()
-
-    @staticmethod
-    def random_title():
-        import common
-        return common.format_ts(f_time="%Y-%m-%d-%H-%M-%S")
-
-    @classmethod
-    def accept_flag_dict(cls):
-        return dict(filter(lambda item: item[0].startswith('Bd_'),
-                           cls.__dict__.items()))
-
-    @classmethod
-    def of(cls,
-           tree_base_dir: str,
-           tree_flag: int,
-           ):
-        for accpet_flag in cls.accept_flag_dict().values():
-            if accpet_flag is tree_flag:
-                return DownloadDirTree(tree_base_dir, tree_flag)
-
-        raise AssertionError(f'不支持的flag: {tree_flag}，'
-                             f'请使用DownloadDirTree类字段中的值，或直接实例化DownloadDirTree对象')
-
-
-class JmOption(SaveableEntity):
-    _proxies_mapping = {
-        'clash': ProxyBuilder.clash_proxy,
-        'v2Ray': ProxyBuilder.v2Ray_proxy
-    }
-
-    when_del_save_file = False
-    cache_jm_client = True
-
-    def __init__(self,
-                 dir_tree: DownloadDirTree,
-                 client_config: dict,
-                 filepath: StrNone = None,
-                 disable_jm_module_debug=False,
-                 download_use_disk_cache=True,
-                 download_convert_image_suffix: StrNone = None,
-                 download_image_then_decode=True,
-                 download_multi_thread_photo_len_limit=30,
-                 download_multi_thread_photo_batch_count=10,
-                 ):
-
+        # 版本号
+        self.version = self.JM_OP_VER
+        # 路径规则配置
+        self.dir_rule = DirRule(**dir_rule)
         # 请求配置
-        self.client_config = client_config
-        self.client_config['postman_type_list'] = list(Postmans.postman_impl_class_dict.keys())
-
+        self.client = DictModel(client)
         # 下载配置
-        self.dir_tree = dir_tree
-        self.download_use_disk_cache = download_use_disk_cache
-        self.download_image_then_decode = download_image_then_decode
-        self.download_multi_thread_photo_len_limit = download_multi_thread_photo_len_limit
-        self.download_multi_thread_photo_batch_count = download_multi_thread_photo_batch_count
-        # suffix的标准形式是 ".xxx"。如果传入的是"xxx"，要补成 ".xxx"
-        if download_convert_image_suffix is not None:
-            download_convert_image_suffix = fix_suffix(download_convert_image_suffix)
-        self.download_convert_image_suffix = download_convert_image_suffix
-
+        self.download = DictModel(download)
         # 其他配置
         self.filepath = filepath
-        self.disable_jm_module_debug = disable_jm_module_debug
-        if disable_jm_module_debug:
-            disable_jm_debug()
+
+        # 字段
+        self.jm_client_cache = None
+
+    @property
+    def download_cache(self):
+        return self.download.cache
+
+    @property
+    def download_image_decode(self):
+        return self.download.image.decode
+
+    @property
+    def download_threading_batch_count(self):
+        return self.download.threading.batch_count
+
+    @property
+    def download_image_suffix(self):
+        return self.download.image.suffix
 
     """
     下面是决定图片保存路径的方法
@@ -257,8 +207,8 @@ class JmOption(SaveableEntity):
             if save_dir is not None:
                 return save_dir
 
-        # 使用 self.dir_tree 决定 save_dir
-        save_dir = self.dir_tree.deside_image_save_dir(
+        # 使用 self.dir_rule 决定 save_dir
+        save_dir = self.dir_rule.deside_image_save_dir(
             photo_detail.from_album,
             photo_detail
         )
@@ -279,7 +229,7 @@ class JmOption(SaveableEntity):
             return suffix
 
         # 非动图，以配置为先
-        return self.download_convert_image_suffix or suffix
+        return self.download_image_suffix or suffix
 
     def decide_image_filepath(self, photo_detail: JmPhotoDetail, index: int) -> str:
         # 先检查advice的回调，如果回调支持，则优先使用回调
@@ -306,161 +256,128 @@ class JmOption(SaveableEntity):
     """
 
     @classmethod
-    def default(cls) -> 'JmOption':
-        return JmOption(
-            DownloadDirTree(
-                workspace(),
-                DownloadDirTree.Bd_Title_Image,
-            ),
-            cls.default_client_config(),
-        )
+    def construct(cls, dic: Dict, cover_default=True) -> 'JmOption':
+        if cover_default:
+            dic = cls.merge_default_dict(dic)
 
-    @classmethod
-    def create_from_file(cls, filepath: str) -> 'JmOption':
-        jm_option: JmOption = PackerUtil.unpack(filepath, JmOption)[0]
-        jm_option.filepath = filepath
-        return jm_option
+        version = dic.pop('version', None)
+        if float(version) != float(cls.JM_OP_VER):
+            # 版本兼容
+            raise NotImplementedError('不支持的option版本')
 
-    @classmethod
-    def default_client_config(cls):
+        debug = dic.pop('debug', True)
+        if debug is False:
+            disable_jm_debug()
+
+        return cls(**dic)
+
+    def deconstruct(self) -> Dict:
         return {
-            'domain': JmModuleConfig.domain(),
-            'meta_data': {
-                'cookies': None,
-                'headers': JmModuleConfig.headers(),
-                'allow_redirects': True,
+            'version': self.version,
+            'debug': JmModuleConfig.enable_jm_debug,
+            'dir_rule': {
+                'rule': self.dir_rule.rule_dsl,
+                'base_dir': self.dir_rule.base_dir,
             },
-            'postman_type_list': [
-                'requests',
-                'requests_Session',
-                'cffi',
-                'cffi_Session',
-            ]
+            'download': self.download.src_dict,
+            'client': self.client.src_dict,
         }
 
-    def save_base_dir(self):
-        return of_dir_path(self.filepath)
+    @classmethod
+    def from_file(cls, filepath: str) -> 'JmOption':
+        dic: dict = PackerUtil.unpack(filepath)[0]
+        return cls.construct(dic)
 
-    def save_file_name(self) -> str:
-        return of_file_name(self.filepath)
-
-    def save_to_file(self, filepath=None):
+    def to_file(self, filepath=None):
         if filepath is None:
             filepath = self.filepath
 
         if filepath is None:
             raise AssertionError("未指定JmOption的保存路径")
 
-        super().save_to_file(filepath)
+        PackerUtil.pack(self.deconstruct(), filepath)
 
     """
     下面是 build 方法
     """
 
+    # 缓存
+    cache_jm_client = True
+    jm_client_impl_mapping: Dict[str, Type[AbstractJmClient]] = {
+        'html': JmHtmlClient,
+        'api': JmApiClient,
+    }
+
     def build_jm_client(self) -> JmcomicClient:
         if self.cache_jm_client is not True:
+            return self.new_jm_client()
+
+        client = self.jm_client_cache
+        if client is None:
             client = self.new_jm_client()
-        else:
-            key = self
-            client = JmModuleConfig.jm_client_caches.get(key, None)
-            if client is None:
-                client = self.new_jm_client()
-                JmModuleConfig.jm_client_caches.setdefault(key, client)
+            self.jm_client_cache = client
 
         return client
 
     def new_jm_client(self) -> JmcomicClient:
-        meta_data = self.client_config['meta_data']
-        postman_clazz = Postmans.get_impl_clazz(self.client_config.get('postman_type', 'cffi'))
-        proxies = None
-        domain = None
-        postman: Optional[Postman] = None
+        # postman
+        postman = Postmans.create(data=self.client.postman)
 
-        def decide_proxies(key='proxies'):
-            nonlocal proxies
-            proxies = meta_data.get(key, None)
+        # domain_list
+        domain_list = self.client.domain
+        if len(domain_list) == 0:
+            domain_list = JmModuleConfig.get_jmcomic_domain_all(postman)[:-1]
 
-            # 无代理，或代理已配置好好的
-            if proxies is None or isinstance(proxies, dict):
-                return
-
-            # 有代理
-            if proxies in self._proxies_mapping:
-                proxies = self._proxies_mapping[proxies]()
-            else:
-                proxies = ProxyBuilder.build_proxy(proxies)
-
-            meta_data[key] = proxies
-
-        def decide_domain(key='domain') -> str:
-            nonlocal domain
-            domain = self.client_config.get(key, None)
-            if domain is None:
-                temp_postman = postman_clazz.create(
-                    headers=JmModuleConfig.headers(JmModuleConfig.JM_REDIRECT_URL),
-                    proxies=proxies,
-                )
-                domain = JmModuleConfig.domain(temp_postman)
-
-            domain = JmcomicText.parse_to_jm_domain(domain)
-            self.client_config[key] = domain
-            return domain
-
-        def handle_headers(key='headers'):
-            headers = meta_data.get(key, None)
-            if headers is None or (not isinstance(headers, dict)) or len(headers) == 0:
-                # 未配置headers，使用默认headers
-                headers = JmModuleConfig.headers(domain)
-
-            meta_data[key] = headers
-
-        def handle_postman():
-            nonlocal postman
-            postman = postman_clazz(meta_data)
-
-        # 1. 决定 代理
-        decide_proxies()
-        # 2. 指定 JM域名
-        decide_domain()
-        # 3. 处理 headers
-        handle_headers()
-        # 4. 创建 postman
-        handle_postman()
-
-        jm_debug('创建JmcomicClient', f'使用域名: {domain}，使用Postman实现: {postman_clazz}')
-
-        # 创建 JmcomicClient 对象
-        client = JmcomicClient(
-            postman=postman,
-            domain=domain,
-            retry_times=self.client_config.get('retry_times', None)
+        # client
+        client = self.jm_client_impl_mapping[self.client.impl](
+            postman,
+            self.client.retry_times,
+            fallback_domain_list=domain_list,
         )
 
         return client
 
+    @classmethod
+    def default_dict(cls) -> Dict:
+        return {
+            'version': '2.0',
+            'debug': True,
+            'dir_rule': {'rule': 'Bd_Ptitle', 'base_dir': workspace()},
+            'download': {
+                'cache': True,
+                'image': {'decode': True, 'suffix': None},
+                'threading': {'batch_count': 30},
+            },
+            'client': {
+                'domain': [],
+                'postman': {
+                    'type': 'cffi',
+                    'meta_data': {
+                        'impersonate': 'chrome110',
+                        'cookies': None,
+                        'headers': JmModuleConfig.headers(),
+                    }
+                },
+                'impl': 'html',
+                'retry_times': 5
+            }
+        }
 
-def _register_yaml_constructor():
-    from yaml import add_constructor, Loader, Node
+    @classmethod
+    def default(cls):
+        return cls.construct({})
 
-    tag_mapping = {
-        'tag:yaml.org,2002:python/object:jmcomic.jm_option.JmOption': JmOption,
-        'tag:yaml.org,2002:python/object:jmcomic.jm_option.DownloadDirTree': DownloadDirTree,
-    }
+    @classmethod
+    def merge_default_dict(cls, user_dict, default_dict=None):
+        """
+        深度合并两个字典
+        """
+        if default_dict is None:
+            default_dict = cls.default_dict()
 
-    def constructor(loader: Loader, node: Node):
-        for tag, clazz in tag_mapping.items():
-            if node.tag == tag:
-                state = loader.construct_mapping(node)
-                try:
-                    obj = clazz(**state)
-                except TypeError as e:
-                    raise AssertionError(f"构造函数不匹配: {clazz.__name__}\nTypeError: {e}")
-
-                # obj.__dict__.update(state)
-                return obj
-
-    for tag in tag_mapping.keys():
-        add_constructor(tag, constructor)
-
-
-_register_yaml_constructor()
+        for key, value in user_dict.items():
+            if isinstance(value, dict) and isinstance(default_dict.get(key), dict):
+                default_dict[key] = cls.merge_default_dict(value, default_dict[key])
+            else:
+                default_dict[key] = value
+        return default_dict

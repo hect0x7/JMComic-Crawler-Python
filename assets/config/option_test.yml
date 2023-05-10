@@ -1,27 +1,2 @@
-!!python/object:jmcomic.jm_option.JmOption
-dir_tree: !!python/object:jmcomic.jm_option.DownloadDirTree
-  Bd: $(workspace}/download/
-  flag: Bd_Id_Image
-
-disable_jm_module_debug: false
-download_convert_image_suffix: null
-download_image_then_decode: true
-download_multi_thread_photo_batch_count: 3
-download_multi_thread_photo_len_limit: 5
-download_use_disk_cache: true
-
-
-client_config:
-  # 请求失败时，重试的次数，配个正数就行
-  retry_times: 10
-  domain: null
-  postman_type: cffi
-  postman_type_list:
-    - requests
-    - requests_Session
-    - cffi
-    - cffi_Session
-  meta_data:
-    proxies: null
-    allow_redirects: true
-    cookies: null
+# Github Actions 测试用
+version: '2.0'
