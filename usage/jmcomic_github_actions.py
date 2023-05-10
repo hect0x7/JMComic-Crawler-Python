@@ -12,7 +12,7 @@ def main():
 
     def get_option():
         # 读取 option 配置文件
-        option = create_option('../assets/config/workflow_option.yml')
+        option = create_option('../assets/config/option_github_actions.yml')
 
         # 启用 client 的缓存
         client = option.build_jm_client()
