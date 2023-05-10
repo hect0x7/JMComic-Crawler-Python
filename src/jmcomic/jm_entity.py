@@ -26,9 +26,10 @@ class WorkEntity(JmBaseEntity, SaveableEntity, IterableEntity):
             cls_name = self.__class__.__name__
             return cls_name[cls_name.index("m") + 1: cls_name.rfind("Detail")].lower()
 
-        return '[{}]{}{}'.format(jm_type(), self.get_id(), self.detail_save_file_suffix)
+        return '[{}]{}{}'.format(jm_type(), self.id, self.detail_save_file_suffix)
 
-    def get_id(self) -> str:
+    @property
+    def id(self) -> str:
         raise NotImplementedError
 
     def __len__(self):
@@ -120,6 +121,7 @@ class JmPhotoDetail(WorkEntity):
         self.page_arr: List[str] = page_arr
         # 图片域名
         self.data_original_domain: StrNone = data_original_domain
+        self.index = self.album_index
 
     @property
     def is_single_album(self) -> bool:
@@ -191,7 +193,8 @@ class JmPhotoDetail(WorkEntity):
     def __getitem__(self, item) -> JmImageDetail:
         return self.create_image_detail(item)
 
-    def get_id(self):
+    @property
+    def id(self):
         return self.photo_id
 
     def __len__(self):
@@ -263,7 +266,8 @@ class JmAlbumDetail(WorkEntity):
     def keywords(self) -> List[str]:
         return self._keywords_list
 
-    def get_id(self):
+    @property
+    def id(self):
         return self.album_id
 
     def __len__(self):

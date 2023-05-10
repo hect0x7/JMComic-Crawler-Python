@@ -133,10 +133,10 @@ class JmDetailClient:
     def ensure_photo_can_use(self, photo_detail: JmPhotoDetail):
         raise NotImplementedError
 
-    def search_album(self, search_query, main_tag=0) -> JmSearchPage:
+    def search_album(self, search_query, main_tag=0) -> Union[JmSearchPage, JmAlbumDetail]:
         raise NotImplementedError
 
-    def of_api_url(self, api_path):
+    def of_api_url(self, api_path, alter_domain=None):
         raise NotImplementedError
 
     def enable_cache(self, debug=False):

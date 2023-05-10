@@ -40,9 +40,9 @@ class Test_Client(JmTestConfigurable):
             print(f'本子: [{album_detail.title}] 一共有{album_detail.page_count}页图')
 
     def test_search(self):
-        jm_search_page = self.client.search_album('MANA')
-        for album_id in jm_search_page.album_id_iter():
-            print(album_id)
+        jm_search_page: JmSearchPage = self.client.search_album('MANA')
+        for album_id, title in reversed(jm_search_page):
+            print(album_id, title)
 
     def test_gt_300_photo(self):
         photo_id = '147643'

@@ -9,15 +9,24 @@ class AbstractJmClient(
     def __init__(self,
                  postman: Postman,
                  retry_times: int,
+                 fallback_domain_list=None,
                  ):
         super().__init__(postman, retry_times)
+
+        if fallback_domain_list is None:
+            fallback_domain_list = []
+        self.fallback_domain_list = fallback_domain_list
 
     def with_retry(self, retry_times, clazz=None):
         self.retry_times = retry_times
         return self
 
     def fallback(self, url, kwargs):
-        raise RuntimeError(f"禁漫请求失败（重试了{self.retry_times}次）: {url}")
+        if len(self.fallback_domain_list) == 0:
+            raise RuntimeError(f"禁漫请求失败（重试了{self.retry_times}次）: {url}")
+
+        # 下面进行更换域名重试
+        pass
 
     def tip_retrying(self, time, _request, url, kwargs):
         jm_debug('请求重试',
@@ -106,15 +115,20 @@ class JmHtmlClient(AbstractJmClient):
             new.from_album = photo_detail.from_album
             photo_detail.__dict__.update(new.__dict__)
 
-    def search_album(self, search_query, main_tag=0) -> JmSearchPage:
+    def search_album(self, search_query, main_tag=0):
         params = {
             'main_tag': main_tag,
             'search_query': search_query,
         }
 
-        resp = self.get_jm_html('/search/photos', params=params)
+        resp = self.get_jm_html('/search/photos', params=params, allow_redirects=True)
 
-        return JmSearchSupport.analyse_jm_search_html(resp.text)
+        # 检查是否发生了重定向
+        # 因为如果搜索的是禁漫车号，会直接跳转到本子详情页面
+        if resp.redirect_count != 0 and '/album/' in resp.url:
+            return JmcomicText.analyse_jm_album_html(resp.text)
+        else:
+            return JmSearchSupport.analyse_jm_search_html(resp.text)
 
     # -- 帐号管理 --
 
@@ -147,7 +161,7 @@ class JmHtmlClient(AbstractJmClient):
 
         return resp
 
-    def of_api_url(self, api_path):
+    def of_api_url(self, api_path, alter_domain=None):
         return f"{JmModuleConfig.PROT}{self.domain}{api_path}"
 
     def get_jm_html(self, url, require_200=True, **kwargs):
@@ -252,5 +266,5 @@ class JmApiClient(AbstractJmClient):
             "accept-encoding": "gzip",
         }, key_ts
 
-    def of_api_url(self, api_path):
+    def of_api_url(self, api_path, alter_domain=None):
         return self.base_url + api_path

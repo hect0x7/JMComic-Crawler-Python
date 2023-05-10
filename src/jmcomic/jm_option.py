@@ -63,145 +63,95 @@ class JmAdviceRegistry:
         return cls.advice_registration.setdefault(base, [])
 
 
-# 目录树的组成
-class DownloadDirTree:
-    # 根目录 / Album作者 / Photo标题 / 图片文件
-    Bd_Author_Title_Image = 0
-    # 根目录 / Album作者 / Photo号 / 图片文件
-    Bd_Author_Id_Image = 1
+class DirRule:
+    rule_sample = [
+        # 根目录 / Album-id / Photo-序号 /
+        'Bd_Aid_Pindex',  # 禁漫网站的默认下载方式
 
-    # 根目录 / Album标题 / Photo标题 / 图片文件
-    Bd_Title_Title_Image = 2
-    # 根目录 / Album标题 / Photo号 / 图片文件
-    Bd_Title_Id_Image = 3
+        # 根目录 / Album-作者 / Album-标题 / Photo-序号 /
+        'Bd_Aauthor_Atitle_Pindex',
 
-    # 根目录 / Photo标题 / 图片文件
-    Bd_Title_Image = 4
-    # 根目录 / Photo号 / 图片文件
-    Bd_Id_Image = 5
-
-    # 根目录 / AlbumId / Photo序号 / 图片文件
-    Bd_Id_Index_image = 6  # 禁漫网站的默认下载方式
-
-    AdditionalHandler = Callable[
-        ['DownloadDirTree', Optional[JmAlbumDetail], JmPhotoDetail],
-        str
+        '{workspace}_Aid_Pindex',
     ]
-    additional_tree_flag_handler_mapping: Dict[int, AdditionalHandler] = {}
 
     dsl_support = {
-        '${workspace}': lambda text: workspace(),
+        '{workspace}': lambda text: workspace(),
     }
 
-    def fix_bd(self, Bd):
-        for dsl_k, func in self.dsl_support.items():
-            if dsl_k in Bd:
-                Bd = Bd.replace(dsl_k, func(Bd))
-        return fix_filepath(os.path.abspath(Bd), True)
+    RuleFunc = Callable[[Union[JmAlbumDetail, JmPhotoDetail, None]], str]
+    RuleSolver = List[Tuple[int, RuleFunc]]
 
-    def __init__(self,
-                 Bd: str,
-                 flag: Union[str, int],
-                 ):
-        self.Bd = self.fix_bd(Bd)
-        self.flag = self.get_flag_enum(flag)
+    rule_solver_cache: Dict[Tuple[str, str], RuleSolver] = dict()
 
-    def get_flag_enum(self, flag):
-        if isinstance(flag, int):
-            return flag
-
-        if not isinstance(flag, str):
-            raise NotImplementedError(flag)
-
-        ret = self.__class__.__dict__.get(flag, None)
-        if ret is None:
-            raise NotImplementedError(flag)
-
-        return ret
+    def __init__(self, base_dir, rule):
+        self.base_dir = base_dir
+        self.rule_dsl = rule
+        self.get_rule_solver()
 
     def deside_image_save_dir(self,
-                              album: Optional[JmAlbumDetail],
+                              album: JmAlbumDetail,
                               photo: JmPhotoDetail,
                               ) -> str:
+        def choose_param(key):
+            if key == 0:
+                return None
+            if key == 1:
+                return album
+            if key == 2:
+                return photo
 
-        if photo is None:
-            raise AssertionError('章节信息不能为None')
+        solver_ls = self.get_rule_solver()
 
-        def dirpath(album_dir: Optional[str], photo_dir: str):
-            """
-            @param album_dir: 相册文件夹名
-            @param photo_dir: 章节文件夹名
-            """
-            from common import fix_windir_name
-            photo_dir = fix_windir_name(photo_dir.strip())
+        path_ls = []
+        for i, (key, func) in enumerate(solver_ls):
+            try:
+                param = choose_param(key)
+                ret = func(param)
+                path_ls.append(str(ret))
+            except BaseException as e:
+                # noinspection PyUnboundLocalVariable
+                raise AssertionError(f'路径规则"{self.rule_dsl}"的第{i + 1}个解析出错: {e}, param is {param}')
 
-            if album_dir is None:
-                return f'{self.Bd}{photo_dir}/'
+        return '/'.join(path_ls)
 
-            album_dir = fix_windir_name(album_dir.strip())
-            return f'{self.Bd}{album_dir}/{photo_dir}/'
+    def get_rule_solver(self):
+        key = self.rule_dsl, self.base_dir
+        solver_ls = self.rule_solver_cache.get(key, None)
 
-        def photo_dir(flag_for_title):
-            return photo.title if flag == flag_for_title else photo.photo_id
+        if solver_ls is None:
+            solver_ls = self.solve_rule_dsl(*key)
+            self.rule_solver_cache[key] = solver_ls
 
-        flag = self.flag
+        return solver_ls
 
-        if flag in (0, 1):
-            # 根目录 / Album作者 / Photo标题 / 图片文件
-            # 根目录 / Album作者 / Photo号 / 图片文件
+    def solve_rule_dsl(self, rule_dsl: str, base_dir: str) -> RuleSolver:
+        """
+        解析下载路径dsl，得到一个路径规则列表
+        """
 
-            author = album.author if album is not None else JmModuleConfig.default_author
-            return dirpath(author, photo_dir(0))
+        if '_' not in rule_dsl:
+            raise NotImplementedError(f'不支持的dsl: "{rule_dsl}"')
 
-        elif flag in (2, 3):
-            # 根目录 / Album标题 / Photo标题 / 图片文件
-            # 根目录 / Album标题 / Photo号 / 图片文件
+        rule_ls = rule_dsl.split('_')
+        solver_ls = []
 
-            album_title = album.title if album is not None else photo.title
-            return dirpath(album_title, photo_dir(2))
+        for rule in rule_ls:
+            if rule in self.dsl_support:
+                solver_ls.append((0, lambda _: self.dsl_support[rule](rule)))
+                continue
+            elif rule.startswith('Bd'):
+                solver_ls.append((0, lambda _: base_dir))
+                continue
 
-        elif flag in (4, 5):
-            # 根目录 / Photo标题 / 图片文件
-            # 根目录 / Photo号 / 图片文件
+            # Axxx or Pyyy
+            if not rule.startswith(('A', 'P')):
+                raise NotImplementedError(f'不支持的dsl: "{rule}" in "{rule_dsl}"')
 
-            return dirpath(None, photo_dir(4))
+            key = 1 if rule[0] == 'A' else 2
+            field_name = rule[1:]
+            solver_ls.append((key, lambda album_or_photo, fn=field_name: getattr(album_or_photo, fn)))
 
-        elif flag == 6:
-            # 根目录 / AlbumId / Photo序号 / 图片文件
-            return dirpath(photo.album_id, str(photo.album_index))
-
-        else:
-            if flag in self.additional_tree_flag_handler_mapping:
-                return self.additional_tree_flag_handler_mapping[flag](self, album, photo)
-            else:
-                raise NotImplementedError
-
-    @staticmethod
-    def random_id():
-        import common
-        return common.time_stamp()
-
-    @staticmethod
-    def random_title():
-        import common
-        return common.format_ts(f_time="%Y-%m-%d-%H-%M-%S")
-
-    @classmethod
-    def accept_flag_dict(cls):
-        return dict(filter(lambda item: item[0].startswith('Bd_'),
-                           cls.__dict__.items()))
-
-    @classmethod
-    def of(cls,
-           tree_base_dir: str,
-           tree_flag: int,
-           ):
-        for accpet_flag in cls.accept_flag_dict().values():
-            if accpet_flag is tree_flag:
-                return DownloadDirTree(tree_base_dir, tree_flag)
-
-        raise AssertionError(f'不支持的flag: {tree_flag}，'
-                             f'请使用DownloadDirTree类字段中的值，或直接实例化DownloadDirTree对象')
+        return solver_ls
 
 
 class JmOption(SaveableEntity):
@@ -214,7 +164,7 @@ class JmOption(SaveableEntity):
     cache_jm_client = True
 
     def __init__(self,
-                 dir_tree: DownloadDirTree,
+                 dir_rule: DirRule,
                  client_config: dict,
                  filepath: StrNone = None,
                  disable_jm_module_debug=False,
@@ -230,7 +180,7 @@ class JmOption(SaveableEntity):
         self.client_config['postman_type_list'] = list(Postmans.postman_impl_class_dict.keys())
 
         # 下载配置
-        self.dir_tree = dir_tree
+        self.dir_rule = dir_rule
         self.download_use_disk_cache = download_use_disk_cache
         self.download_image_then_decode = download_image_then_decode
         self.download_multi_thread_photo_len_limit = download_multi_thread_photo_len_limit
@@ -257,8 +207,8 @@ class JmOption(SaveableEntity):
             if save_dir is not None:
                 return save_dir
 
-        # 使用 self.dir_tree 决定 save_dir
-        save_dir = self.dir_tree.deside_image_save_dir(
+        # 使用 self.dir_rule 决定 save_dir
+        save_dir = self.dir_rule.deside_image_save_dir(
             photo_detail.from_album,
             photo_detail
         )
@@ -308,10 +258,7 @@ class JmOption(SaveableEntity):
     @classmethod
     def default(cls) -> 'JmOption':
         return JmOption(
-            DownloadDirTree(
-                workspace(),
-                DownloadDirTree.Bd_Title_Image,
-            ),
+            DirRule(workspace(), 'Bd_PTitle'),
             cls.default_client_config(),
         )
 
@@ -444,7 +391,7 @@ def _register_yaml_constructor():
 
     tag_mapping = {
         'tag:yaml.org,2002:python/object:jmcomic.jm_option.JmOption': JmOption,
-        'tag:yaml.org,2002:python/object:jmcomic.jm_option.DownloadDirTree': DownloadDirTree,
+        'tag:yaml.org,2002:python/object:jmcomic.jm_option.DirRule': DirRule,
     }
 
     def constructor(loader: Loader, node: Node):
