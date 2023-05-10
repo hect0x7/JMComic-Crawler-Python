@@ -33,12 +33,6 @@ class AbstractJmClient(
                  f'进入重试{time + 1}/{self.retry_times}: {url}'
                  f'，携带参数: {kwargs if "login" not in url else "#login_form#"}')
 
-    def get_jmcomic_url(self, postman=None):
-        return JmModuleConfig.get_jmcomic_url(postman or self)
-
-    def get_jmcomic_url_all(self, postman=None):
-        return JmModuleConfig.get_jmcomic_url_all(postman or self)
-
     def enable_cache(self, debug=False):
         def wrap_func_cache(func_name, cache_dict_name):
             if hasattr(self, cache_dict_name):

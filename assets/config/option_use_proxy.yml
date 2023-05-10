@@ -1,7 +1,7 @@
 !!python/object:jmcomic.jm_option.JmOption
 dir_tree: !!python/object:jmcomic.jm_option.DownloadDirTree
   Bd: D:/jmcomic/download/
-  flag: Bd_Title_Image
+  flag: Bd_Aauthor_Atitle_Pindex
 
 disable_jm_module_debug: false
 download_convert_image_suffix: .png

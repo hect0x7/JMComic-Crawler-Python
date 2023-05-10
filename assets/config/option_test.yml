@@ -1,7 +1,7 @@
 !!python/object:jmcomic.jm_option.JmOption
 dir_rule: !!python/object:jmcomic.jm_option.DirRule
   base_dir: ${workspace}/download/
-  rule: Bd_Aid
+  rule: Bd_Aauthor_Atitle_Pindex
 
 disable_jm_module_debug: false
 download_convert_image_suffix: null

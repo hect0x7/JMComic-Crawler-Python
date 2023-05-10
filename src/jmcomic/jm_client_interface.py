@@ -208,5 +208,11 @@ class JmcomicClient(
     JmImageClient,
     JmDetailClient,
     JmUserClient,
+    Postman,
 ):
-    pass
+
+    def get_jmcomic_url(self, postman=None):
+        return JmModuleConfig.get_jmcomic_url(postman or self)
+
+    def get_jmcomic_url_all(self, postman=None):
+        return JmModuleConfig.get_jmcomic_url_all(postman or self)

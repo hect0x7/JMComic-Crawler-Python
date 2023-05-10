@@ -83,7 +83,7 @@ class DirRule:
 
     rule_solver_cache: Dict[Tuple[str, str], RuleSolver] = dict()
 
-    def __init__(self, base_dir, rule):
+    def __init__(self, rule, base_dir=None):
         self.base_dir = base_dir
         self.rule_dsl = rule
         self.get_rule_solver()
@@ -112,7 +112,7 @@ class DirRule:
                 # noinspection PyUnboundLocalVariable
                 raise AssertionError(f'路径规则"{self.rule_dsl}"的第{i + 1}个解析出错: {e}, param is {param}')
 
-        return '/'.join(path_ls)
+        return '/'.join(path_ls) + '/'
 
     def get_rule_solver(self):
         key = self.rule_dsl, self.base_dir
@@ -126,7 +126,7 @@ class DirRule:
 
     def solve_rule_dsl(self, rule_dsl: str, base_dir: str) -> RuleSolver:
         """
-        解析下载路径dsl，得到一个路径规则列表
+        解析下载路径dsl，得到一个路径规则解析列表
         """
 
         if '_' not in rule_dsl:
@@ -136,11 +136,12 @@ class DirRule:
         solver_ls = []
 
         for rule in rule_ls:
-            if rule in self.dsl_support:
-                solver_ls.append((0, lambda _: self.dsl_support[rule](rule)))
-                continue
-            elif rule.startswith('Bd'):
+            if rule == 'Bd':
                 solver_ls.append((0, lambda _: base_dir))
+                continue
+
+            if rule in self.dsl_support:
+                solver_ls.append((0, lambda _, ref=rule: self.dsl_support[ref](ref)))
                 continue
 
             # Axxx or Pyyy
@@ -149,7 +150,7 @@ class DirRule:
 
             key = 1 if rule[0] == 'A' else 2
             field_name = rule[1:]
-            solver_ls.append((key, lambda album_or_photo, fn=field_name: getattr(album_or_photo, fn)))
+            solver_ls.append((key, lambda album_or_photo, ref=field_name: getattr(album_or_photo, ref)))
 
         return solver_ls
 
