@@ -103,7 +103,8 @@ class DirRule:
                 path_ls.append(str(ret))
             except BaseException as e:
                 # noinspection PyUnboundLocalVariable
-                raise AssertionError(f'路径规则"{self.rule_dsl}"的第{i + 1}个解析出错: {e}, param is {param}')
+                raise AssertionError(f'路径规则"{self.rule_dsl}"的第{i + 1}个解析出错: {e},'
+                                     f'param is {param}')
 
         return fix_filepath('/'.join(path_ls), is_dir=True)
 
@@ -138,8 +139,10 @@ class DirRule:
                 raise NotImplementedError(f'不支持的dsl: "{rule}" in "{rule_dsl}"')
 
             key = 1 if rule[0] == 'A' else 2
-            field_name = rule[1:]
-            solver_ls.append((key, lambda album_or_photo, ref=field_name: fix_windir_name(getattr(album_or_photo, ref))))
+            solver_ls.append((
+                key,
+                lambda entity, ref=rule[1:]: fix_windir_name(str(getattr(entity, ref)))
+            ))
 
         return solver_ls
 
