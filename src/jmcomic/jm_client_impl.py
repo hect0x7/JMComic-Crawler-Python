@@ -43,7 +43,10 @@ class AbstractJmClient(
             raise AssertionError("All domains failed.")
 
         domain = self.domain_list[domain_index]
-        full_url = self.of_api_url(url, domain)
+
+        if not url.startswith(JmModuleConfig.PROT):
+            url = self.of_api_url(url, domain)
+            jm_debug('api', url)
 
         if domain_index != 0 and retry_count != 0:
             jm_debug(
@@ -51,20 +54,20 @@ class AbstractJmClient(
                 ', '.join([
                     f'次数: [{retry_count + 1}/{self.retry_times}]',
                     f'域名: [{domain} ({domain_index}/{len(self.domain_list)})]',
-                    f'路径: [{full_url}]',
+                    f'路径: [{url}]',
                     f'参数: [{kwargs if "login" not in url else "#login_form#"}]'
                 ])
             )
 
         try:
-            return request(full_url, **kwargs)
+            return request(url, **kwargs)
         except Exception as e:
             self.before_retry(e, kwargs, retry_count, url)
 
             if retry_count < self.retry_times:
                 return self.request_with_retry(request, url, domain_index, retry_count + 1, **kwargs)
             else:
-                return self.request_with_retry(url, domain_index + 1, 0, **kwargs)
+                return self.request_with_retry(request, url, domain_index + 1, 0, **kwargs)
 
     # noinspection PyMethodMayBeStatic, PyUnusedLocal
     def before_retry(self, e, kwargs, retry_count, url):
@@ -99,14 +102,6 @@ class AbstractJmClient(
 
 # 基于网页实现的JmClient
 class JmHtmlClient(AbstractJmClient):
-    retry_postman_type = RetryPostman
-
-    def __init__(self,
-                 domain,
-                 postman: Postman,
-                 retry_times=None,
-                 ):
-        super().__init__(postman, retry_times, domain)
 
     def get_album_detail(self, album_id) -> JmAlbumDetail:
         # 参数校验

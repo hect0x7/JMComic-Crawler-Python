@@ -88,8 +88,8 @@ def download_by_photo_detail(photo_detail: JmPhotoDetail,
     option, jm_client = build_client(option)
 
     # 下载准备
-    use_cache = option.download_use_disk_cache
-    decode_image = option.download_image_then_decode
+    use_cache = option.download_cache
+    decode_image = option.download_image_decode
     jm_client.ensure_photo_can_use(photo_detail)
 
     # 下载每个图片的函数
@@ -116,7 +116,7 @@ def download_by_photo_detail(photo_detail: JmPhotoDetail,
 
     length = len(photo_detail)
     # 根据图片数，决定下载策略
-    if length <= option.download_multi_thread_photo_len_limit:
+    if length <= option.download_threading_batch_count:
         # 如果图片数小的话，直接使用多线程下载，一张图一个线程。
         multi_thread_launcher(
             iter_objs=enumerate(photo_detail),
@@ -127,7 +127,7 @@ def download_by_photo_detail(photo_detail: JmPhotoDetail,
         multi_task_launcher_batch(
             iter_objs=enumerate(photo_detail),
             apply_each_obj_func=download_image,
-            batch_size=option.download_multi_thread_photo_batch_count
+            batch_size=option.download_threading_batch_count
         )
 
 
@@ -143,5 +143,5 @@ def build_client(option: Optional[JmOption]) -> Tuple[JmOption, JmcomicClient]:
 
 
 def create_option(filepath: str) -> JmOption:
-    option = JmOption.create_from_file(filepath)
+    option = JmOption.from_file(filepath)
     return option

@@ -39,9 +39,6 @@ class JmModuleConfig:
     enable_jm_debug = True
     debug_executor = default_jm_debug
 
-    # 缓存
-    jm_client_caches = {}
-
     @classmethod
     def domain(cls, postman=None):
         """
@@ -58,7 +55,7 @@ class JmModuleConfig:
     @classmethod
     def headers(cls, authority=None):
         return {
-            'authority': authority or cls.domain(),
+            'authority': authority or '18comic.vip',
             'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,'
                       'application/signed-exchange;v=b3;q=0.7',
             'accept-language': 'zh-CN,zh;q=0.9',
