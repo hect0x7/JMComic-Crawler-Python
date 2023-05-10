@@ -15,13 +15,13 @@ def download_album(jm_album_id, option=None):
     option, jm_client = build_client(option)
     album_detail: JmAlbumDetail = jm_client.get_album_detail(jm_album_id)
 
-    jm_debug('download_album',
+    jm_debug('album',
              f'获得album_detail成功，准备下载。'
              f'本子作者是【{album_detail.author}】，一共有{len(album_detail)}集本子')
 
     def download_photo(index: int,
                        photo_detail: JmPhotoDetail,
-                       debug_topic='download_album_photo',
+                       debug_topic='photo',
                        ):
         jm_client.ensure_photo_can_use(photo_detail)
 
@@ -93,7 +93,7 @@ def download_by_photo_detail(photo_detail: JmPhotoDetail,
     jm_client.ensure_photo_can_use(photo_detail)
 
     # 下载每个图片的函数
-    def download_image(index, img_detail, debug_topic='download_images_of_photo'):
+    def download_image(index, img_detail, debug_topic='image'):
         img_save_path = option.decide_image_filepath(photo_detail, index)
 
         # 已下载过，缓存命中

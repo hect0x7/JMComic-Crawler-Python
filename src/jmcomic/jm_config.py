@@ -1,5 +1,6 @@
 def default_jm_debug(topic: str, msg: str):
-    print(f'【{topic}】{msg}')
+    from common import format_ts
+    print(f'{format_ts()}:【{topic}】{msg}')
 
 
 class JmModuleConfig:
