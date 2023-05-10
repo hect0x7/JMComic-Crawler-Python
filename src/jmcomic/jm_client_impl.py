@@ -3,35 +3,72 @@ from .jm_client_interface import *
 
 class AbstractJmClient(
     JmcomicClient,
-    RetryPostman,
+    PostmanProxy,
 ):
 
     def __init__(self,
                  postman: Postman,
                  retry_times: int,
+                 domain=None,
                  fallback_domain_list=None,
                  ):
-        super().__init__(postman, retry_times)
+        super().__init__(postman)
+        self.retry_times = retry_times
 
         if fallback_domain_list is None:
             fallback_domain_list = []
-        self.fallback_domain_list = fallback_domain_list
 
-    def with_retry(self, retry_times, clazz=None):
-        self.retry_times = retry_times
-        return self
+        if domain is not None:
+            fallback_domain_list.insert(0, domain)
 
-    def fallback(self, url, kwargs):
-        if len(self.fallback_domain_list) == 0:
-            raise RuntimeError(f"禁漫请求失败（重试了{self.retry_times}次）: {url}")
+        self.domain_list = fallback_domain_list
 
-        # 下面进行更换域名重试
-        pass
+    def get(self, url, **kwargs):
+        return self.request_with_retry(self.postman.get, url, **kwargs)
 
-    def tip_retrying(self, time, _request, url, kwargs):
-        jm_debug('请求重试',
-                 f'进入重试{time + 1}/{self.retry_times}: {url}'
-                 f'，携带参数: {kwargs if "login" not in url else "#login_form#"}')
+    def post(self, url, **kwargs):
+        return self.request_with_retry(self.postman.post, url, **kwargs)
+
+    def of_api_url(self, api_path, domain):
+        return f'{JmModuleConfig.PROT}{domain}{api_path}'
+
+    def request_with_retry(self,
+                           request,
+                           url,
+                           domain_index=0,
+                           retry_count=0,
+                           **kwargs,
+                           ):
+        if domain_index >= len(self.domain_list):
+            raise AssertionError("All domains failed.")
+
+        domain = self.domain_list[domain_index]
+        full_url = self.of_api_url(url, domain)
+
+        if domain_index != 0 and retry_count != 0:
+            jm_debug(
+                f'请求重试',
+                ', '.join([
+                    f'次数: [{retry_count + 1}/{self.retry_times}]',
+                    f'域名: [{domain} ({domain_index}/{len(self.domain_list)})]',
+                    f'路径: [{full_url}]',
+                    f'参数: [{kwargs if "login" not in url else "#login_form#"}]'
+                ])
+            )
+
+        try:
+            return request(full_url, **kwargs)
+        except Exception as e:
+            self.before_retry(e, kwargs, retry_count, url)
+
+            if retry_count < self.retry_times:
+                return self.request_with_retry(request, url, domain_index, retry_count + 1, **kwargs)
+            else:
+                return self.request_with_retry(url, domain_index + 1, 0, **kwargs)
+
+    # noinspection PyMethodMayBeStatic, PyUnusedLocal
+    def before_retry(self, e, kwargs, retry_count, url):
+        jm_debug('error', str(e))
 
     def enable_cache(self, debug=False):
         def wrap_func_cache(func_name, cache_dict_name):
@@ -69,8 +106,7 @@ class JmHtmlClient(AbstractJmClient):
                  postman: Postman,
                  retry_times=None,
                  ):
-        super().__init__(postman, retry_times)
-        self.domain = domain
+        super().__init__(postman, retry_times, domain)
 
     def get_album_detail(self, album_id) -> JmAlbumDetail:
         # 参数校验
@@ -142,7 +178,7 @@ class JmHtmlClient(AbstractJmClient):
             'submit_login': '',
         }
 
-        resp = self.post(self.of_api_url('/login'),
+        resp = self.post('/login',
                          data=data,
                          allow_redirects=False,
                          )
@@ -155,16 +191,10 @@ class JmHtmlClient(AbstractJmClient):
 
         return resp
 
-    def of_api_url(self, api_path, alter_domain=None):
-        return f"{JmModuleConfig.PROT}{self.domain}{api_path}"
-
     def get_jm_html(self, url, require_200=True, **kwargs):
         """
-        向禁漫发请求的统一入口
+        请求禁漫网页的入口
         """
-        url = self.of_api_url(url)
-        jm_debug("api", url)
-
         resp = self.get(url, **kwargs)
 
         if require_200 is True and resp.status_code != 200:
@@ -177,7 +207,7 @@ class JmHtmlClient(AbstractJmClient):
                                     f'响应文本过长(len={len(resp.text)})，不打印')
                                  )
         # 检查请求是否成功
-        self.require_resp_success_else_raise(resp, url)
+        self.require_resp_success_else_raise(resp)
 
         return resp
 
@@ -185,16 +215,17 @@ class JmHtmlClient(AbstractJmClient):
         return JmImageResp(self.get(img_url))
 
     @classmethod
-    def require_resp_success_else_raise(cls, resp, url):
+    def require_resp_success_else_raise(cls, resp):
         # 1. 是否 album_missing
-        if resp.url.endswith('/error/album_missing'):
-            raise AssertionError(f'请求的本子不存在！({url})\n'
+        resp_url = resp.url
+        if resp_url.endswith('/error/album_missing'):
+            raise AssertionError(f'请求的本子不存在！({resp_url})\n'
                                  '原因可能为:\n'
                                  '1. id有误，检查你的本子/章节id\n'
                                  '2. 该漫画只对登录用户可见，请配置你的cookies\n')
 
         # 2. 是否是错误html页
-        cls.check_error_html(resp.text.strip(), url)
+        cls.check_error_html(resp.text.strip(), resp_url)
 
     @classmethod
     def check_error_html(cls, html: str, url=None):
@@ -203,6 +234,7 @@ class JmHtmlClient(AbstractJmClient):
         if error_msg is None:
             return
 
+        write_text('./resp.html', html)
         raise AssertionError(f'{error_msg}'
                              + (f': {url}' if url is not None else ''))
 
@@ -238,14 +270,12 @@ class JmApiClient(AbstractJmClient):
             }
         )
 
-    def get(self, url, concat_domain=True, **kwargs) -> JmApiResp:
-        api_url = self.of_api_url(url) if concat_domain else url
-
+    def get(self, url, **kwargs) -> JmApiResp:
         # set headers
         headers, key_ts = self.headers_key_ts
         kwargs.setdefault('headers', headers)
 
-        resp = super().get(api_url, **kwargs)
+        resp = super().get(url, **kwargs)
         return JmApiResp.wrap(resp, key_ts)
 
     @property
@@ -259,6 +289,3 @@ class JmApiClient(AbstractJmClient):
             "user-agent": "okhttp/3.12.1",
             "accept-encoding": "gzip",
         }, key_ts
-
-    def of_api_url(self, api_path, alter_domain=None):
-        return self.base_url + api_path

@@ -136,7 +136,7 @@ class JmDetailClient:
     def search_album(self, search_query, main_tag=0) -> Union[JmSearchPage, JmAlbumDetail]:
         raise NotImplementedError
 
-    def of_api_url(self, api_path, alter_domain=None):
+    def of_api_url(self, api_path, domain):
         raise NotImplementedError
 
     def enable_cache(self, debug=False):
@@ -208,11 +208,5 @@ class JmcomicClient(
     JmImageClient,
     JmDetailClient,
     JmUserClient,
-    Postman,
 ):
-
-    def get_jmcomic_url(self, postman=None):
-        return JmModuleConfig.get_jmcomic_url(postman or self)
-
-    def get_jmcomic_url_all(self, postman=None):
-        return JmModuleConfig.get_jmcomic_url_all(postman or self)
+    pass

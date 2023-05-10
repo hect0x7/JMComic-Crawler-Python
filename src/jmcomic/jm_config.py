@@ -100,7 +100,7 @@ class JmModuleConfig:
         return url
 
     @classmethod
-    def get_jmcomic_url_all(cls, postman=None):
+    def get_jmcomic_domain_all(cls, postman=None):
         """
         访问禁漫发布页，得到所有禁漫的域名
         @return：['18comic.vip', ..., 'jm365.xyz/ZNPJam'], 最后一个是【APP軟件下載】
