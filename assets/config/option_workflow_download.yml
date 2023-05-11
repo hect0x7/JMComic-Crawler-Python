@@ -2,6 +2,6 @@
 
 version: '2.0'
 
-dir_tree:
-  Bd: /home/runner/work/jmcomic/download/
-  flag: Bd_Aauthor_Atitle_Pindex
+dir_rule:
+  base_dir: /home/runner/work/jmcomic/download/
+  rule: Bd_Aauthor_Atitle_Pindex
