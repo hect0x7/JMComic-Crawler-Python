@@ -32,7 +32,7 @@ jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载�
 # 如果没有配置，则会使用 JmOption.default()，下载的路径是[当前工作文件夹/本子名称/图片].
 ```
 
-进一步的使用可以参考usage文件夹下的示例代码: `jmcomic_getting_started.py` `jmcomic_usage.py`
+进一步的使用可以参考usage文件夹下的示例代码: `getting_started.py` `sample_usage.py`
 
 ## 项目特点
 
@@ -66,6 +66,6 @@ jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载�
 
 ## 感谢以下项目
 
-### 图片分割算法的来源
+### 图片分割算法代码+禁漫移动端API
 
 [![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=tonquer&repo=JMComic-qt)](https://github.com/tonquer/JMComic-qt)
