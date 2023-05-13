@@ -4,8 +4,6 @@ on:
   push:
     branches: [ "dev", "master" ]
     paths:
-      - '.github/workflows/*.yml' # 工作流定义
-      - 'usage/**/*.py' # 工作流脚本
       - 'assets/config/*.yml' # option配置文件
       - 'src/**/*.py' # 源码
       - 'tests/**/*.py' # 测试代码

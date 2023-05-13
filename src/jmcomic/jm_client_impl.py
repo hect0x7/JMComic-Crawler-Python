@@ -249,15 +249,30 @@ class JmHtmlClient(AbstractJmClient):
 class JmApiClient(AbstractJmClient):
     API_SEARCH = '/search'
 
-    def __init__(self,
-                 base_url,
-                 postman: Postman,
-                 retry_times=5,
-                 ):
-        super().__init__(postman, retry_times)
-        self.base_url: str = base_url
-
     def search_album(self, search_query: str, main_tag=0) -> JmApiResp:
+        """
+        model_data: {
+          "search_query": "MANA",
+          "total": "177",
+          "content": [
+            {
+              "id": "441923",
+              "author": "MANA",
+              "description": "",
+              "name": "[MANA] 神里绫华5",
+              "image": "",
+              "category": {
+                "id": "1",
+                "title": "同人"
+              },
+              "category_sub": {
+                "id": "1",
+                "title": "同人"
+              }
+            }
+          ]
+        }
+        """
         return self.get(
             self.API_SEARCH,
             params={
