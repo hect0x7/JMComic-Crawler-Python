@@ -8,7 +8,7 @@ jm_option = create_option(
 @timeit('下载本子集: ')
 def download_jm_album():
     ls = str_to_list('''
-    94505
+    94505 
 
 
     ''')
