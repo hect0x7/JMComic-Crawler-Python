@@ -67,29 +67,29 @@ class JmApiResp(JmResp):
         self.cache_decode_data = None
 
     @staticmethod
-    def parseData(text, time):
-        import hashlib
+    def parse_data(text, time) -> str:
+        # 1. base64解码
         import base64
-        from Crypto.Cipher import AES
-        # key为时间+18comicAPPContent的md5结果
-        key = hashlib.md5(f"{time}18comicAPPContent".encode()).hexdigest().encode()
-        cipher = AES.new(key, AES.MODE_ECB)
-        # 先将数据进行base64解码
         data = base64.b64decode(text)
-        # 再进行AES-ECB解密
-        paddedPlainText = cipher.decrypt(data)
-        # 将得到的数据进行Utf8解码
-        res = paddedPlainText.decode('utf-8')
-        # 得到的数据再末尾有一些乱码
-        i = len(res) - 1
-        while i >= 0 and res[i] == '\x0c':
-            i -= 1
-        return res[:i + 1]
+
+        # 2. AES-ECB解密
+        # key = 时间戳拼接 '18comicAPPContent' 的md5
+        import hashlib
+        key = hashlib.md5(f"{time}18comicAPPContent".encode("utf-8")).hexdigest().encode("utf-8")
+        from Crypto.Cipher import AES
+        data = AES.new(key, AES.MODE_ECB).decrypt(data)
+
+        # 3. 移除末尾的一些特殊字符
+        data = data[:-data[-1]]
+
+        # 4. 解码为字符串 (json)
+        res = data.decode('utf-8')
+        return res
 
     @property
     def decoded_data(self) -> str:
         if self.cache_decode_data is None:
-            self.cache_decode_data = self.parseData(self.encoded_data, self.key_ts)
+            self.cache_decode_data = self.parse_data(self.encoded_data, self.key_ts)
 
         return self.cache_decode_data
 
