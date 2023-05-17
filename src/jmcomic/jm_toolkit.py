@@ -21,8 +21,8 @@ class JmcomicText:
     pattern_html_album_album_id = compile('<span class="number">.*?：JM(\d+)</span>')
     pattern_html_album_scramble_id = compile('var scramble_id = (\d+);')
     pattern_html_album_title = compile('panel-heading[\s\S]*?<h1>(.*?)</h1>')
-    pattern_html_album_episode_list = compile('<a href=".*?" data-album="(\d+)">\n'
-                                              '<li.*>\n第(\d+)話\n(.*)\n'
+    pattern_html_album_episode_list = compile('data-album="(\d+)">\n *?<li.*?>\n *'
+                                              '第(\d+)話\n(.*)\n *'
                                               '<[\s\S]*?>(\d+-\d+-\d+).*?')
     pattern_html_album_page_count = compile('<span class="pagecount">.*?:(\d+)</span>')
     pattern_html_album_pub_date = compile('>上架日期 : (.*?)</span>')
@@ -87,20 +87,24 @@ class JmcomicText:
             domain_ls
         ))
 
+    # 可以替换下面两个类为用户自定义的、二次继承的类
+    PhotoClass = JmPhotoDetail
+    AlbumClass = JmAlbumDetail
+
     @classmethod
-    def analyse_jm_photo_html(cls, html: str) -> JmPhotoDetail:
+    def analyse_jm_photo_html(cls, html: str) -> PhotoClass:
         return cls.reflect_new_instance(
             html,
             "pattern_html_photo_",
-            JmPhotoDetail
+            cls.PhotoClass
         )
 
     @classmethod
-    def analyse_jm_album_html(cls, html: str) -> JmAlbumDetail:
+    def analyse_jm_album_html(cls, html: str) -> AlbumClass:
         return cls.reflect_new_instance(
             html,
             "pattern_html_album_",
-            JmAlbumDetail
+            cls.AlbumClass
         )
 
     @classmethod
