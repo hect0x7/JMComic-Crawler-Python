@@ -69,6 +69,10 @@ class DirRule:
         'Bd_Aid_Pindex',  # 禁漫网站的默认下载方式
         # 根目录 / Album-作者 / Album-标题 / Photo-序号 /
         'Bd_Aauthor_Atitle_Pindex',
+        # 根目录 / Photo-序号&标题 /
+        'Bd_Pindextitle',
+        # 根目录 / Photo-自定义类属性 /
+        'Bd_Aauthor_Atitle_Pcustomfield',  # 使用自定义类属性前，需替换 JmcomicText的 PhotoClass / AlbumClass
     ]
 
     RuleFunc = Callable[[Union[JmAlbumDetail, JmPhotoDetail, None]], str]

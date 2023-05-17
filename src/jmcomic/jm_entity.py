@@ -104,7 +104,7 @@ class JmPhotoDetail(WorkEntity):
                  ):
         self.photo_id: str = photo_id
         self.scramble_id: str = scramble_id
-        self.title: str = title
+        self.title: str = str(title).strip()
         self.sort: int = int(sort)
         self._keywords: str = keywords
         self._series_id: int = int(series_id)
@@ -133,6 +133,10 @@ class JmPhotoDetail(WorkEntity):
             return self.from_album.keywords
 
         return self._keywords.split(',')
+
+    @property
+    def indextitle(self):
+        return f'第{self.album_index}話 {self.title}'
 
     @property
     def album_id(self) -> str:
