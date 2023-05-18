@@ -208,5 +208,6 @@ class JmcomicClient(
     JmImageClient,
     JmDetailClient,
     JmUserClient,
+    Postman,
 ):
     pass
