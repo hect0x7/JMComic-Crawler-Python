@@ -220,18 +220,17 @@ class JmHtmlClient(AbstractJmClient):
                                  '2. 该漫画只对登录用户可见，请配置你的cookies\n')
 
         # 2. 是否是错误html页
-        cls.check_error_html(resp.text.strip(), resp_url)
+        cls.check_error_html(resp.text, resp_url)
 
     @classmethod
     def check_error_html(cls, html: str, url=None):
-        html = html.strip()
-        error_msg = JmModuleConfig.JM_ERROR_RESPONSE_HTML.get(html, None)
-        if error_msg is None:
-            return
+        for content, reason in JmModuleConfig.JM_ERROR_RESPONSE_HTML.items():
+            if content not in html:
+                continue
 
-        write_text('./resp.html', html)
-        raise AssertionError(f'{error_msg}'
-                             + (f': {url}' if url is not None else ''))
+            write_text('./resp.html', html)
+            raise AssertionError(f'{reason}'
+                                 + (f': {url}' if url is not None else ''))
 
     @classmethod
     def check_special_http_code(cls, code, url=None):

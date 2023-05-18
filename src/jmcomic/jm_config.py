@@ -6,7 +6,7 @@ def default_jm_debug(topic: str, msg: str):
 class JmModuleConfig:
     # 网站相关
     PROT = "https://"
-    _DOMAIN = None
+    DOMAIN = None
     JM_REDIRECT_URL = f'{PROT}jm365.xyz/3YeBdF'  # 永久網域，怕走失的小伙伴收藏起来
     JM_PUB_URL = f'{PROT}jmcomic1.bet'
     JM_CDN_IMAGE_URL_TEMPLATE = PROT + 'cdn-msp.{domain}/media/photos/{photo_id}/{index:05}{suffix}'  # index 从1开始
@@ -47,11 +47,11 @@ class JmModuleConfig:
         并且设置把 domain 设置为禁漫模块的默认域名。
         这样一来，配置文件也不用配置域名了，一切都在运行时动态获取。
         """
-        if cls._DOMAIN is None:
+        if cls.DOMAIN is None:
             from .jm_toolkit import JmcomicText
-            cls._DOMAIN = JmcomicText.parse_to_jm_domain(cls.get_jmcomic_url(postman))
+            cls.DOMAIN = JmcomicText.parse_to_jm_domain(cls.get_jmcomic_url(postman))
 
-        return cls._DOMAIN  # jmcomic默认域名
+        return cls.DOMAIN  # jmcomic默认域名
 
     @classmethod
     def headers(cls, authority=None):
