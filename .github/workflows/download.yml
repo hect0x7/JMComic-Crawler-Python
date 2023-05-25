@@ -53,6 +53,6 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: ${{ env.UPLOAD_NAME }}
-          path: ${{ env.JM_DOWNLOAD_DIR }}/${{ env.ZIP_NAME }}
+          path: ${{ env.JM_DOWNLOAD_DIR }}/../${{ env.ZIP_NAME }}
           if-no-files-found: warn
           retention-days: 90
