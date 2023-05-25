@@ -43,20 +43,22 @@ def get_option():
 
 
 def hook_debug(option):
-    from jmcomic import JmHtmlClient, workspace
+    from jmcomic import JmHtmlClient, workspace, mkdir_if_not_exists
+
     jm_download_dir = get_env('JM_DOWNLOAD_DIR') or workspace()
+    mkdir_if_not_exists(jm_download_dir)
 
     class HookDebugClient(JmHtmlClient):
 
         @classmethod
-        def raise_request_error(cls, resp):
+        def raise_request_error(cls, resp, msg):
             from common import write_text, fix_windir_name, format_ts
             write_text(
                 f'{jm_download_dir}/[请求禁漫失败时的网页内容]_[{format_ts}]_[{fix_windir_name(resp.url)}].html',
                 resp.text
             )
 
-            return super().raise_request_error(resp)
+            return super().raise_request_error(resp, msg)
 
     option.jm_client_impl_mapping['html'] = HookDebugClient
 
