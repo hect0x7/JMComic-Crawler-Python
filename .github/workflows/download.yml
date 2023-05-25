@@ -5,7 +5,7 @@ on:
     branches-ignore:
       - 'master' # master专门用于发布pip和repo介绍
     paths:
-      - 'github/workflows/download.yml' # 工作流定义
+      - '.github/workflows/download.yml' # 工作流定义
       - 'usage/workflow_download.py' # 下载脚本
       - 'assets/config/option_workflow_download.yml' # 配置文件
 
