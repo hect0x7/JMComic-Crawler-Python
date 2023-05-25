@@ -195,16 +195,20 @@ class JmHtmlClient(AbstractJmClient):
         if require_200 is True and resp.status_code != 200:
             write_text('./resp.html', resp.text)
             self.check_special_http_code(resp.status_code, url)
-            raise AssertionError(f"请求失败，"
-                                 f"响应状态码为{resp.status_code}，"
-                                 f"URL=[{resp.url}]，"
-                                 + (f"响应文本=[{resp.text}]" if len(resp.text) < 50 else
-                                    f'响应文本过长(len={len(resp.text)})，不打印')
-                                 )
+            self.raise_request_error(resp)
+
         # 检查请求是否成功
         self.require_resp_success_else_raise(resp)
 
         return resp
+
+    def raise_request_error(self, resp):
+        raise AssertionError(f"请求失败，"
+                             f"响应状态码为{resp.status_code}，"
+                             f"URL=[{resp.url}]，"
+                             + (f"响应文本=[{resp.text}]" if len(resp.text) < 200 else
+                                f'响应文本过长(len={len(resp.text)})，不打印')
+                             )
 
     def get_jm_image(self, img_url) -> JmImageResp:
         return JmImageResp(self.get(img_url))
@@ -219,12 +223,15 @@ class JmHtmlClient(AbstractJmClient):
                                  '1. id有误，检查你的本子/章节id\n'
                                  '2. 该漫画只对登录用户可见，请配置你的cookies\n')
 
-        # 2. 是否是错误html页
-        cls.check_error_html(resp.text, resp_url)
+        # 2. 是否是特殊的内容
+        cls.check_special_text(resp.text, resp_url)
 
     @classmethod
-    def check_error_html(cls, html: str, url=None):
-        for content, reason in JmModuleConfig.JM_ERROR_RESPONSE_HTML.items():
+    def check_special_text(cls, html: str, url=None):
+        if len(html) > 500:
+            return
+
+        for content, reason in JmModuleConfig.JM_ERROR_RESPONSE_TEXT.items():
             if content not in html:
                 continue
 

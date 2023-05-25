@@ -13,12 +13,13 @@ class JmModuleConfig:
     JM_IMAGE_SUFFIX = ['.jpg', '.webp', '.png', '.gif']
 
     # 访问JM可能会遇到的异常网页
-    JM_ERROR_RESPONSE_HTML = {
+    JM_ERROR_RESPONSE_TEXT = {
         "Could not connect to mysql! Please check your database settings!": "禁漫服务器内部报错",
         "Restricted Access!": "禁漫拒绝你所在ip地区的访问，你可以选择: 换域名/换代理",
     }
 
     JM_ERROR_STATUS_CODE = {
+        403: 'ip地区禁止访问/爬虫被识别',
         520: '520: Web server is returning an unknown error (禁漫服务器内部报错)',
         524: '524: The origin web server timed out responding to this request. (禁漫服务器处理超时)',
     }
