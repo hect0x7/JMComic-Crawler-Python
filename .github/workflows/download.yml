@@ -47,6 +47,7 @@ jobs:
           JM_USERNAME: ${{ secrets.JM_USERNAME }}
           JM_PASSWORD: ${{ secrets.JM_PASSWORD }}
         run: |
+          mkdir -p /home/runner/work/jmcomic/download/
           cd ./usage/
           python workflow_download.py
 
