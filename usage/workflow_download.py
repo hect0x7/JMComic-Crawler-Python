@@ -8,44 +8,66 @@ jm_albums = '''
 
 
 def main():
-    from jmcomic import create_option, str_to_list, download_album, print_eye_catching
-
-    def get_option():
-        # 读取 option 配置文件
-        option = create_option('../assets/config/option_workflow_download.yml')
-
-        # 启用 client 的缓存
-        client = option.build_jm_client()
-        client.enable_cache()
-
-        # 检查环境变量中是否有禁漫的用户名和密码，如果有则登录
-        # 禁漫的大部分本子，下载是不需要登录的，少部分敏感题材需要登录
-        # 如果你希望以登录状态下载本子，你需要自己配置一下Github Actions的 `secrets`
-        # 配置的方式很简单，网页上点一点就可以了
-        # 具体做法请去看官方教程：https://docs.github.com/en/actions/security-guides/encrypted-secrets
-
-        # 萌新注意！！！如果你想 `开源` 你的禁漫帐号，你也可以直接把账号密码写到下面的代码😅
-
-        def get_env(name):
-            import os
-            value = os.getenv(name, None)
-
-            if value is None or value == '':
-                return None
-
-            return value
-
-        username = get_env('JM_USERNAME')
-        password = get_env('JM_PASSWORD')
-
-        if username is not None and password is not None:
-            client.login(username, password, True)
-            print_eye_catching(f'登录禁漫成功')
-
-        return option
-
-    # 调用jmcomic的download_album方法，下载漫画
+    from jmcomic import str_to_list, download_album
+    # 下载漫画
     download_album(str_to_list(jm_albums), option=get_option())
+
+
+def get_option():
+    from jmcomic import create_option, print_eye_catching
+
+    # 读取 option 配置文件
+    option = create_option('../assets/config/option_workflow_download.yml')
+
+    # 启用 client 的缓存
+    client = option.build_jm_client()
+    client.enable_cache()
+
+    # 检查环境变量中是否有禁漫的用户名和密码，如果有则登录
+    # 禁漫的大部分本子，下载是不需要登录的，少部分敏感题材需要登录
+    # 如果你希望以登录状态下载本子，你需要自己配置一下Github Actions的 `secrets`
+    # 配置的方式很简单，网页上点一点就可以了
+    # 具体做法请去看官方教程：https://docs.github.com/en/actions/security-guides/encrypted-secrets
+
+    # 萌新注意！！！如果你想 `开源` 你的禁漫帐号，你也可以直接把账号密码写到下面的代码😅
+
+    username = get_env('JM_USERNAME')
+    password = get_env('JM_PASSWORD')
+
+    if username is not None and password is not None:
+        client.login(username, password, True)
+        print_eye_catching(f'登录禁漫成功')
+
+    hook_debug(option)
+    return option
+
+
+def hook_debug(option):
+    from jmcomic import JmHtmlClient, workspace
+    jm_download_dir = get_env('JM_DOWNLOAD_DIR') or workspace()
+
+    class HookDebugClient(JmHtmlClient):
+
+        def raise_request_error(self, resp):
+            from common import write_text, fix_windir_name, format_ts
+            write_text(
+                f'{jm_download_dir}/[请求禁漫失败时的网页内容]_[{format_ts}]_[{fix_windir_name(resp.url)}].html',
+                resp.text
+            )
+
+            return super().raise_request_error(resp)
+
+    option.jm_client_impl_mapping['html'] = HookDebugClient
+
+
+def get_env(name):
+    import os
+    value = os.getenv(name, None)
+
+    if value is None or value == '':
+        return None
+
+    return value
 
 
 if __name__ == '__main__':

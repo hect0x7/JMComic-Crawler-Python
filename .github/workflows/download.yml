@@ -12,6 +12,13 @@ on:
 jobs:
   crawler:
     runs-on: ubuntu-latest
+    env:
+      JM_USERNAME: ${{ secrets.JM_USERNAME }}
+      JM_PASSWORD: ${{ secrets.JM_PASSWORD }}
+      JM_DOWNLOAD_DIR: /home/runner/work/jmcomic/download/
+      ZIP_NAME: '本子.tar.gz'
+      UPLOAD_NAME: '下载完成的本子'
+
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python 3.11
@@ -33,22 +40,19 @@ jobs:
           pip install -e ./
 
       - name: 运行下载脚本
-        env:
-          JM_USERNAME: ${{ secrets.JM_USERNAME }}
-          JM_PASSWORD: ${{ secrets.JM_PASSWORD }}
         run: |
           cd ./usage/
           python workflow_download.py
 
       - name: 压缩文件
         run: |
-          cd /home/runner/work/jmcomic/download/
-          tar -zcvf ../本子.tar.gz ./
+          cd $JM_DOWNLOAD_DIR
+          tar -zcvf ../$ZIP_NAME ./
 
       - name: 上传结果
         uses: actions/upload-artifact@v3
         with:
-          name: 下载完成的本子
-          path: /home/runner/work/jmcomic/本子.tar.gz
+          name: ${{ env.UPLOAD_NAME }}
+          path: $JM_DOWNLOAD_DIR/$ZIP_NAME
           if-no-files-found: warn
           retention-days: 90
