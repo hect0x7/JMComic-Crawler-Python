@@ -202,13 +202,19 @@ class JmHtmlClient(AbstractJmClient):
 
         return resp
 
-    def raise_request_error(self, resp):
-        raise AssertionError(f"请求失败，"
-                             f"响应状态码为{resp.status_code}，"
-                             f"URL=[{resp.url}]，"
-                             + (f"响应文本=[{resp.text}]" if len(resp.text) < 200 else
-                                f'响应文本过长(len={len(resp.text)})，不打印')
-                             )
+    @classmethod
+    def raise_request_error(cls, resp, msg: Optional[str] = None):
+        """
+        请求如果失败，统一由该方法抛出异常
+        """
+        if msg is None:
+            msg = f"请求失败，" \
+                  f"响应状态码为{resp.status_code}，" \
+                  f"URL=[{resp.url}]，" \
+                  + (f"响应文本=[{resp.text}]" if len(resp.text) < 200 else
+                     f'响应文本过长(len={len(resp.text)})，不打印'
+                     )
+        raise AssertionError(msg)
 
     def get_jm_image(self, img_url) -> JmImageResp:
         return JmImageResp(self.get(img_url))
@@ -218,10 +224,12 @@ class JmHtmlClient(AbstractJmClient):
         # 1. 是否 album_missing
         resp_url = resp.url
         if resp_url.endswith('/error/album_missing'):
-            raise AssertionError(f'请求的本子不存在！({resp_url})\n'
-                                 '原因可能为:\n'
-                                 '1. id有误，检查你的本子/章节id\n'
-                                 '2. 该漫画只对登录用户可见，请配置你的cookies\n')
+            cls.raise_request_error(
+                f'请求的本子不存在！({resp_url})\n'
+                '原因可能为:\n'
+                '1. id有误，检查你的本子/章节id\n'
+                '2. 该漫画只对登录用户可见，请配置你的cookies\n'
+            )
 
         # 2. 是否是特殊的内容
         cls.check_special_text(resp.text, resp_url)
@@ -236,8 +244,10 @@ class JmHtmlClient(AbstractJmClient):
                 continue
 
             write_text('./resp.html', html)
-            raise AssertionError(f'{reason}'
-                                 + (f': {url}' if url is not None else ''))
+            cls.raise_request_error(
+                f'{reason}'
+                + (f': {url}' if url is not None else '')
+            )
 
     @classmethod
     def check_special_http_code(cls, code, url=None):
@@ -245,11 +255,12 @@ class JmHtmlClient(AbstractJmClient):
         if error_msg is None:
             return
 
-        raise AssertionError(f"请求失败，"
-                             f"响应状态码为{code}，"
-                             f'原因为: [{error_msg}], '
-                             + (f'URL=[{url}]' if url is not None else '')
-                             )
+        cls.raise_request_error(
+            f"请求失败，"
+            f"响应状态码为{code}，"
+            f'原因为: [{error_msg}], '
+            + (f'URL=[{url}]' if url is not None else '')
+        )
 
 
 class JmApiClient(AbstractJmClient):
