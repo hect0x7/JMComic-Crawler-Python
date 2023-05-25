@@ -1,13 +1,41 @@
 # Github Actions 下载脚本配置
 
-version: '2.0'
 
+client:
+  domain: ["jm-comic2.cc"]
+  impl: html
+  postman:
+    meta_data:
+      cookies: null
+      proxies: clash
+      allow_redirects: true
+      headers:
+        accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
+        accept-language: zh-CN,zh;q=0.9
+        authority: 18comic.vip
+        sec-ch-ua: '"Google Chrome";v="111", "Not(A:Brand";v="8", "Chromium";v="111"'
+        sec-ch-ua-mobile: ?0
+        sec-ch-ua-platform: '"Windows"'
+        sec-fetch-dest: document
+        sec-fetch-mode: navigate
+        sec-fetch-site: none
+        sec-fetch-user: ?1
+        upgrade-insecure-requests: '1'
+        user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/111.0.0.0 Safari/537.36
+        referer: https://18comic.vip/
+      impersonate: chrome110
+    type: cffi
+  retry_times: 20
+debug: true
 dir_rule:
   base_dir: /home/runner/work/jmcomic/download/
   rule: Bd_Aauthor_Atitle_Pindex
-
-client:
-  postman:
-    meta_data:
-      headers:
-        referer: https://18comic.vip/
+download:
+  cache: true
+  image:
+    decode: true
+    suffix: null
+  threading:
+    batch_count: 30
+version: '2.0'
