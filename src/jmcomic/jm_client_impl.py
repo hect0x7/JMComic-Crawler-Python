@@ -52,7 +52,7 @@ class AbstractJmClient(
             jm_debug(
                 f'请求重试',
                 ', '.join([
-                    f'次数: [{retry_count + 1}/{self.retry_times}]',
+                    f'次数: [{retry_count}/{self.retry_times}]',
                     f'域名: [{domain} ({domain_index}/{len(self.domain_list)})]',
                     f'路径: [{url}]',
                     f'参数: [{kwargs if "login" not in url else "#login_form#"}]'
@@ -194,11 +194,11 @@ class JmHtmlClient(AbstractJmClient):
 
         if require_200 is True and resp.status_code != 200:
             write_text('./resp.html', resp.text)
-            self.check_special_http_code(resp.status_code, url)
+            self.check_special_http_code(resp)
             self.raise_request_error(resp)
 
         # 检查请求是否成功
-        self.require_resp_success_else_raise(resp)
+        self.require_resp_success_else_raise(resp, url)
 
         return resp
 
@@ -220,22 +220,26 @@ class JmHtmlClient(AbstractJmClient):
         return JmImageResp(self.get(img_url))
 
     @classmethod
-    def require_resp_success_else_raise(cls, resp):
-        # 1. 是否 album_missing
-        resp_url = resp.url
-        if resp_url.endswith('/error/album_missing'):
+    def require_resp_success_else_raise(cls, resp, req_url):
+        # 1. 检查是否 album_missing
+        error_album_missing = '/error/album_missing'
+        if resp.url.endswith(error_album_missing) and not req_url.endswith(error_album_missing):
             cls.raise_request_error(
-                f'请求的本子不存在！({resp_url})\n'
+                resp,
+                f'请求的本子不存在！({req_url})\n'
                 '原因可能为:\n'
                 '1. id有误，检查你的本子/章节id\n'
                 '2. 该漫画只对登录用户可见，请配置你的cookies\n'
             )
 
         # 2. 是否是特殊的内容
-        cls.check_special_text(resp.text, resp_url)
+        cls.check_special_text(resp)
 
     @classmethod
-    def check_special_text(cls, html: str, url=None):
+    def check_special_text(cls, resp):
+        html = resp.text
+        url = resp.url
+
         if len(html) > 500:
             return
 
@@ -245,17 +249,22 @@ class JmHtmlClient(AbstractJmClient):
 
             write_text('./resp.html', html)
             cls.raise_request_error(
+                resp,
                 f'{reason}'
                 + (f': {url}' if url is not None else '')
             )
 
     @classmethod
-    def check_special_http_code(cls, code, url=None):
+    def check_special_http_code(cls, resp):
+        code = resp.status_code
+        url = resp.url
+
         error_msg = JmModuleConfig.JM_ERROR_STATUS_CODE.get(int(code), None)
         if error_msg is None:
             return
 
         cls.raise_request_error(
+            resp,
             f"请求失败，"
             f"响应状态码为{code}，"
             f'原因为: [{error_msg}], '
