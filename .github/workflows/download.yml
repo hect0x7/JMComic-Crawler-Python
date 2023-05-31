@@ -21,11 +21,6 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
-
-      - name: 安装依赖项（zip）
-        if: ${{ github.ref == 'refs/heads/workflow' }}
-        run: |
-          apt-get install -y zip
           
       - name: 安装依赖项（pip）
         if: ${{ github.ref == 'refs/heads/workflow' }}
