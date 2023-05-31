@@ -22,6 +22,11 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: 安装依赖项（zip）
+        if: ${{ github.ref == 'refs/heads/workflow' }}
+        run: |
+          apt-get install -y zip
+          
       - name: 安装依赖项（pip）
         if: ${{ github.ref == 'refs/heads/workflow' }}
         run: |
@@ -54,12 +59,12 @@ jobs:
       - name: 压缩下载的漫画
         run: |
           cd /home/runner/work/jmcomic/download/
-          tar -zcvf ../下载完成的本子.tar.gz ./
+          zip -r ../下载完成的本子.zip ./
 
       - name: 上传结果
         uses: actions/upload-artifact@v3
         with:
           name: 下载完成的本子
-          path: /home/runner/work/jmcomic/下载完成的本子.tar.gz
+          path: /home/runner/work/jmcomic/下载完成的本子.zip
           if-no-files-found: warn
           retention-days: 90
