@@ -312,20 +312,28 @@ class JmOption:
         'api': JmApiClient,
     }
 
-    def build_jm_client(self) -> JmcomicClient:
+    def build_jm_client(self, **kwargs) -> JmcomicClient:
         if self.cache_jm_client is not True:
-            return self.new_jm_client()
+            return self.new_jm_client(**kwargs)
 
         client = self.jm_client_cache
         if client is None:
-            client = self.new_jm_client()
+            client = self.new_jm_client(**kwargs)
             self.jm_client_cache = client
 
         return client
 
-    def new_jm_client(self) -> JmcomicClient:
+    def new_jm_client(self, **kwargs) -> JmcomicClient:
+        postman_conf: dict = self.client.postman.src_dict
+
+        # support overwrite meta_data
+        if len(kwargs) != 0:
+            meta_data = postman_conf.get('meta_data', {})
+            meta_data.update(kwargs)
+            postman_conf['meta_data'] = meta_data
+
         # postman
-        postman = Postmans.create(data=self.client.postman)
+        postman = Postmans.create(data=postman_conf)
 
         # domain_list
         domain_list = self.client.domain

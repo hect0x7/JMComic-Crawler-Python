@@ -6,19 +6,20 @@ def default_jm_debug(topic: str, msg: str):
 class JmModuleConfig:
     # 网站相关
     PROT = "https://"
-    _DOMAIN = None
+    DOMAIN = None
     JM_REDIRECT_URL = f'{PROT}jm365.xyz/3YeBdF'  # 永久網域，怕走失的小伙伴收藏起来
     JM_PUB_URL = f'{PROT}jmcomic1.bet'
     JM_CDN_IMAGE_URL_TEMPLATE = PROT + 'cdn-msp.{domain}/media/photos/{photo_id}/{index:05}{suffix}'  # index 从1开始
     JM_IMAGE_SUFFIX = ['.jpg', '.webp', '.png', '.gif']
 
     # 访问JM可能会遇到的异常网页
-    JM_ERROR_RESPONSE_HTML = {
+    JM_ERROR_RESPONSE_TEXT = {
         "Could not connect to mysql! Please check your database settings!": "禁漫服务器内部报错",
         "Restricted Access!": "禁漫拒绝你所在ip地区的访问，你可以选择: 换域名/换代理",
     }
 
     JM_ERROR_STATUS_CODE = {
+        403: 'ip地区禁止访问/爬虫被识别',
         520: '520: Web server is returning an unknown error (禁漫服务器内部报错)',
         524: '524: The origin web server timed out responding to this request. (禁漫服务器处理超时)',
     }
@@ -47,11 +48,11 @@ class JmModuleConfig:
         并且设置把 domain 设置为禁漫模块的默认域名。
         这样一来，配置文件也不用配置域名了，一切都在运行时动态获取。
         """
-        if cls._DOMAIN is None:
+        if cls.DOMAIN is None:
             from .jm_toolkit import JmcomicText
-            cls._DOMAIN = JmcomicText.parse_to_jm_domain(cls.get_jmcomic_url(postman))
+            cls.DOMAIN = JmcomicText.parse_to_jm_domain(cls.get_jmcomic_url(postman))
 
-        return cls._DOMAIN  # jmcomic默认域名
+        return cls.DOMAIN  # jmcomic默认域名
 
     @classmethod
     def headers(cls, authority=None):
@@ -60,12 +61,13 @@ class JmModuleConfig:
             'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,'
                       'application/signed-exchange;v=b3;q=0.7',
             'accept-language': 'zh-CN,zh;q=0.9',
+            'referer': 'https://18comic.vip',
             'sec-ch-ua': '"Google Chrome";v="111", "Not(A:Brand";v="8", "Chromium";v="111"',
             'sec-ch-ua-mobile': '?0',
             'sec-ch-ua-platform': '"Windows"',
             'sec-fetch-dest': 'document',
             'sec-fetch-mode': 'navigate',
-            'sec-fetch-site': 'none',
+            'sec-fetch-site': 'same-origin',
             'sec-fetch-user': '?1',
             'upgrade-insecure-requests': '1',
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 '
