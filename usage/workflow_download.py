@@ -1,7 +1,7 @@
 # 下方填入你要下载的本子的id，一行一个。
 # 每行的首尾可以有空白字符
 jm_albums = '''
-438696
+452859
 
 
 '''
@@ -18,6 +18,7 @@ def get_option():
 
     # 读取 option 配置文件
     option = create_option('../assets/config/option_workflow_download.yml')
+    hook_debug(option)
 
     # 启用 client 的缓存
     client = option.build_jm_client()
@@ -38,7 +39,6 @@ def get_option():
         client.login(username, password, True)
         print_eye_catching(f'登录禁漫成功')
 
-    hook_debug(option)
     return option
 
 
@@ -54,7 +54,7 @@ def hook_debug(option):
         def raise_request_error(cls, resp, msg):
             from common import write_text, fix_windir_name, format_ts
             write_text(
-                f'{jm_download_dir}/[请求禁漫失败时的网页内容]_[{format_ts}]_[{fix_windir_name(resp.url)}].html',
+                f'{jm_download_dir}/[请求失败的响应内容]_[{format_ts()}]_[{fix_windir_name(resp.url)}].html',
                 resp.text
             )
 

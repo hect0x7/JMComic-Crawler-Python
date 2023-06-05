@@ -17,9 +17,10 @@ def download_album(jm_album_id, option=None):
 
     jm_debug('album',
              f'本子获取成功: [{album.id}], '
-             f'标题: [{album.title}], '
              f'作者: [{album.author}], '
-             f'章节数: [{len(album)}]')
+             f'章节数: [{len(album)}]'
+             f'标题: [{album.title}], '
+             )
 
     def download_photo(photo: JmPhotoDetail,
                        debug_topic='photo',
@@ -92,11 +93,12 @@ def download_by_photo_detail(photo_detail: JmPhotoDetail,
     # 下载每个图片的函数
     def download_image(index, image: JmImageDetail, debug_topic='image'):
         img_save_path = option.decide_image_filepath(photo_detail, index)
+        debug_tag = f'{image.aid}/{image.filename} [{index + 1}/{len(photo_detail)}]'
 
         # 已下载过，缓存命中
         if use_cache is True and file_exists(img_save_path):
             jm_debug(debug_topic,
-                     f'图片已存在: {image.aid}[{image.filename}] → {img_save_path}')
+                     f'图片已存在: {debug_tag} ← [{img_save_path}]')
             return
 
         # 开始下载
@@ -107,8 +109,7 @@ def download_by_photo_detail(photo_detail: JmPhotoDetail,
         )
 
         jm_debug(debug_topic,
-                 f'图片下载完成: {image.aid}/{image.filename}, '
-                 f'[{image.img_url}] → [{img_save_path}]')
+                 f'图片下载完成: {debug_tag}, [{image.img_url}] → [{img_save_path}]')
 
     length = len(photo_detail)
     # 根据图片数，决定下载策略
