@@ -18,6 +18,7 @@ def get_option():
 
     # 读取 option 配置文件
     option = create_option('../assets/config/option_workflow_download.yml')
+    hook_debug(option)
 
     # 启用 client 的缓存
     client = option.build_jm_client()
@@ -38,7 +39,6 @@ def get_option():
         client.login(username, password, True)
         print_eye_catching(f'登录禁漫成功')
 
-    hook_debug(option)
     return option
 
 
