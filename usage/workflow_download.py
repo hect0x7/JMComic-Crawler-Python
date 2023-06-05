@@ -54,7 +54,7 @@ def hook_debug(option):
         def raise_request_error(cls, resp, msg):
             from common import write_text, fix_windir_name, format_ts
             write_text(
-                f'{jm_download_dir}/[请求禁漫失败时的网页内容]_[{format_ts}]_[{fix_windir_name(resp.url)}].html',
+                f'{jm_download_dir}/[请求失败的响应内容]_[{format_ts()}]_[{fix_windir_name(resp.url)}].html',
                 resp.text
             )
 
