@@ -1,68 +1,6 @@
 from .jm_client_impl import *
 
 
-class JmOptionAdvice:
-
-    def decide_image_save_dir(self,
-                              option: 'JmOption',
-                              photo_detail: JmPhotoDetail,
-                              ) -> StrNone:
-        """
-        决定一个本子图片的下载文件夹
-        @param option: JmOption对象
-        @param photo_detail: 本子章节实体类
-        @return: 下载文件夹，为空表示不处理
-        """
-        pass
-
-    def decide_image_filepath(self,
-                              option: 'JmOption',
-                              photo_detail: JmPhotoDetail,
-                              index: int,
-                              ) -> StrNone:
-        """
-        决定一个本子图片的绝对路径
-        @param option: JmOption对象
-        @param photo_detail: 本子章节实体类
-        @param index: 本子章节里的第几章图片
-        @return: 下载绝对路径，为空表示不处理
-        """
-        pass
-
-    def decide_image_suffix(self,
-                            option: 'JmOption',
-                            img_detail: JmImageDetail,
-                            ) -> StrNone:
-        """
-        决定一个图片的保存后缀名
-        @param option: JmOption对象
-        @param img_detail: 禁漫图片实体类
-        @return: 保存后缀名，为空表示不处理
-        """
-        pass
-
-
-class JmAdviceRegistry:
-    advice_registration: Dict[Any, List[JmOptionAdvice]] = {}
-
-    @classmethod
-    def register_advice(cls, base, *advice):
-        advice_ls = cls.advice_registration.get(base, None)
-
-        if advice_ls is None:
-            advice_ls = list(advice)
-            cls.advice_registration[base] = advice_ls
-        else:
-            for e in advice:
-                advice_ls.append(e)
-
-        return advice
-
-    @classmethod
-    def get_advice(cls, base) -> List[JmOptionAdvice]:
-        return cls.advice_registration.setdefault(base, [])
-
-
 class DirRule:
     rule_sample = [
         # 根目录 / Album-id / Photo-序号 /
@@ -205,12 +143,6 @@ class JmOption:
     """
 
     def decide_image_save_dir(self, photo_detail) -> str:
-        # 先检查advice的回调，如果回调支持，则优先使用回调
-        for advice in JmAdviceRegistry.get_advice(self):
-            save_dir = advice.decide_image_save_dir(self, photo_detail)
-            if save_dir is not None:
-                return save_dir
-
         # 使用 self.dir_rule 决定 save_dir
         save_dir = self.dir_rule.deside_image_save_dir(
             photo_detail.from_album,
@@ -221,12 +153,6 @@ class JmOption:
         return save_dir
 
     def decide_image_suffix(self, img_detail: JmImageDetail):
-        # 先检查advice的回调，如果回调支持，则优先使用回调
-        for advice in JmAdviceRegistry.get_advice(self):
-            suffix = advice.decide_image_suffix(self, img_detail)
-            if suffix is not None:
-                return suffix
-
         # 动图则使用原后缀
         suffix = img_detail.img_file_suffix
         if suffix.endswith("gif"):
@@ -236,24 +162,11 @@ class JmOption:
         return self.download_image_suffix or suffix
 
     def decide_image_filepath(self, photo_detail: JmPhotoDetail, index: int) -> str:
-        # 先检查advice的回调，如果回调支持，则优先使用回调
-        for advice in JmAdviceRegistry.get_advice(self):
-            filepath = advice.decide_image_filepath(self, photo_detail, index)
-            if filepath is not None:
-                return filepath
-
         # 通过拼接生成绝对路径
         save_dir = self.decide_image_save_dir(photo_detail)
         image: JmImageDetail = photo_detail[index]
         suffix = self.decide_image_suffix(image)
         return save_dir + image.img_file_name + suffix
-
-    """
-    下面是对Advice的支持
-    """
-
-    def register_advice(self, *advice):
-        JmAdviceRegistry.register_advice(self, *advice)
 
     """
     下面是创建对象相关方法

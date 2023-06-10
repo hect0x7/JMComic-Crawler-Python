@@ -204,6 +204,9 @@ class JmPhotoDetail(WorkEntity):
     def __len__(self):
         return len(self.page_arr)
 
+    def __iter__(self) -> Generator[JmImageDetail, Any, None]:
+        return super().__iter__()
+
 
 class JmAlbumDetail(WorkEntity):
 
@@ -296,6 +299,9 @@ class JmAlbumDetail(WorkEntity):
                 ret.append(episode)
 
         return ret
+
+    def __iter__(self) -> Generator[JmPhotoDetail, Any, None]:
+        return super().__iter__()
 
 
 class JmSearchPage(IterableEntity):

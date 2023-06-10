@@ -127,7 +127,7 @@ class JmDetailClient:
     def get_album_detail(self, album_id) -> JmAlbumDetail:
         raise NotImplementedError
 
-    def get_photo_detail(self, photo_id: str, album=True) -> JmPhotoDetail:
+    def get_photo_detail(self, photo_id, fetch_album=True) -> JmPhotoDetail:
         raise NotImplementedError
 
     def ensure_photo_can_use(self, photo_detail: JmPhotoDetail):

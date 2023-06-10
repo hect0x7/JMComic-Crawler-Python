@@ -48,19 +48,6 @@ class Test_Api(JmTestConfigurable):
         ret2 = jmcomic.download_album_batch((e for e in album_ls), self.option)
         self.assertEqual(len(ret2), len(album_ls), 'Generator')
 
-    def test_jm_option_advice(self):
-        class MyAdvice(JmOptionAdvice):
-            def decide_image_filepath(self,
-                                      option: 'JmOption',
-                                      photo_detail: JmPhotoDetail,
-                                      index: int,
-                                      ) -> StrNone:
-                return workspace(f'advice_{photo_detail[index].img_file_name}.test.png')
-
-        option = self.option
-        option.register_advice(MyAdvice())
-        jmcomic.download_album('366867', option)
-
     def test_photo_sort(self):
         client = self.option.build_jm_client()
 
