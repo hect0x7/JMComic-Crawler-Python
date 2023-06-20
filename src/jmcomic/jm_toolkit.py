@@ -1,5 +1,3 @@
-from PIL import Image
-
 from .jm_entity import *
 
 
