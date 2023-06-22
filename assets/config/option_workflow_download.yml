@@ -9,5 +9,4 @@ dir_rule:
 client:
   postman:
     meta_data:
-      headers:
-        referer: https://18comic.vip/
+      impersonate: chrome110
