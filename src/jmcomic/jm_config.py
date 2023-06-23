@@ -107,7 +107,7 @@ class JmModuleConfig:
         """
         if postman is None:
             from common import Postmans
-            postman = Postmans.get_impl_clazz('cffi').create()
+            postman = Postmans.new_session(headers=cls.headers())
 
         resp = postman.get(cls.JM_PUB_URL)
         if resp.status_code != 200:
