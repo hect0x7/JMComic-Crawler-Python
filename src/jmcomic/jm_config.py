@@ -7,7 +7,7 @@ class JmModuleConfig:
     # 网站相关
     PROT = "https://"
     DOMAIN = None
-    JM_REDIRECT_URL = f'{PROT}jm365.xyz/3YeBdF'  # 永久網域，怕走失的小伙伴收藏起来
+    JM_REDIRECT_URL = f'{PROT}jm365.work/3YeBdF'  # 永久網域，怕走失的小伙伴收藏起来
     JM_PUB_URL = f'{PROT}jmcomic2.bet'
     JM_CDN_IMAGE_URL_TEMPLATE = PROT + 'cdn-msp.{domain}/media/photos/{photo_id}/{index:05}{suffix}'  # index 从1开始
     JM_IMAGE_SUFFIX = ['.jpg', '.webp', '.png', '.gif']
@@ -107,7 +107,7 @@ class JmModuleConfig:
         """
         if postman is None:
             from common import Postmans
-            postman = Postmans.new_session(headers=cls.headers())
+            postman = Postmans.new_session(headers=cls.PUB_HEADERS)
 
         resp = postman.get(cls.JM_PUB_URL)
         if resp.status_code != 200:
@@ -115,6 +115,25 @@ class JmModuleConfig:
 
         from .jm_toolkit import JmcomicText
         return JmcomicText.analyse_jm_pub_html(resp.text)
+
+    PUB_HEADERS = {
+        'authority': 'jmcomic2.bet',
+        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,'
+                  'application/signed-exchange;v=b3;q=0.7',
+        'accept-language': 'zh-CN,zh;q=0.9',
+        'cache-control': 'no-cache',
+        'pragma': 'no-cache',
+        'sec-ch-ua': '"Not.A/Brand";v="8", "Chromium";v="114", "Google Chrome";v="114"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-fetch-dest': 'document',
+        'sec-fetch-mode': 'navigate',
+        'sec-fetch-site': 'none',
+        'sec-fetch-user': '?1',
+        'upgrade-insecure-requests': '1',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                      'Chrome/114.0.0.0 Safari/537.36',
+    }
 
 
 jm_debug = JmModuleConfig.jm_debug
