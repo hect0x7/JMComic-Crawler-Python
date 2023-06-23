@@ -5,6 +5,8 @@ client:
   domain:
     - jm-comic.org
     - jm-comic2.cc
+    - 18comic.vip
+    - 18comic.org
 
   postman:
     meta_data:
@@ -14,9 +16,9 @@ client:
       # proxies: v2ray
       # proxies: 127.0.0.1:7890
       # proxies:
-      #   http: http://127.0.0.1:7890
-      #   https: https://127.0.0.1:7890
-      proxies: clash
+      #   http: 127.0.0.1:7890
+      #   https: 127.0.0.1:7890
+      proxies: null
 
       # cookies: 帐号配置，默认是 null，表示未登录状态访问JM。
       # 禁漫的大部分本子，下载是不需要登录的；少部分敏感题材需要登录才能看。

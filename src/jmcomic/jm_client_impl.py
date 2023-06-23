@@ -95,9 +95,18 @@ class AbstractJmClient(
 
             setattr(self, func_name, wrap_func)
 
-        wrap_func_cache('get_photo_detail', 'album_cache_dict')
-        wrap_func_cache('get_album_detail', 'photo_cache_dict')
-        wrap_func_cache('search_album', 'search_album_cache_dict')
+        for func in {
+            'get_photo_detail',
+            'get_album_detail',
+            'search_album',
+        }:
+            wrap_func_cache(func, func + '.cache.dict')
+
+    def get_jmcomic_url(self, postman=None):
+        return JmModuleConfig.get_jmcomic_url(postman or self.get_root_postman())
+
+    def get_jmcomic_domain_all(self, postman=None):
+        return JmModuleConfig.get_jmcomic_domain_all(postman or self.get_root_postman())
 
 
 # 基于网页实现的JmClient

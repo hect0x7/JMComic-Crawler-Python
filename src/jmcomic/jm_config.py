@@ -3,11 +3,23 @@ def default_jm_debug(topic: str, msg: str):
     print(f'{format_ts()}:【{topic}】{msg}')
 
 
+def default_postman_constructor(session, **kwargs):
+    from common import Postmans
+
+    kwargs.setdefault('impersonate', 'chrome110')
+    kwargs.setdefault('headers', JmModuleConfig.headers())
+
+    if session is True:
+        return Postmans.new_session(**kwargs)
+
+    return Postmans.new_postman(**kwargs)
+
+
 class JmModuleConfig:
     # 网站相关
     PROT = "https://"
     DOMAIN = None
-    JM_REDIRECT_URL = f'{PROT}jm365.xyz/3YeBdF'  # 永久網域，怕走失的小伙伴收藏起来
+    JM_REDIRECT_URL = f'{PROT}jm365.work/3YeBdF'  # 永久網域，怕走失的小伙伴收藏起来
     JM_PUB_URL = f'{PROT}jmcomic2.bet'
     JM_CDN_IMAGE_URL_TEMPLATE = PROT + 'cdn-msp.{domain}/media/photos/{photo_id}/{index:05}{suffix}'  # index 从1开始
     JM_IMAGE_SUFFIX = ['.jpg', '.webp', '.png', '.gif']
@@ -40,6 +52,7 @@ class JmModuleConfig:
     # debug
     enable_jm_debug = True
     debug_executor = default_jm_debug
+    postman_constructor = default_postman_constructor
 
     @classmethod
     def domain(cls, postman=None):
@@ -85,14 +98,16 @@ class JmModuleConfig:
         cls.enable_jm_debug = False
 
     @classmethod
+    def new_postman(cls, session=False, **kwargs):
+        return cls.postman_constructor(session, **kwargs)
+
+    @classmethod
     def get_jmcomic_url(cls, postman=None):
         """
         访问禁漫的永久网域，从而得到一个可用的禁漫网址
         @return: https://jm-comic2.cc
         """
-        if postman is None:
-            from common import Postmans
-            postman = Postmans.new_session()
+        postman = postman or cls.new_postman(session=True)
 
         resp = postman.get(cls.JM_REDIRECT_URL)
         url = resp.url
@@ -105,9 +120,7 @@ class JmModuleConfig:
         访问禁漫发布页，得到所有禁漫的域名
         @return：['18comic.vip', ..., 'jm365.xyz/ZNPJam'], 最后一个是【APP軟件下載】
         """
-        if postman is None:
-            from common import Postmans
-            postman = Postmans.get_impl_clazz('cffi').create()
+        postman = postman or cls.new_postman(session=True)
 
         resp = postman.get(cls.JM_PUB_URL)
         if resp.status_code != 200:
