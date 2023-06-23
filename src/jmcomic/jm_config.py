@@ -3,6 +3,18 @@ def default_jm_debug(topic: str, msg: str):
     print(f'{format_ts()}:【{topic}】{msg}')
 
 
+def default_postman_constructor(session, **kwargs):
+    from common import Postmans
+
+    kwargs.setdefault('impersonate', 'chrome110')
+    kwargs.setdefault('headers', JmModuleConfig.headers())
+
+    if session is True:
+        return Postmans.new_session(**kwargs)
+
+    return Postmans.new_postman(**kwargs)
+
+
 class JmModuleConfig:
     # 网站相关
     PROT = "https://"
@@ -40,6 +52,7 @@ class JmModuleConfig:
     # debug
     enable_jm_debug = True
     debug_executor = default_jm_debug
+    postman_constructor = default_postman_constructor
 
     @classmethod
     def domain(cls, postman=None):
@@ -85,16 +98,18 @@ class JmModuleConfig:
         cls.enable_jm_debug = False
 
     @classmethod
+    def new_postman(cls, session=False, **kwargs):
+        return cls.postman_constructor(session, **kwargs)
+
+    @classmethod
     def get_jmcomic_url(cls, postman=None):
         """
         访问禁漫的永久网域，从而得到一个可用的禁漫网址
         @return: https://jm-comic2.cc
         """
-        if postman is None:
-            from common import Postmans
-            postman = Postmans.new_session()
+        postman = postman or cls.new_postman(session=True)
 
-        resp = postman.get(cls.JM_REDIRECT_URL, impersonate="chrome110")
+        resp = postman.get(cls.JM_REDIRECT_URL)
         url = resp.url
         cls.jm_debug('获取禁漫地址', f'[{cls.JM_REDIRECT_URL}] → [{url}]')
         return url
@@ -105,35 +120,14 @@ class JmModuleConfig:
         访问禁漫发布页，得到所有禁漫的域名
         @return：['18comic.vip', ..., 'jm365.xyz/ZNPJam'], 最后一个是【APP軟件下載】
         """
-        if postman is None:
-            from common import Postmans
-            postman = Postmans.new_session(headers=cls.PUB_HEADERS)
+        postman = postman or cls.new_postman(session=True)
 
-        resp = postman.get(cls.JM_PUB_URL, impersonate="chrome110")
+        resp = postman.get(cls.JM_PUB_URL)
         if resp.status_code != 200:
             raise AssertionError(resp.text)
 
         from .jm_toolkit import JmcomicText
         return JmcomicText.analyse_jm_pub_html(resp.text)
-
-    PUB_HEADERS = {
-        'authority': 'jmcomic2.bet',
-        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,'
-                  'application/signed-exchange;v=b3;q=0.7',
-        'accept-language': 'zh-CN,zh;q=0.9',
-        'cache-control': 'no-cache',
-        'pragma': 'no-cache',
-        'sec-ch-ua': '"Not.A/Brand";v="8", "Chromium";v="114", "Google Chrome";v="114"',
-        'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': '"Windows"',
-        'sec-fetch-dest': 'document',
-        'sec-fetch-mode': 'navigate',
-        'sec-fetch-site': 'none',
-        'sec-fetch-user': '?1',
-        'upgrade-insecure-requests': '1',
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
-                      'Chrome/114.0.0.0 Safari/537.36',
-    }
 
 
 jm_debug = JmModuleConfig.jm_debug
