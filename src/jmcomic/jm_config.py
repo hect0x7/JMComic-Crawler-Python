@@ -94,7 +94,7 @@ class JmModuleConfig:
             from common import Postmans
             postman = Postmans.new_session()
 
-        resp = postman.get(cls.JM_REDIRECT_URL)
+        resp = postman.get(cls.JM_REDIRECT_URL, impersonate="chrome110")
         url = resp.url
         cls.jm_debug('获取禁漫地址', f'[{cls.JM_REDIRECT_URL}] → [{url}]')
         return url
@@ -109,7 +109,7 @@ class JmModuleConfig:
             from common import Postmans
             postman = Postmans.new_session(headers=cls.PUB_HEADERS)
 
-        resp = postman.get(cls.JM_PUB_URL)
+        resp = postman.get(cls.JM_PUB_URL, impersonate="chrome110")
         if resp.status_code != 200:
             raise AssertionError(resp.text)
 
