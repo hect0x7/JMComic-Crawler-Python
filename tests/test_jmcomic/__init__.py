@@ -74,4 +74,4 @@ class JmTestConfigurable(unittest.TestCase):
 
     @classmethod
     def enable_client_cache(cls):
-        cls.client.enable_cache()
+        cls.client.enable_cache(debug=True)
