@@ -306,12 +306,33 @@ class JmAlbumDetail(WorkEntity):
 
 class JmSearchPage(IterableEntity):
 
-    def __init__(self, album_info_list):
+    def __init__(self, album_info_list: List[Tuple[str, str, StrNone, StrNone, List[str]]]):
         # (album_id, title, category_none, label_sub_none, tag_list)
-        self.album_info_list: List[Tuple[str, str, StrNone, StrNone, List[str]]] = album_info_list
+        self.album_info_list = album_info_list
 
     def __len__(self):
         return len(self.album_info_list)
 
     def __getitem__(self, item):
         return self.album_info_list[item][0:2]
+
+    @property
+    def single_album(self) -> JmAlbumDetail:
+        return getattr(self, 'album')
+
+    @classmethod
+    def wrap_single_album(cls, album: JmAlbumDetail) -> 'JmSearchPage':
+        # ('462257', '[無邪気漢化組] [きょくちょ] 楓と鈴 4.5', '短篇', '漢化', [])
+        # (album_id, title, category_none, label_sub_none, tag_list)
+
+        album_info = (
+            album.album_id,
+            album.title,
+            None,
+            None,
+            album.keywords,
+        )
+        obj = JmSearchPage([album_info])
+
+        setattr(obj, 'album', album)
+        return obj

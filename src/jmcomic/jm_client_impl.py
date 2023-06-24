@@ -75,23 +75,32 @@ class AbstractJmClient(
 
     def enable_cache(self, debug=False):
         def wrap_func_cache(func_name, cache_dict_name):
+            import common
+            if common.VERSION > '0.4.8':
+                cache = common.cache
+                cache_dict = {}
+                cache_hit_msg = (f'【缓存命中】{cache_dict_name} ' + '→ [{}]') if debug is True else None
+                cache_miss_msg = (f'【缓存缺失】{cache_dict_name} ' + '← [{}]') if debug is True else None
+                cache = cache(
+                    cache_dict=cache_dict,
+                    cache_hit_msg=cache_hit_msg,
+                    cache_miss_msg=cache_miss_msg,
+                )
+                setattr(self, cache_dict_name, cache_dict)
+            else:
+                if sys.version_info < (3, 9):
+                    raise NotImplementedError('不支持启用JmcomicClient缓存。\n'
+                                              '请更新python版本到3.9以上，'
+                                              '或更新commonX: `pip install commonX --upgrade`')
+                import functools
+                cache = functools.cache
+
             if hasattr(self, cache_dict_name):
                 return
 
-            cache_dict = {}
-            setattr(self, cache_dict_name, cache_dict)
-
             # 重载本对象的方法
             func = getattr(self, func_name)
-
-            cache_hit_msg = f'【缓存命中】{cache_dict_name} ' + '→ [{}]' if debug is True else None
-            cache_miss_msg = f'【缓存缺失】{cache_dict_name} ' + '← [{}]' if debug is True else None
-
-            wrap_func = enable_cache(
-                cache_dict=cache_dict,
-                cache_hit_msg=cache_hit_msg,
-                cache_miss_msg=cache_miss_msg,
-            )(func)
+            wrap_func = cache(func)
 
             setattr(self, func_name, wrap_func)
 
@@ -149,10 +158,11 @@ class JmHtmlClient(AbstractJmClient):
             new.from_album = photo_detail.from_album
             photo_detail.__dict__.update(new.__dict__)
 
-    def search_album(self, search_query, main_tag=0):
+    def search_album(self, search_query, main_tag=0, page=1) -> JmSearchPage:
         params = {
             'main_tag': main_tag,
             'search_query': search_query,
+            'page': page,
         }
 
         resp = self.get_jm_html('/search/photos', params=params, allow_redirects=True)
@@ -160,7 +170,8 @@ class JmHtmlClient(AbstractJmClient):
         # 检查是否发生了重定向
         # 因为如果搜索的是禁漫车号，会直接跳转到本子详情页面
         if resp.redirect_count != 0 and '/album/' in resp.url:
-            return JmcomicText.analyse_jm_album_html(resp.text)
+            album = JmcomicText.analyse_jm_album_html(resp.text)
+            return JmSearchPage.wrap_single_album(album)
         else:
             return JmSearchSupport.analyse_jm_search_html(resp.text)
 
@@ -284,7 +295,7 @@ class JmHtmlClient(AbstractJmClient):
 class JmApiClient(AbstractJmClient):
     API_SEARCH = '/search'
 
-    def search_album(self, search_query: str, main_tag=0) -> JmApiResp:
+    def search_album(self, search_query, main_tag=0, page=1) -> JmApiResp:
         """
         model_data: {
           "search_query": "MANA",
@@ -312,6 +323,8 @@ class JmApiClient(AbstractJmClient):
             self.API_SEARCH,
             params={
                 'search_query': search_query,
+                'main_tag': main_tag,
+                'page': page,
             }
         )
 
