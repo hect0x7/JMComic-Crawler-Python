@@ -51,6 +51,11 @@ class JmcomicText:
         if not isinstance(text, str):
             raise AssertionError(f"无法解析jm车号, 参数类型为: {type(text)}")
 
+        # 43210
+        if text.isdigit():
+            return text
+
+        # Jm43210
         if len(text) <= 2:
             raise AssertionError(f"无法解析jm车号, 文本为: {text}")
 
