@@ -77,6 +77,9 @@ class AbstractJmClient(
         def wrap_func_cache(func_name, cache_dict_name):
             import common
             if common.VERSION > '0.4.8':
+                if hasattr(self, cache_dict_name):
+                    return
+
                 cache = common.cache
                 cache_dict = {}
                 cache_hit_msg = (f'【缓存命中】{cache_dict_name} ' + '→ [{}]') if debug is True else None
@@ -94,9 +97,6 @@ class AbstractJmClient(
                                               '或更新commonX: `pip install commonX --upgrade`')
                 import functools
                 cache = functools.cache
-
-            if hasattr(self, cache_dict_name):
-                return
 
             # 重载本对象的方法
             func = getattr(self, func_name)
