@@ -6,9 +6,6 @@ def default_jm_debug(topic: str, msg: str):
 def default_postman_constructor(session, **kwargs):
     from common import Postmans
 
-    kwargs.setdefault('impersonate', 'chrome110')
-    kwargs.setdefault('headers', JmModuleConfig.headers())
-
     if session is True:
         return Postmans.new_session(**kwargs)
 
@@ -101,6 +98,8 @@ class JmModuleConfig:
 
     @classmethod
     def new_postman(cls, session=False, **kwargs):
+        kwargs.setdefault('impersonate', 'chrome110')
+        kwargs.setdefault('headers', JmModuleConfig.headers())
         return cls.postman_constructor(session, **kwargs)
 
     @classmethod

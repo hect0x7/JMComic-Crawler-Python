@@ -65,11 +65,6 @@ class JmcomicText:
         if (c0 == 'J' or c0 == 'j') and (c1 == 'M' or c1 == 'm'):
             # JM123456
             return text[2:]
-
-        elif text.isdigit():
-            # 123456
-            return str(text)
-
         else:
             # https://xxx/photo/412038
             match = cls.pattern_jm_pa_id.search(text)
