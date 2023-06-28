@@ -25,7 +25,7 @@ jobs:
         run: |
           if [[ "$(git log --format=%B -n1 HEAD)" == notest* ]]; then
             echo "Commit message starts with 'notest'. Skipping workflow."
-            exit 78
+            exit 0
           fi
 
       - name: Set up Python ${{ matrix.python-version }}
