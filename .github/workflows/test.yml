@@ -7,8 +7,6 @@ on:
       - 'assets/config/*.yml' # option配置文件
       - 'src/**/*.py' # 源码
       - 'tests/**/*.py' # 测试代码
-    tags-ignore:
-      - notest
 
 jobs:
   test: # This code is based on https://github.com/gaogaotiantian/viztracer/blob/master/.github/workflows/python-package.yml
@@ -22,6 +20,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+
+      - name: Skip if commit message starts with "notest"
+        run: |
+          if [[ "$(git log --format=%B -n1 HEAD)" == notest* ]]; then
+            echo "Commit message starts with 'notest'. Skipping workflow."
+            exit 78
+          fi
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
