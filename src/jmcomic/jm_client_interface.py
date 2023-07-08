@@ -29,13 +29,15 @@ class JmImageResp(JmResp):
         if self.is_success:
             return
 
+        raise AssertionError(self.get_error_msg())
+
+    def get_error_msg(self):
         msg = f'禁漫图片获取失败: [{self.url}]'
         if self.http_code != 200:
             msg += f'，http状态码={self.http_code}'
         if len(self.content) == 0:
             msg += f'，响应数据为空'
-
-        raise AssertionError(msg)
+        return msg
 
     def transfer_to(self,
                     path,
