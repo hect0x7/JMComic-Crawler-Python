@@ -1,6 +1,7 @@
 from .jm_client_interface import *
 
 
+# noinspection PyAbstractClass
 class AbstractJmClient(
     JmcomicClient,
     PostmanProxy,
@@ -237,7 +238,49 @@ class JmHtmlClient(AbstractJmClient):
         raise AssertionError(msg)
 
     def get_jm_image(self, img_url) -> JmImageResp:
-        return JmImageResp(self.get(img_url))
+
+        def get_if_fail_raise(url):
+            resp = self.get(url)
+            JmImageResp(resp).require_success()
+
+        return self.request_with_retry(get_if_fail_raise, img_url)
+
+    def album_comment(self,
+                      video_id,
+                      comment,
+                      originator='',
+                      status='true',
+                      comment_id=None,
+                      **kwargs,
+                      ) -> JmAcResp:
+        data = {
+            'video_id': video_id,
+            'comment': comment,
+            'originator': originator,
+            'status': status,
+        }
+
+        # 处理回复评论
+        if comment_id is not None:
+            data.pop('status')
+            data['comment_id'] = comment_id
+            data['is_reply'] = 1
+            data['forum_subject'] = 1
+
+        jm_debug('album_comment',
+                 f'{video_id}: [{comment}]' +
+                 (f' to ({comment_id})' if comment_id is not None else '')
+                 )
+
+        resp = self.post('https://18comic.vip/ajax/album_comment',
+                         headers=JmModuleConfig.album_comment_headers,
+                         data=data,
+                         )
+
+        ret = JmAcResp(resp)
+        jm_debug('album_comment', f'{video_id}: [{comment}] ← ({ret.model().cid})')
+
+        return ret
 
     @classmethod
     def require_resp_success_else_raise(cls, resp, req_url):
