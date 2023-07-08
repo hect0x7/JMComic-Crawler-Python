@@ -240,8 +240,9 @@ class JmHtmlClient(AbstractJmClient):
     def get_jm_image(self, img_url) -> JmImageResp:
 
         def get_if_fail_raise(url):
-            resp = self.get(url)
-            JmImageResp(resp).require_success()
+            resp = JmImageResp(self.get(url))
+            resp.require_success()
+            return resp
 
         return self.request_with_retry(get_if_fail_raise, img_url)
 

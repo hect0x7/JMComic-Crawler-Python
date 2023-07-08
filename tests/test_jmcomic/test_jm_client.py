@@ -10,7 +10,7 @@ class Test_Client(JmTestConfigurable):
 
     def test_download_image(self):
         jm_photo_id = 'JM438516'
-        photo_detail = self.client.get_photo_detail(jm_photo_id)
+        photo_detail = self.client.get_photo_detail(jm_photo_id, False)
         self.client.download_by_image_detail(
             photo_detail[0],
             img_save_path=workspace('test_download_image.png')
@@ -25,7 +25,7 @@ class Test_Client(JmTestConfigurable):
         测试通过 JmcomicClient 和 jm_photo_id 获取 JmPhotoDetail对象
         """
         jm_photo_id = 'JM438516'
-        photo_detail = self.client.get_photo_detail(jm_photo_id)
+        photo_detail = self.client.get_photo_detail(jm_photo_id, False)
         photo_detail.when_del_save_file = True
         photo_detail.after_save_print_info = True
         del photo_detail
@@ -46,7 +46,7 @@ class Test_Client(JmTestConfigurable):
 
     def test_gt_300_photo(self):
         photo_id = '147643'
-        photo_detail: JmPhotoDetail = self.client.get_photo_detail(photo_id)
+        photo_detail: JmPhotoDetail = self.client.get_photo_detail(photo_id, False)
         image = photo_detail[3000]
         print(image.img_url)
         self.client.download_by_image_detail(image, workspace('3000.png'))
