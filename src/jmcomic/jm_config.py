@@ -65,14 +65,14 @@ class JmModuleConfig:
         return cls.DOMAIN  # jmcomic默认域名
 
     @classmethod
-    def headers(cls, authority=None):
+    def headers(cls, domain='18comic.vip'):
         return {
-            'authority': authority or '18comic.vip',
+            'authority': domain,
             'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,'
                       'application/signed-exchange;v=b3;q=0.7',
             'accept-language': 'zh-CN,zh;q=0.9',
             'cache-control': 'no-cache',
-            'referer': 'https://18comic.vip',
+            'referer': f'https://{domain}',
             'pragma': 'no-cache',
             'sec-ch-ua': '"Not.A/Brand";v="8", "Chromium";v="114", "Google Chrome";v="114"',
             'sec-ch-ua-mobile': '?0',
@@ -129,6 +129,26 @@ class JmModuleConfig:
 
         from .jm_toolkit import JmcomicText
         return JmcomicText.analyse_jm_pub_html(resp.text)
+
+    album_comment_headers = {
+        'authority': '18comic.vip',
+        'accept': 'application/json, text/javascript, */*; q=0.01',
+        'accept-language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+        'cache-control': 'no-cache',
+        'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'origin': 'https://18comic.vip',
+        'pragma': 'no-cache',
+        'referer': 'https://18comic.vip/album/248965/',
+        'sec-ch-ua': '"Not.A/Brand";v="8", "Chromium";v="114", "Google Chrome";v="114"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-origin',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                      'Chrome/114.0.0.0 Safari/537.36',
+        'x-requested-with': 'XMLHttpRequest',
+    }
 
 
 jm_debug = JmModuleConfig.jm_debug

@@ -13,20 +13,31 @@ class JmResp(CommonResp):
     def is_success(self) -> bool:
         return self.http_code == 200 and len(self.content) != 0
 
+    def json(self, **kwargs) -> Dict:
+        raise NotImplementedError
+
+    def model(self) -> DictModel:
+        return DictModel(self.json())
+
 
 class JmImageResp(JmResp):
+
+    def json(self, **kwargs) -> Dict:
+        raise AssertionError
 
     def require_success(self):
         if self.is_success:
             return
 
+        raise AssertionError(self.get_error_msg())
+
+    def get_error_msg(self):
         msg = f'禁漫图片获取失败: [{self.url}]'
         if self.http_code != 200:
             msg += f'，http状态码={self.http_code}'
         if len(self.content) == 0:
             msg += f'，响应数据为空'
-
-        raise AssertionError(msg)
+        return msg
 
     def transfer_to(self,
                     path,
@@ -106,13 +117,23 @@ class JmApiResp(JmResp):
     def json(self, **kwargs) -> Dict:
         return self.resp.json()
 
-    def model(self) -> DictModel:
-        return DictModel(self.json())
-
     @property
     def model_data(self) -> DictModel:
         self.require_success()
         return DictModel(self.res_data)
+
+
+# album-comment
+class JmAcResp(JmResp):
+
+    def is_success(self) -> bool:
+        return super().is_success and self.json()['err'] is False
+
+    def json(self, **kwargs) -> Dict:
+        return self.resp.json()
+
+    def model(self) -> DictModel:
+        return DictModel(self.json())
 
 
 """
@@ -152,6 +173,25 @@ class JmUserClient:
               id_remember='on',
               login_remember='on',
               ):
+        raise NotImplementedError
+
+    def album_comment(self,
+                      video_id,
+                      comment,
+                      originator='',
+                      status='true',
+                      comment_id=None,
+                      **kwargs,
+                      ) -> JmAcResp:
+        """
+        评论漫画/评论回复
+        @param video_id: album_id/photo_id
+        @param comment: 评论内容
+        @param status: 是否 "有劇透"
+        @param comment_id: 被回复评论的id
+        @param originator:
+        @return: JmAcResp 对象
+        """
         raise NotImplementedError
 
 
@@ -204,6 +244,7 @@ class JmImageClient:
         return data_original.endswith('.gif')
 
 
+# noinspection PyAbstractClass
 class JmcomicClient(
     JmImageClient,
     JmDetailClient,
