@@ -40,21 +40,32 @@ class AbstractJmClient(
                            retry_count=0,
                            **kwargs,
                            ):
+        """
+        统一请求，支持重试
+        @param request: 请求方法
+        @param url: 图片url / path (/album/xxx)
+        @param domain_index: 域名下标
+        @param retry_count: 重试次数
+        @param kwargs: 请求方法的kwargs
+        """
         if domain_index >= len(self.domain_list):
-            raise AssertionError("All domains failed.")
+            raise AssertionError(f"请求重试全部失败: [{url}], {self.domain_list}")
 
-        domain = self.domain_list[domain_index]
-
-        if not url.startswith(JmModuleConfig.PROT):
+        if url.startswith('/'):
+            # path
+            domain = self.domain_list[domain_index]
             url = self.of_api_url(url, domain)
             jm_debug('api', url)
+        else:
+            # 图片url
+            pass
 
-        if domain_index != 0 and retry_count != 0:
+        if domain_index != 0 or retry_count != 0:
             jm_debug(
-                f'请求重试',
+                f'request_retry',
                 ', '.join([
                     f'次数: [{retry_count}/{self.retry_times}]',
-                    f'域名: [{domain} ({domain_index}/{len(self.domain_list)})]',
+                    f'域名: [{domain_index} of {self.domain_list}]',
                     f'路径: [{url}]',
                     f'参数: [{kwargs if "login" not in url else "#login_form#"}]'
                 ])
@@ -65,10 +76,11 @@ class AbstractJmClient(
         except Exception as e:
             self.before_retry(e, kwargs, retry_count, url)
 
-            if retry_count < self.retry_times:
-                return self.request_with_retry(request, url, domain_index, retry_count + 1, **kwargs)
-            else:
-                return self.request_with_retry(request, url, domain_index + 1, 0, **kwargs)
+        if retry_count < self.retry_times:
+            return self.request_with_retry(request, url, domain_index, retry_count + 1, **kwargs)
+        else:
+            return self.request_with_retry(request, url, domain_index + 1, 0, **kwargs)
+
 
     # noinspection PyMethodMayBeStatic, PyUnusedLocal
     def before_retry(self, e, kwargs, retry_count, url):
@@ -240,6 +252,9 @@ class JmHtmlClient(AbstractJmClient):
     def get_jm_image(self, img_url) -> JmImageResp:
 
         def get_if_fail_raise(url):
+            """
+            使用此方法包装 self.get
+            """
             resp = JmImageResp(self.get(url))
 
             if resp.is_success:
