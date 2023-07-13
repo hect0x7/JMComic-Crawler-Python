@@ -129,7 +129,7 @@ class AbstractJmClient(
     def get_jmcomic_domain_all(self, postman=None):
         return JmModuleConfig.get_jmcomic_domain_all(postman or self.get_root_postman())
 
-    def fallback(self, request, url, domain_index, retry_count, param):
+    def fallback(self, request, url, domain_index, retry_count, **kwargs):
         raise AssertionError
 
 
@@ -296,7 +296,7 @@ class JmHtmlClient(AbstractJmClient):
 
         return ret
 
-    def fallback(self, request, url, domain_index, retry_count, param):
+    def fallback(self, request, url, domain_index, retry_count, **kwargs):
         self.raise_request_error(f"请求重试全部失败: [{url}], {self.domain_list}")
 
     @classmethod
