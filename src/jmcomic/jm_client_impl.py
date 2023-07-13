@@ -49,7 +49,7 @@ class AbstractJmClient(
         @param kwargs: 请求方法的kwargs
         """
         if domain_index >= len(self.domain_list):
-            raise AssertionError(f"请求重试全部失败: [{url}], {self.domain_list}")
+            self.fallback(request, url, domain_index, retry_count, **kwargs)
 
         if url.startswith('/'):
             # path
@@ -80,7 +80,6 @@ class AbstractJmClient(
             return self.request_with_retry(request, url, domain_index, retry_count + 1, **kwargs)
         else:
             return self.request_with_retry(request, url, domain_index + 1, 0, **kwargs)
-
 
     # noinspection PyMethodMayBeStatic, PyUnusedLocal
     def before_retry(self, e, kwargs, retry_count, url):
@@ -130,6 +129,9 @@ class AbstractJmClient(
     def get_jmcomic_domain_all(self, postman=None):
         return JmModuleConfig.get_jmcomic_domain_all(postman or self.get_root_postman())
 
+    def fallback(self, request, url, domain_index, retry_count, param):
+        raise AssertionError
+
 
 # 基于网页实现的JmClient
 class JmHtmlClient(AbstractJmClient):
@@ -159,17 +161,6 @@ class JmHtmlClient(AbstractJmClient):
             photo_detail.from_album = self.get_album_detail(photo_detail.album_id)
 
         return photo_detail
-
-    def ensure_photo_can_use(self, photo_detail: JmPhotoDetail):
-        # 检查 from_album
-        if photo_detail.from_album is None:
-            photo_detail.from_album = self.get_album_detail(photo_detail.album_id)
-
-        # 检查 page_arr 和 data_original_domain
-        if photo_detail.page_arr is None or photo_detail.data_original_domain is None:
-            new = self.get_photo_detail(photo_detail.photo_id, False)
-            new.from_album = photo_detail.from_album
-            photo_detail.__dict__.update(new.__dict__)
 
     def search_album(self, search_query, main_tag=0, page=1) -> JmSearchPage:
         params = {
@@ -226,7 +217,7 @@ class JmHtmlClient(AbstractJmClient):
         resp = self.get(url, **kwargs)
 
         if require_200 is True and resp.status_code != 200:
-            write_text('./resp.html', resp.text)
+            # write_text('./resp.html', resp.text)
             self.check_special_http_code(resp)
             self.raise_request_error(resp)
 
@@ -304,6 +295,9 @@ class JmHtmlClient(AbstractJmClient):
         jm_debug('album_comment', f'{video_id}: [{comment}] ← ({ret.model().cid})')
 
         return ret
+
+    def fallback(self, request, url, domain_index, retry_count, param):
+        self.raise_request_error(f"请求重试全部失败: [{url}], {self.domain_list}")
 
     @classmethod
     def require_resp_success_else_raise(cls, resp, req_url):
