@@ -130,7 +130,7 @@ class AbstractJmClient(
         return JmModuleConfig.get_jmcomic_domain_all(postman or self.get_root_postman())
 
     def fallback(self, request, url, domain_index, retry_count, **kwargs):
-        raise AssertionError
+        raise AssertionError(f"请求重试全部失败: [{url}], {self.domain_list}")
 
 
 # 基于网页实现的JmClient
@@ -295,9 +295,6 @@ class JmHtmlClient(AbstractJmClient):
         jm_debug('album_comment', f'{video_id}: [{comment}] ← ({ret.model().cid})')
 
         return ret
-
-    def fallback(self, request, url, domain_index, retry_count, **kwargs):
-        self.raise_request_error(f"请求重试全部失败: [{url}], {self.domain_list}")
 
     @classmethod
     def require_resp_success_else_raise(cls, resp, req_url):
