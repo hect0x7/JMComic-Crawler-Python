@@ -25,7 +25,7 @@ def download_album(jm_album_id, option=None):
     def download_photo(photo: JmPhotoDetail,
                        debug_topic='photo',
                        ):
-        jm_client.ensure_photo_can_use(photo)
+        jm_client.check_photo(photo)
 
         jm_debug(debug_topic,
                  f'开始下载章节: {photo.id} ({photo.album_id}[{photo.index}/{len(album)}]), '
@@ -88,7 +88,7 @@ def download_by_photo_detail(photo_detail: JmPhotoDetail,
     # 下载准备
     use_cache = option.download_cache
     decode_image = option.download_image_decode
-    jm_client.ensure_photo_can_use(photo_detail)
+    jm_client.check_photo(photo_detail)
 
     # 下载每个图片的函数
     def download_image(index, image: JmImageDetail, debug_topic='image'):

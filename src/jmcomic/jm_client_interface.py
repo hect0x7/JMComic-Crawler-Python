@@ -151,9 +151,6 @@ class JmDetailClient:
     def get_photo_detail(self, photo_id, fetch_album=True) -> JmPhotoDetail:
         raise NotImplementedError
 
-    def ensure_photo_can_use(self, photo_detail: JmPhotoDetail):
-        raise NotImplementedError
-
     def search_album(self, search_query: str, main_tag: int = 0, page: int = 1) -> JmSearchPage:
         raise NotImplementedError
 
@@ -163,6 +160,16 @@ class JmDetailClient:
     def enable_cache(self, debug=False):
         raise NotImplementedError
 
+    def check_photo(self, photo_detail: JmPhotoDetail):
+        # 检查 from_album
+        if photo_detail.from_album is None:
+            photo_detail.from_album = self.get_album_detail(photo_detail.album_id)
+
+        # 检查 page_arr 和 data_original_domain
+        if photo_detail.page_arr is None or photo_detail.data_original_domain is None:
+            new = self.get_photo_detail(photo_detail.photo_id, False)
+            new.from_album = photo_detail.from_album
+            photo_detail.__dict__.update(new.__dict__)
 
 class JmUserClient:
 
