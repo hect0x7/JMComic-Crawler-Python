@@ -208,10 +208,15 @@ class JmPhotoDetail(WorkEntity):
                f'?{self.data_original_query_params}'
 
     # noinspection PyMethodMayBeStatic
-    def get_data_original_query_params(self, data_original_0: str) -> str:
-        return data_original_0[
-               data_original_0.rindex('?') + 1:
-               ]
+    def get_data_original_query_params(self, data_original_0: StrNone) -> str:
+        if data_original_0 is None:
+            return f'v={time_stamp()}'
+
+        index = data_original_0.rfind('?')
+        if index == -1:
+            return f'v={time_stamp()}'
+
+        return data_original_0[index + 1:]
 
     def __getitem__(self, item) -> JmImageDetail:
         return self.create_image_detail(item)
