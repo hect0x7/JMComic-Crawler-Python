@@ -7,6 +7,8 @@ on:
       - 'assets/config/*.yml' # option配置文件
       - 'src/**/*.py' # 源码
       - 'tests/**/*.py' # 测试代码
+    paths-ignore:
+      - '*workflow_download*'
 
 jobs:
   test: # This code is based on https://github.com/gaogaotiantian/viztracer/blob/master/.github/workflows/python-package.yml
