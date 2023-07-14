@@ -99,6 +99,7 @@ class JmPhotoDetail(WorkEntity):
                  sort,
                  page_arr=None,
                  data_original_domain=None,
+                 data_original_0=None,
                  author=None,
                  from_album=None,
                  ):
@@ -111,17 +112,20 @@ class JmPhotoDetail(WorkEntity):
 
         self._author: StrNone = author
         self.from_album: Optional[JmAlbumDetail] = from_album
+        self.index = self.album_index
 
         # 下面的属性和图片url有关
         if isinstance(page_arr, str):
             import json
             page_arr = json.loads(page_arr)
 
-        # 该photo的所有图片名 img_name
+        # page_arr存放了该photo的所有图片文件名 img_name
         self.page_arr: List[str] = page_arr
-        # 图片域名
+        # 图片的cdn域名
         self.data_original_domain: StrNone = data_original_domain
-        self.index = self.album_index
+        # 第一张图的URL
+        self.data_original_0 = data_original_0
+        self.data_original_query_params = self.get_data_original_query_params(data_original_0)
 
     @property
     def is_single_album(self) -> bool:
@@ -192,7 +196,22 @@ class JmPhotoDetail(WorkEntity):
         if data_original_domain is None:
             raise AssertionError(f'图片域名为空: {self.__dict__}')
 
-        return f'https://{data_original_domain}/media/photos/{self.photo_id}/{img_name}'
+        # 2023-07-14
+        # 禁漫的图片url加上了一个参数v，如果没有带上这个参数v，图片会返回空数据
+        # 参数v的特点：
+        # 1. 值似乎是该photo的更新时间的时间戳，因此所有图片都使用同一个值
+        # 2. 值目前在网页端只在photo页面的图片标签的data-original属性出现
+        # 这里的模拟思路是，获取到第一个图片标签的data-original，
+        # 取出query参数 → self.data_original_query_params，生成图片url时追加这个query参数
+
+        return f'https://{data_original_domain}/media/photos/{self.photo_id}/{img_name}' \
+               f'?{self.data_original_query_params}'
+
+    # noinspection PyMethodMayBeStatic
+    def get_data_original_query_params(self, data_original_0: str) -> str:
+        return data_original_0[
+               data_original_0.rindex('?') + 1:
+               ]
 
     def __getitem__(self, item) -> JmImageDetail:
         return self.create_image_detail(item)
