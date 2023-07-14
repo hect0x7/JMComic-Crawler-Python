@@ -246,7 +246,7 @@ class JmHtmlClient(AbstractJmClient):
             """
             使用此方法包装 self.get
             """
-            resp = JmImageResp(self.get(url, params={'v': format_ts()}))
+            resp = JmImageResp(self.get(url))
 
             if resp.is_success:
                 return resp

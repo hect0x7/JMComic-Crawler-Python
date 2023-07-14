@@ -48,6 +48,7 @@ class JmImageDetail(JmBaseEntity):
                  img_file_name,
                  img_file_suffix,
                  from_photo=None,
+                 query_params=None,
                  ) -> None:
         self.aid: str = aid
         self.scramble_id: str = scramble_id
@@ -56,10 +57,23 @@ class JmImageDetail(JmBaseEntity):
         self.img_file_suffix: str = img_file_suffix
 
         self.from_photo: Optional[JmPhotoDetail] = from_photo
+        self.query_params: StrNone = query_params
 
     @property
-    def filename(self):
+    def filename(self) -> str:
         return self.img_file_name + self.img_file_suffix
+
+    @property
+    def download_url(self) -> str:
+        """
+        图片的下载路径
+        与 self.img_url 的唯一不同是，在最后会带上 ?{self.query_params}
+        @return:
+        """
+        if self.query_params is None:
+            return self.img_url
+
+        return f'{self.img_url}?{self.query_params}'
 
     @classmethod
     def of(cls,
@@ -67,6 +81,7 @@ class JmImageDetail(JmBaseEntity):
            scramble_id: str,
            data_original: str,
            from_photo=None,
+           query_params=None,
            ) -> 'JmImageDetail':
         """
         该方法用于创建 JmImageDetail 对象
@@ -85,6 +100,7 @@ class JmImageDetail(JmBaseEntity):
             img_file_name=data_original[x + 1:y],
             img_file_suffix=data_original[y:],
             from_photo=from_photo,
+            query_params=query_params,
         )
 
 
@@ -99,6 +115,7 @@ class JmPhotoDetail(WorkEntity):
                  sort,
                  page_arr=None,
                  data_original_domain=None,
+                 data_original_0=None,
                  author=None,
                  from_album=None,
                  ):
@@ -111,17 +128,28 @@ class JmPhotoDetail(WorkEntity):
 
         self._author: StrNone = author
         self.from_album: Optional[JmAlbumDetail] = from_album
+        self.index = self.album_index
 
         # 下面的属性和图片url有关
         if isinstance(page_arr, str):
             import json
             page_arr = json.loads(page_arr)
 
-        # 该photo的所有图片名 img_name
+        # page_arr存放了该photo的所有图片文件名 img_name
         self.page_arr: List[str] = page_arr
-        # 图片域名
+        # 图片的cdn域名
         self.data_original_domain: StrNone = data_original_domain
-        self.index = self.album_index
+        # 第一张图的URL
+        self.data_original_0 = data_original_0
+
+        # 2023-07-14
+        # 禁漫的图片url加上了一个参数v，如果没有带上这个参数v，图片会返回空数据
+        # 参数v的特点：
+        # 1. 值似乎是该photo的更新时间的时间戳，因此所有图片都使用同一个值
+        # 2. 值目前在网页端只在photo页面的图片标签的data-original属性出现
+        # 这里的模拟思路是，获取到第一个图片标签的data-original，
+        # 取出其query参数 → self.data_original_query_params, 该值未来会传递给 JmImageDetail
+        self.data_original_query_params = self.get_data_original_query_params(data_original_0)
 
     @property
     def is_single_album(self) -> bool:
@@ -179,7 +207,8 @@ class JmPhotoDetail(WorkEntity):
             self.photo_id,
             self.scramble_id,
             data_original,
-            from_photo=self
+            from_photo=self,
+            query_params=self.data_original_query_params,
         )
 
     def get_img_data_original(self, img_name: str) -> str:
@@ -193,6 +222,17 @@ class JmPhotoDetail(WorkEntity):
             raise AssertionError(f'图片域名为空: {self.__dict__}')
 
         return f'https://{data_original_domain}/media/photos/{self.photo_id}/{img_name}'
+
+    # noinspection PyMethodMayBeStatic
+    def get_data_original_query_params(self, data_original_0: StrNone) -> str:
+        if data_original_0 is None:
+            return f'v={time_stamp()}'
+
+        index = data_original_0.rfind('?')
+        if index == -1:
+            return f'v={time_stamp()}'
+
+        return data_original_0[index + 1:]
 
     def __getitem__(self, item) -> JmImageDetail:
         return self.create_image_detail(item)
