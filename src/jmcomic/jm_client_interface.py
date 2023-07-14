@@ -237,7 +237,7 @@ class JmImageClient:
                                  decode_image=True,
                                  ):
         self.download_image(
-            img_detail.img_url,
+            img_detail.download_url,
             img_save_path,
             img_detail.scramble_id,
             decode_image=decode_image,
