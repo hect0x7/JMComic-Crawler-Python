@@ -5,10 +5,10 @@ on:
     branches: [ "dev" ]
     paths-ignore:
       - 'src/**/__init__.py'
-      - '.github/workflows/download.yml'
+      - '.github/workflows/*'
       - 'usage/workflow_download.py'
       - 'assets/config/option_workflow_download.yml'
-      - 'assets/docs/**'
+      - 'assets/docs/*'
 
 jobs:
   test: # This code is based on https://github.com/gaogaotiantian/viztracer/blob/master/.github/workflows/python-package.yml
