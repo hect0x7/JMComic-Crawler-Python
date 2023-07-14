@@ -102,7 +102,31 @@ class Test_Api(JmTestConfigurable):
             )
 
     def test_get_jmcomic_url(self):
-        print(self.client.get_jmcomic_url())
-        print(self.client.get_jmcomic_domain_all())
-        print(JmModuleConfig.get_jmcomic_url())
-        print(JmModuleConfig.get_jmcomic_domain_all())
+        func_list = {
+            self.client.get_jmcomic_url,
+            self.client.get_jmcomic_domain_all,
+            JmModuleConfig.get_jmcomic_url,
+            JmModuleConfig.get_jmcomic_domain_all,
+        }
+
+        exception_list = []
+
+        def run_func_async(func):
+            try:
+                func()
+            except BaseException as e:
+                exception_list.append(e)
+                traceback_print_exec()
+
+        multi_thread_launcher(
+            iter_objs=func_list,
+            apply_each_obj_func=run_func_async,
+        )
+
+        if len(exception_list) == 0:
+            return
+
+        for e in exception_list:
+            print(e)
+
+        raise AssertionError(exception_list)
