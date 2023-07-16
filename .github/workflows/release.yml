@@ -1,6 +1,7 @@
 name: 发布PYPI
 
 on:
+  workflow_dispatch:
   release:
     types: [ published ]
 

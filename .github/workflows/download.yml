@@ -1,6 +1,7 @@
 name: 下载JM本子
 
 on:
+  workflow_dispatch:
   push:
     branches-ignore:
       - 'master' # master专门用于发布pip和repo介绍
