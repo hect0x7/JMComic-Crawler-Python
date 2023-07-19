@@ -9,10 +9,23 @@ jm_albums = '''
 '''
 
 
+def get_jm_album_ids():
+    from common import str_to_set
+
+    aid_set = set()
+    for text in [
+        jm_albums,
+        (get_env('JM_ALBUM_IDS') or '').replace('-', '\n'),
+    ]:
+        aid_set.update(str_to_set(text))
+
+    return aid_set
+
+
 def main():
-    from jmcomic import str_to_list, download_album
+    from jmcomic import download_album
     # 下载漫画
-    download_album(str_to_list(jm_albums), option=get_option())
+    download_album(get_jm_album_ids(), option=get_option())
 
 
 def get_option():

@@ -1,0 +1,91 @@
+name: 下载JM本子
+
+on:
+  workflow_dispatch:
+    inputs:
+      JM_ALBUM_IDS:
+        type: string
+        description: 本子id（多个id用-隔开，如 '123-456-789'）
+        required: true
+        default: ''
+
+      ZIP_NAME:
+        type: string
+        default: 本子.tar.gz
+        description: 压缩文件名称
+        required: false
+
+      UPLOAD_NAME:
+        type: string
+        default: 下载完成的本子
+        description: 上传文件名称
+        required: false
+
+#      JM_USERNAME:
+#        type: string
+#        default: ''
+#        description: '禁漫帐号（不建议使用，用户名和密码会泄露在日志中。最好用secrets）'
+#        required: false
+#
+#      JM_PASSWORD:
+#        type: string
+#        default: ''
+#        description: '禁漫密码（不建议使用，用户名和密码会泄露在日志中。最好用secrets）'
+#        required: false
+
+
+jobs:
+  crawler:
+    runs-on: ubuntu-latest
+    env:
+      # 工作流输入
+      JM_ALBUM_IDS: ${{ github.event.inputs.JM_ALBUM_IDS }}
+      JM_USERNAME: ${{ secrets.JM_USERNAME }}
+      JM_PASSWORD: ${{ secrets.JM_PASSWORD }}
+      ZIP_NAME: ${{ github.event.inputs.ZIP_NAME }}
+      UPLOAD_NAME: ${{ github.event.inputs.UPLOAD_NAME }}
+#      JM_USERNAME: ${{ github.event.inputs.JM_USERNAME }}
+#      JM_PASSWORD: ${{ github.event.inputs.JM_PASSWORD }}
+
+      # 固定值
+      JM_DOWNLOAD_DIR: /home/runner/work/jmcomic/download/
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: 安装依赖项（pip）
+        if: ${{ github.ref != 'refs/heads/dev' }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install jmcomic -i https://pypi.org/project --upgrade
+
+      - name: 安装依赖项（local）
+        if: ${{ github.ref == 'refs/heads/dev' }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install commonX -i https://pypi.org/project --upgrade
+          pip install -e ./
+
+      - name: 运行下载脚本
+        continue-on-error: true
+        run: |
+          cd ./usage/
+          python workflow_download.py
+
+      - name: 压缩文件
+        run: |
+          cd $JM_DOWNLOAD_DIR
+          tar -zcvf ../$ZIP_NAME ./
+          mv ../$ZIP_NAME .
+
+      - name: 上传结果
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.UPLOAD_NAME }}
+          path: ${{ env.JM_DOWNLOAD_DIR }}/${{ env.ZIP_NAME }}
+          if-no-files-found: error
+          retention-days: 90
