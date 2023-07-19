@@ -1,6 +1,7 @@
 name: 下载JM本子
 
 on:
+  workflow_dispatch:
   push:
     branches-ignore:
       - 'master' # master专门用于发布pip和repo介绍
@@ -40,6 +41,7 @@ jobs:
           pip install -e ./
 
       - name: 运行下载脚本
+        continue-on-error: true
         run: |
           cd ./usage/
           python workflow_download.py

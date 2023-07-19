@@ -116,20 +116,17 @@ def download_by_photo_detail(photo_detail: JmPhotoDetail,
                  f'图片下载完成: {debug_tag}, [{image.img_url}] → [{img_save_path}]'
                  )
 
-    length = len(photo_detail)
-    # 根据图片数，决定下载策略
-    if length <= option.download_threading_batch_count:
-        # 如果图片数小的话，直接使用多线程下载，一张图一个线程。
+    batch = option.download_threading_batch_count
+    if batch <= 0:
         multi_thread_launcher(
             iter_objs=enumerate(photo_detail),
             apply_each_obj_func=download_image,
         )
     else:
-        # 如果图片数多的话，还是分批下载。
-        multi_task_launcher_batch(
+        thread_pool_executor(
             iter_objs=enumerate(photo_detail),
             apply_each_obj_func=download_image,
-            batch_size=option.download_threading_batch_count
+            max_workers=batch,
         )
 
 
