@@ -40,7 +40,7 @@ class Test_Client(JmTestConfigurable):
             print(f'本子: [{album_detail.title}] 一共有{album_detail.page_count}页图')
 
     def test_search(self):
-        jm_search_page: JmSearchPage = self.client.search_album('中文')
+        jm_search_page: JmSearchPage = self.client.search_album('+无修正 +中文 -全彩')
         for album_id, title in reversed(jm_search_page):
             print(album_id, title)
 
