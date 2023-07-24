@@ -7,36 +7,32 @@ class JmBaseEntity:
     pass
 
 
-class WorkEntity(JmBaseEntity, SaveableEntity, IterableEntity):
-    when_del_save_file = False
-    after_save_print_info = True
-    attr_char = '_'
-
-    cache_getitem_result = True
-    cache_field_name = '__cache_items_dict__'
-    detail_save_base_dir = workspace()
-    detail_save_file_suffix = '.yml'
-
-    def save_base_dir(self):
-        return self.detail_save_base_dir
-
-    def save_file_name(self) -> str:
-        def jm_type():
-            # "JmAlbumDetail" -> "album"
-            cls_name = self.__class__.__name__
-            return cls_name[cls_name.index("m") + 1: cls_name.rfind("Detail")].lower()
-
-        return '[{}]{}{}'.format(jm_type(), self.id, self.detail_save_file_suffix)
+class DetailEntity(JmBaseEntity, IterableEntity):
 
     @property
     def id(self) -> str:
         raise NotImplementedError
 
-    def __len__(self):
-        raise NotImplementedError
+    @property
+    def name(self) -> str:
+        return getattr(self, 'title')
+
+    def save_to_file(self, filepath):
+        from common import PackerUtil
+        PackerUtil.pack(self, filepath)
+
+    @classmethod
+    def __jm_type__(cls):
+        # "JmAlbumDetail" -> "album" (本子)
+        # "JmPhotoDetail" -> "photo" (章节)
+        cls_name = cls.__name__
+        return cls_name[cls_name.index("m") + 1: cls_name.rfind("Detail")].lower()
 
     def __getitem__(self, item) -> Union['JmAlbumDetail', 'JmPhotoDetail']:
         raise NotImplementedError
+
+    def __str__(self):
+        return f'{self.__class__.__name__}({self.id}-{self.name})'
 
 
 class JmImageDetail(JmBaseEntity):
@@ -104,7 +100,7 @@ class JmImageDetail(JmBaseEntity):
         )
 
 
-class JmPhotoDetail(WorkEntity):
+class JmPhotoDetail(DetailEntity):
 
     def __init__(self,
                  photo_id,
@@ -248,7 +244,7 @@ class JmPhotoDetail(WorkEntity):
         return super().__iter__()
 
 
-class JmAlbumDetail(WorkEntity):
+class JmAlbumDetail(DetailEntity):
 
     def __init__(self,
                  album_id,
@@ -344,7 +340,7 @@ class JmAlbumDetail(WorkEntity):
         return super().__iter__()
 
 
-class JmSearchPage(IterableEntity):
+class JmSearchPage(JmBaseEntity, IterableEntity):
 
     def __init__(self, album_info_list: List[Tuple[str, str, StrNone, StrNone, List[str]]]):
         # (album_id, title, category_none, label_sub_none, tag_list)

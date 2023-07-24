@@ -28,8 +28,6 @@ class JmTestConfigurable(unittest.TestCase):
 
         # 设置 workspace → assets/
         set_application_workspace(f'{application_workspace}/assets/')
-        # 设置 实体类的save_dir → assets/download
-        WorkEntity.detail_save_base_dir = workspace("/download/", is_dir=True)
 
         # 设置 JmOption，JmcomicClient
         option = cls.use_option('option_test.yml')
