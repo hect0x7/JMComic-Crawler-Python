@@ -1,6 +1,46 @@
 from .jm_client_impl import *
 
 
+# noinspection PyMethodMayBeStatic
+class DownloadCallback:
+
+    def before_album(self, album: JmAlbumDetail):
+        jm_debug('album-before',
+                 f'本子获取成功: [{album.id}], '
+                 f'作者: [{album.author}], '
+                 f'章节数: [{len(album)}], '
+                 f'标题: [{album.title}], '
+                 )
+
+    def after_album(self, album: JmAlbumDetail):
+        jm_debug('album-after', f'本子下载完成: [{album.id}]')
+
+    def before_photo(self, photo: JmPhotoDetail):
+        jm_debug('photo-before',
+                 f'开始下载章节: {photo.id} ({photo.album_id}[{photo.index}/{len(photo.from_album)}]), '
+                 f'标题: [{photo.title}], '
+                 f'图片数为[{len(photo)}]'
+                 )
+
+    def after_photo(self, photo: JmPhotoDetail):
+        jm_debug('photo-after',
+                 f'章节下载完成: {photo.id} ({photo.album_id}[{photo.index}/{len(photo.from_album)}])')
+
+    def before_image(self, image: JmImageDetail, img_save_path):
+        if image.is_exists:
+            jm_debug('image-before',
+                     f'图片已存在: {image.tag} ← [{img_save_path}]'
+                     )
+        else:
+            jm_debug('image_before',
+                     f'图片准备下载: {image.tag}, [{image.img_url}] → [{img_save_path}]'
+                     )
+
+    def after_image(self, image: JmImageDetail, img_save_path):
+        jm_debug('image-after',
+                 f'图片下载完成: {image.tag}, [{image.img_url}] → [{img_save_path}]')
+
+
 class DirRule:
     rule_sample = [
         # 根目录 / Album-id / Photo-序号 /
@@ -99,7 +139,7 @@ class DirRule:
         return base_dir
 
 
-class JmOption:
+class JmOption(DownloadCallback):
     JM_OP_VER = '2.0'
 
     def __init__(self,
@@ -142,29 +182,36 @@ class JmOption:
     下面是决定图片保存路径的方法
     """
 
-    def decide_image_save_dir(self, photo_detail) -> str:
+    # noinspection PyUnusedLocal
+    def decide_image_batch_count(self, photo: JmPhotoDetail):
+        return self.download_threading_batch_count
+
+    # noinspection PyMethodMayBeStatic
+    def decide_photo_batch_count(self, album: JmAlbumDetail):
+        return len(album)
+
+    def decide_image_save_dir(self, photo) -> str:
         # 使用 self.dir_rule 决定 save_dir
         save_dir = self.dir_rule.deside_image_save_dir(
-            photo_detail.from_album,
-            photo_detail
+            photo.from_album,
+            photo
         )
 
         mkdir_if_not_exists(save_dir)
         return save_dir
 
-    def decide_image_suffix(self, img_detail: JmImageDetail):
+    def decide_image_suffix(self, image: JmImageDetail):
         # 动图则使用原后缀
-        suffix = img_detail.img_file_suffix
+        suffix = image.img_file_suffix
         if suffix.endswith("gif"):
             return suffix
 
         # 非动图，以配置为先
         return self.download_image_suffix or suffix
 
-    def decide_image_filepath(self, photo_detail: JmPhotoDetail, index: int) -> str:
+    def decide_image_filepath(self, image: JmImageDetail) -> str:
         # 通过拼接生成绝对路径
-        save_dir = self.decide_image_save_dir(photo_detail)
-        image: JmImageDetail = photo_detail[index]
+        save_dir = self.decide_image_save_dir(image.from_photo)
         suffix = self.decide_image_suffix(image)
         return save_dir + image.img_file_name + suffix
 

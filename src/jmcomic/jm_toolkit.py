@@ -221,23 +221,23 @@ class JmImageSupport:
     @classmethod
     def save_resp_decoded_img(cls,
                               resp: Any,
-                              img_detail: JmImageDetail,
+                              image: JmImageDetail,
                               filepath: str
                               ) -> None:
         cls.decode_and_save(
-            cls.get_num_by_detail(img_detail),
+            cls.get_num_by_detail(image),
             cls.open_Image(resp.content),
             filepath
         )
 
     @classmethod
     def decode_disk_img(cls,
-                        img_detail: JmImageDetail,
+                        image: JmImageDetail,
                         img_filepath: str,
                         decoded_save_path: str
                         ) -> None:
         cls.decode_and_save(
-            cls.get_num_by_detail(img_detail),
+            cls.get_num_by_detail(image),
             cls.open_Image(img_filepath),
             decoded_save_path
         )

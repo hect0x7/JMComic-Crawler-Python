@@ -15,36 +15,61 @@ def download_album(jm_album_id, option=None):
     option, jm_client = build_client(option)
     album: JmAlbumDetail = jm_client.get_album_detail(jm_album_id)
 
-    jm_debug('album',
-             f'本子获取成功: [{album.id}], '
-             f'作者: [{album.author}], '
-             f'章节数: [{len(album)}], '
-             f'标题: [{album.title}], '
-             )
-
-    def download_photo(photo: JmPhotoDetail,
-                       debug_topic='photo',
-                       ):
-        jm_client.check_photo(photo)
-
-        jm_debug(debug_topic,
-                 f'开始下载章节: {photo.id} ({photo.album_id}[{photo.index}/{len(album)}]), '
-                 f'标题: [{photo.title}], '
-                 f'图片数为[{len(photo)}]'
-                 )
-
-        download_by_photo_detail(photo, option)
-
-        jm_debug(debug_topic,
-                 f'章节下载完成: {photo.id} ({photo.album_id}[{photo.index}/{len(album)}])'
-                 )
-
-    thread_pool_executor(
-        iter_objs=album,
-        apply_each_obj_func=download_photo,
+    option.before_album(album)
+    execute_by_condition(
+        iter_obj=album,
+        apply=lambda photo: download_by_photo_detail(photo, option),
+        count_batch=option.decide_photo_batch_count(album)
     )
+    option.after_album(album)
 
-    jm_debug('album', f'本子下载完成: [{album.id}]')
+
+def download_photo(jm_photo_id, option=None):
+    """
+    下载一个本子的一章，入口api
+    """
+    option, jm_client = build_client(option)
+    photo = jm_client.get_photo_detail(jm_photo_id)
+    download_by_photo_detail(photo, option)
+
+
+def download_by_photo_detail(photo: JmPhotoDetail, option=None):
+    """
+    下载一个本子的一章，根据 photo
+    @param photo: 本子章节信息
+    @param option: 选项
+    """
+    option, jm_client = build_client(option)
+
+    # 下载准备
+    use_cache = option.download_cache
+    decode_image = option.download_image_decode
+    jm_client.check_photo(photo)
+
+    # 下载每个图片的函数
+    def download_image(image: JmImageDetail):
+        img_save_path = option.decide_image_filepath(image)
+
+        # 已下载过，缓存命中
+        if use_cache is True and file_exists(img_save_path):
+            image.is_exists = True
+            return
+
+        option.before_image(image, img_save_path)
+        jm_client.download_by_image_detail(
+            image,
+            img_save_path,
+            decode_image=decode_image,
+        )
+        option.after_image(image, img_save_path)
+
+    option.before_photo(photo)
+    execute_by_condition(
+        iter_obj=photo,
+        apply=download_image,
+        count_batch=option.decide_image_batch_count(photo)
+    )
+    option.before_photo(photo)
 
 
 def download_album_batch(jm_album_id_iter: Union[Iterable, Generator],
@@ -69,64 +94,24 @@ def download_album_batch(jm_album_id_iter: Union[Iterable, Generator],
     )
 
 
-def download_photo(jm_photo_id, option=None):
+def execute_by_condition(iter_obj, apply: Callable, count_batch: int):
     """
-    下载一个本子的一章，入口api
+    章节/图片的下载调度逻辑
     """
-    option, jm_client = build_client(option)
-    photo_detail = jm_client.get_photo_detail(jm_photo_id)
-    download_by_photo_detail(photo_detail, option)
+    count_real = len(iter_obj)
 
-
-def download_by_photo_detail(photo_detail: JmPhotoDetail,
-                             option=None,
-                             ):
-    """
-    下载一个本子的一章，根据 photo_detail
-    @param photo_detail: 本子章节信息
-    @param option: 选项
-    """
-    option, jm_client = build_client(option)
-
-    # 下载准备
-    use_cache = option.download_cache
-    decode_image = option.download_image_decode
-    jm_client.check_photo(photo_detail)
-
-    # 下载每个图片的函数
-    def download_image(index, image: JmImageDetail, debug_topic='image'):
-        img_save_path = option.decide_image_filepath(photo_detail, index)
-        debug_tag = f'{image.aid}/{image.filename} [{index + 1}/{len(photo_detail)}]'
-
-        # 已下载过，缓存命中
-        if use_cache is True and file_exists(img_save_path):
-            jm_debug(debug_topic,
-                     f'图片已存在: {debug_tag} ← [{img_save_path}]'
-                     )
-            return
-
-        # 开始下载
-        jm_client.download_by_image_detail(
-            image,
-            img_save_path,
-            decode_image=decode_image,
-        )
-
-        jm_debug(debug_topic,
-                 f'图片下载完成: {debug_tag}, [{image.img_url}] → [{img_save_path}]'
-                 )
-
-    batch = option.download_threading_batch_count
-    if batch <= 0:
+    if count_batch >= count_real:
+        # 一图一线程
         multi_thread_launcher(
-            iter_objs=enumerate(photo_detail),
-            apply_each_obj_func=download_image,
+            iter_objs=iter_obj,
+            apply_each_obj_func=apply,
         )
     else:
+        # 创建batch个线程的线程池，当图片数>batch时要等待。
         thread_pool_executor(
-            iter_objs=enumerate(photo_detail),
-            apply_each_obj_func=download_image,
-            max_workers=batch,
+            iter_objs=iter_obj,
+            apply_each_obj_func=apply,
+            max_workers=count_batch,
         )
 
 

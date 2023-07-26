@@ -45,6 +45,7 @@ class JmImageDetail(JmBaseEntity):
                  img_file_suffix,
                  from_photo=None,
                  query_params=None,
+                 index=-1,
                  ) -> None:
         self.aid: str = aid
         self.scramble_id: str = scramble_id
@@ -54,6 +55,8 @@ class JmImageDetail(JmBaseEntity):
 
         self.from_photo: Optional[JmPhotoDetail] = from_photo
         self.query_params: StrNone = query_params
+        self.is_exists: bool = False
+        self.index = index
 
     @property
     def filename(self) -> str:
@@ -78,6 +81,7 @@ class JmImageDetail(JmBaseEntity):
            data_original: str,
            from_photo=None,
            query_params=None,
+           index=-1,
            ) -> 'JmImageDetail':
         """
         该方法用于创建 JmImageDetail 对象
@@ -97,7 +101,16 @@ class JmImageDetail(JmBaseEntity):
             img_file_suffix=data_original[y:],
             from_photo=from_photo,
             query_params=query_params,
+            index=index,
         )
+
+    """
+    below help for debug method 
+    """
+
+    @property
+    def tag(self) -> str:
+        return f'{self.aid}/{self.filename} [{self.index + 1}/{len(self.from_photo)}]'
 
 
 class JmPhotoDetail(DetailEntity):
@@ -205,6 +218,7 @@ class JmPhotoDetail(DetailEntity):
             data_original,
             from_photo=self,
             query_params=self.data_original_query_params,
+            index=index,
         )
 
     def get_img_data_original(self, img_name: str) -> str:
@@ -284,7 +298,7 @@ class JmAlbumDetail(DetailEntity):
         episode_info: tuple = self.episode_list[index]
         photo_id, photo_index_of_album, photo_title, photo_pub_date = episode_info
 
-        photo_detail = JmPhotoDetail(
+        photo = JmPhotoDetail(
             photo_id=photo_id,
             scramble_id=self.scramble_id,
             title=photo_title,
@@ -297,7 +311,7 @@ class JmAlbumDetail(DetailEntity):
             data_original_domain=None
         )
 
-        return photo_detail, episode_info
+        return photo, episode_info
 
     @property
     def author(self):

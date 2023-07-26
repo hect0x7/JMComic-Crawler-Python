@@ -156,13 +156,13 @@ class JmHtmlClient(AbstractJmClient):
         resp = self.get_jm_html(f"/photo/{photo_id}")
 
         # 用 JmcomicText 解析 html，返回实体类
-        photo_detail = JmcomicText.analyse_jm_photo_html(resp.text)
+        photo = JmcomicText.analyse_jm_photo_html(resp.text)
 
         # 一并获取该章节的所处本子
         if fetch_album is True:
-            photo_detail.from_album = self.get_album_detail(photo_detail.album_id)
+            photo.from_album = self.get_album_detail(photo.album_id)
 
-        return photo_detail
+        return photo
 
     def search_album(self, search_query, main_tag=0, page=1) -> JmSearchPage:
         params = {
