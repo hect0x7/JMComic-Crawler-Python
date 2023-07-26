@@ -152,6 +152,21 @@ class JmcomicText:
 
         return clazz(**field_dict)
 
+    @classmethod
+    def format_photo_url(cls, photo_id, domain=None):
+        return cls.format_url(f'/photo/{cls.parse_to_photo_id(photo_id)}', domain)
+
+    @classmethod
+    def format_album_url(cls, album_id, domain=None):
+        return cls.format_url(f'/album/{cls.parse_to_album_id(album_id)}', domain)
+
+    @classmethod
+    def format_url(cls, path, domain=None):
+        if domain is None:
+            domain = JmModuleConfig.domain()
+
+        return f'{JmModuleConfig.PROT}{domain}{path}'
+
 
 class JmSearchSupport:
     # 用来缩减html的长度

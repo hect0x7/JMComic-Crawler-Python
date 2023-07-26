@@ -31,7 +31,7 @@ class AbstractJmClient(
         return self.request_with_retry(self.postman.post, url, **kwargs)
 
     def of_api_url(self, api_path, domain):
-        return f'{JmModuleConfig.PROT}{domain}{api_path}'
+        return JmcomicText.format_url(api_path, domain)
 
     def request_with_retry(self,
                            request,
@@ -52,9 +52,11 @@ class AbstractJmClient(
             self.fallback(request, url, domain_index, retry_count, **kwargs)
 
         if url.startswith('/'):
-            # path
-            domain = self.domain_list[domain_index]
-            url = self.of_api_url(url, domain)
+            # path → url
+            url = self.of_api_url(
+                api_path=url,
+                domain=self.domain_list[domain_index],
+            )
             jm_debug('api', url)
         else:
             # 图片url
