@@ -10,9 +10,9 @@ class Test_Client(JmTestConfigurable):
 
     def test_download_image(self):
         jm_photo_id = 'JM438516'
-        photo_detail = self.client.get_photo_detail(jm_photo_id, False)
+        photo = self.client.get_photo_detail(jm_photo_id, False)
         self.client.download_by_image_detail(
-            photo_detail[0],
+            photo[0],
             img_save_path=workspace('test_download_image.png')
         )
 
@@ -25,10 +25,10 @@ class Test_Client(JmTestConfigurable):
         测试通过 JmcomicClient 和 jm_photo_id 获取 JmPhotoDetail对象
         """
         jm_photo_id = 'JM438516'
-        photo_detail = self.client.get_photo_detail(jm_photo_id, False)
-        photo_detail.when_del_save_file = True
-        photo_detail.after_save_print_info = True
-        del photo_detail
+        photo = self.client.get_photo_detail(jm_photo_id, False)
+        photo.when_del_save_file = True
+        photo.after_save_print_info = True
+        del photo
 
     def test_multi_album_and_single_album(self):
         multi_photo_album_id = [
@@ -36,18 +36,18 @@ class Test_Client(JmTestConfigurable):
         ]
 
         for album_id in multi_photo_album_id:
-            album_detail: JmAlbumDetail = self.client.get_album_detail(album_id)
-            print(f'本子: [{album_detail.title}] 一共有{album_detail.page_count}页图')
+            album: JmAlbumDetail = self.client.get_album_detail(album_id)
+            print(f'本子: [{album.title}] 一共有{album.page_count}页图')
 
     def test_search(self):
-        jm_search_page: JmSearchPage = self.client.search_album('MANA')
+        jm_search_page: JmSearchPage = self.client.search_album('+无修正 +中文 -全彩')
         for album_id, title in reversed(jm_search_page):
             print(album_id, title)
 
     def test_gt_300_photo(self):
         photo_id = '147643'
-        photo_detail: JmPhotoDetail = self.client.get_photo_detail(photo_id, False)
-        image = photo_detail[3000]
+        photo: JmPhotoDetail = self.client.get_photo_detail(photo_id, False)
+        image = photo[3000]
         print(image.img_url)
         self.client.download_by_image_detail(image, workspace('3000.png'))
 

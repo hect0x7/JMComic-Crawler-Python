@@ -31,7 +31,7 @@ class AbstractJmClient(
         return self.request_with_retry(self.postman.post, url, **kwargs)
 
     def of_api_url(self, api_path, domain):
-        return f'{JmModuleConfig.PROT}{domain}{api_path}'
+        return JmcomicText.format_url(api_path, domain)
 
     def request_with_retry(self,
                            request,
@@ -52,9 +52,11 @@ class AbstractJmClient(
             self.fallback(request, url, domain_index, retry_count, **kwargs)
 
         if url.startswith('/'):
-            # path
-            domain = self.domain_list[domain_index]
-            url = self.of_api_url(url, domain)
+            # path → url
+            url = self.of_api_url(
+                api_path=url,
+                domain=self.domain_list[domain_index],
+            )
             jm_debug('api', url)
         else:
             # 图片url
@@ -154,13 +156,13 @@ class JmHtmlClient(AbstractJmClient):
         resp = self.get_jm_html(f"/photo/{photo_id}")
 
         # 用 JmcomicText 解析 html，返回实体类
-        photo_detail = JmcomicText.analyse_jm_photo_html(resp.text)
+        photo = JmcomicText.analyse_jm_photo_html(resp.text)
 
         # 一并获取该章节的所处本子
         if fetch_album is True:
-            photo_detail.from_album = self.get_album_detail(photo_detail.album_id)
+            photo.from_album = self.get_album_detail(photo.album_id)
 
-        return photo_detail
+        return photo
 
     def search_album(self, search_query, main_tag=0, page=1) -> JmSearchPage:
         params = {

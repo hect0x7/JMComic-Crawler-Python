@@ -152,6 +152,21 @@ class JmcomicText:
 
         return clazz(**field_dict)
 
+    @classmethod
+    def format_photo_url(cls, photo_id, domain=None):
+        return cls.format_url(f'/photo/{cls.parse_to_photo_id(photo_id)}', domain)
+
+    @classmethod
+    def format_album_url(cls, album_id, domain=None):
+        return cls.format_url(f'/album/{cls.parse_to_album_id(album_id)}', domain)
+
+    @classmethod
+    def format_url(cls, path, domain=None):
+        if domain is None:
+            domain = JmModuleConfig.domain()
+
+        return f'{JmModuleConfig.PROT}{domain}{path}'
+
 
 class JmSearchSupport:
     # 用来缩减html的长度
@@ -206,23 +221,23 @@ class JmImageSupport:
     @classmethod
     def save_resp_decoded_img(cls,
                               resp: Any,
-                              img_detail: JmImageDetail,
+                              image: JmImageDetail,
                               filepath: str
                               ) -> None:
         cls.decode_and_save(
-            cls.get_num_by_detail(img_detail),
+            cls.get_num_by_detail(image),
             cls.open_Image(resp.content),
             filepath
         )
 
     @classmethod
     def decode_disk_img(cls,
-                        img_detail: JmImageDetail,
+                        image: JmImageDetail,
                         img_filepath: str,
                         decoded_save_path: str
                         ) -> None:
         cls.decode_and_save(
-            cls.get_num_by_detail(img_detail),
+            cls.get_num_by_detail(image),
             cls.open_Image(img_filepath),
             decoded_save_path
         )

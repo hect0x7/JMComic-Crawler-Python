@@ -160,16 +160,28 @@ class JmDetailClient:
     def enable_cache(self, debug=False):
         raise NotImplementedError
 
-    def check_photo(self, photo_detail: JmPhotoDetail):
+    def check_photo(self, photo: JmPhotoDetail):
+        """
+        photo来源有两种:
+        1. album[?]
+        2. client.get_photo_detail(?)
+
+        其中，只有[2]是可以包含下载图片的url信息的。
+        本方法会检查photo是不是[1]，
+        如果是[1]，通过请求获取[2]，然后把2中的一些重要字段更新到1中
+
+        @param photo: 被检查的JmPhotoDetail对象
+        """
         # 检查 from_album
-        if photo_detail.from_album is None:
-            photo_detail.from_album = self.get_album_detail(photo_detail.album_id)
+        if photo.from_album is None:
+            photo.from_album = self.get_album_detail(photo.album_id)
 
         # 检查 page_arr 和 data_original_domain
-        if photo_detail.page_arr is None or photo_detail.data_original_domain is None:
-            new = self.get_photo_detail(photo_detail.photo_id, False)
-            new.from_album = photo_detail.from_album
-            photo_detail.__dict__.update(new.__dict__)
+        if photo.page_arr is None or photo.data_original_domain is None:
+            new = self.get_photo_detail(photo.photo_id, False)
+            new.from_album = photo.from_album
+            photo.__dict__.update(new.__dict__)
+
 
 class JmUserClient:
 
@@ -232,14 +244,14 @@ class JmImageClient:
             resp.transfer_to(img_save_path, scramble_id, decode_image, img_url)
 
     def download_by_image_detail(self,
-                                 img_detail: JmImageDetail,
+                                 image: JmImageDetail,
                                  img_save_path,
                                  decode_image=True,
                                  ):
         self.download_image(
-            img_detail.download_url,
+            image.download_url,
             img_save_path,
-            img_detail.scramble_id,
+            image.scramble_id,
             decode_image=decode_image,
         )
 

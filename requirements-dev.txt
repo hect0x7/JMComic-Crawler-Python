@@ -2,6 +2,3 @@ commonX
 curl_cffi
 PyYAML
 Pillow
-
-# for test
-pyperclip
