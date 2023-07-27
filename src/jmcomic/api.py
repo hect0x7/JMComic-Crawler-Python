@@ -17,7 +17,7 @@ def download_album(jm_album_id, option=None):
 
     option.before_album(album)
     execute_by_condition(
-        iter_obj=album,
+        iter_objs=album,
         apply=lambda photo: download_by_photo_detail(photo, option),
         count_batch=option.decide_photo_batch_count(album)
     )
@@ -65,7 +65,7 @@ def download_by_photo_detail(photo: JmPhotoDetail, option=None):
 
     option.before_photo(photo)
     execute_by_condition(
-        iter_obj=photo,
+        iter_objs=photo,
         apply=download_image,
         count_batch=option.decide_image_batch_count(photo)
     )
@@ -94,22 +94,22 @@ def download_album_batch(jm_album_id_iter: Union[Iterable, Generator],
     )
 
 
-def execute_by_condition(iter_obj, apply: Callable, count_batch: int):
+def execute_by_condition(iter_objs, apply: Callable, count_batch: int):
     """
     章节/图片的下载调度逻辑
     """
-    count_real = len(iter_obj)
+    count_real = len(iter_objs)
 
     if count_batch >= count_real:
-        # 一图一线程
+        # 一个图/章节 对应 一个线程
         multi_thread_launcher(
-            iter_objs=iter_obj,
+            iter_objs=iter_objs,
             apply_each_obj_func=apply,
         )
     else:
-        # 创建batch个线程的线程池，当图片数>batch时要等待。
+        # 创建batch个线程的线程池
         thread_pool_executor(
-            iter_objs=iter_obj,
+            iter_objs=iter_objs,
             apply_each_obj_func=apply,
             max_workers=count_batch,
         )

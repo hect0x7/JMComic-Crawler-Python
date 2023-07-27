@@ -1,3 +1,8 @@
+def field_cache(*args, **kwargs):
+    from common import field_cache
+    return field_cache(*args, **kwargs)
+
+
 def default_jm_debug(topic: str, msg: str):
     from common import format_ts
     print(f'{format_ts()}:【{topic}】{msg}')
@@ -15,11 +20,13 @@ def default_postman_constructor(session, **kwargs):
 class JmModuleConfig:
     # 网站相关
     PROT = "https://"
-    DOMAIN = None
     JM_REDIRECT_URL = f'{PROT}jm365.work/3YeBdF'  # 永久網域，怕走失的小伙伴收藏起来
     JM_PUB_URL = f'{PROT}jmcomic2.bet'
     JM_CDN_IMAGE_URL_TEMPLATE = PROT + 'cdn-msp.{domain}/media/photos/{photo_id}/{index:05}{suffix}'  # index 从1开始
     JM_IMAGE_SUFFIX = ['.jpg', '.webp', '.png', '.gif']
+    # 缓存字段
+    DOMAIN = None
+    DOMAIN_LIST = None
 
     # 访问JM可能会遇到的异常网页
     JM_ERROR_RESPONSE_TEXT = {
@@ -52,17 +59,15 @@ class JmModuleConfig:
     postman_constructor = default_postman_constructor
 
     @classmethod
+    @field_cache("DOMAIN")
     def domain(cls, postman=None):
         """
         由于禁漫的域名经常变化，调用此方法可以获取一个当前可用的最新的域名 domain，
         并且设置把 domain 设置为禁漫模块的默认域名。
         这样一来，配置文件也不用配置域名了，一切都在运行时动态获取。
         """
-        if cls.DOMAIN is None:
-            from .jm_toolkit import JmcomicText
-            cls.DOMAIN = JmcomicText.parse_to_jm_domain(cls.get_jmcomic_url(postman))
-
-        return cls.DOMAIN  # jmcomic默认域名
+        from .jm_toolkit import JmcomicText
+        return JmcomicText.parse_to_jm_domain(cls.get_jmcomic_url(postman))
 
     @classmethod
     def headers(cls, domain='18comic.vip'):
@@ -116,6 +121,7 @@ class JmModuleConfig:
         return url
 
     @classmethod
+    @field_cache("DOMAIN_LIST")
     def get_jmcomic_domain_all(cls, postman=None):
         """
         访问禁漫发布页，得到所有禁漫的域名

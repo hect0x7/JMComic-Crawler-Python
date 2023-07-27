@@ -186,9 +186,9 @@ class JmOption(DownloadCallback):
     def decide_image_batch_count(self, photo: JmPhotoDetail):
         return self.download_threading_batch_count
 
-    # noinspection PyMethodMayBeStatic
+    # noinspection PyMethodMayBeStatic,PyUnusedLocal
     def decide_photo_batch_count(self, album: JmAlbumDetail):
-        return len(album)
+        return os.cpu_count()
 
     def decide_image_save_dir(self, photo) -> str:
         # 使用 self.dir_rule 决定 save_dir
