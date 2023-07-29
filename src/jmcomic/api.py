@@ -49,13 +49,11 @@ def download_by_photo_detail(photo: JmPhotoDetail, option=None):
     # 下载每个图片的函数
     def download_image(image: JmImageDetail):
         img_save_path = option.decide_image_filepath(image)
-
-        # 已下载过，缓存命中
-        if use_cache is True and file_exists(img_save_path):
-            image.is_exists = True
-            return
+        image.is_exists = file_exists(img_save_path)
 
         option.before_image(image, img_save_path)
+        if use_cache is True and image.is_exists:
+            return
         jm_client.download_by_image_detail(
             image,
             img_save_path,
@@ -88,8 +86,8 @@ def download_album_batch(jm_album_id_iter: Union[Iterable, Generator],
         option = JmOption.default()
 
     return thread_pool_executor(
-        iter_objs=((album_id, option) for album_id in jm_album_id_iter),
-        apply_each_obj_func=download_album,
+        iter_objs=set(JmcomicText.parse_to_album_id(album_id) for album_id in jm_album_id_iter),
+        apply_each_obj_func=lambda album_id: download_album(album_id, option),
         wait_finish=wait_finish,
     )
 

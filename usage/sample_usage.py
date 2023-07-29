@@ -51,6 +51,7 @@ def search_jm_album():
     album: JmAlbumDetail = search_page.single_album
     print(album.keywords)
 
+
 @timeit('搜索并下载本子: ')
 def search_and_download():
     tag = '無修正'
@@ -65,6 +66,7 @@ def search_and_download():
             id_list.append(album_id)
 
     download_album(id_list, op)
+
 
 def main():
     search_jm_album()
