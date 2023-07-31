@@ -1,8 +1,10 @@
 from jmcomic import *
 
-jm_option = create_option(
+option = create_option(
     f'你的配置文件路径，例如: D:/a/b/c/jmcomic/config.yml'
 )
+client = option.build_jm_client()
+client.enable_cache(debug=True)
 
 
 @timeit('下载本子集: ')
@@ -13,21 +15,18 @@ def download_jm_album():
 
     ''')
 
-    download_album(ls, jm_option)  # 效果同下面的代码
-    # download_album_batch(ls, jm_option)
+    download_album(ls, option)  # 效果同下面的代码
+    # download_album_batch(ls, op)
 
 
 @timeit('获取实体类: ')
 def get_album_photo_detail():
-    client = jm_option.build_jm_client()
     # 启用缓存，会缓存id → album和photo的实体类
-    client.enable_cache(debug=True)
-
     album: JmAlbumDetail = client.get_album_detail('427413')
 
-    def show(p):
-        p: JmPhotoDetail = client.get_photo_detail(p.photo_id, False)
-        for img in p:
+    def show(photo):
+        photo: JmPhotoDetail = client.get_photo_detail(photo.photo_id, False)
+        for img in photo:
             img: JmImageDetail
             print(img.img_url)
 
@@ -39,8 +38,6 @@ def get_album_photo_detail():
 
 @timeit('搜索本子: ')
 def search_jm_album():
-    client = jm_option.build_jm_client()
-
     # 分页查询
     search_page: JmSearchPage = client.search_album(search_query='+MANA +无修正', page=1)
     for album_id, title in search_page:
@@ -55,17 +52,17 @@ def search_jm_album():
 @timeit('搜索并下载本子: ')
 def search_and_download():
     tag = '無修正'
-    search_album: JmSearchPage = cl.search_album(tag, main_tag=3)
+    search_page: JmSearchPage = client.search_album(tag, main_tag=3)
 
     id_list = []
 
-    for arg in search_album.album_info_list:
+    for arg in search_page.album_info_list:
         (album_id, title, category_none, label_sub_none, tag_list) = arg
         if tag in tag_list:
             print(f'[标签/{tag}] 发现目标: [{album_id}]: [{title}]')
             id_list.append(album_id)
 
-    download_album(id_list, op)
+    download_album(id_list, option)
 
 
 def main():
