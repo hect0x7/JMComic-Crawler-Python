@@ -32,7 +32,7 @@ class DownloadCallback:
                      f'图片已存在: {image.tag} ← [{img_save_path}]'
                      )
         else:
-            jm_debug('image_before',
+            jm_debug('image-before',
                      f'图片准备下载: {image.tag}, [{image.img_url}] → [{img_save_path}]'
                      )
 
@@ -159,9 +159,6 @@ class JmOption(DownloadCallback):
         # 其他配置
         self.filepath = filepath
 
-        # 字段
-        self.jm_client_cache = None
-
     @property
     def download_cache(self):
         return self.download.cache
@@ -186,9 +183,9 @@ class JmOption(DownloadCallback):
     def decide_image_batch_count(self, photo: JmPhotoDetail):
         return self.download_threading_batch_count
 
-    # noinspection PyMethodMayBeStatic
+    # noinspection PyMethodMayBeStatic,PyUnusedLocal
     def decide_photo_batch_count(self, album: JmAlbumDetail):
-        return len(album)
+        return os.cpu_count()
 
     def decide_image_save_dir(self, photo) -> str:
         # 使用 self.dir_rule 决定 save_dir
@@ -266,22 +263,14 @@ class JmOption(DownloadCallback):
     """
 
     # 缓存
-    cache_jm_client = True
     jm_client_impl_mapping: Dict[str, Type[AbstractJmClient]] = {
         'html': JmHtmlClient,
         'api': JmApiClient,
     }
 
+    @field_cache("__jm_client_cache__")
     def build_jm_client(self, **kwargs) -> JmcomicClient:
-        if self.cache_jm_client is not True:
-            return self.new_jm_client(**kwargs)
-
-        client = self.jm_client_cache
-        if client is None:
-            client = self.new_jm_client(**kwargs)
-            self.jm_client_cache = client
-
-        return client
+        return self.new_jm_client(**kwargs)
 
     def new_jm_client(self, **kwargs) -> JmcomicClient:
         postman_conf: dict = self.client.postman.src_dict
