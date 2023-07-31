@@ -45,8 +45,8 @@ def get_option():
 
     # 萌新注意！！！如果你想 `开源` 你的禁漫帐号，你也可以直接把账号密码写到下面的代码😅
 
-    username = get_env('JM_USERNAME')
-    password = get_env('JM_PASSWORD')
+    username = get_env('qizi10')
+    password = get_env('LUzupl81')
 
     if username is not None and password is not None:
         client.login(username, password, True)
