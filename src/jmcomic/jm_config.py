@@ -115,8 +115,7 @@ class JmModuleConfig:
         """
         postman = postman or cls.new_postman(session=True)
 
-        resp = postman.get(cls.JM_REDIRECT_URL)
-        url = resp.url
+        url = postman.with_redirect_catching().get(cls.JM_REDIRECT_URL)
         cls.jm_debug('获取禁漫地址', f'[{cls.JM_REDIRECT_URL}] → [{url}]')
         return url
 
