@@ -230,12 +230,17 @@ class JmOption:
 
     @field_cache("__jm_client_cache__")
     def build_jm_client(self, **kwargs) -> JmcomicClient:
+        """
+        该方法会首次调用会创建JmcomicClient对象，
+        然后保存在self.__jm_client_cache__中，
+        多次调用`不会`创建新的JmcomicClient对象
+        """
         return self.new_jm_client(**kwargs)
 
     def new_jm_client(self, **kwargs) -> JmcomicClient:
         postman_conf: dict = self.client.postman.src_dict
 
-        # support overwrite meta_data
+        # support kwargs overwrite meta_data
         if len(kwargs) != 0:
             meta_data = postman_conf.get('meta_data', {})
             meta_data.update(kwargs)
@@ -256,6 +261,10 @@ class JmOption:
             fallback_domain_list=domain_list,
         )
 
+        # enable cache
+        if self.client.cache is True:
+            client.enable_cache()
+
         return client
 
     @classmethod
@@ -270,6 +279,7 @@ class JmOption:
                 'threading': {'batch_count': 30},
             },
             'client': {
+                'cache': True,
                 'domain': [],
                 'postman': {
                     'type': 'cffi',

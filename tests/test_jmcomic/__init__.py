@@ -34,9 +34,6 @@ class JmTestConfigurable(unittest.TestCase):
         cls.option = option
         cls.client = option.build_jm_client()
 
-        # 启用 JmClientClient 缓存
-        cls.enable_client_cache()
-
         # 跨平台设置
         cls.adapt_os()
 
@@ -69,7 +66,3 @@ class JmTestConfigurable(unittest.TestCase):
     @classmethod
     def adapt_macos(cls):
         pass
-
-    @classmethod
-    def enable_client_cache(cls):
-        cls.client.enable_cache(debug=True)
