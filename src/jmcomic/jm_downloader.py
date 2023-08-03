@@ -50,7 +50,7 @@ class JmDownloader(DownloadCallback):
     JmDownloader = JmOption + 调度逻辑
     """
 
-    def __init__(self, option) -> None:
+    def __init__(self, option: JmOption) -> None:
         self.option = option
         self.use_cache = self.option.download_cache
         self.decode_image = self.option.download_image_decode
@@ -58,34 +58,32 @@ class JmDownloader(DownloadCallback):
     def download_album(self, album_id):
         client = self.client_for_album(album_id)
         album = client.get_album_detail(album_id)
-
-        self.before_album(album)
         self.download_by_album_detail(album, client)
-        self.after_album(album)
 
     def download_by_album_detail(self, album: JmAlbumDetail, client: JmcomicClient):
+        self.before_album(album)
         self.execute_by_condition(
             iter_objs=album,
             apply=lambda photo: self.download_by_photo_detail(photo, client),
             count_batch=self.option.decide_photo_batch_count(album)
         )
+        self.after_album(album)
 
     def download_photo(self, photo_id):
         client = self.client_for_photo(photo_id)
         photo = client.get_photo_detail(photo_id)
-
-        self.before_photo(photo)
         self.download_by_photo_detail(photo, client)
-        self.after_photo(photo)
 
     def download_by_photo_detail(self, photo: JmPhotoDetail, client: JmcomicClient):
         client.check_photo(photo)
 
+        self.before_photo(photo)
         self.execute_by_condition(
             iter_objs=photo,
             apply=lambda image: self.download_by_image_detail(image, client),
             count_batch=self.option.decide_image_batch_count(photo)
         )
+        self.after_photo(photo)
 
     def download_by_image_detail(self, image: JmImageDetail, client: JmcomicClient):
         img_save_path = self.option.decide_image_filepath(image)
@@ -123,20 +121,18 @@ class JmDownloader(DownloadCallback):
             )
 
     # noinspection PyUnusedLocal
-    def client_for_album(self, jm_album_id):
+    def client_for_album(self, jm_album_id) -> JmcomicClient:
         """
-        默认情况下，每次调用JmDownloader的download_album或download_photo,
-        都会使用一个新的 JmcomicClient
+        默认情况下，所有的JmDownloader共用一个JmcomicClient
         """
-        return self.option.new_jm_client()
+        return self.option.build_jm_client()
 
     # noinspection PyUnusedLocal
-    def client_for_photo(self, jm_photo_id):
+    def client_for_photo(self, jm_photo_id) -> JmcomicClient:
         """
-        默认情况下，每次调用JmDownloader的download_album或download_photo,
-        都会使用一个新的 JmcomicClient
+        默认情况下，所有的JmDownloader共用一个JmcomicClient
         """
-        return self.option.new_jm_client()
+        return self.option.build_jm_client()
 
     def __enter__(self):
         return self
