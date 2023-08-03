@@ -57,6 +57,24 @@ class JmModuleConfig:
     enable_jm_debug = True
     debug_executor = default_jm_debug
     postman_constructor = default_postman_constructor
+    DOWNLOADER_CLASS = None
+    OPTION_CLASS = None
+
+    @classmethod
+    def downloader_class(cls):
+        if cls.DOWNLOADER_CLASS is not None:
+            return cls.DOWNLOADER_CLASS
+
+        from .jm_downloader import JmDownloader
+        return JmDownloader
+
+    @classmethod
+    def option_class(cls):
+        if cls.OPTION_CLASS is not None:
+            return cls.OPTION_CLASS
+
+        from .jm_option import JmOption
+        return JmOption
 
     @classmethod
     @field_cache("DOMAIN")
@@ -115,8 +133,7 @@ class JmModuleConfig:
         """
         postman = postman or cls.new_postman(session=True)
 
-        resp = postman.get(cls.JM_REDIRECT_URL)
-        url = resp.url
+        url = postman.with_redirect_catching().get(cls.JM_REDIRECT_URL)
         cls.jm_debug('获取禁漫地址', f'[{cls.JM_REDIRECT_URL}] → [{url}]')
         return url
 
