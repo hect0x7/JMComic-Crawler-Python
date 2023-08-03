@@ -236,8 +236,10 @@ class JmImageClient:
 
         resp.require_success()
 
-        # gif图无需加解密，需要最先判断
+        return self.save_image_resp(decode_image, img_save_path, img_url, resp, scramble_id)
 
+    def save_image_resp(self, decode_image, img_save_path, img_url, resp, scramble_id):
+        # gif图无需加解密，需要最先判断
         if self.img_is_not_need_to_decode(img_url, resp):
             JmImageSupport.save_resp_img(resp, img_save_path, False)
         else:
@@ -248,7 +250,7 @@ class JmImageClient:
                                  img_save_path,
                                  decode_image=True,
                                  ):
-        self.download_image(
+        return self.download_image(
             image.download_url,
             img_save_path,
             image.scramble_id,

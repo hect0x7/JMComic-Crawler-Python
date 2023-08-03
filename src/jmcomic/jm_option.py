@@ -1,46 +1,6 @@
 from .jm_client_impl import *
 
 
-# noinspection PyMethodMayBeStatic
-class DownloadCallback:
-
-    def before_album(self, album: JmAlbumDetail):
-        jm_debug('album-before',
-                 f'本子获取成功: [{album.id}], '
-                 f'作者: [{album.author}], '
-                 f'章节数: [{len(album)}], '
-                 f'标题: [{album.title}], '
-                 )
-
-    def after_album(self, album: JmAlbumDetail):
-        jm_debug('album-after', f'本子下载完成: [{album.id}]')
-
-    def before_photo(self, photo: JmPhotoDetail):
-        jm_debug('photo-before',
-                 f'开始下载章节: {photo.id} ({photo.album_id}[{photo.index}/{len(photo.from_album)}]), '
-                 f'标题: [{photo.title}], '
-                 f'图片数为[{len(photo)}]'
-                 )
-
-    def after_photo(self, photo: JmPhotoDetail):
-        jm_debug('photo-after',
-                 f'章节下载完成: {photo.id} ({photo.album_id}[{photo.index}/{len(photo.from_album)}])')
-
-    def before_image(self, image: JmImageDetail, img_save_path):
-        if image.is_exists:
-            jm_debug('image-before',
-                     f'图片已存在: {image.tag} ← [{img_save_path}]'
-                     )
-        else:
-            jm_debug('image-before',
-                     f'图片准备下载: {image.tag}, [{image.img_url}] → [{img_save_path}]'
-                     )
-
-    def after_image(self, image: JmImageDetail, img_save_path):
-        jm_debug('image-after',
-                 f'图片下载完成: {image.tag}, [{image.img_url}] → [{img_save_path}]')
-
-
 class DirRule:
     rule_sample = [
         # 根目录 / Album-id / Photo-序号 /
@@ -139,7 +99,7 @@ class DirRule:
         return base_dir
 
 
-class JmOption(DownloadCallback):
+class JmOption:
     JM_OP_VER = '2.0'
 
     def __init__(self,

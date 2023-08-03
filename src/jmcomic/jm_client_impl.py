@@ -85,7 +85,7 @@ class AbstractJmClient(
 
     # noinspection PyMethodMayBeStatic, PyUnusedLocal
     def before_retry(self, e, kwargs, retry_count, url):
-        jm_debug('error', str(e))
+        jm_debug('retry', str(e))
 
     def enable_cache(self, debug=False):
         def wrap_func_cache(func_name, cache_dict_name):
@@ -131,8 +131,11 @@ class AbstractJmClient(
     def get_jmcomic_domain_all(self, postman=None):
         return JmModuleConfig.get_jmcomic_domain_all(postman or self.get_root_postman())
 
+    # noinspection PyUnusedLocal
     def fallback(self, request, url, domain_index, retry_count, **kwargs):
-        raise AssertionError(f"请求重试全部失败: [{url}], {self.domain_list}")
+        msg = f"请求重试全部失败: [{url}], {self.domain_list}"
+        jm_debug('fallback', "msg")
+        raise AssertionError(msg)
 
 
 # 基于网页实现的JmClient
@@ -406,3 +409,15 @@ class JmApiClient(AbstractJmClient):
             "user-agent": "okhttp/3.12.1",
             "accept-encoding": "gzip",
         }, key_ts
+
+
+class AsyncSaveImageClient(JmImageClient):
+
+    def __init__(self, workers=None) -> None:
+        from concurrent.futures import ThreadPoolExecutor, Future
+        self.executor = ThreadPoolExecutor(max_workers=workers)
+        self.future_list: List[Future] = []
+
+    def save_image_resp(self, *args, **kwargs):
+        future = self.executor.submit(lambda: super().save_image_resp(*args, **kwargs))
+        self.future_list.append(future)
