@@ -1,4 +1,5 @@
 from .jm_entity import *
+from PIL import Image
 
 
 class JmcomicText:
@@ -214,7 +215,7 @@ class JmImageSupport:
         如果不需要改变文件的格式，使用need_convert=False可以跳过PIL解析图片，效率更高。
         """
         if need_convert is True:
-            cls.open_Image(resp.content).save(filepath)
+            cls.save_image(cls.open_Image(resp.content), filepath)
         else:
             save_resp_content(resp, filepath)
 
@@ -283,14 +284,17 @@ class JmImageSupport:
             )
 
         # 保存到新的解密文件
-        img_decode.save(decoded_save_path)
+        cls.save_image(img_decode, decoded_save_path)
 
     @classmethod
     def open_Image(cls, fp: Union[str, bytes]):
-        from PIL import Image
         from io import BytesIO
         fp = fp if isinstance(fp, str) else BytesIO(fp)
         return Image.open(fp)
+
+    @classmethod
+    def save_image(cls, image: Image, filepath: str):
+        image.save(filepath)
 
     @classmethod
     def get_num(cls, scramble_id, aid, filename: str) -> int:
