@@ -10,7 +10,7 @@
 
 ## 1. fork一份我的代码仓库
 
-访问下面这个网址: 
+访问下面这个网址：
 
 `https://github.com/hect0x7/JMComic-Crawler-Python/fork`
 
@@ -22,7 +22,7 @@
 
 ### 2.1. 方式一（最新、推荐）
 
-访问下面这个网址
+访问下面这个网址：
 
 `https://github.com/hect0x7/JMComic-Crawler-Python/actions/workflows/download_dispatch.yml`
 
@@ -34,7 +34,7 @@
 
 ### 2.2. 方式二
 
-访问下面这个网址
+访问下面这个网址：
 
 `https://github.com/你的用户名/JMComic-Crawler-Python/edit/workflow/usage/workflow_download.py`
 
