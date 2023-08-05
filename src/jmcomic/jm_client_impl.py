@@ -63,15 +63,14 @@ class AbstractJmClient(
             pass
 
         if domain_index != 0 or retry_count != 0:
-            jm_debug(
-                f'request_retry',
-                ', '.join([
-                    f'次数: [{retry_count}/{self.retry_times}]',
-                    f'域名: [{domain_index} of {self.domain_list}]',
-                    f'路径: [{url}]',
-                    f'参数: [{kwargs if "login" not in url else "#login_form#"}]'
-                ])
-            )
+            jm_debug(f'req.retry',
+                     ', '.join([
+                         f'次数: [{retry_count}/{self.retry_times}]',
+                         f'域名: [{domain_index} of {self.domain_list}]',
+                         f'路径: [{url}]',
+                         f'参数: [{kwargs if "login" not in url else "#login_form#"}]'
+                     ])
+                     )
 
         try:
             return request(url, **kwargs)
@@ -85,7 +84,7 @@ class AbstractJmClient(
 
     # noinspection PyMethodMayBeStatic, PyUnusedLocal
     def before_retry(self, e, kwargs, retry_count, url):
-        jm_debug('retry', str(e))
+        jm_debug('req.err', str(e))
 
     def enable_cache(self, debug=False):
         def wrap_func_cache(func_name, cache_dict_name):
@@ -134,7 +133,7 @@ class AbstractJmClient(
     # noinspection PyUnusedLocal
     def fallback(self, request, url, domain_index, retry_count, **kwargs):
         msg = f"请求重试全部失败: [{url}], {self.domain_list}"
-        jm_debug('fallback', "msg")
+        jm_debug('fallback', msg)
         raise AssertionError(msg)
 
 
@@ -286,7 +285,7 @@ class JmHtmlClient(AbstractJmClient):
             data['is_reply'] = 1
             data['forum_subject'] = 1
 
-        jm_debug('album_comment',
+        jm_debug('album.comment',
                  f'{video_id}: [{comment}]' +
                  (f' to ({comment_id})' if comment_id is not None else '')
                  )
@@ -297,7 +296,7 @@ class JmHtmlClient(AbstractJmClient):
                          )
 
         ret = JmAcResp(resp)
-        jm_debug('album_comment', f'{video_id}: [{comment}] ← ({ret.model().cid})')
+        jm_debug('album.comment', f'{video_id}: [{comment}] ← ({ret.model().cid})')
 
         return ret
 
