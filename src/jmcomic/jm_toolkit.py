@@ -12,7 +12,7 @@ class JmcomicText:
     pattern_html_photo_title = compile('<title>(.*?)\|.*</title>')
     # pattern_html_photo_data_original_list = compile('data-original="(.*?)" id="album_photo_.+?"')
     pattern_html_photo_data_original_domain = compile('src="https://(.*?)/media/albums/blank')
-    pattern_html_photo_data_original_0 = compile('data-original="(.*?)" id="album_photo')
+    pattern_html_photo_data_original_0 = compile('data-original="(.*?)"[ \n]*?id="album_photo')
     pattern_html_photo_keywords = compile('<meta name="keywords"[\s\S]*?content="(.*?)"')
     pattern_html_photo_series_id = compile('var series_id = (\d+);')
     pattern_html_photo_sort = compile('var sort = (\d+);')
@@ -207,41 +207,33 @@ class JmImageSupport:
     @classmethod
     def save_resp_img(cls, resp: Any, filepath: str, need_convert=True):
         """
-        保存图片的响应数据
-        @param resp: Response对象
-        @param filepath: 响应数据保存的绝对路径
-        @param need_convert: True 使用PIL打开图片再保存; False 直接保存resp.content;
-        如果需要改变图片的格式，比如 .jpg → .png，则需要neet_convert=True。
-        如果不需要改变文件的格式，使用need_convert=False可以跳过PIL解析图片，效率更高。
+        接收HTTP响应对象，将其保存到图片文件.
+        如果需要改变图片的文件格式，比如 .jpg → .png，则需要指定参数 neet_convert=True.
+        如果不需要改变图片的文件格式，使用 need_convert=False，可以跳过PIL解析图片，效率更高.
+
+        @param resp: HTTP响应对象
+        @param filepath: 图片文件路径
+        @param need_convert: 是否转换图片
         """
-        if need_convert is True:
-            cls.save_image(cls.open_Image(resp.content), filepath)
+        if need_convert is False:
+            cls.save_directly(resp, filepath)
         else:
-            save_resp_content(resp, filepath)
+            cls.save_image(cls.open_Image(resp.content), filepath)
 
     @classmethod
-    def save_resp_decoded_img(cls,
-                              resp: Any,
-                              image: JmImageDetail,
-                              filepath: str
-                              ) -> None:
-        cls.decode_and_save(
-            cls.get_num_by_detail(image),
-            cls.open_Image(resp.content),
-            filepath
-        )
+    def save_image(cls, image: Image, filepath: str):
+        """
+        保存图片
+
+        @param image: PIL.Image对象
+        @param filepath: 保存文件路径
+        """
+        image.save(filepath)
 
     @classmethod
-    def decode_disk_img(cls,
-                        image: JmImageDetail,
-                        img_filepath: str,
-                        decoded_save_path: str
-                        ) -> None:
-        cls.decode_and_save(
-            cls.get_num_by_detail(image),
-            cls.open_Image(img_filepath),
-            decoded_save_path
-        )
+    def save_directly(cls, resp, filepath):
+        from common import save_resp_content
+        save_resp_content(resp, filepath)
 
     @classmethod
     def decode_and_save(cls,
@@ -291,10 +283,6 @@ class JmImageSupport:
         from io import BytesIO
         fp = fp if isinstance(fp, str) else BytesIO(fp)
         return Image.open(fp)
-
-    @classmethod
-    def save_image(cls, image: Image, filepath: str):
-        image.save(filepath)
 
     @classmethod
     def get_num(cls, scramble_id, aid, filename: str) -> int:

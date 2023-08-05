@@ -14,33 +14,6 @@ jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载�
 
 """
 --------------------
-    批量下载介绍
---------------------
-"""
-# 如果你想要批量下载，可以使用 list/set/tuple/生成器 作为第一个参数。
-# 第二个参数依然是可选的JmOption对象
-jmcomic.download_album(['422866', '1', '2', '3'])  # list
-jmcomic.download_album({'422866', '1', '2', '3'})  # set
-jmcomic.download_album(('422866', '1', '2', '3'))  # tuple
-jmcomic.download_album(aid for aid in ('422866', '1', '2', '3'))  # 生成器
-
-
-"""
---------------------
-    获取域名介绍
---------------------
-"""
-# 方式1: 访问禁漫发布页
-url_ls = jmcomic.JmModuleConfig.get_jmcomic_url_all()
-print(url_ls)
-
-# 方式2（可能会报错，需要你自己配置梯子）
-url = jmcomic.JmModuleConfig.get_jmcomic_url()
-print(url)
-
-
-"""
---------------------
     配置文件介绍
 --------------------
 """
@@ -67,3 +40,30 @@ jm_option = JmOption.construct({
         }
     }
 })
+
+
+"""
+--------------------
+    批量下载介绍
+--------------------
+"""
+# 如果你想要批量下载，可以使用 list/set/tuple/生成器 作为第一个参数。
+# 第二个参数依然是可选的JmOption对象
+jmcomic.download_album(['422866', '1', '2', '3'])  # list
+jmcomic.download_album({'422866', '1', '2', '3'})  # set
+jmcomic.download_album(('422866', '1', '2', '3'))  # tuple
+jmcomic.download_album(aid for aid in ('422866', '1', '2', '3'))  # 生成器
+
+
+"""
+--------------------
+    获取域名介绍
+--------------------
+"""
+# 方式1: 访问禁漫发布页
+url_ls = jmcomic.JmModuleConfig.get_jmcomic_url_all()
+print(url_ls)
+
+# 方式2（可能会报错，需要你自己配置梯子）
+url = jmcomic.JmModuleConfig.get_jmcomic_url()
+print(url)

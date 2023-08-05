@@ -4,7 +4,6 @@ option = create_option(
     f'你的配置文件路径，例如: D:/a/b/c/jmcomic/config.yml'
 )
 client = option.build_jm_client()
-client.enable_cache(debug=True)
 
 
 @timeit('下载本子集: ')
@@ -21,14 +20,17 @@ def download_jm_album():
 
 @timeit('获取实体类: ')
 def get_album_photo_detail():
-    # 启用缓存，会缓存id → album和photo的实体类
+    # 本子实体类
     album: JmAlbumDetail = client.get_album_detail('427413')
 
-    def show(photo):
-        photo: JmPhotoDetail = client.get_photo_detail(photo.photo_id, False)
-        for img in photo:
-            img: JmImageDetail
-            print(img.img_url)
+    def show(photo: JmPhotoDetail):
+        # 章节实体类
+        photo = client.get_photo_detail(photo.photo_id, False)
+
+        # 图片实体类
+        image: JmImageDetail
+        for image in photo:
+            print(image.img_url)
 
     multi_thread_launcher(
         iter_objs=album,
@@ -69,6 +71,7 @@ def main():
     search_jm_album()
     download_jm_album()
     get_album_photo_detail()
+    search_and_download()
 
 
 if __name__ == '__main__':
