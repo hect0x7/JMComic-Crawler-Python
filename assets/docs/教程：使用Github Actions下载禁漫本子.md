@@ -3,20 +3,36 @@
 一共需要三步：
 
 1. fork一份我的代码仓库。
-2. 填写你需要下载的本子id，提交commit。
+2. 填写你需要下载的本子id。
 3. 等待Github Actions下载完成，下载成品zip文件。
 
 下面截图解析这三步的详细过程。
 
 ## 1. fork一份我的代码仓库
 
-访问这个网址: [https://github.com/hect0x7/JMComic-Crawler-Python/fork].
+访问下面这个网址: 
+
+`https://github.com/hect0x7/JMComic-Crawler-Python/fork`
 
 直接拉到页面最底部，如下所示：
 
 ![1](./images/1.png)
 
-## 2. 填写你需要下载的本子id，提交commit
+## 2. 填写你需要下载的本子id
+
+### 2.1. 方式一（最新、推荐）
+
+访问下面这个网址
+
+`https://github.com/hect0x7/JMComic-Crawler-Python/actions/workflows/download_dispatch.yml`
+
+按下图步骤进行操作：
+
+![5](./images/5.png)
+
+
+
+### 2.2. 方式二
 
 访问下面这个网址
 
