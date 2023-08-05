@@ -24,16 +24,14 @@ class JmModuleConfig:
     JM_PUB_URL = f'{PROT}jmcomic2.bet'
     JM_CDN_IMAGE_URL_TEMPLATE = PROT + 'cdn-msp.{domain}/media/photos/{photo_id}/{index:05}{suffix}'  # index 从1开始
     JM_IMAGE_SUFFIX = ['.jpg', '.webp', '.png', '.gif']
-    # 缓存字段
-    DOMAIN = None
-    DOMAIN_LIST = None
 
-    # 访问JM可能会遇到的异常网页
+    # JM的异常网页内容
     JM_ERROR_RESPONSE_TEXT = {
         "Could not connect to mysql! Please check your database settings!": "禁漫服务器内部报错",
         "Restricted Access!": "禁漫拒绝你所在ip地区的访问，你可以选择: 换域名/换代理",
     }
 
+    # JM的异常网页code
     JM_ERROR_STATUS_CODE = {
         403: 'ip地区禁止访问/爬虫被识别',
         520: '520: Web server is returning an unknown error (禁漫服务器内部报错)',
@@ -48,17 +46,21 @@ class JmModuleConfig:
     # API的相关配置
     MAGIC_18COMICAPPCONTENT = '18comicAPPContent'
 
-    # 下载时的一些默认值
+    # 下载时的一些默认值配置
     default_author = 'default-author'
-    default_photo_title = 'default-photo-title'
-    default_photo_id = 'default-photo-id'
 
-    # debug
-    enable_jm_debug = True
-    debug_executor = default_jm_debug
-    postman_constructor = default_postman_constructor
+    # 模块级别的可重写配置
+    DOMAIN = None
+    DOMAIN_LIST = None
     DOWNLOADER_CLASS = None
     OPTION_CLASS = None
+
+    # 执行debug的函数
+    debug_executor = default_jm_debug
+    # postman构造函数
+    postman_constructor = default_postman_constructor
+    # debug开关标记
+    enable_jm_debug = True
 
     @classmethod
     def downloader_class(cls):

@@ -48,14 +48,14 @@ class JmImageResp(JmResp):
         img_url = img_url or self.url
 
         if decode_image is False:
-            # 不解密图片，直接返回
+            # 不解密图片，直接保存文件
             JmImageSupport.save_resp_img(
                 self,
                 path,
                 need_convert=suffix_not_equal(img_url, path),
             )
         else:
-            # 解密图片，需要 photo_id、scramble_id
+            # 解密图片并保存文件
             JmImageSupport.decode_and_save(
                 JmImageSupport.get_num_by_url(scramble_id, img_url),
                 JmImageSupport.open_Image(self.content),
@@ -241,6 +241,7 @@ class JmImageClient:
     def save_image_resp(self, decode_image, img_save_path, img_url, resp, scramble_id):
         # gif图无需加解密，需要最先判断
         if self.img_is_not_need_to_decode(img_url, resp):
+            # 相当于调用save_directly，但使用save_resp_img可以统一调用入口
             JmImageSupport.save_resp_img(resp, img_save_path, False)
         else:
             resp.transfer_to(img_save_path, scramble_id, decode_image, img_url)

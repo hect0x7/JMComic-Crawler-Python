@@ -133,7 +133,7 @@ class AbstractJmClient(
     # noinspection PyUnusedLocal
     def fallback(self, request, url, domain_index, retry_count, **kwargs):
         msg = f"请求重试全部失败: [{url}], {self.domain_list}"
-        jm_debug('fallback', msg)
+        jm_debug('req.fallback', msg)
         raise AssertionError(msg)
 
 
