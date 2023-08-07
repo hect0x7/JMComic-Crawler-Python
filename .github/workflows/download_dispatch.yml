@@ -79,8 +79,8 @@ jobs:
       - name: 压缩文件
         run: |
           cd $JM_DOWNLOAD_DIR
-          tar -zcvf ../$ZIP_NAME ./
-          mv ../$ZIP_NAME .
+          tar -zcvf "../$ZIP_NAME" ./
+          mv "../$ZIP_NAME" .
 
       - name: 上传结果
         uses: actions/upload-artifact@v3
