@@ -4,3 +4,8 @@ version: '2.0'
 dir_rule:
   base_dir: /home/runner/work/jmcomic/download/
   rule: Bd_Aauthor_Atitle_Pindex
+
+client:
+  domain:
+    - 18comic.vip
+    - 18comic.org
