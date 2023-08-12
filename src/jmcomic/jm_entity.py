@@ -4,7 +4,21 @@ from .jm_config import *
 
 
 class JmBaseEntity:
-    pass
+
+    @staticmethod
+    def fix_title(title: str, limit=50):
+        """
+        一些过长的标题可能含有 \n，例如album: 360537
+        该方法会把 \n 去除
+        """
+        if len(title) > limit and '\n' in title:
+            title = title.replace('\n', '')
+
+        return title.strip()
+
+    def save_to_file(self, filepath):
+        from common import PackerUtil
+        PackerUtil.pack(self, filepath)
 
 
 class DetailEntity(JmBaseEntity, IterableEntity):
@@ -16,10 +30,6 @@ class DetailEntity(JmBaseEntity, IterableEntity):
     @property
     def name(self) -> str:
         return getattr(self, 'title')
-
-    def save_to_file(self, filepath):
-        from common import PackerUtil
-        PackerUtil.pack(self, filepath)
 
     @classmethod
     def __jm_type__(cls):
@@ -130,7 +140,7 @@ class JmPhotoDetail(DetailEntity):
                  ):
         self.photo_id: str = photo_id
         self.scramble_id: str = scramble_id
-        self.title: str = str(title).strip()
+        self.title: str = self.fix_title(str(title))
         self.sort: int = int(sort)
         self._keywords: str = keywords
         self._series_id: int = int(series_id)
