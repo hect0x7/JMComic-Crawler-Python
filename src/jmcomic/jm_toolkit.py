@@ -9,7 +9,7 @@ class JmcomicText:
 
     pattern_html_photo_photo_id = compile('<meta property="og:url" content=".*?/photo/(\d+)/?.*?">')
     pattern_html_photo_scramble_id = compile('var scramble_id = (\d+);')
-    pattern_html_photo_title = compile('<title>(.*?)\|.*</title>')
+    pattern_html_photo_title = compile('<title>([\s\S]*?)\|.*</title>')
     # pattern_html_photo_data_original_list = compile('data-original="(.*?)" id="album_photo_.+?"')
     pattern_html_photo_data_original_domain = compile('src="https://(.*?)/media/albums/blank')
     pattern_html_photo_data_original_0 = compile('data-original="(.*?)"[ \n]*?id="album_photo')
@@ -20,9 +20,9 @@ class JmcomicText:
 
     pattern_html_album_album_id = compile('<span class="number">.*?：JM(\d+)</span>')
     pattern_html_album_scramble_id = compile('var scramble_id = (\d+);')
-    pattern_html_album_title = compile('panel-heading[\s\S]*?<h1>(.*?)</h1>')
+    pattern_html_album_title = compile('<h1 class="book-name" id="book-name">([\s\S]*?)</h1>')
     pattern_html_album_episode_list = compile('data-album="(\d+)">\n *?<li.*?>\n *'
-                                              '第(\d+)話\n(.*)\n *'
+                                              '第(\d+)話\n([\s\S]*?)\n *'
                                               '<[\s\S]*?>(\d+-\d+-\d+).*?')
     pattern_html_album_page_count = compile('<span class="pagecount">.*?:(\d+)</span>')
     pattern_html_album_pub_date = compile('>上架日期 : (.*?)</span>')
@@ -135,7 +135,6 @@ class JmcomicText:
 
         field_dict = {}
         pattern_name: str
-
         for pattern_name, pattern_value in cls.__dict__.items():
             if not pattern_name.startswith(cls_field_prefix):
                 continue
