@@ -41,11 +41,11 @@ class Test_Api(JmTestConfigurable):
             ret1 = jmcomic.download_album(case, self.option)
             self.assertEqual(len(ret1), len(album_ls), str(case))
 
-            ret2 = jmcomic.download_album_batch(case, self.option)
+            ret2 = jmcomic.download_album(case, self.option)
             self.assertEqual(len(ret2), len(album_ls), str(case))
 
         # 测试 Generator
-        ret2 = jmcomic.download_album_batch((e for e in album_ls), self.option)
+        ret2 = jmcomic.download_album((e for e in album_ls), self.option)
         self.assertEqual(len(ret2), len(album_ls), 'Generator')
 
     def test_photo_sort(self):
@@ -130,3 +130,42 @@ class Test_Api(JmTestConfigurable):
             print(e)
 
         raise AssertionError(exception_list)
+
+    def test_getitem_and_slice(self):
+        cl: JmcomicClient = self.client
+        cases = [
+            ['400222', 0, [400222]],
+            ['400222', 1, [413446]],
+            ['400222', (None, 1), [400222]],
+            ['400222', (1, 3), [413446, 413447]],
+            ['413447', (1, 3), [2, 3], []],
+        ]
+
+        for [jmid, slicearg, *args] in cases:
+            ans = args[0]
+
+            if len(args) == 1:
+                func = cl.get_album_detail
+            else:
+                func = cl.get_photo_detail
+
+            jmentity = func(jmid)
+
+            ls: List[Union[JmPhotoDetail, JmImageDetail]]
+            if isinstance(slicearg, int):
+                ls = [jmentity[slicearg]]
+            elif len(slicearg) == 2:
+                ls = jmentity[slicearg[0]: slicearg[1]]
+            else:
+                ls = jmentity[slicearg[0]: slicearg[1]: slicearg[2]]
+
+            if len(args) == 1:
+                self.assertListEqual(
+                    list1=[int(e.id) for e in ls],
+                    list2=ans,
+                )
+            else:
+                self.assertListEqual(
+                    list1=[int(e.img_file_name) for e in ls],
+                    list2=ans,
+                )

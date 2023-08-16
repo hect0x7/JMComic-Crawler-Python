@@ -1,5 +1,6 @@
-from .jm_entity import *
 from PIL import Image
+
+from .jm_entity import *
 
 
 class JmcomicText:

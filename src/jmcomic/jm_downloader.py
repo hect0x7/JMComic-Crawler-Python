@@ -1,5 +1,13 @@
 from .jm_option import *
 
+# help for typing
+DownloadIterObjs = Union[
+    JmAlbumDetail,
+    Sequence[JmPhotoDetail],
+    JmPhotoDetail,
+    Sequence[JmImageDetail],
+]
+
 
 class JmDownloadException(Exception):
     pass
@@ -100,10 +108,15 @@ class JmDownloader(DownloadCallback):
         self.after_image(image, img_save_path)
 
     # noinspection PyMethodMayBeStatic
-    def execute_by_condition(self, iter_objs, apply: Callable, count_batch: int):
+    def execute_by_condition(self,
+                             iter_objs: DownloadIterObjs,
+                             apply: Callable,
+                             count_batch: int,
+                             ):
         """
-        章节/图片的下载调度逻辑
+        调度本子/章节的下载
         """
+        iter_objs = self.filter_iter_objs(iter_objs)
         count_real = len(iter_objs)
 
         if count_batch >= count_real:
@@ -119,6 +132,19 @@ class JmDownloader(DownloadCallback):
                 apply_each_obj_func=apply,
                 max_workers=count_batch,
             )
+
+    # noinspection PyMethodMayBeStatic
+    def filter_iter_objs(self, iter_objs: DownloadIterObjs):
+        """
+        该方法可用于过滤本子/章节，默认不会做过滤。
+        例如:
+        只想下载 本子的最新一章，返回 [album[-1]]
+        只想下载 章节的前10张图片，返回 [photo[:10]]
+
+        @param iter_objs: 可能是本子或者章节，需要自行使用 isinstance 判断
+        @return: 只想要下载的 本子的章节 或 章节的图片
+        """
+        return iter_objs
 
     # noinspection PyUnusedLocal
     def client_for_album(self, jm_album_id) -> JmcomicClient:

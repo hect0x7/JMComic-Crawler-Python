@@ -21,7 +21,7 @@ class JmBaseEntity:
         PackerUtil.pack(self, filepath)
 
 
-class DetailEntity(JmBaseEntity, IterableEntity):
+class DetailEntity(JmBaseEntity):
 
     @property
     def id(self) -> str:
@@ -31,18 +31,41 @@ class DetailEntity(JmBaseEntity, IterableEntity):
     def name(self) -> str:
         return getattr(self, 'title')
 
+    # help for typing
+    JMPI = Union['JmPhotoDetail', 'JmImageDetail']
+
+    def getindex(self, index: int) -> JMPI:
+        raise NotImplementedError
+
+    def __len__(self):
+        raise NotImplementedError
+
+    def __iter__(self) -> Generator[JMPI, Any, None]:
+        for index in range(len(self)):
+            yield self.getindex(index)
+
+    def __str__(self):
+        return f'{self.__class__.__name__}({self.id}-{self.name})'
+
+    def __getitem__(self, item) -> Union[JMPI, List[JMPI]]:
+        if isinstance(item, slice):
+            start = item.start or 0
+            stop = item.stop or len(self)
+            step = item.step or 1
+            return [self.getindex(index) for index in range(start, stop, step)]
+
+        elif isinstance(item, int):
+            return self.getindex(item)
+
+        else:
+            raise TypeError(f"Invalid item type for {self.__class__}")
+
     @classmethod
-    def __jm_type__(cls):
+    def __alias__(cls):
         # "JmAlbumDetail" -> "album" (本子)
         # "JmPhotoDetail" -> "photo" (章节)
         cls_name = cls.__name__
         return cls_name[cls_name.index("m") + 1: cls_name.rfind("Detail")].lower()
-
-    def __getitem__(self, item) -> Union['JmAlbumDetail', 'JmPhotoDetail']:
-        raise NotImplementedError
-
-    def __str__(self):
-        return f'{self.__class__.__name__}({self.id}-{self.name})'
 
 
 class JmImageDetail(JmBaseEntity):
@@ -254,12 +277,15 @@ class JmPhotoDetail(DetailEntity):
 
         return data_original_0[index + 1:]
 
-    def __getitem__(self, item) -> JmImageDetail:
-        return self.create_image_detail(item)
-
     @property
     def id(self):
         return self.photo_id
+
+    def getindex(self, index) -> JmImageDetail:
+        return self.create_image_detail(index)
+
+    def __getitem__(self, item) -> Union[JmImageDetail, List[JmImageDetail]]:
+        return super().__getitem__(item)
 
     def __len__(self):
         return len(self.page_arr)
@@ -337,12 +363,6 @@ class JmAlbumDetail(DetailEntity):
     def id(self):
         return self.album_id
 
-    def __len__(self):
-        return len(self.episode_list)
-
-    def __getitem__(self, item) -> JmPhotoDetail:
-        return self.create_photo_detail(item)[0]
-
     @staticmethod
     def distinct_episode(episode_list):
         ret = []
@@ -359,6 +379,15 @@ class JmAlbumDetail(DetailEntity):
                 ret.append(episode)
 
         return ret
+
+    def getindex(self, item) -> JmPhotoDetail:
+        return self.create_photo_detail(item)[0]
+
+    def __getitem__(self, item) -> Union[JmPhotoDetail, List[JmPhotoDetail]]:
+        return super().__getitem__(item)
+
+    def __len__(self):
+        return len(self.episode_list)
 
     def __iter__(self) -> Generator[JmPhotoDetail, Any, None]:
         return super().__iter__()
