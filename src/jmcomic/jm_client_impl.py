@@ -57,7 +57,7 @@ class AbstractJmClient(
                 api_path=url,
                 domain=self.domain_list[domain_index],
             )
-            jm_debug('api', url)
+            jm_debug(self.debug_topic_request(), url)
         else:
             # 图片url
             pass
@@ -81,6 +81,10 @@ class AbstractJmClient(
             return self.request_with_retry(request, url, domain_index, retry_count + 1, **kwargs)
         else:
             return self.request_with_retry(request, url, domain_index + 1, 0, **kwargs)
+
+    # noinspection PyMethodMayBeStatic
+    def debug_topic_request(self):
+        return 'html'
 
     # noinspection PyMethodMayBeStatic, PyUnusedLocal
     def before_retry(self, e, kwargs, retry_count, url):
@@ -123,6 +127,11 @@ class AbstractJmClient(
             'search_album',
         }:
             wrap_func_cache(func, func + '.cache.dict')
+
+        setattr(self, '__enable_cache__', True)
+
+    def is_cache_enabled(self) -> bool:
+        return getattr(self, '__enable_cache__', False)
 
     def get_jmcomic_url(self, postman=None):
         return JmModuleConfig.get_jmcomic_url(postman or self.get_root_postman())
