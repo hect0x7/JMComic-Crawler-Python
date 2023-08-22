@@ -41,7 +41,7 @@ def get_option():
 
     # 检查环境变量中是否有禁漫的用户名和密码，如果有则登录
     # 禁漫的大部分本子，下载是不需要登录的，少部分敏感题材需要登录
-    # 如果你希望以登录状态下载本子，你需要自己配置一下Github Actions的 `secrets`
+    # 如果你希望以登录状态下载本子，你需要自己配置一下GitHub Actions的 `secrets`
     # 配置的方式很简单，网页上点一点就可以了
     # 具体做法请去看官方教程：https://docs.github.com/en/actions/security-guides/encrypted-secrets
 
@@ -58,7 +58,7 @@ def get_option():
 
 
 def hook_debug(option):
-    from jmcomic import JmHtmlClient, workspace, mkdir_if_not_exists
+    from jmcomic import JmHtmlClient, workspace, mkdir_if_not_exists, JmModuleConfig
 
     jm_download_dir = get_env('JM_DOWNLOAD_DIR') or workspace()
     mkdir_if_not_exists(jm_download_dir)
@@ -75,7 +75,7 @@ def hook_debug(option):
 
             return super().raise_request_error(resp, msg)
 
-    option.jm_client_impl_mapping['html'] = RaiseErrorAwareClient
+    JmModuleConfig.CLASS_CLIENT_IMPL['html'] = RaiseErrorAwareClient
 
 
 def get_env(name):

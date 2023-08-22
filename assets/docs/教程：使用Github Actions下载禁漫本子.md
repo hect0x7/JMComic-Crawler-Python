@@ -1,10 +1,10 @@
-# 教程：使用Github Actions下载禁漫本子
+# 教程：使用GitHub Actions下载禁漫本子
 
 一共需要三步：
 
 1. fork一份我的代码仓库。
 2. 填写你需要下载的本子id。
-3. 等待Github Actions下载完成，下载成品zip文件。
+3. 等待GitHub Actions下载完成，下载成品zip文件。
 
 下面截图解析这三步的详细过程。
 
@@ -48,9 +48,9 @@
 
 上面有注释，把你要下载的本子的id填入，一行一个，id前面可以带`JM`。
 
-填完点提交，会自动触发Github Actions下载这些本子。
+填完点提交，会自动触发GitHub Actions下载这些本子。
 
-## 3. 等待Github Actions下载完成，下载成品zip文件
+## 3. 等待GitHub Actions下载完成，下载成品zip文件
 
 来到Actions页面，选择最新的一次记录，等待它完成。
 
@@ -60,7 +60,7 @@
 
 ![4](./images/4.png)
 
-如果你发现Github Actions显示❌，表明出现了问题，运行失败。
+如果你发现GitHub Actions显示❌，表明出现了问题，运行失败。
 
 
 下面是问题的排查步骤：

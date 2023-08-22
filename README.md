@@ -38,7 +38,7 @@ jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载�
 ## 项目特点
 
 - **绕过Cloudflare的反爬虫**
-- 支持使用**Github Actions**下载漫画，不会编程都能用（[教程：使用Github Actions下载禁漫本子](./assets/docs/教程：使用Github%20Actions下载禁漫本子.md)）
+- 支持使用**GitHub Actions**下载漫画，不会编程都能用（[教程：使用GitHub Actions下载禁漫本子](./assets/docs/教程：使用GitHub%20Actions下载禁漫本子.md)）
 - **可配置性强**
   - 不配置也能使用，十分方便
   - 配置可以从**配置文件**生成，支持多种文件格式，无需写Python代码
