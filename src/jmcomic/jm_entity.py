@@ -318,10 +318,12 @@ class JmAlbumDetail(DetailEntity):
 
         # 有的 album 没有章节，则自成一章。
         if len(episode_list) == 0:
-            # photo_id, photo_index_of_album, photo_title, photo_pub_date
-            episode_list = [(album_id, 0, title, pub_date)]
+            # photo_id, photo_index, photo_title, photo_pub_date
+            episode_list = [(album_id, 1, title, pub_date)]
+        else:
+            episode_list = self.distinct_episode(episode_list)
 
-        self.episode_list: List[Tuple] = self.distinct_episode(episode_list)
+        self.episode_list: List[Tuple] = episode_list
 
     def create_photo_detail(self, index) -> Tuple[JmPhotoDetail, Tuple]:
         # 校验参数
@@ -332,7 +334,7 @@ class JmAlbumDetail(DetailEntity):
 
         # episode_info: ('212214', '81', '94 突然打來', '2020-08-29')
         episode_info: tuple = self.episode_list[index]
-        photo_id, photo_index_of_album, photo_title, photo_pub_date = episode_info
+        photo_id, photo_index, photo_title, photo_pub_date = episode_info
 
         photo = JmPhotoDetail(
             photo_id=photo_id,
@@ -340,7 +342,7 @@ class JmAlbumDetail(DetailEntity):
             title=photo_title,
             keywords='',
             series_id=self.album_id,
-            sort=episode_info[1] if len(self) != 1 else 1,
+            sort=photo_index,
             author=self.author,
             from_album=self,
             page_arr=None,

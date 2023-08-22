@@ -1,3 +1,13 @@
+"""
+
+本文件仅演示一些简单的api使用，包含以下内容：
+1. 下载本子
+2. 获取实体类（本子/章节/图片）
+3. 搜索本子
+4. 搜索并下载本子（以下载带有 [無修正] 标签的本子为例）
+
+"""
+
 from jmcomic import *
 
 option = create_option(
@@ -6,7 +16,7 @@ option = create_option(
 client = option.build_jm_client()
 
 
-@timeit('下载本子集: ')
+@timeit('下载本子: ')
 def download_jm_album():
     ls = str_to_list('''
     438696
@@ -54,6 +64,7 @@ def search_jm_album():
 @timeit('搜索并下载本子: ')
 def search_and_download():
     tag = '無修正'
+    # 搜索第一页
     search_page: JmSearchPage = client.search_album(tag, main_tag=3)
 
     id_list = []

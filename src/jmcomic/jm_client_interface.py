@@ -221,7 +221,7 @@ class JmImageClient:
     def download_image(self,
                        img_url: str,
                        img_save_path: str,
-                       scramble_id: str,
+                       scramble_id=None,
                        decode_image=True,
                        ):
         """
@@ -231,6 +231,10 @@ class JmImageClient:
         @param scramble_id: 图片所在photo的scramble_id
         @param decode_image: 要保存的是解密后的图还是原图
         """
+        if scramble_id is None:
+            # 大多数情况下，scramble_id = photo_id
+            scramble_id = JmcomicText.parse_to_photo_id(scramble_id)
+
         # 请求图片
         resp = self.get_jm_image(img_url)
 

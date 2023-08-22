@@ -56,6 +56,7 @@ class JmModuleConfig:
     CLASS_OPTION = None
     CLASS_ALBUM = None
     CLASS_PHOTO = None
+    CLASS_CLIENT_IMPL = {}
 
     # 执行debug的函数
     debug_executor = default_jm_debug
@@ -95,6 +96,16 @@ class JmModuleConfig:
 
         from .jm_entity import JmPhotoDetail
         return JmPhotoDetail
+
+    @classmethod
+    def client_impl_class(cls, client_key: str):
+        client_impl_dict = cls.CLASS_CLIENT_IMPL
+
+        impl_class = client_impl_dict.get(client_key, None)
+        if impl_class is None:
+            raise NotImplementedError(f'not found client impl class for key: "{client_key}"')
+
+        return impl_class
 
     @classmethod
     @field_cache("DOMAIN")
