@@ -88,24 +88,20 @@ class JmcomicText:
             domain_ls
         ))
 
-    # 可以替换下面两个类为用户自定义的、二次继承的类
-    PhotoClass = JmPhotoDetail
-    AlbumClass = JmAlbumDetail
-
     @classmethod
-    def analyse_jm_photo_html(cls, html: str) -> PhotoClass:
+    def analyse_jm_photo_html(cls, html: str) -> JmPhotoDetail:
         return cls.reflect_new_instance(
             html,
             "pattern_html_photo_",
-            cls.PhotoClass
+            JmModuleConfig.photo_class()
         )
 
     @classmethod
-    def analyse_jm_album_html(cls, html: str) -> AlbumClass:
+    def analyse_jm_album_html(cls, html: str) -> JmAlbumDetail:
         return cls.reflect_new_instance(
             html,
             "pattern_html_album_",
-            cls.AlbumClass
+            JmModuleConfig.album_class()
         )
 
     @classmethod

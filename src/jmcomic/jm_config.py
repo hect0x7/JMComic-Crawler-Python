@@ -52,8 +52,10 @@ class JmModuleConfig:
     # 模块级别的可重写配置
     DOMAIN = None
     DOMAIN_LIST = None
-    DOWNLOADER_CLASS = None
-    OPTION_CLASS = None
+    CLASS_DOWNLOADER = None
+    CLASS_OPTION = None
+    CLASS_ALBUM = None
+    CLASS_PHOTO = None
 
     # 执行debug的函数
     debug_executor = default_jm_debug
@@ -64,19 +66,35 @@ class JmModuleConfig:
 
     @classmethod
     def downloader_class(cls):
-        if cls.DOWNLOADER_CLASS is not None:
-            return cls.DOWNLOADER_CLASS
+        if cls.CLASS_DOWNLOADER is not None:
+            return cls.CLASS_DOWNLOADER
 
         from .jm_downloader import JmDownloader
         return JmDownloader
 
     @classmethod
     def option_class(cls):
-        if cls.OPTION_CLASS is not None:
-            return cls.OPTION_CLASS
+        if cls.CLASS_OPTION is not None:
+            return cls.CLASS_OPTION
 
         from .jm_option import JmOption
         return JmOption
+
+    @classmethod
+    def album_class(cls):
+        if cls.CLASS_ALBUM is not None:
+            return cls.CLASS_ALBUM
+
+        from .jm_entity import JmAlbumDetail
+        return JmAlbumDetail
+
+    @classmethod
+    def photo_class(cls):
+        if cls.CLASS_PHOTO is not None:
+            return cls.CLASS_PHOTO
+
+        from .jm_entity import JmPhotoDetail
+        return JmPhotoDetail
 
     @classmethod
     @field_cache("DOMAIN")
