@@ -420,3 +420,7 @@ class AsyncSaveImageClient(JmImageClient):
     def save_image_resp(self, *args, **kwargs):
         future = self.executor.submit(lambda: super().save_image_resp(*args, **kwargs))
         self.future_list.append(future)
+
+
+JmModuleConfig.CLASS_CLIENT_IMPL['html'] = JmHtmlClient
+JmModuleConfig.CLASS_CLIENT_IMPL['api'] = JmApiClient

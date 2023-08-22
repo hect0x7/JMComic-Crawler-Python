@@ -222,12 +222,6 @@ class JmOption:
     下面是 build 方法
     """
 
-    # 缓存
-    jm_client_impl_mapping: Dict[str, Type[AbstractJmClient]] = {
-        'html': JmHtmlClient,
-        'api': JmApiClient,
-    }
-
     @field_cache("__jm_client_cache__")
     def build_jm_client(self, **kwargs) -> JmcomicClient:
         """
@@ -255,7 +249,7 @@ class JmOption:
             domain_list = [JmcomicText.parse_to_jm_domain(JmModuleConfig.get_jmcomic_url(postman))]
 
         # client
-        client = self.jm_client_impl_mapping[self.client.impl](
+        client = JmModuleConfig.client_impl_class(self.client.impl)(
             postman,
             self.client.retry_times,
             fallback_domain_list=domain_list,
