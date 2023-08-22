@@ -160,6 +160,9 @@ class JmDetailClient:
     def enable_cache(self, debug=False):
         raise NotImplementedError
 
+    def is_cache_enabled(self) -> bool:
+        raise NotImplementedError
+
     def check_photo(self, photo: JmPhotoDetail):
         """
         photo来源有两种:
@@ -221,7 +224,7 @@ class JmImageClient:
     def download_image(self,
                        img_url: str,
                        img_save_path: str,
-                       scramble_id=None,
+                       scramble_id: Optional[int] = None,
                        decode_image=True,
                        ):
         """
@@ -232,8 +235,7 @@ class JmImageClient:
         @param decode_image: 要保存的是解密后的图还是原图
         """
         if scramble_id is None:
-            # 大多数情况下，scramble_id = photo_id
-            scramble_id = JmcomicText.parse_to_photo_id(scramble_id)
+            scramble_id = JmModuleConfig.SCRAMBLE_0
 
         # 请求图片
         resp = self.get_jm_image(img_url)
@@ -258,7 +260,7 @@ class JmImageClient:
         return self.download_image(
             image.download_url,
             img_save_path,
-            image.scramble_id,
+            int(image.scramble_id),
             decode_image=decode_image,
         )
 
