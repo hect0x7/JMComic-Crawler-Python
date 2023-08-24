@@ -17,11 +17,15 @@ def default_postman_constructor(session, **kwargs):
     return Postmans.new_postman(**kwargs)
 
 
+def default_raise_regex_error(msg, *_args, **_kwargs):
+    raise AssertionError(msg)
+
+
 class JmModuleConfig:
     # 网站相关
     PROT = "https://"
     JM_REDIRECT_URL = f'{PROT}jm365.work/3YeBdF'  # 永久網域，怕走失的小伙伴收藏起来
-    JM_PUB_URL = f'{PROT}jmcomic2.bet'
+    JM_PUB_URL = f'{PROT}jmcomic.ltd'
     JM_CDN_IMAGE_URL_TEMPLATE = PROT + 'cdn-msp.{domain}/media/photos/{photo_id}/{index:05}{suffix}'  # index 从1开始
     JM_IMAGE_SUFFIX = ['.jpg', '.webp', '.png', '.gif']
 
@@ -62,6 +66,9 @@ class JmModuleConfig:
     debug_executor = default_jm_debug
     # postman构造函数
     postman_constructor = default_postman_constructor
+    # 网页正则表达式解析失败时，执行抛出异常的函数，可以替换掉用于debug
+    raise_regex_error_executor = default_raise_regex_error
+
     # debug开关标记
     enable_jm_debug = True
 
@@ -163,7 +170,7 @@ class JmModuleConfig:
         postman = postman or cls.new_postman(session=True)
 
         url = postman.with_redirect_catching().get(cls.JM_REDIRECT_URL)
-        cls.jm_debug('获取禁漫地址', f'[{cls.JM_REDIRECT_URL}] → [{url}]')
+        cls.jm_debug('获取禁漫URL', f'[{cls.JM_REDIRECT_URL}] → [{url}]')
         return url
 
     @classmethod
@@ -181,7 +188,10 @@ class JmModuleConfig:
             raise AssertionError(resp.text)
 
         from .jm_toolkit import JmcomicText
-        return JmcomicText.analyse_jm_pub_html(resp.text)
+        domain_list = JmcomicText.analyse_jm_pub_html(resp.text)
+
+        cls.jm_debug('获取禁漫全部域名', f'[{resp.url}] → {domain_list}')
+        return domain_list
 
     album_comment_headers = {
         'authority': '18comic.vip',

@@ -418,6 +418,9 @@ class JmApiClient(AbstractJmClient):
             "accept-encoding": "gzip",
         }, key_ts
 
+    def debug_topic_request(self):
+        return 'api'
+
 
 class AsyncSaveImageClient(JmImageClient):
 

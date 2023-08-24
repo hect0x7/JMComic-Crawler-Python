@@ -141,8 +141,12 @@ class JmcomicText:
             field_value = match_field(field_name, pattern_value, html)
 
             if field_value is None:
-                write_text('./resp.txt', html)  # debug
-                raise AssertionError(f"文本没有匹配上字段：字段名为'{field_name}'，pattern: [{pattern_value.pattern}]")
+                JmModuleConfig.raise_regex_error_executor(
+                    f"文本没有匹配上字段：字段名为'{field_name}'，pattern: [{pattern_value.pattern}]",
+                    html,
+                    field_name,
+                    pattern_value
+                )
 
             # 保存字段
             field_dict[field_name] = field_value
@@ -167,9 +171,7 @@ class JmcomicText:
 
 class JmSearchSupport:
     # 用来缩减html的长度
-    pattern_html_search_shorten_for = compile('<div class="well well-sm">([\s\S]*)'
-                                              '<div class="row">[\s\S]*'
-                                              '<div class="bot-per visible-xs visible-sm">')
+    pattern_html_search_shorten_for = compile('<div class="well well-sm">([\s\S]*)<div class="row">')
 
     # 用来提取搜索页面的的album的信息
     pattern_html_search_album_info_list = compile(
@@ -185,9 +187,24 @@ class JmSearchSupport:
     # 用来查找tag列表
     pattern_html_search_tag_list = compile('<a href=".*?">(.*?)</a>')
 
+    # 查找错误，例如 [错误，關鍵字過短，請至少輸入兩個字以上。]
+    pattern_html_search_error = compile('<fieldset>\n<legend>(.*?)</legend>\n<div class=.*?>\n(.*?)\n</div>\n</fieldset>')
+
     @classmethod
     def analyse_jm_search_html(cls, html: str) -> JmSearchPage:
-        html = cls.pattern_html_search_shorten_for.search(html)[0]
+        # 检查是否失败
+        match = cls.pattern_html_search_error.search(html)
+        if match is not None:
+            topic, reason = match[1], match[2]
+            JmModuleConfig.raise_regex_error_executor(f'{topic}: {reason}', html)
+
+        # 缩小文本范围
+        match = cls.pattern_html_search_shorten_for.search(html)
+        if match is None:
+            JmModuleConfig.raise_regex_error_executor('未匹配到搜索结果', html)
+        html = match[0]
+
+        # 提取结果
         album_info_list = cls.pattern_html_search_album_info_list.findall(html)
 
         for i, (album_id, title, *args) in enumerate(album_info_list):
