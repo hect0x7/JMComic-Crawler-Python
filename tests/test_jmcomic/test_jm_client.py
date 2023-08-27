@@ -52,8 +52,9 @@ class Test_Client(JmTestConfigurable):
         self.client.download_by_image_detail(image, workspace('3000.png'))
 
     def test_album_missing(self):
+        JmModuleConfig.CLASS_EXCEPTION = JmcomicException
         self.assertRaises(
-            AssertionError,
+            JmcomicException,
             self.client.get_album_detail,
             '332583'
         )

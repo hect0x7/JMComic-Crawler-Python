@@ -241,11 +241,11 @@ class JmPhotoDetail(DetailEntity):
         # 校验参数
         length = len(self.page_arr)
         if index >= length:
-            raise AssertionError(f'创建JmImageDetail失败，{index} >= {length}')
+            raise JmModuleConfig.exception(f'创建JmImageDetail失败，{index} >= {length}')
 
         data_original = self.get_img_data_original(self.page_arr[index])
 
-        return JmImageDetail.of(
+        return JmModuleConfig.image_class().of(
             self.photo_id,
             self.scramble_id,
             data_original,
@@ -262,7 +262,7 @@ class JmPhotoDetail(DetailEntity):
         """
         data_original_domain = self.data_original_domain
         if data_original_domain is None:
-            raise AssertionError(f'图片域名为空: {self.__dict__}')
+            raise JmModuleConfig.exception(f'图片域名为空: {self.__dict__}')
 
         return f'https://{data_original_domain}/media/photos/{self.photo_id}/{img_name}'
 
@@ -330,13 +330,13 @@ class JmAlbumDetail(DetailEntity):
         length = len(self.episode_list)
 
         if index >= length:
-            raise AssertionError(f'创建JmPhotoDetail失败，{index} >= {length}')
+            raise JmModuleConfig.exception(f'创建JmPhotoDetail失败，{index} >= {length}')
 
         # episode_info: ('212214', '81', '94 突然打來', '2020-08-29')
         episode_info: tuple = self.episode_list[index]
         photo_id, photo_index, photo_title, photo_pub_date = episode_info
 
-        photo = JmPhotoDetail(
+        photo = JmModuleConfig.photo_class()(
             photo_id=photo_id,
             scramble_id=self.scramble_id,
             title=photo_title,
