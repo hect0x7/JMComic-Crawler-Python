@@ -19,13 +19,25 @@
 ** 本文件下面的示例只演示步骤1 **
 
 本文件包含如下示例：
-- 只下载本子的特定章节以后的章节
 - 只下载章节的前三张图
+- 只下载本子的特定章节以后的章节
 
 
 """
 
 from jmcomic import *
+
+
+# 示例：只下载章节的前三张图
+class First3ImageDownloader(JmDownloader):
+
+    def filter_iter_objs(self, iter_objs: DownloadIterObjs):
+        if isinstance(iter_objs, JmPhotoDetail):
+            photo: JmPhotoDetail = iter_objs
+            # 支持[start,end,step]
+            return photo[:3]
+
+        return iter_objs
 
 
 # 示例：只下载本子的特定章节以后的章节
@@ -58,15 +70,3 @@ class FindUpdateDownloader(JmDownloader):
                 is_new_photo = True
 
         return photo_ls
-
-
-# 示例：只下载章节的前三张图
-class First3ImageDownloader(JmDownloader):
-
-    def filter_iter_objs(self, iter_objs: DownloadIterObjs):
-        if isinstance(iter_objs, JmPhotoDetail):
-            photo: JmPhotoDetail = iter_objs
-            # 支持[start,end,step]
-            return photo[:3]
-
-        return iter_objs

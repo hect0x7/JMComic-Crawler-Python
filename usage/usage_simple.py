@@ -10,9 +10,11 @@
 
 from jmcomic import *
 
+# 核心下载配置
 option = create_option(
     f'你的配置文件路径，例如: D:/a/b/c/jmcomic/config.yml'
 )
+# 提供请求功能的客户端对象
 client = option.build_jm_client()
 
 
@@ -24,8 +26,7 @@ def download_jm_album():
 
     ''')
 
-    download_album(ls, option)  # 效果同下面的代码
-    # download_album_batch(ls, op)
+    download_album(ls, option)
 
 
 @timeit('获取实体类: ')
