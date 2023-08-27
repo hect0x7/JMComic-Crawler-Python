@@ -18,7 +18,11 @@ def default_postman_constructor(session, **kwargs):
 
 
 def default_raise_regex_error(msg, *_args, **_kwargs):
-    raise AssertionError(msg)
+    raise JmModuleConfig.exception(msg)
+
+
+class JmcomicException(Exception):
+    pass
 
 
 class JmModuleConfig:
@@ -60,7 +64,9 @@ class JmModuleConfig:
     CLASS_OPTION = None
     CLASS_ALBUM = None
     CLASS_PHOTO = None
+    CLASS_IMAGE = None
     CLASS_CLIENT_IMPL = {}
+    CLASS_EXCEPTION = None
 
     # 执行debug的函数
     debug_executor = default_jm_debug
@@ -105,6 +111,14 @@ class JmModuleConfig:
         return JmPhotoDetail
 
     @classmethod
+    def image_class(cls):
+        if cls.CLASS_IMAGE is not None:
+            return cls.CLASS_IMAGE
+
+        from .jm_entity import JmImageDetail
+        return JmImageDetail
+
+    @classmethod
     def client_impl_class(cls, client_key: str):
         client_impl_dict = cls.CLASS_CLIENT_IMPL
 
@@ -113,6 +127,13 @@ class JmModuleConfig:
             raise NotImplementedError(f'not found client impl class for key: "{client_key}"')
 
         return impl_class
+
+    @classmethod
+    def exception(cls, msg: str):
+        if cls.CLASS_EXCEPTION is not None:
+            return cls.CLASS_EXCEPTION(msg)
+
+        return JmcomicException(msg)
 
     @classmethod
     @field_cache("DOMAIN")
@@ -185,7 +206,7 @@ class JmModuleConfig:
 
         resp = postman.get(cls.JM_PUB_URL)
         if resp.status_code != 200:
-            raise AssertionError(resp.text)
+            raise JmModuleConfig.exception(resp.text)
 
         from .jm_toolkit import JmcomicText
         domain_list = JmcomicText.analyse_jm_pub_html(resp.text)

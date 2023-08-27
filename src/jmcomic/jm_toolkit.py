@@ -52,7 +52,7 @@ class JmcomicText:
             return str(text)
 
         if not isinstance(text, str):
-            raise AssertionError(f"无法解析jm车号, 参数类型为: {type(text)}")
+            raise JmModuleConfig.exception(f"无法解析jm车号, 参数类型为: {type(text)}")
 
         # 43210
         if text.isdigit():
@@ -60,7 +60,7 @@ class JmcomicText:
 
         # Jm43210
         if len(text) <= 2:
-            raise AssertionError(f"无法解析jm车号, 文本为: {text}")
+            raise JmModuleConfig.exception(f"无法解析jm车号, 文本为: {text}")
 
         # text: JM12341
         c0 = text[0]
@@ -72,7 +72,7 @@ class JmcomicText:
             # https://xxx/photo/412038
             match = cls.pattern_jm_pa_id.search(text)
             if match is None:
-                raise AssertionError(f"无法解析jm车号, 文本为: {text}")
+                raise JmModuleConfig.exception(f"无法解析jm车号, 文本为: {text}")
             return match[2]
 
     @classmethod

@@ -23,13 +23,13 @@ class JmResp(CommonResp):
 class JmImageResp(JmResp):
 
     def json(self, **kwargs) -> Dict:
-        raise AssertionError
+        raise NotImplementedError
 
     def require_success(self):
         if self.is_success:
             return
 
-        raise AssertionError(self.get_error_msg())
+        raise JmModuleConfig.exception(self.get_error_msg())
 
     def get_error_msg(self):
         msg = f'禁漫图片获取失败: [{self.url}]'
@@ -68,7 +68,7 @@ class JmApiResp(JmResp):
     @classmethod
     def wrap(cls, resp, key_ts):
         if isinstance(resp, JmApiResp):
-            raise AssertionError('重复包装')
+            raise JmModuleConfig.exception('重复包装')
 
         return cls(resp, key_ts)
 

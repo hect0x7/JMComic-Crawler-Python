@@ -143,7 +143,7 @@ class AbstractJmClient(
     def fallback(self, request, url, domain_index, retry_count, **kwargs):
         msg = f"请求重试全部失败: [{url}], {self.domain_list}"
         jm_debug('req.fallback', msg)
-        raise AssertionError(msg)
+        raise JmModuleConfig.exception(msg)
 
 
 # 基于网页实现的JmClient
@@ -216,7 +216,7 @@ class JmHtmlClient(AbstractJmClient):
                          )
 
         if resp.status_code != 301:
-            raise AssertionError(f'登录失败，状态码为{resp.status_code}')
+            raise JmModuleConfig.exception(f'登录失败，状态码为{resp.status_code}')
 
         if refresh_client_cookies is True:
             self['cookies'] = resp.cookies
@@ -251,7 +251,7 @@ class JmHtmlClient(AbstractJmClient):
                   + (f"响应文本=[{resp.text}]" if len(resp.text) < 200 else
                      f'响应文本过长(len={len(resp.text)})，不打印'
                      )
-        raise AssertionError(msg)
+        raise JmModuleConfig.exception(msg)
 
     def get_jm_image(self, img_url) -> JmImageResp:
 

@@ -10,7 +10,8 @@ class DirRule:
         # 根目录 / Photo-序号&标题 /
         'Bd_Pindextitle',
         # 根目录 / Photo-自定义类属性 /
-        'Bd_Aauthor_Atitle_Pcustomfield',  # 使用自定义类属性前，需替换 JmcomicText的 PhotoClass / AlbumClass
+        'Bd_Aauthor_Atitle_Pcustomfield',
+        # 需要替换JmModuleConfig.CLASS_ALBUM / CLASS_PHOTO才能让自定义属性生效
     ]
 
     RuleFunc = Callable[[Union[JmAlbumDetail, JmPhotoDetail, None]], str]
@@ -45,8 +46,10 @@ class DirRule:
                 path_ls.append(str(ret))
             except BaseException as e:
                 # noinspection PyUnboundLocalVariable
-                raise AssertionError(f'路径规则"{self.rule_dsl}"的第{i + 1}个解析出错: {e},'
-                                     f'param is {param}')
+                raise JmModuleConfig.exception(
+                    f'路径规则"{self.rule_dsl}"的第{i + 1}个解析出错: {e},'
+                    f'param is {param}'
+                )
 
         return fix_filepath('/'.join(path_ls), is_dir=True)
 
@@ -214,7 +217,7 @@ class JmOption:
             filepath = self.filepath
 
         if filepath is None:
-            raise AssertionError("未指定JmOption的保存路径")
+            raise JmModuleConfig.exception("未指定JmOption的保存路径")
 
         PackerUtil.pack(self.deconstruct(), filepath)
 
