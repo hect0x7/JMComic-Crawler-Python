@@ -1,2 +1,7 @@
 # GitHub Actions 测试用
 version: '2.0'
+
+client:
+  domain:
+    - jmcomic1.me
+    - jmcomic.me
