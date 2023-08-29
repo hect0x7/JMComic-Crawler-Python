@@ -266,30 +266,7 @@ class JmOption:
 
     @classmethod
     def default_dict(cls) -> Dict:
-        return {
-            'version': '2.0',
-            'debug': True,
-            'dir_rule': {'rule': 'Bd_Ptitle', 'base_dir': workspace()},
-            'download': {
-                'cache': True,
-                'image': {'decode': True, 'suffix': None},
-                'threading': {'batch_count': 30},
-            },
-            'client': {
-                'cache': True,
-                'domain': [],
-                'postman': {
-                    'type': 'cffi',
-                    'meta_data': {
-                        'impersonate': 'chrome110',
-                        'cookies': None,
-                        'headers': JmModuleConfig.headers(),
-                    }
-                },
-                'impl': 'html',
-                'retry_times': 5
-            }
-        }
+        return JmModuleConfig.option_default_dict()
 
     @classmethod
     def default(cls):

@@ -234,6 +234,61 @@ class JmModuleConfig:
         'x-requested-with': 'XMLHttpRequest',
     }
 
+    # option 默认配置字典
+    default_option_dict: dict = {
+        'version': '2.0',
+        'debug': None,
+        'dir_rule': {'rule': 'Bd_Ptitle', 'base_dir': None},
+        'download': {
+            'cache': True,
+            'image': {'decode': True, 'suffix': None},
+            'threading': {'batch_count': 30},
+        },
+        'client': {
+            'cache': None,
+            'domain': [],
+            'postman': {
+                'type': 'cffi',
+                'meta_data': {
+                    'impersonate': 'chrome110',
+                    'headers': None,
+                }
+            },
+            'impl': 'html',
+            'retry_times': 5
+        }
+    }
+
+    @classmethod
+    def option_default_dict(cls) -> dict:
+        """
+        返回JmOption.default()的默认配置字典。
+        这样做是为了支持外界自行覆盖option默认配置字典
+        """
+        option_dict = cls.default_option_dict.copy()
+
+        # debug
+        if option_dict['debug'] is None:
+            option_dict['debug'] = cls.enable_jm_debug
+
+        # dir_rule.base_dir
+        dir_rule = option_dict['dir_rule']
+        if dir_rule['base_dir'] is None:
+            import os
+            dir_rule['base_dir'] = os.getcwd()
+
+        # client cache
+        client = option_dict['client']
+        if client['cache'] is None:
+            client['cache'] = True
+
+        # headers
+        meta_data = client['postman']['meta_data']
+        if meta_data['headers'] is None:
+            meta_data['headers'] = cls.headers()
+
+        return option_dict
+
 
 jm_debug = JmModuleConfig.jm_debug
 disable_jm_debug = JmModuleConfig.disable_jm_debug
