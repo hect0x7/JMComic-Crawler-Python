@@ -249,7 +249,7 @@ class JmOption:
         # domain_list
         domain_list = self.client.domain
         if len(domain_list) == 0:
-            domain_list = [JmcomicText.parse_to_jm_domain(JmModuleConfig.get_jmcomic_url(postman))]
+            domain_list = [JmModuleConfig.domain()]
 
         # client
         client = JmModuleConfig.client_impl_class(self.client.impl)(

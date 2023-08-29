@@ -162,10 +162,8 @@ class JmcomicText:
         return cls.format_url(f'/album/{cls.parse_to_album_id(album_id)}', domain)
 
     @classmethod
-    def format_url(cls, path, domain=None):
-        if domain is None:
-            domain = JmModuleConfig.domain()
-
+    def format_url(cls, path, domain):
+        assert isinstance(domain, str) and len(domain) != 0
         return f'{JmModuleConfig.PROT}{domain}{path}'
 
 
