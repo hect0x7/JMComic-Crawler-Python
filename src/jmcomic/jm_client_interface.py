@@ -279,8 +279,14 @@ class JmcomicClient(
     JmUserClient,
     Postman,
 ):
-    def get_jmcomic_url(self, postman=None):
-        return JmModuleConfig.get_jmcomic_url(postman or self)
+    def get_jmcomic_url(self):
+        return JmModuleConfig.get_jmcomic_url()
 
-    def get_jmcomic_domain_all(self, postman=None):
-        return JmModuleConfig.get_jmcomic_domain_all(postman or self)
+    def get_jmcomic_domain_all(self):
+        return JmModuleConfig.get_jmcomic_domain_all()
+
+    def get_domain_list(self) -> List[str]:
+        raise NotImplementedError
+
+    def set_domain_list(self, domain_list: List[str]):
+        raise NotImplementedError

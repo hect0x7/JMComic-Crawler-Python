@@ -226,7 +226,7 @@ class JmOption:
     """
 
     @field_cache("__jm_client_cache__")
-    def build_jm_client(self, **kwargs) -> JmcomicClient:
+    def build_jm_client(self, **kwargs):
         """
         该方法会首次调用会创建JmcomicClient对象，
         然后保存在self.__jm_client_cache__中，
@@ -234,7 +234,7 @@ class JmOption:
         """
         return self.new_jm_client(**kwargs)
 
-    def new_jm_client(self, **kwargs) -> JmcomicClient:
+    def new_jm_client(self, domain_list=None, **kwargs) -> JmcomicClient:
         postman_conf: dict = self.client.postman.src_dict
 
         # support kwargs overwrite meta_data
@@ -247,7 +247,7 @@ class JmOption:
         postman = Postmans.create(data=postman_conf)
 
         # domain_list
-        domain_list = self.client.domain
+        domain_list: List[str] = domain_list or self.client.domain
         if len(domain_list) == 0:
             domain_list = [JmModuleConfig.domain()]
 

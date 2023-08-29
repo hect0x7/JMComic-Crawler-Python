@@ -1,7 +1,6 @@
 from .jm_client_interface import *
 
 
-# noinspection PyAbstractClass
 class AbstractJmClient(
     JmcomicClient,
     PostmanProxy,
@@ -138,6 +137,12 @@ class AbstractJmClient(
 
     def get_jmcomic_domain_all(self, postman=None):
         return JmModuleConfig.get_jmcomic_domain_all(postman or self.get_root_postman())
+
+    def get_domain_list(self):
+        return self.domain_list
+
+    def set_domain_list(self, domain_list: List[str]):
+        self.domain_list = domain_list
 
     # noinspection PyUnusedLocal
     def fallback(self, request, url, domain_index, retry_count, **kwargs):
