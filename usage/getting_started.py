@@ -27,9 +27,9 @@ option.to_file('./保存路径.yml')  # yml格式
 option.to_file('./保存路径.json')  # json格式
 
 # 如果你修改了默认配置，现在想用你修改后的配置来下载，使用如下代码
-option = JmOption.from_file('./保存路径.yml')
+option = JmOption.from_file('保存路径.yml')
 # 或者
-option = create_option('./保存路径.yml')
+option = create_option('保存路径.yml')
 # 使用你的option配置来下载
 jmcomic.download_album('23333', option)
 
