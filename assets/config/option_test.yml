@@ -3,5 +3,5 @@ version: '2.0'
 
 client:
   domain:
-    - jmcomic.me
     - jmcomic1.me
+    - jmcomic.me
