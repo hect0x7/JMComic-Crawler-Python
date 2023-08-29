@@ -23,8 +23,8 @@ from jmcomic import JmModuleConfig, JmOption, create_option
 option = JmOption.default()
 
 # 可以把对象保存为文件，方便编辑
-option.to_file('./保存路径.yml')  # yml格式
-option.to_file('./保存路径.json')  # json格式
+option.to_file('保存路径.yml')  # yml格式
+option.to_file('保存路径.json')  # json格式
 
 # 如果你修改了默认配置，现在想用你修改后的配置来下载，使用如下代码
 option = JmOption.from_file('保存路径.yml')
