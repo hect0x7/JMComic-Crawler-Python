@@ -147,6 +147,38 @@ class JmModuleConfig:
         return JmcomicText.parse_to_jm_domain(cls.get_jmcomic_url(postman))
 
     @classmethod
+    def get_jmcomic_url(cls, postman=None):
+        """
+        访问禁漫的永久网域，从而得到一个可用的禁漫网址
+        @return: https://jm-comic2.cc
+        """
+        postman = postman or cls.new_postman(session=True)
+
+        url = postman.with_redirect_catching().get(cls.JM_REDIRECT_URL)
+        cls.jm_debug('获取禁漫URL', f'[{cls.JM_REDIRECT_URL}] → [{url}]')
+        return url
+
+    @classmethod
+    @field_cache("DOMAIN_LIST")
+    def get_jmcomic_domain_all(cls, postman=None):
+        """
+        访问禁漫发布页，得到所有禁漫的域名
+
+        @return: ['18comic.vip', ..., 'jm365.xyz/ZNPJam'], 最后一个是【APP軟件下載】
+        """
+        postman = postman or cls.new_postman(session=True)
+
+        resp = postman.get(cls.JM_PUB_URL)
+        if resp.status_code != 200:
+            raise JmModuleConfig.exception(resp.text)
+
+        from .jm_toolkit import JmcomicText
+        domain_list = JmcomicText.analyse_jm_pub_html(resp.text)
+
+        cls.jm_debug('获取禁漫全部域名', f'[{resp.url}] → {domain_list}')
+        return domain_list
+
+    @classmethod
     def headers(cls, domain='18comic.vip'):
         return {
             'authority': domain,
@@ -181,38 +213,6 @@ class JmModuleConfig:
         kwargs.setdefault('impersonate', 'chrome110')
         kwargs.setdefault('headers', JmModuleConfig.headers())
         return cls.postman_constructor(session, **kwargs)
-
-    @classmethod
-    def get_jmcomic_url(cls, postman=None):
-        """
-        访问禁漫的永久网域，从而得到一个可用的禁漫网址
-        @return: https://jm-comic2.cc
-        """
-        postman = postman or cls.new_postman(session=True)
-
-        url = postman.with_redirect_catching().get(cls.JM_REDIRECT_URL)
-        cls.jm_debug('获取禁漫URL', f'[{cls.JM_REDIRECT_URL}] → [{url}]')
-        return url
-
-    @classmethod
-    @field_cache("DOMAIN_LIST")
-    def get_jmcomic_domain_all(cls, postman=None):
-        """
-        访问禁漫发布页，得到所有禁漫的域名
-
-        @return: ['18comic.vip', ..., 'jm365.xyz/ZNPJam'], 最后一个是【APP軟件下載】
-        """
-        postman = postman or cls.new_postman(session=True)
-
-        resp = postman.get(cls.JM_PUB_URL)
-        if resp.status_code != 200:
-            raise JmModuleConfig.exception(resp.text)
-
-        from .jm_toolkit import JmcomicText
-        domain_list = JmcomicText.analyse_jm_pub_html(resp.text)
-
-        cls.jm_debug('获取禁漫全部域名', f'[{resp.url}] → {domain_list}')
-        return domain_list
 
     album_comment_headers = {
         'authority': '18comic.vip',
