@@ -8,7 +8,7 @@
 
 ## 安装教程
 
-* 通过pip官方源安装（推荐）
+* 通过pip官方源安装（推荐，并且更新也是这个命令）
 
   ```shell
   pip install jmcomic -i https://pypi.org/project --upgrade
@@ -30,10 +30,16 @@ jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载�
 # 配置项的作用是告诉程序下载时候的一些选择，
 # 比如，要下载到哪个文件夹，使用怎样的路径组织规则（比如[/作者/本子id/图片] 或者 [/作者/本子名称/图片]）.
 # 如果没有配置，则会使用 JmOption.default()，下载的路径是[当前工作文件夹/本子名称/图片].
-# 如果你想要配置，请参考assets/config/和usgae/下的文档和示例.
+# 如果你想要配置，请参考文件 assets/config/常用配置介绍.yml
 ```
 
-进一步的使用可以参考usage文件夹下的示例代码: `getting_started.py` `usage_simple.py` `usage_feature_filter`
+进阶使用可以参考本repo下usage文件夹内的示例代码文件:
+
+- API上手介绍: `getting_started.py`
+- 使用API实现简单功能: `usage_simple.py`
+- 使用API的Filter过滤功能: `usage_feature_filter.py`
+- 测试你的ip可以访问哪些禁漫域名: `pick_domain.py`
+- 基于GitHub Actions下载本子: `workflow_download.py`
 
 ## 项目特点
 
@@ -42,13 +48,13 @@ jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载�
 - **可配置性强**
   - 不配置也能使用，十分方便
   - 配置可以从**配置文件**生成，支持多种文件格式，无需写Python代码
-  - 配置点有：`是否使用磁盘缓存` `图片类型转换` `下载路径` `请求元信息（headers,cookies,代理）`等
+  - 配置点有：`是否使用磁盘缓存` `并发下载图片数` `图片类型转换` `下载路径` `请求元信息（headers,cookies,proxies）`等
 - **可扩展性强**
   - 支持自定义本子/章节/图片下载前后的回调函数
   - 支持自定义debug日志的开关/格式
-  - 支持自定义Option/Client/实体类
+  - 支持自定义Downloader/Option/Client/实体类
   - ...
-- 支持重试和域名切换机制
+- 支持自动重试和域名切换机制
 - **多线程下载**（可细化到一图一线程，效率极高）
 - 跟进了JM最新的图片分割算法（2023-02-08）
 
