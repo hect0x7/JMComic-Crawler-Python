@@ -109,6 +109,7 @@ class JmOption:
                  dir_rule: Dict,
                  download: Dict,
                  client: Dict,
+                 plugin: Dict,
                  filepath=None,
                  ):
         # 版本号
@@ -119,8 +120,12 @@ class JmOption:
         self.client = DictModel(client)
         # 下载配置
         self.download = DictModel(download)
+        # 插件配置
+        self.plugin = DictModel(plugin)
         # 其他配置
         self.filepath = filepath
+
+        self.call_all_plugin('after_init')
 
     @property
     def download_cache(self):
@@ -286,3 +291,48 @@ class JmOption:
             else:
                 default_dict[key] = value
         return default_dict
+
+    # 下面的方法提供面向对象的调用风格
+
+    def download_album(self, album_id):
+        from .api import download_album
+        download_album(album_id, self)
+
+    def download_album(self, photo_id):
+        from .api import download_album
+        download_album(photo_id, self)
+
+    # 下面的方法为调用插件提供支持
+    def call_all_plugin(self, key: str):
+        plugin_dict: dict = self.plugin.get(key, {})
+        if plugin_dict is None or len(plugin_dict) == 0:
+            return
+
+        # 保证 jm_plugin.py 被加载
+        from .jm_plugin import JmOptionPlugin
+
+        plugin_registry = JmModuleConfig.plugin_registry
+        for name, kwargs in plugin_dict.items():
+            plugin_class: Optional[Type[JmOptionPlugin]] = plugin_registry.get(name, None)
+
+            if plugin_class is None:
+                raise JmModuleConfig.exception(f'[{key}] 未注册的plugin: {name}')
+
+            self.invoke_plugin(plugin_class, kwargs)
+
+    def invoke_plugin(self, plugin_class, kwargs: dict):
+        # 保证 jm_plugin.py 被加载
+        from .jm_plugin import JmOptionPlugin
+
+        plugin_class: Type[JmOptionPlugin]
+        try:
+            plugin = plugin_class.build(self)
+            plugin.invoke(**kwargs)
+        except JmcomicException as e:
+            msg = str(e)
+            jm_debug('plugin.exception', msg)
+            raise JmModuleConfig.exception(msg)
+        except BaseException as e:
+            msg = str(e)
+            jm_debug('plugin.error', msg)
+            raise e
