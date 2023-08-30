@@ -1,0 +1,7 @@
+# 插件的配置示例
+
+plugin:
+  after_init:
+    login:
+      username: un
+      password: pw

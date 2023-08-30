@@ -87,7 +87,7 @@ class AbstractJmClient(
 
     # noinspection PyMethodMayBeStatic, PyUnusedLocal
     def before_retry(self, e, kwargs, retry_count, url):
-        jm_debug('req.err', str(e))
+        jm_debug('req.error', str(e))
 
     def enable_cache(self, debug=False):
         def wrap_func_cache(func_name, cache_dict_name):
@@ -235,7 +235,6 @@ class JmHtmlClient(AbstractJmClient):
         resp = self.get(url, **kwargs)
 
         if require_200 is True and resp.status_code != 200:
-            # write_text('./resp.html', resp.text)
             self.check_special_http_code(resp)
             self.raise_request_error(resp)
 
@@ -342,7 +341,6 @@ class JmHtmlClient(AbstractJmClient):
             if content not in html:
                 continue
 
-            write_text('./resp.html', html)
             cls.raise_request_error(
                 resp,
                 f'{reason}'

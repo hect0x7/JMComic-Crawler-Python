@@ -78,6 +78,9 @@ class JmModuleConfig:
     # debug开关标记
     enable_jm_debug = True
 
+    # 插件注册表
+    plugin_registry = {}
+
     @classmethod
     def downloader_class(cls):
         if cls.CLASS_DOWNLOADER is not None:
@@ -256,7 +259,8 @@ class JmModuleConfig:
             },
             'impl': 'html',
             'retry_times': 5
-        }
+        },
+        'plugin': {},
     }
 
     @classmethod
@@ -288,6 +292,10 @@ class JmModuleConfig:
             meta_data['headers'] = cls.headers()
 
         return option_dict
+
+    @classmethod
+    def register_plugin(cls, plugin_class):
+        cls.plugin_registry[plugin_class.plugin_key] = plugin_class
 
 
 jm_debug = JmModuleConfig.jm_debug
