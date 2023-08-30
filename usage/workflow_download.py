@@ -52,8 +52,8 @@ def get_option():
 def cover_option_config(option: JmOption):
     dir_rule = get_env('DIR_RULE')
     if dir_rule is not None:
-        the_org = option.dir_rule
-        the_new = DirRule(dir_rule, base_dir=the_org.base_dir)
+        the_old = option.dir_rule
+        the_new = DirRule(dir_rule, base_dir=the_old.base_dir)
         option.dir_rule = the_new
 
 
