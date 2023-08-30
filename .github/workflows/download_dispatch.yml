@@ -9,6 +9,12 @@ on:
         required: true
         default: ''
 
+      DIR_RULE:
+        type: string
+        description: 下载文件夹规则，对应option配置文件里的dir_rule.rule。此处可以不填，默认使用repo里的配置文件的`Bd_Aauthor_Atitle_Pindex`。
+        default: ''
+        required: false
+
       ZIP_NAME:
         type: string
         default: 本子.tar.gz
@@ -40,13 +46,12 @@ jobs:
     env:
       # 工作流输入
       JM_ALBUM_IDS: ${{ github.event.inputs.JM_ALBUM_IDS }}
-      JM_USERNAME: ${{ secrets.JM_USERNAME }}
-      JM_PASSWORD: ${{ secrets.JM_PASSWORD }}
+      DIR_RULE: ${{ github.event.inputs.DIR_RULE }}
       ZIP_NAME: ${{ github.event.inputs.ZIP_NAME }}
       UPLOAD_NAME: ${{ github.event.inputs.UPLOAD_NAME }}
-#      JM_USERNAME: ${{ github.event.inputs.JM_USERNAME }}
-#      JM_PASSWORD: ${{ github.event.inputs.JM_PASSWORD }}
-
+      # sccrets
+      JM_USERNAME: ${{ secrets.JM_USERNAME }}
+      JM_PASSWORD: ${{ secrets.JM_PASSWORD }}
       # 固定值
       JM_DOWNLOAD_DIR: /home/runner/work/jmcomic/download/
 

@@ -8,5 +8,5 @@ dir_rule:
 
 client:
   domain:
-    - jmcomic.me
     - jmcomic1.me
+    - jmcomic.me
