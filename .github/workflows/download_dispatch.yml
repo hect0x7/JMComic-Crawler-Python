@@ -7,7 +7,6 @@ on:
         type: string
         description: 本子id（多个id用-隔开，如 '123-456-789'）
         required: true
-        default: ''
 
       DIR_RULE:
         type: string
