@@ -21,9 +21,7 @@ class DownloadCallback:
                  f'本子获取成功: [{album.id}], '
                  f'作者: [{album.author}], '
                  f'章节数: [{len(album)}], '
-                 f'总页数: [{album.page_count}], '
                  f'标题: [{album.title}], '
-                 f'关键词: [{album.keywords}], '
                  )
 
     def after_album(self, album: JmAlbumDetail):
