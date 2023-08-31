@@ -7,6 +7,12 @@ from jmcomic import *
 
 option = JmOption.default()
 
+meta_data = {
+    # 'proxies': ProxyBuilder.clash_proxy()
+}
+
+disable_jm_debug()
+
 
 def get_domain_ls():
     template = 'https://jmcmomic.github.io/go/{}.html'
@@ -17,9 +23,12 @@ def get_domain_ls():
     domain_set: Set[str] = set()
 
     def fetch_domain(url):
-        postman = JmModuleConfig.new_postman()
-        text = postman.get(url, allow_redirects=False).text
+        # from curl_cffi import requests as postman
+        postman = CurlCffiPostman.create()
+        text = postman.get(url, allow_redirects=False, **meta_data).text
         for domain in JmcomicText.analyse_jm_pub_html(text):
+            if domain.startswith('jm365.work'):
+                continue
             domain_set.add(domain)
 
     multi_thread_launcher(
@@ -31,10 +40,11 @@ def get_domain_ls():
 
 domain_set = get_domain_ls()
 domain_status_dict = {}
+print(f'获取到{len(domain_set)}个域名，开始测试')
 
 
 def test_domain(domain: str):
-    client = option.new_jm_client(domain_list=[domain])
+    client = option.new_jm_client(domain_list=[domain], **meta_data)
     status = 'ok'
 
     try:

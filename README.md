@@ -6,6 +6,8 @@
 
 **友情提示：珍爱JM，为了减轻JM的服务器压力，请不要一次性爬取太多本子，西门🙏🙏🙏**.
 
+
+
 ## 安装教程
 
 * 通过pip官方源安装（推荐，并且更新也是这个命令）
@@ -18,6 +20,8 @@
   ```shell
   pip install -e ./
   ```
+
+
 
 ## 快速上手
 
@@ -33,15 +37,28 @@ jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载�
 # 如果你想要配置，请参考文件 assets/config/常用配置介绍.yml
 ```
 
-进阶使用可以参考本repo下usage文件夹内的示例代码文件:
+
+
+## 进阶使用
+
+进阶使用可以参考本repo下usage文件夹内的示例代码文件，下面是各个文件的作用，你可以挑感兴趣的阅读：
 
 - API上手介绍: `getting_started.py`
 - 使用API实现简单功能: `usage_simple.py`
+- 演示jmcomic模块的可自定义功能点: `usage_custom.py`
 - 使用API的Filter过滤功能: `usage_feature_filter.py`
+- 演示jmcomic模块的Plugin插件体系: `usage_feature_plugin.py`
+- 演示一个综合使用实例: `usage_advanced.py`
+  - 包括6个功能需求的介绍、实现方案和完整运行日志
+  - 实现方案非常简洁，充分jmcomic的便利性，以及强大的插件扩展机制
+
+
+以及一些趣味用法：
+
 - 测试你的ip可以访问哪些禁漫域名: `pick_domain.py`
 - 基于GitHub Actions下载本子: `workflow_download.py`
-- 演示jmcomic模块的自定义功能点: `usage_custom.py`
-- 演示jmcomic模块的Plugin插件体系: `usage_plugin.py`
+
+
 
 ## 项目特点
 
@@ -53,7 +70,7 @@ jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载�
   - 配置点有：`是否使用磁盘缓存` `并发下载图片数` `图片类型转换` `下载路径` `请求元信息（headers,cookies,proxies）`等
 - **可扩展性强**
   - **支持Plugin插件，可以方便地扩展功能，以及使用别人的插件**
-    - 目前内置支持的插件：`登录插件`，`硬件占用监控插件`
+    - 目前内置支持的插件有：`登录插件` `硬件占用监控插件` `只下载新章插件` `压缩文件插件` 
   - 支持自定义本子/章节/图片下载前后的回调函数
   - 支持自定义debug日志的开关/格式
   - 支持自定义Downloader/Option/Client/实体类
@@ -62,10 +79,14 @@ jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载�
 - **多线程下载**（可细化到一图一线程，效率极高）
 - 跟进了JM最新的图片分割算法（2023-02-08）
 
+
+
 ## 使用小说明
 
 * Python >= 3.7
 * 个人项目，文档和示例会有不及时之处，可以Issue提问
+
+
 
 ## 项目文件夹介绍
 
@@ -78,6 +99,8 @@ jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载�
   * jmcomic：`jmcomic`模块
 * tests：测试目录，存放测试代码，使用unittest
 * usage：用法目录，存放示例/使用代码
+
+
 
 ## 感谢以下项目
 

@@ -297,6 +297,10 @@ class JmModuleConfig:
     def register_plugin(cls, plugin_class):
         cls.plugin_registry[plugin_class.plugin_key] = plugin_class
 
+    @classmethod
+    def register_client(cls, client_class):
+        cls.CLASS_CLIENT_IMPL[client_class.client_key] = client_class
+
 
 jm_debug = JmModuleConfig.jm_debug
 disable_jm_debug = JmModuleConfig.disable_jm_debug

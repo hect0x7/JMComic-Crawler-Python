@@ -5,6 +5,7 @@ class AbstractJmClient(
     JmcomicClient,
     PostmanProxy,
 ):
+    client_key: None
 
     def __init__(self,
                  postman: Postman,
@@ -153,6 +154,7 @@ class AbstractJmClient(
 
 # 基于网页实现的JmClient
 class JmHtmlClient(AbstractJmClient):
+    client_key = 'html'
 
     def get_album_detail(self, album_id) -> JmAlbumDetail:
         # 参数校验
@@ -366,6 +368,7 @@ class JmHtmlClient(AbstractJmClient):
 
 
 class JmApiClient(AbstractJmClient):
+    client_key = 'api'
     API_SEARCH = '/search'
 
     def search_album(self, search_query, main_tag=0, page=1) -> JmApiResp:
@@ -437,5 +440,5 @@ class AsyncSaveImageClient(JmImageClient):
         self.future_list.append(future)
 
 
-JmModuleConfig.CLASS_CLIENT_IMPL['html'] = JmHtmlClient
-JmModuleConfig.CLASS_CLIENT_IMPL['api'] = JmApiClient
+JmModuleConfig.register_client(JmHtmlClient)
+JmModuleConfig.register_client(JmApiClient)
