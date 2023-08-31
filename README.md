@@ -45,15 +45,15 @@ jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载�
 
 - API上手介绍: `getting_started.py`
 - 使用API实现简单功能: `usage_simple.py`
-- 使用API的Filter过滤功能: `usage_feature_filter.py`
 - 演示jmcomic模块的可自定义功能点: `usage_custom.py`
-- 演示jmcomic模块的Plugin插件体系: `usage_plugin_getting_started.py`
+- 使用API的Filter过滤功能: `usage_feature_filter.py`
+- 演示jmcomic模块的Plugin插件体系: `usage_feature_plugin.py`
 - 演示一个综合使用实例: `usage_advanced.py`
   - 包括6个功能需求的介绍、实现方案和完整运行日志
   - 实现方案非常简洁，充分jmcomic的便利性，以及强大的插件扩展机制
 
 
-以及一些比较有意思的用法：
+以及一些趣味用法：
 
 - 测试你的ip可以访问哪些禁漫域名: `pick_domain.py`
 - 基于GitHub Actions下载本子: `workflow_download.py`
@@ -70,7 +70,7 @@ jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载�
   - 配置点有：`是否使用磁盘缓存` `并发下载图片数` `图片类型转换` `下载路径` `请求元信息（headers,cookies,proxies）`等
 - **可扩展性强**
   - **支持Plugin插件，可以方便地扩展功能，以及使用别人的插件**
-    - 目前内置支持的插件：`登录插件`，`硬件占用监控插件`
+    - 目前内置支持的插件有：`登录插件` `硬件占用监控插件` `只下载新章插件` `压缩文件插件` 
   - 支持自定义本子/章节/图片下载前后的回调函数
   - 支持自定义debug日志的开关/格式
   - 支持自定义Downloader/Option/Client/实体类

@@ -5,7 +5,7 @@ plugin:
     - plugin: usage-log # 实时打印硬件占用率的插件
       kwargs:
         interval: 0.5 # 间隔时间
-        enable_warning: true
+        enable_warning: true # 占用过大时发出预警
 
     - plugin: login # 登录插件
       kwargs:
