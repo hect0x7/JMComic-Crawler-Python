@@ -38,7 +38,7 @@ class DownloadCallback:
 
     def after_photo(self, photo: JmPhotoDetail):
         jm_debug('photo.after',
-                 f'章节下载完成: {photo.id} ({photo.album_id}[{photo.index}/{len(photo.from_album)}])')
+                 f'章节下载完成: [{photo.id}] ({photo.album_id}[{photo.index}/{len(photo.from_album)}])')
 
     def before_image(self, image: JmImageDetail, img_save_path):
         if image.is_exists:
@@ -64,6 +64,11 @@ class JmDownloader(DownloadCallback):
         self.option = option
         self.use_cache = self.option.download_cache
         self.decode_image = self.option.download_image_decode
+
+        # 收集所有下载的image，为plugin提供数据
+        # key: album
+        # value: (save_path, image)
+        self.all_downloaded: Dict[JmAlbumDetail, Dict[JmPhotoDetail, List[Tuple[str, JmImageDetail]]]] = {}
 
     def download_album(self, album_id):
         client = self.client_for_album(album_id)
@@ -107,6 +112,8 @@ class JmDownloader(DownloadCallback):
             img_save_path,
             decode_image=self.decode_image,
         )
+
+        # 记录下载完成的image
         self.after_image(image, img_save_path)
 
     # noinspection PyMethodMayBeStatic
@@ -120,6 +127,9 @@ class JmDownloader(DownloadCallback):
         """
         iter_objs = self.filter_iter_objs(iter_objs)
         count_real = len(iter_objs)
+
+        if count_real == 0:
+            return
 
         if count_batch >= count_real:
             # 一个图/章节 对应 一个线程
@@ -161,6 +171,33 @@ class JmDownloader(DownloadCallback):
         默认情况下，所有的JmDownloader共用一个JmcomicClient
         """
         return self.option.build_jm_client()
+
+    # 下面是回调方法
+
+    def before_album(self, album: JmAlbumDetail):
+        super().before_album(album)
+        self.all_downloaded.setdefault(album, {})
+
+    def before_photo(self, photo: JmPhotoDetail):
+        super().before_photo(photo)
+        self.all_downloaded[photo.from_album].setdefault(photo, [])
+
+    def after_album(self, album: JmAlbumDetail):
+        super().after_album(album)
+        self.option.call_all_plugin(
+            'after_album',
+            album=album,
+            downloader=self,
+        )
+
+    def after_image(self, image: JmImageDetail, img_save_path):
+        super().after_image(image, img_save_path)
+        photo = image.from_photo
+        album = photo.from_album
+
+        self.all_downloaded.get(album).get(photo).append((img_save_path, image))
+
+    # 下面是对with语法的支持
 
     def __enter__(self):
         return self

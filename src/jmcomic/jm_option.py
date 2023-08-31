@@ -14,56 +14,37 @@ class DirRule:
         # 需要替换JmModuleConfig.CLASS_ALBUM / CLASS_PHOTO才能让自定义属性生效
     ]
 
-    RuleFunc = Callable[[Union[JmAlbumDetail, JmPhotoDetail, None]], str]
-    RuleSolver = List[Tuple[int, RuleFunc]]
+    Detail = Union[JmAlbumDetail, JmPhotoDetail, None]
+    RuleFunc = Callable[[Detail], str]
+    RuleSolver = Tuple[int, RuleFunc]
+    RuleSolverList = List[RuleSolver]
 
-    rule_solver_cache: Dict[Tuple[str, str], RuleSolver] = dict()
+    rule_solver_cache: Dict[str, RuleSolver] = {}
 
-    def __init__(self, rule, base_dir=None):
-        self.base_dir = self.parse_dsl(base_dir)
+    def __init__(self, rule: str, base_dir=None):
+        base_dir = self.parse_dsl(base_dir)
+        self.base_dir = base_dir
         self.rule_dsl = rule
-        self.get_rule_solver()
+        self.solver_list = self.get_role_solver_list(rule, base_dir)
 
     def deside_image_save_dir(self,
                               album: JmAlbumDetail,
                               photo: JmPhotoDetail,
                               ) -> str:
-        def choose_param(key):
-            if key == 0:
-                return None
-            if key == 1:
-                return album
-            if key == 2:
-                return photo
-
-        solver_ls = self.get_rule_solver()
-
         path_ls = []
-        for i, (key, func) in enumerate(solver_ls):
+        for solver in self.solver_list:
             try:
-                param = choose_param(key)
-                ret = func(param)
-                path_ls.append(str(ret))
+                ret = self.apply_rule_solver(album, photo, solver)
             except BaseException as e:
                 # noinspection PyUnboundLocalVariable
-                raise JmModuleConfig.exception(
-                    f'路径规则"{self.rule_dsl}"的第{i + 1}个解析出错: {e},'
-                    f'param is {param}'
-                )
+                jm_debug('dir_rule', f'路径规则"{self.rule_dsl}"的解析出错: {e},')
+                raise e
+
+            path_ls.append(str(ret))
 
         return fix_filepath('/'.join(path_ls), is_dir=True)
 
-    def get_rule_solver(self):
-        key = self.rule_dsl, self.base_dir
-        solver_ls = self.rule_solver_cache.get(key, None)
-
-        if solver_ls is None:
-            solver_ls = self.solve_rule_dsl(*key)
-            self.rule_solver_cache[key] = solver_ls
-
-        return solver_ls
-
-    def solve_rule_dsl(self, rule_dsl: str, base_dir: str) -> RuleSolver:
+    def get_role_solver_list(self, rule_dsl: str, base_dir: str) -> RuleSolverList:
         """
         解析下载路径dsl，得到一个路径规则解析列表
         """
@@ -79,17 +60,59 @@ class DirRule:
                 solver_ls.append((0, lambda _: base_dir))
                 continue
 
-            # Axxx or Pyyy
-            if not rule.startswith(('A', 'P')):
+            rule_solver = self.get_rule_solver(rule)
+            if rule_solver is None:
                 raise NotImplementedError(f'不支持的dsl: "{rule}" in "{rule_dsl}"')
 
-            key = 1 if rule[0] == 'A' else 2
-            solver_ls.append((
-                key,
-                lambda entity, ref=rule[1:]: fix_windir_name(str(getattr(entity, ref)))
-            ))
+            solver_ls.append(rule_solver)
 
         return solver_ls
+
+    @classmethod
+    def get_rule_solver(cls, rule: str) -> Optional[RuleSolver]:
+        # 查找缓存
+        if rule in cls.rule_solver_cache:
+            return cls.rule_solver_cache[rule]
+
+        # 检查dsl
+        if not rule.startswith(('A', 'P')):
+            return None
+
+        # Axxx or Pyyy
+        key = 1 if rule[0] == 'A' else 2
+        solve_func = lambda entity, ref=rule[1:]: fix_windir_name(str(getattr(entity, ref)))
+
+        # 保存缓存
+        rule_solver = (key, solve_func)
+        cls.rule_solver_cache[rule] = rule_solver
+        return rule_solver
+
+    @classmethod
+    def apply_rule_solver(cls, album, photo, rule_solver: RuleSolver) -> str:
+        """
+        应用规则解析器(RuleSolver)
+
+        @param album: JmAlbumDetail
+        @param photo: JmPhotoDetail
+        @param rule_solver: Ptitle
+        @return: photo.title
+        """
+
+        def choose_detail(key):
+            if key == 0:
+                return None
+            if key == 1:
+                return album
+            if key == 2:
+                return photo
+
+        key, func = rule_solver
+        detail = choose_detail(key)
+        return func(detail)
+
+    @classmethod
+    def apply_rule_directly(cls, album, photo, rule: str) -> str:
+        return cls.apply_rule_solver(album, photo, cls.get_rule_solver(rule))
 
     dsl_support = {
         '${workspace}': lambda text: workspace(),
@@ -164,6 +187,27 @@ class JmOption:
 
         mkdir_if_not_exists(save_dir)
         return save_dir
+
+    def decide_album_dir(self, album: JmAlbumDetail) -> str:
+        """
+        该方法目前仅在 plugin-zip 中使用，不建议外部调用
+        """
+        dir_layer = []
+        dir_rule = self.dir_rule
+        for rule in dir_rule.rule_dsl.split('_'):
+            if rule == 'Bd':
+                dir_layer.append(dir_rule.base_dir)
+                continue
+
+            if rule[0] == 'A':
+                name = dir_rule.apply_rule_directly(album, None, rule)
+                dir_layer.append(name)
+
+            if rule[0] == 'P':
+                break
+
+        from os.path import join
+        return join(*dir_layer)
 
     def decide_image_suffix(self, image: JmImageDetail):
         # 动图则使用原后缀
@@ -298,12 +342,13 @@ class JmOption:
         from .api import download_album
         download_album(album_id, self)
 
-    def download_album(self, photo_id):
-        from .api import download_album
-        download_album(photo_id, self)
+    def download_photo(self, photo_id):
+        from .api import download_photo
+        download_photo(photo_id, self)
 
     # 下面的方法为调用插件提供支持
-    def call_all_plugin(self, group: str):
+
+    def call_all_plugin(self, group: str, **extra):
         plugin_list: List[dict] = self.plugin.get(group, [])
         if plugin_list is None or len(plugin_list) == 0:
             return
@@ -319,21 +364,62 @@ class JmOption:
             if plugin_class is None:
                 raise JmModuleConfig.exception(f'[{group}] 未注册的plugin: {key}')
 
-            self.invoke_plugin(plugin_class, kwargs)
+            self.invoke_plugin(plugin_class, kwargs, extra)
 
-    def invoke_plugin(self, plugin_class, kwargs: dict):
+    def invoke_plugin(self, plugin_class, kwargs: Any, extra: dict):
         # 保证 jm_plugin.py 被加载
         from .jm_plugin import JmOptionPlugin
 
         plugin_class: Type[JmOptionPlugin]
+        pkey = plugin_class.plugin_key
+
         try:
+            # 检查插件的参数类型
+            kwargs = self.fix_kwargs(kwargs)
+            # 把插件的配置数据kwargs和附加数据extra合并
+            # extra会覆盖kwargs
+            if len(extra) != 0:
+                kwargs.update(extra)
+            # 构建插件对象
             plugin = plugin_class.build(self)
+            # 调用插件功能
+            jm_debug('plugin.invoke', f'调用插件: [{pkey}]')
             plugin.invoke(**kwargs)
         except JmcomicException as e:
             msg = str(e)
-            jm_debug('plugin.exception', msg)
-            raise JmModuleConfig.exception(msg)
+            jm_debug('plugin.exception', f'插件[{pkey}]调用失败，异常信息: {msg}')
+            raise e
         except BaseException as e:
             msg = str(e)
-            jm_debug('plugin.error', msg)
+            jm_debug('plugin.error', f'插件[{pkey}]运行遇到未捕获异常，异常信息: {msg}')
             raise e
+
+    # noinspection PyMethodMayBeStatic
+    def fix_kwargs(self, kwargs) -> Dict[str, Any]:
+        """
+        kwargs将来要传给方法参数，这要求kwargs的key是str类型，
+        该方法检查kwargs的key的类型，如果不是str，尝试转为str，不行则抛异常。
+        """
+        if not isinstance(kwargs, dict):
+            raise JmModuleConfig.exception(f'插件的kwargs参数必须为dict类型，而不能是类型: {type(kwargs)}')
+
+        kwargs: dict
+        new_kwargs: Dict[str, Any] = {}
+
+        for k, v in kwargs.items():
+            if isinstance(k, str):
+                new_kwargs[k] = v
+                continue
+
+            if isinstance(k, (int, float)):
+                newk = str(k)
+                jm_debug('plugin.kwargs', f'插件参数类型转换: {k} ({type(k)}) -> {newk} ({type(newk)})')
+                new_kwargs[newk] = v
+                continue
+
+            raise JmModuleConfig.exception(
+                f'插件kwargs参数类型有误，'
+                f'字段: {k}，预期类型为str，实际类型为{type(k)}'
+            )
+
+        return new_kwargs
