@@ -2,6 +2,12 @@
 
 plugin:
   after_init:
-    login:
-      username: un
-      password: pw
+    - plugin: usage-log # 实时打印硬件占用率的插件
+      kwargs:
+        interval: 0.5 # 间隔时间
+        enable_warning: true
+
+    - plugin: login # 登录插件
+      kwargs:
+        username: un
+        password: pw
