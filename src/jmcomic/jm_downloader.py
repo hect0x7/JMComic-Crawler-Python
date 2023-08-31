@@ -180,6 +180,7 @@ class JmDownloader(DownloadCallback):
 
     def before_photo(self, photo: JmPhotoDetail):
         super().before_photo(photo)
+        self.all_downloaded.setdefault(photo.from_album, {})
         self.all_downloaded[photo.from_album].setdefault(photo, [])
 
     def after_album(self, album: JmAlbumDetail):
