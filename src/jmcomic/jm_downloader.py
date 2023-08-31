@@ -110,8 +110,6 @@ class JmDownloader(DownloadCallback):
             img_save_path,
             decode_image=self.decode_image,
         )
-
-        # 记录下载完成的image
         self.after_image(image, img_save_path)
 
     # noinspection PyMethodMayBeStatic
