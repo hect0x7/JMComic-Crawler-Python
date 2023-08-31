@@ -10,3 +10,11 @@ client:
   domain:
     - jmcomic1.me
     - jmcomic.me
+
+# 插件配置
+plugin:
+  after_init:
+    - plugin: usage-log # 实时打印硬件占用率的插件
+      kwargs:
+        interval: 0.5 # 间隔时间
+        enable_warning: false # 不告警

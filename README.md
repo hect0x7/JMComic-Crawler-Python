@@ -43,22 +43,22 @@ jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载�
 - 演示jmcomic模块的自定义功能点: `usage_custom.py`
 - 演示jmcomic模块的Plugin插件体系: `usage_plugin.py`
 
-
 ## 项目特点
 
 - **绕过Cloudflare的反爬虫**
-- 支持使用**GitHub Actions**下载漫画，不会编程都能用（[教程：使用GitHub Actions下载禁漫本子](./assets/docs/教程：使用GitHub%20Actions下载禁漫本子.md)）
+- 支持使用**GitHub Actions**下载本子，网页上直接输入本子id就能下载（[教程：使用GitHub Actions下载禁漫本子](./assets/docs/教程：使用GitHub%20Actions下载禁漫本子.md)）
 - **可配置性强**
   - 不配置也能使用，十分方便
   - 配置可以从**配置文件**生成，支持多种文件格式，无需写Python代码
   - 配置点有：`是否使用磁盘缓存` `并发下载图片数` `图片类型转换` `下载路径` `请求元信息（headers,cookies,proxies）`等
 - **可扩展性强**
   - **支持Plugin插件，可以方便地扩展功能，以及使用别人的插件**
+    - 目前内置支持的插件：`登录插件`，`硬件占用监控插件`
   - 支持自定义本子/章节/图片下载前后的回调函数
   - 支持自定义debug日志的开关/格式
   - 支持自定义Downloader/Option/Client/实体类
-  - ...
-- 支持自动重试和域名切换机制
+  - ......
+- 支持**自动重试和域名切换**机制
 - **多线程下载**（可细化到一图一线程，效率极高）
 - 跟进了JM最新的图片分割算法（2023-02-08）
 

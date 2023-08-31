@@ -303,20 +303,21 @@ class JmOption:
         download_album(photo_id, self)
 
     # 下面的方法为调用插件提供支持
-    def call_all_plugin(self, key: str):
-        plugin_dict: dict = self.plugin.get(key, {})
-        if plugin_dict is None or len(plugin_dict) == 0:
+    def call_all_plugin(self, group: str):
+        plugin_list: List[dict] = self.plugin.get(group, [])
+        if plugin_list is None or len(plugin_list) == 0:
             return
 
         # 保证 jm_plugin.py 被加载
         from .jm_plugin import JmOptionPlugin
 
         plugin_registry = JmModuleConfig.plugin_registry
-        for name, kwargs in plugin_dict.items():
-            plugin_class: Optional[Type[JmOptionPlugin]] = plugin_registry.get(name, None)
+        for pinfo in plugin_list:
+            key, kwargs = pinfo['plugin'], pinfo['kwargs']
+            plugin_class: Optional[Type[JmOptionPlugin]] = plugin_registry.get(key, None)
 
             if plugin_class is None:
-                raise JmModuleConfig.exception(f'[{key}] 未注册的plugin: {name}')
+                raise JmModuleConfig.exception(f'[{group}] 未注册的plugin: {key}')
 
             self.invoke_plugin(plugin_class, kwargs)
 
