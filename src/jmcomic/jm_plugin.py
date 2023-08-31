@@ -80,10 +80,11 @@ class UsageLogPlugin(JmOptionPlugin):
             # print(msg, file=sys.stderr)
             return
 
+        import os
         from time import sleep
         from threading import active_count
         # 获取当前进程
-        process = psutil.Process()
+        process = psutil.Process(os.getpid())
 
         cpu_percent = None
         # noinspection PyUnusedLocal
@@ -112,7 +113,7 @@ class UsageLogPlugin(JmOptionPlugin):
             # 获取CPU占用率（0~100）
             cpu_percent = process.cpu_percent()
             # 获取内存占用（MB）
-            mem_usage = round(process.memory_info().rss / 1024 / 1024, 2)
+            mem_usage = process.memory_info().rss / (1024 * 1024)
             thread_count = active_count()
             # 获取网络占用情况
             # network_info = psutil.net_io_counters()
