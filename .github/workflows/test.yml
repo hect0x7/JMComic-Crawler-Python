@@ -4,12 +4,11 @@ on:
   workflow_dispatch:
   push:
     branches: [ "dev" ]
-    paths-ignore:
-      - 'src/**/__init__.py'
-      - '.github/workflows/*'
-      - 'usage/workflow_download.py'
-      - 'assets/config/option_workflow_download.yml'
-      - 'assets/docs/*'
+    paths:
+      - 'src/**/*.py'
+      - 'test/**/*.py'
+      - '.github/workflows/test.yml'
+      - 'assets/config/option_test.yml'
 
 jobs:
   test: # This code is based on https://github.com/gaogaotiantian/viztracer/blob/master/.github/workflows/python-package.yml
