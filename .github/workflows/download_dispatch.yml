@@ -53,7 +53,6 @@ jobs:
       JM_PASSWORD: ${{ secrets.JM_PASSWORD }}
       # 固定值
       JM_DOWNLOAD_DIR: /home/runner/work/jmcomic/download/
-      JM_ZIP_DIR: /home/runner/work/jmcomic/zip/
 
     steps:
       - uses: actions/checkout@v3
@@ -83,16 +82,16 @@ jobs:
           cd ./usage/
           python workflow_download.py
 
-#      - name: 压缩文件
-#        run: |
-#          cd $JM_ZIP_DIR
-#          tar -zcvf "../$ZIP_NAME" ./
-#          mv "../$ZIP_NAME" .
+      - name: 压缩文件
+        run: |
+          cd $JM_DOWNLOAD_DIR
+          tar -zcvf "../$ZIP_NAME" ./
+          mv "../$ZIP_NAME" .
 
       - name: 上传结果
         uses: actions/upload-artifact@v3
         with:
           name: ${{ env.UPLOAD_NAME }}
-          path: ${{ env.JM_ZIP_DIR }}
+          path: ${{ env.JM_DOWNLOAD_DIR }}/${{ env.ZIP_NAME }}
           if-no-files-found: error
           retention-days: 90

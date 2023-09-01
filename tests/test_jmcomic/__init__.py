@@ -26,7 +26,7 @@ class JmTestConfigurable(unittest.TestCase):
     def setUpClass(cls):
         # 获取项目根目录
         cls.project_dir = os.path.abspath(os.path.dirname(__file__) + '/../..')
-        set_application_workspace(os.path.join(cls.project_dir, 'assets/download/'))
+        os.chdir(cls.project_dir)
 
         # 设置 JmOption，JmcomicClient
         option = cls.use_option('option_test.yml')
@@ -38,12 +38,7 @@ class JmTestConfigurable(unittest.TestCase):
 
     @classmethod
     def use_option(cls, op_filename: str) -> JmOption:
-        return create_option(
-            os.path.join(
-                cls.project_dir,
-                f"assets/config/{op_filename}"
-            )
-        )
+        return create_option(f'./assets/config/{op_filename}')
 
     @classmethod
     def adapt_os(cls):
