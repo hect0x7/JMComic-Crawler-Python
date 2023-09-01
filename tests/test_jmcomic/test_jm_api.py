@@ -3,11 +3,6 @@ from test_jmcomic import *
 
 class Test_Api(JmTestConfigurable):
 
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.move_workspace('download')
-
     def test_download_photo_by_id(self):
         """
         测试jmcomic模块的api的使用

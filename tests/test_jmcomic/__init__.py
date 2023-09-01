@@ -14,6 +14,7 @@ sys.stderr = io.TextIOWrapper(sys.stderr.buffer, 'utf-8')
 class JmTestConfigurable(unittest.TestCase):
     option: JmOption = None
     client: JmcomicClient = None
+    project_dir: str = None
 
     def setUp(self) -> None:
         print_sep('>')
@@ -24,10 +25,8 @@ class JmTestConfigurable(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # 获取项目根目录
-        application_workspace = os.path.abspath(os.path.dirname(__file__) + '/../..')
-
-        # 设置 workspace → assets/
-        set_application_workspace(f'{application_workspace}/assets/')
+        cls.project_dir = os.path.abspath(os.path.dirname(__file__) + '/../..')
+        set_application_workspace(os.path.join(cls.project_dir, 'assets/download/'))
 
         # 设置 JmOption，JmcomicClient
         option = cls.use_option('option_test.yml')
@@ -37,13 +36,14 @@ class JmTestConfigurable(unittest.TestCase):
         # 跨平台设置
         cls.adapt_os()
 
-    @staticmethod
-    def use_option(op_filename: str) -> JmOption:
-        return create_option(workspace(f"/config/{op_filename}"))
-
-    @staticmethod
-    def move_workspace(new_dir: str):
-        set_application_workspace(workspace(f"/{new_dir}/", is_dir=True))
+    @classmethod
+    def use_option(cls, op_filename: str) -> JmOption:
+        return create_option(
+            os.path.join(
+                cls.project_dir,
+                f"assets/config/{op_filename}"
+            )
+        )
 
     @classmethod
     def adapt_os(cls):

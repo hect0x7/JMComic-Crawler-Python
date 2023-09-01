@@ -3,11 +3,6 @@ from test_jmcomic import *
 
 class Test_Client(JmTestConfigurable):
 
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.move_workspace('download')
-
     def test_download_image(self):
         jm_photo_id = 'JM438516'
         photo = self.client.get_photo_detail(jm_photo_id, False)

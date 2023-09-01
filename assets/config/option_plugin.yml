@@ -21,5 +21,5 @@ plugin:
       kwargs:
         level: photo # 按照章节，一个章节一个压缩文件
         filename_rule: Ptitle # 压缩文件的命名规则
-        zip_dir: D:/GitProject/dev/pip/jmcomic/ # 压缩文件存放的文件夹
+        zip_dir: D:/jmcomic/zip/ # 压缩文件存放的文件夹
         delete_original_file: true # 压缩成功后，删除所有原文件和文件夹
