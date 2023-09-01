@@ -93,6 +93,6 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: ${{ env.UPLOAD_NAME }}
-          path: ${{ env.$JM_ZIP_DIR }}
+          path: ${{ env.JM_ZIP_DIR }}
           if-no-files-found: error
           retention-days: 90
