@@ -1,6 +1,3 @@
-# noinspection PyUnresolvedReferences
-import os
-
 from .jm_client_impl import *
 
 
