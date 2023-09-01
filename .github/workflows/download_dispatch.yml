@@ -53,6 +53,7 @@ jobs:
       JM_PASSWORD: ${{ secrets.JM_PASSWORD }}
       # 固定值
       JM_DOWNLOAD_DIR: /home/runner/work/jmcomic/download/
+      JM_ZIP_DIR: /home/runner/work/jmcomic/zip/
 
     steps:
       - uses: actions/checkout@v3
@@ -84,7 +85,7 @@ jobs:
 
       - name: 压缩文件
         run: |
-          cd $JM_DOWNLOAD_DIR
+          cd $JM_ZIP_DIR
           tar -zcvf "../$ZIP_NAME" ./
           mv "../$ZIP_NAME" .
 

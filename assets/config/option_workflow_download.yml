@@ -18,3 +18,11 @@ plugin:
       kwargs:
         interval: 0.5 # 间隔时间
         enable_warning: false # 不告警
+
+
+  after_album:
+    - plugin: zip # 压缩文件插件
+      kwargs:
+        level: album # 按照章节，一个章节一个压缩文件
+        filename_rule: Atitle # 压缩文件的命名规则
+        zip_dir: /home/runner/work/jmcomic/zip/ # 压缩文件存放的文件夹
