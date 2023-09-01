@@ -2,7 +2,7 @@
 
 plugin:
   after_init:
-    - plugin: usage-log # 实时打印硬件占用率的插件
+    - plugin: usage_log # 实时打印硬件占用率的插件
       kwargs:
         interval: 0.5 # 间隔时间
         enable_warning: true # 占用过大时发出预警

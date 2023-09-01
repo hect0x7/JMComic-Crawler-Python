@@ -50,7 +50,7 @@ plugin:
       kwargs:
         level: photo # 按照章节，一个章节一个压缩文件
         filename_rule: Ptitle # 压缩文件的命名规则
-        zip_dir: D:/GitProject/dev/pip/jmcomic/ # 压缩文件存放的文件夹
+        zip_dir: D:/jmcomic # 压缩文件存放的文件夹
         delete_original_file: true # 压缩成功后，删除所有原文件和文件夹
 """
 
@@ -64,7 +64,8 @@ plugin:
 2023-08-01 02:23:58:【plugin.kwargs】插件参数类型转换: 145504 (<class 'int'>) -> 145504 (<class 'str'>)
 2023-08-01 02:23:58:【plugin.invoke】调用插件: [find_update]
 2023-08-01 02:23:58:【html】https://18comic.vip/album/145504
-2023-08-01 02:23:59:【album.before】本子获取成功: [145504], 作者: [G.HO], 章节数: [104], 总页数: [3598], 标题: [健身教练 / もしも、幼馴染を抱いたなら / Fitness], 关键词: [['完結', '韩漫', '上柱香再走', '以晨：我爹呢', '你妈真香', '連載中', '肌肉豪名不虚传']], 2023-08-01 02:23:59:【html】https://18comic.vip/photo/291640
+2023-08-01 02:23:59:【album.before】本子获取成功: [145504], 作者: [G.HO], 章节数: [104], 总页数: [3598], 标题: [健身教练 / もしも、幼馴染を抱いたなら / Fitness], 关键词: [['完結', '韩漫', '上柱香再走', '以晨：我爹呢', '你妈真香', '連載中', '肌肉豪名不虚传']], 
+2023-08-01 02:23:59:【html】https://18comic.vip/photo/291640
 2023-08-01 02:24:00:【photo.before】开始下载章节: 291640 (145504[104/104]), 标题: [健身教练 完結], 图片数为[41]
 2023-08-01 02:24:00:【image.before】图片准备下载: 291640/00001.webp [1/41], [https://cdn-msp.18comic.vip/media/photos/291640/00001.webp] → [D:/jmcomic/145504/00001.jpg]
 2023-08-01 02:24:00:【image.before】图片准备下载: 291640/00004.webp [4/41], [https://cdn-msp.18comic.vip/media/photos/291640/00004.webp] → [D:/jmcomic/145504/00004.jpg]
@@ -151,7 +152,7 @@ plugin:
 2023-08-01 02:24:08:【photo.after】章节下载完成: [291640] (145504[104/104])
 2023-08-01 02:24:08:【album.after】本子下载完成: [145504]
 2023-08-01 02:24:08:【plugin.invoke】调用插件: [zip]
-2023-08-01 02:24:08:【plugin.zip.finish】压缩章节[291640]成功 → D:/GitProject/dev/pip/jmcomic/健身教练 完結.zip
+2023-08-01 02:24:08:【plugin.zip.finish】压缩章节[291640]成功 → D:/jmcomic/健身教练 完結.zip
 2023-08-01 02:24:08:【plugin.zip.remove】移除原文件: D:/jmcomic/145504/00017.jpg
 2023-08-01 02:24:08:【plugin.zip.remove】移除原文件: D:/jmcomic/145504/00007.jpg
 2023-08-01 02:24:08:【plugin.zip.remove】移除原文件: D:/jmcomic/145504/00021.jpg

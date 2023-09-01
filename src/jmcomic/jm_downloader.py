@@ -23,7 +23,7 @@ class DownloadCallback:
                  f'章节数: [{len(album)}], '
                  f'总页数: [{album.page_count}], '
                  f'标题: [{album.title}], '
-                 f'关键词: [{album.keywords}], '
+                 f'关键词: [{album.keywords}]'
                  )
 
     def after_album(self, album: JmAlbumDetail):
@@ -66,6 +66,8 @@ class JmDownloader(DownloadCallback):
         self.decode_image = self.option.download_image_decode
 
         # 收集所有下载的image，为plugin提供数据
+        # key: album
+        # value: (save_path, image)
         self.all_downloaded: Dict[JmAlbumDetail, Dict[JmPhotoDetail, List[Tuple[str, JmImageDetail]]]] = {}
 
     def download_album(self, album_id):
@@ -110,6 +112,8 @@ class JmDownloader(DownloadCallback):
             img_save_path,
             decode_image=self.decode_image,
         )
+
+        # 记录下载完成的image
         self.after_image(image, img_save_path)
 
     # noinspection PyMethodMayBeStatic

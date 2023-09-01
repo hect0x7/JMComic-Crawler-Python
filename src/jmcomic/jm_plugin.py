@@ -51,7 +51,7 @@ class JmLoginPlugin(JmOptionPlugin):
 
 
 class UsageLogPlugin(JmOptionPlugin):
-    plugin_key = 'usage-log'
+    plugin_key = 'usage_log'
 
     def invoke(self, **kwargs) -> None:
         import threading
