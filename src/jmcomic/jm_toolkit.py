@@ -166,6 +166,38 @@ class JmcomicText:
         assert isinstance(domain, str) and len(domain) != 0
         return f'{JmModuleConfig.PROT}{domain}{path}'
 
+    class DSLReplacer:
+
+        def __init__(self):
+            self.dsl_dict: Dict[Pattern, Callable[[Match], str]] = {}
+
+        def parse_dsl_text(self, text) -> str:
+            for pattern, replacer in self.dsl_dict.items():
+                text = pattern.sub(replacer, text)
+            return text
+
+        def add_dsl_and_replacer(self, dsl: str, replacer: Callable[[Match], str]):
+            pattern = compile(dsl)
+            self.dsl_dict[pattern] = replacer
+
+    @classmethod
+    def match_os_env(cls, match: Match) -> str:
+        name = match[1]
+        value = os.getenv(name, None)
+        assert value is not None, f"未配置环境变量: {name}"
+        return os.path.abspath(value)
+
+    dsl_replacer = DSLReplacer()
+
+    @classmethod
+    def parse_to_abspath(cls, dsl_text: str) -> str:
+        path = cls.dsl_replacer.parse_dsl_text(dsl_text)
+        return os.path.abspath(path)
+
+
+# 支持dsl: #{???} -> os.getenv(???)
+JmcomicText.dsl_replacer.add_dsl_and_replacer('\$\{(.*?)\}', JmcomicText.match_os_env)
+
 
 class JmSearchSupport:
     # 用来缩减html的长度

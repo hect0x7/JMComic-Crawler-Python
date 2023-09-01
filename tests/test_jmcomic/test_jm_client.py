@@ -3,18 +3,11 @@ from test_jmcomic import *
 
 class Test_Client(JmTestConfigurable):
 
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.move_workspace('download')
-
     def test_download_image(self):
         jm_photo_id = 'JM438516'
         photo = self.client.get_photo_detail(jm_photo_id, False)
-        self.client.download_by_image_detail(
-            photo[0],
-            img_save_path=workspace('test_download_image.png')
-        )
+        image = photo[0]
+        self.client.download_by_image_detail(image, self.option.decide_image_filepath(image))
 
     def test_get_album_detail_by_jm_photo_id(self):
         album_id = "JM438516"
@@ -49,7 +42,7 @@ class Test_Client(JmTestConfigurable):
         photo: JmPhotoDetail = self.client.get_photo_detail(photo_id, False)
         image = photo[3000]
         print(image.img_url)
-        self.client.download_by_image_detail(image, workspace('3000.png'))
+        self.client.download_by_image_detail(image, self.option.decide_image_filepath(image))
 
     def test_album_missing(self):
         JmModuleConfig.CLASS_EXCEPTION = JmcomicException

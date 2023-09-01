@@ -22,7 +22,7 @@ class DirRule:
     rule_solver_cache: Dict[str, RuleSolver] = {}
 
     def __init__(self, rule: str, base_dir=None):
-        base_dir = self.parse_dsl(base_dir)
+        base_dir = JmcomicText.parse_to_abspath(base_dir)
         self.base_dir = base_dir
         self.rule_dsl = rule
         self.solver_list = self.get_role_solver_list(rule, base_dir)
@@ -113,16 +113,6 @@ class DirRule:
     @classmethod
     def apply_rule_directly(cls, album, photo, rule: str) -> str:
         return cls.apply_rule_solver(album, photo, cls.get_rule_solver(rule))
-
-    dsl_support = {
-        '${workspace}': lambda text: workspace(),
-    }
-
-    def parse_dsl(self, base_dir: str):
-        for k, func in self.dsl_support.items():
-            if k in base_dir:
-                base_dir = base_dir.replace(k, func(base_dir))
-        return base_dir
 
 
 class JmOption:

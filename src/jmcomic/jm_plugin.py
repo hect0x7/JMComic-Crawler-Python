@@ -51,7 +51,7 @@ class JmLoginPlugin(JmOptionPlugin):
 
 
 class UsageLogPlugin(JmOptionPlugin):
-    plugin_key = 'usage-log'
+    plugin_key = 'usage_log'
 
     def invoke(self, **kwargs) -> None:
         import threading
@@ -199,6 +199,7 @@ class ZipPlugin(JmOptionPlugin):
         from .jm_downloader import JmDownloader
         downloader: JmDownloader
 
+        zip_dir = JmcomicText.parse_to_abspath(zip_dir)
         mkdir_if_not_exists(zip_dir)
         photo_dict = downloader.all_downloaded[album]
         original_file_dir_list = []
