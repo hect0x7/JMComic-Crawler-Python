@@ -77,6 +77,8 @@ class JmModuleConfig:
 
     # debug开关标记
     enable_jm_debug = True
+    # debug时解码url
+    decode_url_when_debug = True
 
     # 插件注册表
     plugin_registry = {}

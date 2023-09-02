@@ -28,16 +28,32 @@ class JmcomicText:
     pattern_html_album_page_count = compile('<span class="pagecount">.*?:(\d+)</span>')
     pattern_html_album_pub_date = compile('>上架日期 : (.*?)</span>')
     pattern_html_album_update_date = compile('>更新日期 : (.*?)</span>')
-    pattern_html_album_keywords_list = [
+    # 作品
+    pattern_html_album_work_list = [
+        compile('<span itemprop="author" data-type="works">([\s\S]*?)</span>'),
+        compile('<a[\s\S]*?>(.*?)</a>')
+    ]
+    # 登場人物
+    pattern_html_album_actor_list = [
+        compile('<span itemprop="author" data-type="actor">([\s\S]*?)</span>'),
+        compile('<a[\s\S]*?>(.*?)</a>')
+    ]
+    # 标签
+    pattern_html_album_tag_list = [
         compile('<span itemprop="genre" data-type="tags">([\s\S]*?)</span>'),
         compile('<a[\s\S]*?>(.*?)</a>')
     ]
-
-    # album 作者
+    # 作者
     pattern_html_album_author_list = [
         compile('作者： *<span itemprop="author" data-type="author">([\s\S]*?)</span>'),
         compile("<a[\s\S]*?>(.*?)</a>"),
     ]
+    # 點擊喜歡
+    pattern_html_album_likes = compile('<span id="albim_likes_\d+">(.*?)</span>')
+    # 觀看
+    pattern_html_album_views = compile('<span>(.*?)</span> 次觀看')
+    # 評論
+    pattern_html_album_comment_count = compile('<div class="badge" id="total_video_comments">(\d+)</div></a></li>')
 
     @classmethod
     def parse_to_jm_domain(cls, text: str):
@@ -142,7 +158,7 @@ class JmcomicText:
 
             if field_value is None:
                 JmModuleConfig.raise_regex_error_executor(
-                    f"文本没有匹配上字段：字段名为'{field_name}'，pattern: [{pattern_value.pattern}]",
+                    f"文本没有匹配上字段：字段名为'{field_name}'，pattern: [{pattern_value}]",
                     html,
                     field_name,
                     pattern_value

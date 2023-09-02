@@ -33,7 +33,7 @@ class Test_Client(JmTestConfigurable):
             print(f'本子: [{album.title}] 一共有{album.page_count}页图')
 
     def test_search(self):
-        jm_search_page: JmSearchPage = self.client.search_album('+无修正 +中文 -全彩')
+        jm_search_page: JmSearchPage = self.client.search_tag('+无修正 +中文 -全彩')
         for album_id, title in reversed(jm_search_page):
             print(album_id, title)
 
@@ -51,3 +51,16 @@ class Test_Client(JmTestConfigurable):
             self.client.get_album_detail,
             '332583'
         )
+
+    def test_entity(self):
+        album = self.client.get_album_detail(410090)
+
+        ans = [
+            (album.work_list, ['原神', 'Genshin']),
+            (album.actor_list, ['申鶴', '神里綾華', '甘雨']),
+            (album.tag_list, ['C101', '巨乳', '校服', '口交', '乳交', '群交', '連褲襪', '中文', '禁漫漢化組', '纯爱']),
+            (album.author_list, ['うぱ西']),
+        ]
+
+        for pair in ans:
+            self.assertListEqual(pair[0], pair[1])

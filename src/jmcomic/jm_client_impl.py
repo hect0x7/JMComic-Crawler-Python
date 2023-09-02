@@ -57,7 +57,7 @@ class AbstractJmClient(
                 api_path=url,
                 domain=self.domain_list[domain_index],
             )
-            jm_debug(self.debug_topic_request(), url)
+            jm_debug(self.debug_topic_request(), self.decode(url))
         else:
             # 图片url
             pass
@@ -124,7 +124,7 @@ class AbstractJmClient(
         for func in {
             'get_photo_detail',
             'get_album_detail',
-            'search_album',
+            'search',
         }:
             wrap_func_cache(func, func + '.cache.dict')
 
@@ -150,6 +150,23 @@ class AbstractJmClient(
         msg = f"请求重试全部失败: [{url}], {self.domain_list}"
         jm_debug('req.fallback', msg)
         raise JmModuleConfig.exception(msg)
+
+    # noinspection PyMethodMayBeStatic
+    def append_params_to_url(self, url, params):
+        from urllib.parse import urlencode
+
+        # 将参数字典编码为查询字符串
+        query_string = urlencode(params)
+        url = f"{url}?{query_string}"
+        return url
+
+    # noinspection PyMethodMayBeStatic
+    def decode(self, url: str):
+        if not JmModuleConfig.decode_url_when_debug or '/search/' not in url:
+            return url
+
+        from urllib.parse import unquote
+        return unquote(url.replace('+', ' '))
 
 
 # 基于网页实现的JmClient
@@ -182,14 +199,17 @@ class JmHtmlClient(AbstractJmClient):
 
         return photo
 
-    def search_album(self, search_query, main_tag=0, page=1) -> JmSearchPage:
+    def search(self, search_query, page, main_tag) -> JmSearchPage:
         params = {
             'main_tag': main_tag,
             'search_query': search_query,
             'page': page,
         }
 
-        resp = self.get_jm_html('/search/photos', params=params, allow_redirects=True)
+        resp = self.get_jm_html(
+            self.append_params_to_url('/search/photos', params),
+            allow_redirects=True,
+        )
 
         # 检查是否发生了重定向
         # 因为如果搜索的是禁漫车号，会直接跳转到本子详情页面
@@ -371,7 +391,7 @@ class JmApiClient(AbstractJmClient):
     client_key = 'api'
     API_SEARCH = '/search'
 
-    def search_album(self, search_query, main_tag=0, page=1) -> JmApiResp:
+    def search(self, search_query, main_tag=0, page=1) -> JmApiResp:
         """
         model_data: {
           "search_query": "MANA",

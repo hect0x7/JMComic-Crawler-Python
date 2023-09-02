@@ -51,13 +51,13 @@ def get_album_photo_detail():
 
 @timeit('搜索本子: ')
 def search_jm_album():
-    # 分页查询
-    search_page: JmSearchPage = client.search_album(search_query='+MANA +无修正', page=1)
+    # 分页查询，search_site就是禁漫网页上的【站内搜索】
+    search_page: JmSearchPage = client.search_site(search_query='+MANA +无修正', page=1)
     for album_id, title in search_page:
         print(f'[{album_id}]: {title}')
 
     # 直接搜索禁漫车号
-    search_page = client.search_album(search_query='427413')
+    search_page = client.search_site(search_query='427413')
     album: JmAlbumDetail = search_page.single_album
     print(album.keywords)
 
@@ -65,8 +65,9 @@ def search_jm_album():
 @timeit('搜索并下载本子: ')
 def search_and_download():
     tag = '無修正'
-    # 搜索第一页
-    search_page: JmSearchPage = client.search_album(tag, main_tag=3)
+    # 搜索标签，可以使用search_tag。
+    # 搜索第一页。
+    search_page: JmSearchPage = client.search_tag(tag, page=1)
 
     id_list = []
 
