@@ -151,9 +151,6 @@ class JmDetailClient:
     def get_photo_detail(self, photo_id, fetch_album=True) -> JmPhotoDetail:
         raise NotImplementedError
 
-    def search_album(self, search_query: str, main_tag: int = 0, page: int = 1) -> JmSearchPage:
-        raise NotImplementedError
-
     def of_api_url(self, api_path, domain):
         raise NotImplementedError
 
@@ -272,11 +269,65 @@ class JmImageClient:
         return data_original.endswith('.gif')
 
 
+class JmSearchAlbumClient:
+    """
+    搜尋的最佳姿勢？
+    【包含搜尋】
+    搜尋[+]全彩[空格][+]人妻,僅顯示全彩且是人妻的本本
+    範例:+全彩 +人妻
+
+    【排除搜尋】
+    搜尋全彩[空格][-]人妻,顯示全彩並排除人妻的本本
+    範例:全彩 -人妻
+
+    【我都要搜尋】
+    搜尋全彩[空格]人妻,會顯示所有包含全彩及人妻的本本
+    範例:全彩 人妻
+    """
+
+    def search(self, search_query: str, page: int, main_tag: int) -> JmSearchPage:
+        """
+        搜索【成人A漫】
+        """
+        raise NotImplementedError
+
+    def search_site(self, search_query: str, page: int = 1) -> JmSearchPage:
+        """
+        对应禁漫的站内搜索
+        """
+        return self.search(search_query, page, 0)
+
+    def search_work(self, search_query: str, page: int = 1) -> JmSearchPage:
+        """
+        搜索album的作品 work
+        """
+        return self.search(search_query, page, 1)
+
+    def search_author(self, search_query: str, page: int = 1) -> JmSearchPage:
+        """
+        搜索album的作者 author
+        """
+        return self.search(search_query, page, 2)
+
+    def search_tag(self, search_query: str, page: int = 1) -> JmSearchPage:
+        """
+        搜索album的标签 tag
+        """
+        return self.search(search_query, page, 3)
+
+    def search_actor(self, search_query: str, page: int = 1) -> JmSearchPage:
+        """
+        搜索album的登场角色 actor
+        """
+        return self.search(search_query, page, 4)
+
+
 # noinspection PyAbstractClass
 class JmcomicClient(
     JmImageClient,
     JmDetailClient,
     JmUserClient,
+    JmSearchAlbumClient,
     Postman,
 ):
     def get_jmcomic_url(self):

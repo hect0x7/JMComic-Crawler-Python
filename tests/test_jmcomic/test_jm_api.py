@@ -99,8 +99,8 @@ class Test_Api(JmTestConfigurable):
     def test_get_jmcomic_url(self):
         func_list = {
             self.client.get_jmcomic_url,
-            # self.client.get_jmcomic_domain_all,
-            JmModuleConfig.get_jmcomic_url,
+            self.client.get_jmcomic_domain_all,
+            # JmModuleConfig.get_jmcomic_url,
             # JmModuleConfig.get_jmcomic_domain_all,
         }
 

@@ -198,9 +198,9 @@ class JmPhotoDetail(DetailEntity):
         return self._series_id == 0
 
     @property
-    def keywords(self) -> List[str]:
+    def tags(self) -> List[str]:
         if self.from_album is not None:
-            return self.from_album.keywords
+            return self.from_album.tag_list
 
         return self._keywords.split(',')
 
@@ -303,18 +303,29 @@ class JmAlbumDetail(DetailEntity):
                  episode_list,
                  page_count,
                  author_list,
-                 keywords_list,
+                 tag_list,
                  pub_date,
                  update_date,
+                 likes,
+                 views,
+                 comment_count,
+                 work_list,
+                 actor_list,
                  ):
         self.album_id: str = album_id
         self.scramble_id: str = scramble_id
         self.title: str = title
-        self.page_count = int(page_count)
-        self._author_list: List[str] = author_list
-        self._keywords_list: List[str] = keywords_list
+        self.page_count = int(page_count)  # 总页数
         self.pub_date: str = pub_date  # 发布日期
         self.update_date: str = update_date  # 更新日期
+
+        self.likes: str = likes  # [1K] 點擊喜歡
+        self.views: str = views  # [40K] 次觀看
+        self.comment_count = int(comment_count)
+        self.work_list: List[str] = work_list  # 作品
+        self.actor_list: List[str] = actor_list  # 登場人物
+        self.tag_list: List[str] = tag_list  # 標籤
+        self.author_list: List[str] = author_list  # 作者
 
         # 有的 album 没有章节，则自成一章。
         if len(episode_list) == 0:
@@ -324,6 +335,38 @@ class JmAlbumDetail(DetailEntity):
             episode_list = self.distinct_episode(episode_list)
 
         self.episode_list: List[Tuple] = episode_list
+
+    @property
+    def author(self):
+        """
+        作者
+        禁漫本子的作者标签可能有多个，全部作者请使用字段 self.author_list
+        """
+        if len(self.author_list) >= 1:
+            return self.author_list[0]
+
+        return JmModuleConfig.default_author
+
+    @property
+    def id(self):
+        return self.album_id
+
+    @staticmethod
+    def distinct_episode(episode_list):
+        ret = []
+
+        def not_exist(episode):
+            photo_id = episode[0]
+            for each in ret:
+                if each[0] == photo_id:
+                    return False
+            return True
+
+        for episode in episode_list:
+            if not_exist(episode):
+                ret.append(episode)
+
+        return ret
 
     def create_photo_detail(self, index) -> Tuple[JmPhotoDetail, Tuple]:
         # 校验参数
@@ -350,37 +393,6 @@ class JmAlbumDetail(DetailEntity):
         )
 
         return photo, episode_info
-
-    @property
-    def author(self):
-        if len(self._author_list) >= 1:
-            return self._author_list[0]
-        return JmModuleConfig.default_author
-
-    @property
-    def keywords(self) -> List[str]:
-        return self._keywords_list
-
-    @property
-    def id(self):
-        return self.album_id
-
-    @staticmethod
-    def distinct_episode(episode_list):
-        ret = []
-
-        def not_exist(episode):
-            photo_id = episode[0]
-            for each in ret:
-                if each[0] == photo_id:
-                    return False
-            return True
-
-        for episode in episode_list:
-            if not_exist(episode):
-                ret.append(episode)
-
-        return ret
 
     def getindex(self, item) -> JmPhotoDetail:
         return self.create_photo_detail(item)[0]
@@ -421,7 +433,7 @@ class JmSearchPage(JmBaseEntity, IterableEntity):
             album.title,
             None,
             None,
-            album.keywords,
+            album.tag_list,
         )
         obj = JmSearchPage([album_info])
 
