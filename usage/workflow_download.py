@@ -7,9 +7,10 @@ from jmcomic import *
 # [https://18comic.vip/album/452859/mana-ディシア-1-原神-中国語-無修正] -> [452859]
 #
 jm_albums = '''
-
-
-
+393543
+152637
+179238
+478003
 '''
 
 
