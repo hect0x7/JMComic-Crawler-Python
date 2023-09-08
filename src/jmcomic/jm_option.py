@@ -49,7 +49,7 @@ class DirRule:
         解析下载路径dsl，得到一个路径规则解析列表
         """
 
-        if '_' not in rule_dsl:
+        if '_' not in rule_dsl and rule_dsl != 'Bd':
             raise NotImplementedError(f'不支持的dsl: "{rule_dsl}"')
 
         rule_ls = rule_dsl.split('_')
@@ -273,7 +273,7 @@ class JmOption:
         """
         return self.new_jm_client(**kwargs)
 
-    def new_jm_client(self, domain_list=None, **kwargs) -> JmcomicClient:
+    def new_jm_client(self, domain_list=None, impl=None, **kwargs) -> JmcomicClient:
         postman_conf: dict = self.client.postman.src_dict
 
         # support kwargs overwrite meta_data
@@ -291,7 +291,7 @@ class JmOption:
             domain_list = [JmModuleConfig.domain()]
 
         # client
-        client = JmModuleConfig.client_impl_class(self.client.impl)(
+        client = JmModuleConfig.client_impl_class(impl or self.client.impl)(
             postman,
             self.client.retry_times,
             fallback_domain_list=domain_list,

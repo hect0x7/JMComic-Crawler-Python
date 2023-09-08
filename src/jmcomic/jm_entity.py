@@ -419,6 +419,9 @@ class JmSearchPage(JmBaseEntity, IterableEntity):
     def __getitem__(self, item):
         return self.album_info_list[item][0:2]
 
+    def __iter__(self) -> Generator[List[str], Any, None]:
+        return super().__iter__()
+
     @property
     def single_album(self) -> JmAlbumDetail:
         return getattr(self, 'album')

@@ -285,41 +285,82 @@ class JmSearchAlbumClient:
     範例:全彩 人妻
     """
 
-    def search(self, search_query: str, page: int, main_tag: int) -> JmSearchPage:
+    ORDER_BY_LATEST = 'mr'
+    ORDER_BY_VIEW = 'mv'
+    ORDER_BY_PICTURE = 'mp'
+    ORDER_BY_LIKE = 'tf'
+
+    TIME_TODAY = 't'
+    TIME_WEEK = 'w'
+    TIME_MONTH = 'm'
+    TIME_ALL = 'a'
+
+    def search(self,
+               search_query: str,
+               page: int,
+               main_tag: int,
+               order_by: str,
+               time: str,
+               ) -> JmSearchPage:
         """
         搜索【成人A漫】
         """
         raise NotImplementedError
 
-    def search_site(self, search_query: str, page: int = 1) -> JmSearchPage:
+    def search_site(self,
+                    search_query: str,
+                    page: int = 1,
+                    order_by: str = ORDER_BY_LATEST,
+                    time: str = TIME_ALL,
+                    ) -> JmSearchPage:
         """
         对应禁漫的站内搜索
         """
-        return self.search(search_query, page, 0)
+        return self.search(search_query, page, 0, order_by, time)
 
-    def search_work(self, search_query: str, page: int = 1) -> JmSearchPage:
+    def search_work(self,
+                    search_query: str,
+                    page: int = 1,
+                    order_by: str = ORDER_BY_LATEST,
+                    time: str = TIME_ALL,
+                    ) -> JmSearchPage:
         """
         搜索album的作品 work
         """
-        return self.search(search_query, page, 1)
+        return self.search(search_query, page, 1, order_by, time)
 
-    def search_author(self, search_query: str, page: int = 1) -> JmSearchPage:
+    def search_author(self,
+                      search_query: str,
+                      page: int = 1,
+                      order_by: str = ORDER_BY_LATEST,
+                      time: str = TIME_ALL,
+                      ) -> JmSearchPage:
         """
         搜索album的作者 author
         """
-        return self.search(search_query, page, 2)
+        return self.search(search_query, page, 2, order_by, time)
 
-    def search_tag(self, search_query: str, page: int = 1) -> JmSearchPage:
+    def search_tag(self,
+                   search_query: str,
+                   page: int = 1,
+                   order_by: str = ORDER_BY_LATEST,
+                   time: str = TIME_ALL,
+                   ) -> JmSearchPage:
         """
         搜索album的标签 tag
         """
-        return self.search(search_query, page, 3)
+        return self.search(search_query, page, 3, order_by, time)
 
-    def search_actor(self, search_query: str, page: int = 1) -> JmSearchPage:
+    def search_actor(self,
+                     search_query: str,
+                     page: int = 1,
+                     order_by: str = ORDER_BY_LATEST,
+                     time: str = TIME_ALL,
+                     ) -> JmSearchPage:
         """
         搜索album的登场角色 actor
         """
-        return self.search(search_query, page, 4)
+        return self.search(search_query, page, 4, order_by, time)
 
 
 # noinspection PyAbstractClass
