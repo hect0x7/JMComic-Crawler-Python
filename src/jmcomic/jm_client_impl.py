@@ -199,11 +199,19 @@ class JmHtmlClient(AbstractJmClient):
 
         return photo
 
-    def search(self, search_query, page, main_tag) -> JmSearchPage:
+    def search(self,
+               search_query: str,
+               page: int,
+               main_tag: int,
+               order_by: str,
+               date: str,
+               ) -> JmSearchPage:
         params = {
             'main_tag': main_tag,
             'search_query': search_query,
             'page': page,
+            'o': order_by,
+            't': date,
         }
 
         resp = self.get_jm_html(
@@ -391,7 +399,13 @@ class JmApiClient(AbstractJmClient):
     client_key = 'api'
     API_SEARCH = '/search'
 
-    def search(self, search_query, main_tag=0, page=1) -> JmApiResp:
+    def search(self,
+               search_query: str,
+               page: int,
+               main_tag: int,
+               order_by: str,
+               time: str,
+               ) -> JmApiResp:
         """
         model_data: {
           "search_query": "MANA",
@@ -421,6 +435,8 @@ class JmApiClient(AbstractJmClient):
                 'search_query': search_query,
                 'main_tag': main_tag,
                 'page': page,
+                'o': order_by,
+                't': time,
             }
         )
 

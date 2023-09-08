@@ -164,3 +164,41 @@ class Test_Api(JmTestConfigurable):
                     list1=[int(e.img_file_name) for e in ls],
                     list2=ans,
                 )
+
+    def test_search_advanced(self):
+        elist = []
+
+        def search_and_test(expected_result, params):
+            try:
+                page = self.client.search_site(**params)
+                print(page)
+                assert int(page[0][0]) == expected_result
+            except Exception as e:
+                elist.append(e)
+
+        # 定义测试用例
+        cases = {
+            152637: {
+                'search_query': '无修正',
+                'order_by': JmSearchAlbumClient.ORDER_BY_LIKE,
+                'time': JmSearchAlbumClient.TIME_ALL,
+            },
+            147643: {
+                'search_query': '无修正',
+                'order_by': JmSearchAlbumClient.ORDER_BY_PICTURE,
+                'time': JmSearchAlbumClient.TIME_ALL,
+            },
+        }
+
+        multi_thread_launcher(
+            iter_objs=cases.items(),
+            apply_each_obj_func=search_and_test,
+        )
+
+        if len(elist) == 0:
+            return
+
+        for e in elist:
+            print(e)
+
+        raise AssertionError(elist)
