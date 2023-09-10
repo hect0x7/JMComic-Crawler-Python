@@ -1,12 +1,14 @@
 name: 跑测试
 
 on:
+  schedule:
+    - cron: "0 8 * * *"
   workflow_dispatch:
   push:
     branches: [ "dev" ]
     paths:
       - 'src/**/*.py'
-      - 'test/**/*.py'
+      - 'tests/**/*.py'
       - '.github/workflows/test.yml'
       - 'assets/config/option_test.yml'
 
