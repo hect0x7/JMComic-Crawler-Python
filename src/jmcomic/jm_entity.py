@@ -321,7 +321,7 @@ class JmAlbumDetail(DetailEntity):
 
         self.likes: str = likes  # [1K] 點擊喜歡
         self.views: str = views  # [40K] 次觀看
-        self.comment_count = int(comment_count)
+        self.comment_count: int = self.__parse_comment_count(comment_count)  # 评论数
         self.work_list: List[str] = work_list  # 作品
         self.actor_list: List[str] = actor_list  # 登場人物
         self.tag_list: List[str] = tag_list  # 標籤
@@ -368,6 +368,21 @@ class JmAlbumDetail(DetailEntity):
 
         return ret
 
+    # noinspection PyMethodMayBeStatic
+    def __parse_comment_count(self, comment_count: str) -> int:
+        if comment_count == '':
+            return 0
+
+        try:
+            from .jm_toolkit import JmcomicText
+            match = JmcomicText.pattern_total_video_comments.search(comment_count)
+            if match is None:
+                return 0
+            return int(match[1])
+        except ValueError:
+            jm_debug('regular.error', f'评论数匹配失败: {comment_count}')
+            return 0
+
     def create_photo_detail(self, index) -> Tuple[JmPhotoDetail, Tuple]:
         # 校验参数
         length = len(self.episode_list)
@@ -407,7 +422,7 @@ class JmAlbumDetail(DetailEntity):
         return super().__iter__()
 
 
-class JmSearchPage(JmBaseEntity, IterableEntity):
+class JmSearchPage(JmBaseEntity):
 
     def __init__(self, album_info_list: List[Tuple[str, str, StrNone, StrNone, List[str]]]):
         # (album_id, title, category_none, label_sub_none, tag_list)
@@ -416,11 +431,8 @@ class JmSearchPage(JmBaseEntity, IterableEntity):
     def __len__(self):
         return len(self.album_info_list)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item) -> Tuple[str, str]:
         return self.album_info_list[item][0:2]
-
-    def __iter__(self) -> Generator[List[str], Any, None]:
-        return super().__iter__()
 
     @property
     def single_album(self) -> JmAlbumDetail:
