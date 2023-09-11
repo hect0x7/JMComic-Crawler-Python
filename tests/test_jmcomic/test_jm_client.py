@@ -9,28 +9,10 @@ class Test_Client(JmTestConfigurable):
         image = photo[0]
         self.client.download_by_image_detail(image, self.option.decide_image_filepath(image))
 
-    def test_get_album_detail_by_jm_photo_id(self):
+    def test_fetch_album(self):
         album_id = "JM438516"
-        print_obj_dict(self.client.get_album_detail(album_id))
-
-    def test_get_photo_detail_by_jm_photo_id(self):
-        """
-        测试通过 JmcomicClient 和 jm_photo_id 获取 JmPhotoDetail对象
-        """
-        jm_photo_id = 'JM438516'
-        photo = self.client.get_photo_detail(jm_photo_id, False)
-        photo.when_del_save_file = True
-        photo.after_save_print_info = True
-        del photo
-
-    def test_multi_album_and_single_album(self):
-        multi_photo_album_id = [
-            "195822",
-        ]
-
-        for album_id in multi_photo_album_id:
-            album: JmAlbumDetail = self.client.get_album_detail(album_id)
-            print(f'本子: [{album.title}] 一共有{album.page_count}页图')
+        self.client.get_album_detail(album_id)
+        self.client.get_photo_detail(album_id)
 
     def test_search(self):
         jm_search_page: JmSearchPage = self.client.search_tag('+无修正 +中文 -全彩')
@@ -52,7 +34,7 @@ class Test_Client(JmTestConfigurable):
             '332583'
         )
 
-    def test_entity(self):
+    def test_detail_property_list(self):
         album = self.client.get_album_detail(410090)
 
         ans = [
@@ -64,3 +46,146 @@ class Test_Client(JmTestConfigurable):
 
         for pair in ans:
             self.assertListEqual(pair[0], pair[1])
+
+    def test_photo_sort(self):
+        client = self.option.build_jm_client()
+
+        # 测试用例 - 单章本子
+        single_photo_album_is = str_to_list('''
+        430371
+        438696
+        432888
+        ''')
+
+        # 测试用例 - 多章本子
+        multi_photo_album_is = str_to_list('''
+        400222
+        122061
+        ''')
+
+        photo_dict: Dict[str, JmPhotoDetail] = multi_call(client.get_photo_detail, single_photo_album_is)
+        album_dict: Dict[str, JmAlbumDetail] = multi_call(client.get_album_detail, single_photo_album_is)
+
+        for each in photo_dict.values():
+            each: JmPhotoDetail
+            self.assertEqual(each.album_index, 1)
+
+        for each in album_dict.values():
+            each: JmAlbumDetail
+            self.assertEqual(each[0].album_index, 1)
+
+        print_eye_catching('【通过】测试用例 - 单章本子')
+        multi_photo_album_dict: Dict[JmAlbumDetail, List[JmPhotoDetail]] = {}
+
+        def run(aid):
+            album = client.get_album_detail(aid)
+
+            photo_dict = multi_call(
+                client.get_photo_detail,
+                (photo.photo_id for photo in album),
+                launcher=thread_pool_executor,
+            )
+
+            multi_photo_album_dict[album] = list(photo_dict.values())
+
+        multi_thread_launcher(
+            iter_objs=multi_photo_album_is,
+            apply_each_obj_func=run,
+        )
+
+        for album, photo_ls in multi_photo_album_dict.items():
+            self.assertListEqual(
+                sorted([each.sort for each in album]),
+                sorted([ans.sort for ans in photo_ls]),
+                album.album_id
+            )
+
+    def test_getitem_and_slice(self):
+        cl: JmcomicClient = self.client
+        cases = [
+            ['400222', 0, [400222]],
+            ['400222', 1, [413446]],
+            ['400222', (None, 1), [400222]],
+            ['400222', (1, 3), [413446, 413447]],
+            ['413447', (1, 3), [2, 3], []],
+        ]
+
+        for [jmid, slicearg, *args] in cases:
+            ans = args[0]
+
+            if len(args) == 1:
+                func = cl.get_album_detail
+            else:
+                func = cl.get_photo_detail
+
+            jmentity = func(jmid)
+
+            ls: List[Union[JmPhotoDetail, JmImageDetail]]
+            if isinstance(slicearg, int):
+                ls = [jmentity[slicearg]]
+            elif len(slicearg) == 2:
+                ls = jmentity[slicearg[0]: slicearg[1]]
+            else:
+                ls = jmentity[slicearg[0]: slicearg[1]: slicearg[2]]
+
+            if len(args) == 1:
+                self.assertListEqual(
+                    list1=[int(e.id) for e in ls],
+                    list2=ans,
+                )
+            else:
+                self.assertListEqual(
+                    list1=[int(e.img_file_name) for e in ls],
+                    list2=ans,
+                )
+
+    def test_search_advanced(self):
+        elist = []
+
+        def search_and_test(expected_result, params):
+            try:
+                page = self.client.search_site(**params)
+                print(page)
+                assert int(page[0][0]) == expected_result
+            except Exception as e:
+                elist.append(e)
+
+        # 定义测试用例
+        cases = {
+            152637: {
+                'search_query': '无修正',
+                'order_by': JmSearchAlbumClient.ORDER_BY_LIKE,
+                'time': JmSearchAlbumClient.TIME_ALL,
+            },
+            147643: {
+                'search_query': '无修正',
+                'order_by': JmSearchAlbumClient.ORDER_BY_PICTURE,
+                'time': JmSearchAlbumClient.TIME_ALL,
+            },
+        }
+
+        multi_thread_launcher(
+            iter_objs=cases.items(),
+            apply_each_obj_func=search_and_test,
+        )
+
+        if len(elist) == 0:
+            return
+
+        for e in elist:
+            print(e)
+
+        raise AssertionError(elist)
+
+    def test_comment_count(self):
+        aid = 'JM438516'
+        album = self.client.get_album_detail(aid)
+        self.assertGreater(album.comment_count, 0)
+        page = self.client.search_site('无修正')
+        for i in range(3):
+            aid, _atitle = page[i]
+            self.assertGreaterEqual(
+                self.client.get_album_detail(aid).comment_count,
+                0,
+                aid,
+            )

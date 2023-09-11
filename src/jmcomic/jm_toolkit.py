@@ -52,8 +52,13 @@ class JmcomicText:
     pattern_html_album_likes = compile('<span id="albim_likes_\d+">(.*?)</span>')
     # 觀看
     pattern_html_album_views = compile('<span>(.*?)</span> 次觀看')
-    # 評論
-    pattern_html_album_comment_count = compile('<div class="badge" id="total_video_comments">(\d+)</div></a></li>')
+    # 評論(div)
+    pattern_html_album_comment_count = compile(
+        'forum-open btn btn-primary" .*>\w{2}\n'
+        '(<div class="badge" id="total_video_comments">(\d+)</div>|)?'
+    )
+    # 评论(number)
+    pattern_total_video_comments = compile('<div class="badge" id="total_video_comments">(\d+)</div>')
 
     @classmethod
     def parse_to_jm_domain(cls, text: str):
