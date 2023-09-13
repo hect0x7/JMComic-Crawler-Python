@@ -23,8 +23,7 @@ def get_domain_ls():
     domain_set: Set[str] = set()
 
     def fetch_domain(url):
-        # from curl_cffi import requests as postman
-        postman = CurlCffiPostman.create()
+        from curl_cffi import requests as postman
         text = postman.get(url, allow_redirects=False, **meta_data).text
         for domain in JmcomicText.analyse_jm_pub_html(text):
             if domain.startswith('jm365.work'):

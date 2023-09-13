@@ -130,11 +130,11 @@ class JmOption:
         # 路径规则配置
         self.dir_rule = DirRule(**dir_rule)
         # 请求配置
-        self.client = DictModel(client)
+        self.client = AdvancedEasyAccessDict(client)
         # 下载配置
-        self.download = DictModel(download)
+        self.download = AdvancedEasyAccessDict(download)
         # 插件配置
-        self.plugin = DictModel(plugin)
+        self.plugin = AdvancedEasyAccessDict(plugin)
         # 其他配置
         self.filepath = filepath
 

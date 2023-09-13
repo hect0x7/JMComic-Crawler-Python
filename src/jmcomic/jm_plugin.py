@@ -55,11 +55,26 @@ class UsageLogPlugin(JmOptionPlugin):
 
     def invoke(self, **kwargs) -> None:
         import threading
-        threading.Thread(
+        t = threading.Thread(
             target=self.monitor_resource_usage,
             kwargs=kwargs,
             daemon=True,
-        ).start()
+        )
+        t.start()
+
+        self.set_thread_as_option_attr(t)
+
+    def set_thread_as_option_attr(self, t):
+        """
+        线程留痕
+        """
+        name = f'thread_{self.plugin_key}'
+
+        thread_ls: Optional[list] = getattr(self.option, name, None)
+        if thread_ls is None:
+            setattr(self.option, name, [t])
+        else:
+            thread_ls.append(t)
 
     def monitor_resource_usage(
             self,

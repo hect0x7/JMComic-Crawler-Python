@@ -225,7 +225,7 @@ class JmHtmlClient(AbstractJmClient):
             album = JmcomicText.analyse_jm_album_html(resp.text)
             return JmSearchPage.wrap_single_album(album)
         else:
-            return JmSearchSupport.analyse_jm_search_html(resp.text)
+            return JmcomicText.analyse_jm_search_html(resp.text)
 
     # -- 帐号管理 --
 
@@ -405,31 +405,8 @@ class JmApiClient(AbstractJmClient):
                main_tag: int,
                order_by: str,
                time: str,
-               ) -> JmApiResp:
-        """
-        model_data: {
-          "search_query": "MANA",
-          "total": "177",
-          "content": [
-            {
-              "id": "441923",
-              "author": "MANA",
-              "description": "",
-              "name": "[MANA] 神里绫华5",
-              "image": "",
-              "category": {
-                "id": "1",
-                "title": "同人"
-              },
-              "category_sub": {
-                "id": "1",
-                "title": "同人"
-              }
-            }
-          ]
-        }
-        """
-        return self.get(
+               ) -> JmSearchPage:
+        resp = self.get(
             self.API_SEARCH,
             params={
                 'search_query': search_query,
@@ -439,6 +416,20 @@ class JmApiClient(AbstractJmClient):
                 't': time,
             }
         )
+
+        # 直接搜索禁漫车号，发生重定向的响应数据 resp.model_data
+        # {
+        #   "search_query": "310311",
+        #   "total": 1,
+        #   "redirect_aid": "310311",
+        #   "content": []
+        # }
+        data = resp.model_data
+        if data.get('redirect_aid', None) is not None:
+            aid = data.redirect_aid
+            return JmSearchPage.wrap_single_album(self.get_album_detail(aid))
+
+        return JmcomicSearchTool.parse_api_resp_to_page(data)
 
     def get(self, url, **kwargs) -> JmApiResp:
         # set headers
@@ -462,18 +453,6 @@ class JmApiClient(AbstractJmClient):
 
     def debug_topic_request(self):
         return 'api'
-
-
-class AsyncSaveImageClient(JmImageClient):
-
-    def __init__(self, workers=None) -> None:
-        from concurrent.futures import ThreadPoolExecutor, Future
-        self.executor = ThreadPoolExecutor(max_workers=workers)
-        self.future_list: List[Future] = []
-
-    def save_image_resp(self, *args, **kwargs):
-        future = self.executor.submit(lambda: super().save_image_resp(*args, **kwargs))
-        self.future_list.append(future)
 
 
 JmModuleConfig.register_client(JmHtmlClient)

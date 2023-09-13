@@ -5,49 +5,19 @@ from .jm_config import *
 
 class JmBaseEntity:
 
-    @staticmethod
-    def fix_title(title: str, limit=50):
-        """
-        一些过长的标题可能含有 \n，例如album: 360537
-        该方法会把 \n 去除
-        """
-        if len(title) > limit and '\n' in title:
-            title = title.replace('\n', '')
-
-        return title.strip()
-
     def save_to_file(self, filepath):
         from common import PackerUtil
         PackerUtil.pack(self, filepath)
 
 
-class DetailEntity(JmBaseEntity):
-
-    @property
-    def id(self) -> str:
-        raise NotImplementedError
-
-    @property
-    def name(self) -> str:
-        return getattr(self, 'title')
-
-    # help for typing
-    JMPI = Union['JmPhotoDetail', 'JmImageDetail']
-
-    def getindex(self, index: int) -> JMPI:
+class IndexedEntity:
+    def getindex(self, index: int):
         raise NotImplementedError
 
     def __len__(self):
         raise NotImplementedError
 
-    def __iter__(self) -> Generator[JMPI, Any, None]:
-        for index in range(len(self)):
-            yield self.getindex(index)
-
-    def __str__(self):
-        return f'{self.__class__.__name__}({self.id}-{self.name})'
-
-    def __getitem__(self, item) -> Union[JMPI, List[JMPI]]:
+    def __getitem__(self, item) -> Any:
         if isinstance(item, slice):
             start = item.start or 0
             stop = item.stop or len(self)
@@ -59,6 +29,24 @@ class DetailEntity(JmBaseEntity):
 
         else:
             raise TypeError(f"Invalid item type for {self.__class__}")
+
+    def __iter__(self):
+        for index in range(len(self)):
+            yield self.getindex(index)
+
+
+class DetailEntity(JmBaseEntity, IndexedEntity):
+
+    @property
+    def id(self) -> str:
+        raise NotImplementedError
+
+    @property
+    def name(self) -> str:
+        return getattr(self, 'title')
+
+    def __str__(self):
+        return f'{self.__class__.__name__}({self.id}-{self.name})'
 
     @classmethod
     def __alias__(cls):
@@ -163,7 +151,7 @@ class JmPhotoDetail(DetailEntity):
                  ):
         self.photo_id: str = photo_id
         self.scramble_id: str = scramble_id
-        self.title: str = self.fix_title(str(title))
+        self.title: str = str(title).strip()
         self.sort: int = int(sort)
         self._keywords: str = keywords
         self._series_id: int = int(series_id)
@@ -290,7 +278,7 @@ class JmPhotoDetail(DetailEntity):
     def __len__(self):
         return len(self.page_arr)
 
-    def __iter__(self) -> Generator[JmImageDetail, Any, None]:
+    def __iter__(self) -> Generator[JmImageDetail, None, None]:
         return super().__iter__()
 
 
@@ -418,21 +406,45 @@ class JmAlbumDetail(DetailEntity):
     def __len__(self):
         return len(self.episode_list)
 
-    def __iter__(self) -> Generator[JmPhotoDetail, Any, None]:
+    def __iter__(self) -> Generator[JmPhotoDetail, None, None]:
         return super().__iter__()
 
 
-class JmSearchPage(JmBaseEntity):
+class JmSearchPage(JmBaseEntity, IndexedEntity):
+    ContentItem = Tuple[str, Dict[str, Any]]
 
-    def __init__(self, album_info_list: List[Tuple[str, str, StrNone, StrNone, List[str]]]):
-        # (album_id, title, category_none, label_sub_none, tag_list)
-        self.album_info_list = album_info_list
+    def __init__(self, content: List[ContentItem]):
+        # [
+        #   album_id, {title, tag_list, ...}
+        # ]
+        self.content = content
 
-    def __len__(self):
-        return len(self.album_info_list)
+    def iter_id(self) -> Generator[str, None, None]:
+        """
+        返回 album_id 的迭代器
+        """
+        for aid, ainfo in self.content:
+            yield aid
 
-    def __getitem__(self, item) -> Tuple[str, str]:
-        return self.album_info_list[item][0:2]
+    def iter_id_title(self) -> Generator[Tuple[str, str], None, None]:
+        """
+        返回 album_id, album_title 的迭代器
+        """
+        for aid, ainfo in self.content:
+            yield aid, ainfo['name']
+
+    def iter_id_title_tag(self) -> Generator[Tuple[str, str, List[str]], None, None]:
+        """
+        返回 album_id, album_title, album_tag_list 的迭代器
+        """
+        for aid, ainfo in self.content:
+            yield aid, ainfo['name'], ainfo['tag_list']
+
+    # 下面的方法是对单个album的包装
+
+    @property
+    def is_single_album(self):
+        return hasattr(self, 'album')
 
     @property
     def single_album(self) -> JmAlbumDetail:
@@ -440,17 +452,25 @@ class JmSearchPage(JmBaseEntity):
 
     @classmethod
     def wrap_single_album(cls, album: JmAlbumDetail) -> 'JmSearchPage':
-        # ('462257', '[無邪気漢化組] [きょくちょ] 楓と鈴 4.5', '短篇', '漢化', [])
-        # (album_id, title, category_none, label_sub_none, tag_list)
-
-        album_info = (
-            album.album_id,
-            album.title,
-            None,
-            None,
-            album.tag_list,
-        )
-        obj = JmSearchPage([album_info])
-
+        obj = JmSearchPage([(
+            album.album_id, {
+                'name': album.title,
+                'tag_list': album.tag_list,
+            }
+        )])
         setattr(obj, 'album', album)
         return obj
+
+    # 下面的方法实现方便的元素访问
+
+    def __len__(self):
+        return len(self.content)
+
+    def __iter__(self):
+        return self.iter_id_title()
+
+    def __getitem__(self, item) -> Union[ContentItem, List[ContentItem]]:
+        return super().__getitem__(item)
+
+    def getindex(self, index: int):
+        return self.content[index]

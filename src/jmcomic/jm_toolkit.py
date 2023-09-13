@@ -126,6 +126,10 @@ class JmcomicText:
         )
 
     @classmethod
+    def analyse_jm_search_html(cls, html: str) -> JmSearchPage:
+        return JmcomicSearchTool.parse_html_to_page(html)
+
+    @classmethod
     def reflect_new_instance(cls, html: str, cls_field_prefix: str, clazz: type):
 
         def match_field(field_key: str, pattern: Union[Pattern, List[Pattern]], text):
@@ -185,6 +189,10 @@ class JmcomicText:
     @classmethod
     def format_url(cls, path, domain):
         assert isinstance(domain, str) and len(domain) != 0
+
+        if domain.startswith(JmModuleConfig.PROT):
+            return f'{domain}{path}'
+
         return f'{JmModuleConfig.PROT}{domain}{path}'
 
     class DSLReplacer:
@@ -220,7 +228,7 @@ class JmcomicText:
 JmcomicText.dsl_replacer.add_dsl_and_replacer('\$\{(.*?)\}', JmcomicText.match_os_env)
 
 
-class JmSearchSupport:
+class JmcomicSearchTool:
     # 用来缩减html的长度
     pattern_html_search_shorten_for = compile('<div class="well well-sm">([\s\S]*)<div class="row">')
 
@@ -242,7 +250,7 @@ class JmSearchSupport:
     pattern_html_search_error = compile('<fieldset>\n<legend>(.*?)</legend>\n<div class=.*?>\n(.*?)\n</div>\n</fieldset>')
 
     @classmethod
-    def analyse_jm_search_html(cls, html: str) -> JmSearchPage:
+    def parse_html_to_page(cls, html: str) -> JmSearchPage:
         # 检查是否失败
         match = cls.pattern_html_search_error.search(html)
         if match is not None:
@@ -256,14 +264,57 @@ class JmSearchSupport:
         html = match[0]
 
         # 提取结果
+        content = []  # content这个名字来源于是api版搜索返回值
         album_info_list = cls.pattern_html_search_album_info_list.findall(html)
 
-        for i, (album_id, title, *args) in enumerate(album_info_list):
-            _, category_none, label_sub_none, tag_text = args
+        for (album_id, title, _, label_category, label_sub, tag_text) in album_info_list:
             tag_list = cls.pattern_html_search_tag_list.findall(tag_text)
-            album_info_list[i] = (album_id, title, category_none, label_sub_none, tag_list)
+            content.append((
+                album_id, {
+                    'name': title,  # 改成name是为了兼容 parse_api_resp_to_page
+                    'tag_list': tag_list
+                }
+            ))
 
-        return JmSearchPage(album_info_list)
+        return JmSearchPage(content)
+
+    @classmethod
+    def parse_api_resp_to_page(cls, data: DictModel) -> JmSearchPage:
+        """
+        model_data: {
+          "search_query": "MANA",
+          "total": "177",
+          "content": [
+            {
+              "id": "441923",
+              "author": "MANA",
+              "description": "",
+              "name": "[MANA] 神里绫华5",
+              "image": "",
+              "category": {
+                "id": "1",
+                "title": "同人"
+              },
+              "category_sub": {
+                "id": "1",
+                "title": "同人"
+              }
+            }
+          ]
+        }
+        """
+
+        def adapt_item(item: DictModel):
+            item: dict = item.src_dict
+            item.setdefault('tag_list', [])
+            return item
+
+        content = [
+            (item.id, adapt_item(item))
+            for item in data.content
+        ]
+
+        return JmSearchPage(content)
 
 
 class JmImageSupport:
