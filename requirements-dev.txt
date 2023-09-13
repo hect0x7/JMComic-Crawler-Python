@@ -3,3 +3,4 @@ curl_cffi
 PyYAML
 Pillow
 psutil
+pycryptodome

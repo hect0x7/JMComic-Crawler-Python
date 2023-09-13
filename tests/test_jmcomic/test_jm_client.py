@@ -12,12 +12,16 @@ class Test_Client(JmTestConfigurable):
     def test_fetch_album(self):
         album_id = "JM438516"
         self.client.get_album_detail(album_id)
-        self.client.get_photo_detail(album_id)
 
     def test_search(self):
-        jm_search_page: JmSearchPage = self.client.search_tag('+无修正 +中文 -全彩')
-        for album_id, title in reversed(jm_search_page):
-            print(album_id, title)
+        page: JmSearchPage = self.client.search_tag('+无修正 +中文 -全彩')
+        for album_id, title, tag_list in page.iter_id_title_tag():
+            print(album_id, title, tag_list)
+
+        aid = '438516'
+        page = self.client.search_site(aid)
+        search_aid, ainfo = page[0]
+        self.assertEqual(search_aid, aid)
 
     def test_gt_300_photo(self):
         photo_id = '147643'

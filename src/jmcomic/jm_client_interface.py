@@ -6,6 +6,7 @@ Response Entity
 
 """
 
+DictModel = AdvancedEasyAccessDict
 
 class JmResp(CommonResp):
 
@@ -19,6 +20,9 @@ class JmResp(CommonResp):
     def model(self) -> DictModel:
         return DictModel(self.json())
 
+    def require_success(self):
+        if self.is_not_success:
+            raise JmModuleConfig.exception(self.resp.text)
 
 class JmImageResp(JmResp):
 
@@ -312,7 +316,7 @@ class JmSearchAlbumClient:
                     page: int = 1,
                     order_by: str = ORDER_BY_LATEST,
                     time: str = TIME_ALL,
-                    ) -> JmSearchPage:
+                    ):
         """
         对应禁漫的站内搜索
         """
@@ -323,7 +327,7 @@ class JmSearchAlbumClient:
                     page: int = 1,
                     order_by: str = ORDER_BY_LATEST,
                     time: str = TIME_ALL,
-                    ) -> JmSearchPage:
+                    ):
         """
         搜索album的作品 work
         """
@@ -334,7 +338,7 @@ class JmSearchAlbumClient:
                       page: int = 1,
                       order_by: str = ORDER_BY_LATEST,
                       time: str = TIME_ALL,
-                      ) -> JmSearchPage:
+                      ):
         """
         搜索album的作者 author
         """
@@ -345,7 +349,7 @@ class JmSearchAlbumClient:
                    page: int = 1,
                    order_by: str = ORDER_BY_LATEST,
                    time: str = TIME_ALL,
-                   ) -> JmSearchPage:
+                   ):
         """
         搜索album的标签 tag
         """
@@ -356,7 +360,7 @@ class JmSearchAlbumClient:
                      page: int = 1,
                      order_by: str = ORDER_BY_LATEST,
                      time: str = TIME_ALL,
-                     ) -> JmSearchPage:
+                     ):
         """
         搜索album的登场角色 actor
         """
