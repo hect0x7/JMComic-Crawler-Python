@@ -45,8 +45,7 @@ jobs:
       - name: 运行下载脚本
         continue-on-error: true
         run: |
-          cd ./usage/
-          python workflow_download.py
+          jmcomic 123
 
       - name: 压缩文件
         run: |
