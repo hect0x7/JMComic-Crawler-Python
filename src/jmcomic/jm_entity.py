@@ -452,14 +452,14 @@ class JmSearchPage(JmBaseEntity, IndexedEntity):
 
     @classmethod
     def wrap_single_album(cls, album: JmAlbumDetail) -> 'JmSearchPage':
-        obj = JmSearchPage([(
+        page = JmSearchPage([(
             album.album_id, {
                 'name': album.title,
                 'tag_list': album.tag_list,
             }
         )])
-        setattr(obj, 'album', album)
-        return obj
+        setattr(page, 'album', album)
+        return page
 
     # 下面的方法实现方便的元素访问
 

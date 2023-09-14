@@ -5,7 +5,7 @@ from .jm_entity import *
 
 class JmcomicText:
     pattern_jm_domain = compile('https://([\w.-]+)')
-    pattern_jm_pa_id = compile('/(photos?|album)/(\d+)')
+    pattern_jm_pa_id = compile('(photos?|album)/(\d+)')
     pattern_html_jm_pub_domain = compile('[\w-]+\.\w+/?\w+')
 
     pattern_html_photo_photo_id = compile('<meta property="og:url" content=".*?/photo/(\d+)/?.*?">')
@@ -264,7 +264,7 @@ class JmcomicSearchTool:
         html = match[0]
 
         # 提取结果
-        content = []  # content这个名字来源于是api版搜索返回值
+        content = []  # content这个名字来源于api版搜索返回值
         album_info_list = cls.pattern_html_search_album_info_list.findall(html)
 
         for (album_id, title, _, label_category, label_sub, tag_text) in album_info_list:
