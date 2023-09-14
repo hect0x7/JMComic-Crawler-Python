@@ -46,9 +46,12 @@ class JmcomicUI:
         )
 
         args = parser.parse_args()
-        self.option_path = os.path.abspath(args.option)
-        self.raw_id_list = args.id_list
+        if args.option is not None:
+            self.option_path = os.path.abspath(args.option)
+        else:
+            self.option_path = None
 
+        self.raw_id_list = args.id_list
         self.parse_raw_id()
 
     def parse_raw_id(self):
