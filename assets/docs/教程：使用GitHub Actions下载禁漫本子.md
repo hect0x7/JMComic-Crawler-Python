@@ -24,7 +24,7 @@
 
 访问下面这个网址：
 
-`https://github.com/hect0x7/JMComic-Crawler-Python/actions/workflows/download_dispatch.yml`
+`https://github.com/你的用户名/JMComic-Crawler-Python/actions/workflows/download_dispatch.yml`
 
 按下图步骤进行操作：
 
