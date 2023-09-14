@@ -8,7 +8,7 @@ $ jmcomic 123 456 p333 --option="D:/option.yml"
 
 """
 import os.path
-from typing import List
+from typing import List, Optional
 
 
 def get_env(name, default):
@@ -23,7 +23,7 @@ def get_env(name, default):
 class JmcomicUI:
 
     def __init__(self) -> None:
-        self.option_path = None
+        self.option_path: Optional[str] = None
         self.raw_id_list: List[str] = []
         self.album_id_list: List[str] = []
         self.photo_id_list: List[str] = []
@@ -42,13 +42,16 @@ class JmcomicUI:
         parser.add_argument(
             '--option',
             help='path to the option file, you can also specify it by env `JM_OPTION_PATH`',
-            default=get_env('JM_OPTION_PATH', './option.yml'),
+            default=get_env('JM_OPTION_PATH', None),
         )
 
         args = parser.parse_args()
-        self.option_path = os.path.abspath(args.option)
-        self.raw_id_list = args.id_list
+        if args.option is not None:
+            self.option_path = os.path.abspath(args.option)
+        else:
+            self.option_path = None
 
+        self.raw_id_list = args.id_list
         self.parse_raw_id()
 
     def parse_raw_id(self):
@@ -75,17 +78,22 @@ class JmcomicUI:
         from .api import jm_debug
         jm_debug('command_line',
                  f'start downloading...\n'
-                 f'- using option: [{self.option_path}]\n'
+                 f'- using option: [{self.option_path or "default"}]\n'
                  f'to be downloaded: \n'
                  f'- album: {self.album_id_list}\n'
                  f'- photo: {self.photo_id_list}')
-        self.run()
 
-    def run(self):
-        from .api import download_album, download_photo, create_option
+        from .api import create_option, JmOption
+        if self.option_path is not None:
+            option = create_option(self.option_path)
+        else:
+            option = JmOption.default()
+            
+        self.run(option)
+
+    def run(self, option):
+        from .api import download_album, download_photo
         from common import MultiTaskLauncher
-
-        option = create_option(self.option_path)
 
         if len(self.album_id_list) == 0:
             download_photo(self.photo_id_list, option)

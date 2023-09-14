@@ -27,7 +27,7 @@ setup(
     package_dir={"": "src"},
     python_requires=">=3.7",
     install_requires=[
-        'commonX>=0.5.3',
+        'commonX>=0.5.6',
         'curl_cffi',
         'PyYAML',
         'Pillow',
