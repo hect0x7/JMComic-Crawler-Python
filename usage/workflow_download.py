@@ -1,4 +1,5 @@
 from jmcomic import *
+from jmcomic.cl import get_env, JmcomicUI
 
 # 下方填入你要下载的本子的id，一行一个。
 # 每行的首尾可以有空白字符
@@ -12,12 +13,18 @@ jm_albums = '''
 
 '''
 
+# 单独下载章节
+jm_photos = '''
 
-def get_jm_album_ids():
+
+'''
+
+
+def get_id_set(env_name):
     aid_set = set()
     for text in [
         jm_albums,
-        (get_env('JM_ALBUM_IDS') or '').replace('-', '\n'),
+        (get_env(env_name, '')).replace('-', '\n'),
     ]:
         aid_set.update(str_to_set(text))
 
@@ -25,8 +32,14 @@ def get_jm_album_ids():
 
 
 def main():
-    # 下载漫画
-    download_album(get_jm_album_ids(), option=get_option())
+    album_id_set = get_id_set('JM_ALBUM_IDS')
+    photo_id_set = get_id_set('JM_PHOTO_IDS')
+
+    helper = JmcomicUI()
+    helper.album_id_list = list(album_id_set)
+    helper.photo_id_list = list(photo_id_set)
+
+    helper.run(get_option())
 
 
 def get_option():
@@ -39,18 +52,14 @@ def get_option():
     # 覆盖client实现类，实现把请求错误的html下载到文件，方便GitHub Actions下载查看日志
     hook_debug(option)
 
-    # 启用 client 的缓存
-    client = option.build_jm_client()
-    client.enable_cache()
-
     # 登录，如果有配置的话
-    login_if_configured(client)
+    login_if_configured(option.build_jm_client())
 
     return option
 
 
 def cover_option_config(option: JmOption):
-    dir_rule = get_env('DIR_RULE')
+    dir_rule = get_env('DIR_RULE', None)
     if dir_rule is not None:
         the_old = option.dir_rule
         the_new = DirRule(dir_rule, base_dir=the_old.base_dir)
@@ -64,8 +73,8 @@ def login_if_configured(client):
     # 配置的方式很简单，网页上点一点就可以了
     # 具体做法请去看官方教程：https://docs.github.com/en/actions/security-guides/encrypted-secrets
     # 萌新注意！！！如果你想 `开源` 你的禁漫帐号，你也可以直接把账号密码写到下面的代码😅
-    username = get_env('JM_USERNAME')
-    password = get_env('JM_PASSWORD')
+    username = get_env('JM_USERNAME', None)
+    password = get_env('JM_PASSWORD', None)
     if username is not None and password is not None:
         client.login(username, password, True)
         print_eye_catching(f'登录禁漫成功')
@@ -73,7 +82,7 @@ def login_if_configured(client):
 
 # noinspection PyUnusedLocal
 def hook_debug(option):
-    jm_download_dir = get_env('JM_DOWNLOAD_DIR') or workspace()
+    jm_download_dir = get_env('JM_DOWNLOAD_DIR', workspace())
     mkdir_if_not_exists(jm_download_dir)
 
     class RaiseErrorAwareClient(JmHtmlClient):
@@ -89,16 +98,6 @@ def hook_debug(option):
             return super().raise_request_error(resp, msg)
 
     JmModuleConfig.CLASS_CLIENT_IMPL['html'] = RaiseErrorAwareClient
-
-
-def get_env(name):
-    import os
-    value = os.getenv(name, None)
-
-    if value is None or value == '':
-        return None
-
-    return value
 
 
 if __name__ == '__main__':

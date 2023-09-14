@@ -6,7 +6,12 @@ on:
       JM_ALBUM_IDS:
         type: string
         description: 本子id（多个id用-隔开，如 '123-456-789'）
-        required: true
+        required: false
+
+      JM_PHOTO_IDS:
+        type: string
+        description: 章节id（可以单独下载某个本子的某个章节，多个id用-隔开（同上））
+        required: false
 
       DIR_RULE:
         type: string
@@ -45,6 +50,7 @@ jobs:
     env:
       # 工作流输入
       JM_ALBUM_IDS: ${{ github.event.inputs.JM_ALBUM_IDS }}
+      JM_PHOTO_IDS: ${{ github.event.inputs.JM_PHOTO_IDS }}
       DIR_RULE: ${{ github.event.inputs.DIR_RULE }}
       ZIP_NAME: ${{ github.event.inputs.ZIP_NAME }}
       UPLOAD_NAME: ${{ github.event.inputs.UPLOAD_NAME }}

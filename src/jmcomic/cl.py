@@ -46,12 +46,9 @@ class JmcomicUI:
         )
 
         args = parser.parse_args()
-        if args.option is not None:
-            self.option_path = os.path.abspath(args.option)
-        else:
-            self.option_path = None
-
+        self.option_path = os.path.abspath(args.option)
         self.raw_id_list = args.id_list
+
         self.parse_raw_id()
 
     def parse_raw_id(self):
@@ -82,16 +79,18 @@ class JmcomicUI:
                  f'to be downloaded: \n'
                  f'- album: {self.album_id_list}\n'
                  f'- photo: {self.photo_id_list}')
-        self.run()
 
-    def run(self):
-        from .api import download_album, download_photo, create_option, JmOption
-        from common import MultiTaskLauncher
-
+        from .api import create_option, JmOption
         if self.option_path is not None:
             option = create_option(self.option_path)
         else:
             option = JmOption.default()
+            
+        self.run(option)
+
+    def run(self, option):
+        from .api import download_album, download_photo
+        from common import MultiTaskLauncher
 
         if len(self.album_id_list) == 0:
             download_photo(self.photo_id_list, option)
