@@ -271,7 +271,9 @@ class JmModuleConfig:
         返回JmOption.default()的默认配置字典。
         这样做是为了支持外界自行覆盖option默认配置字典
         """
-        option_dict = cls.default_option_dict.copy()
+        from copy import deepcopy
+
+        option_dict = deepcopy(cls.default_option_dict)
 
         # debug
         if option_dict['debug'] is None:

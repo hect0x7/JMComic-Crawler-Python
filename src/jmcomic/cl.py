@@ -72,18 +72,39 @@ class JmcomicUI:
 
     def main(self):
         self.parse_arg()
-        from .api import create_option, download_album, download_photo, jm_debug
-
+        from .api import jm_debug
         jm_debug('command_line',
                  f'start downloading...\n'
                  f'- using option: [{self.option_path}]\n'
                  f'to be downloaded: \n'
                  f'- album: {self.album_id_list}\n'
                  f'- photo: {self.photo_id_list}')
+        self.run()
+
+    def run(self):
+        from .api import download_album, download_photo, create_option
+        from common import MultiTaskLauncher
 
         option = create_option(self.option_path)
-        download_album(self.album_id_list, option)
-        download_photo(self.photo_id_list, option)
+
+        if len(self.album_id_list) == 0:
+            download_photo(self.photo_id_list, option)
+        elif len(self.photo_id_list) == 0:
+            download_album(self.album_id_list, option)
+        else:
+            # 同时下载album和photo
+            launcher = MultiTaskLauncher()
+
+            launcher.create_task(
+                target=download_album,
+                args=(self.album_id_list, option)
+            )
+            launcher.create_task(
+                target=download_photo,
+                args=(self.photo_id_list, option)
+            )
+
+            launcher.wait_finish()
 
 
 def main():
