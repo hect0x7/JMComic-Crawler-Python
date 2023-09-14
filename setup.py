@@ -45,4 +45,9 @@ setup(
         "Operating System :: POSIX :: Linux",
         "Operating System :: Microsoft :: Windows",
     ],
+    entry_points={
+        'console_scripts': [
+            'jmcomic = jmcomic:main'
+        ]
+    }
 )
