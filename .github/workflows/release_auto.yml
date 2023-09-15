@@ -17,15 +17,16 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Prepare Tag And Body
+        id: id001
+        run: |
+          commit_message=$(git log --format=%B -n 1 ${{ github.sha }})
+          python release.py "$commit_message"
+
       - name: Build Module
         run: |
           python -m pip install build
           python -m build
-
-      - name: Prepare Tag And Body
-        run: |
-          commit_message=$(git log --format=%B -n 1 ${{ github.sha }})
-          python release.py "$commit_message"
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
