@@ -42,11 +42,11 @@ class JmcomicUI:
         parser.add_argument(
             '--option',
             help='path to the option file, you can also specify it by env `JM_OPTION_PATH`',
-            default=get_env('JM_OPTION_PATH', None),
+            default=get_env('JM_OPTION_PATH', ''),
         )
 
         args = parser.parse_args()
-        if args.option is not None:
+        if len(args.option) != 0:
             self.option_path = os.path.abspath(args.option)
         else:
             self.option_path = None
@@ -88,7 +88,7 @@ class JmcomicUI:
             option = create_option(self.option_path)
         else:
             option = JmOption.default()
-            
+
         self.run(option)
 
     def run(self, option):

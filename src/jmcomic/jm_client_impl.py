@@ -398,6 +398,16 @@ class JmHtmlClient(AbstractJmClient):
 class JmApiClient(AbstractJmClient):
     client_key = 'api'
     API_SEARCH = '/search'
+    API_ALBUM = '/album'
+    API_CHAPTER = '/chapter'
+
+    def __init__(self,
+                 postman: Postman,
+                 retry_times: int,
+                 domain=None,
+                 fallback_domain_list=None,
+                 ):
+        super().__init__(postman, retry_times, domain, fallback_domain_list)
 
     def search(self,
                search_query: str,
@@ -431,6 +441,30 @@ class JmApiClient(AbstractJmClient):
 
         return JmcomicSearchTool.parse_api_resp_to_page(data)
 
+    def get_album_detail(self, album_id) -> JmAlbumDetail:
+        return self.fetch_detail_entity(album_id,
+                                        JmModuleConfig.album_class(),
+                                        )
+
+    def get_photo_detail(self, photo_id, fetch_album=True) -> JmPhotoDetail:
+        return self.fetch_detail_entity(photo_id,
+                                        JmModuleConfig.photo_class(),
+                                        )
+
+    def fetch_detail_entity(self, apid, clazz, **kwargs):
+        url = self.API_ALBUM if issubclass(clazz, JmAlbumDetail) else self.API_CHAPTER
+        resp = self.get(
+            url,
+            params={
+                'id': JmcomicText.parse_to_album_id(apid),
+                **kwargs,
+            }
+        )
+
+        self.require_resp_success(resp)
+
+        return JmApiAdaptTool.parse_entity(resp.res_data, clazz)
+
     def get(self, url, **kwargs) -> JmApiResp:
         # set headers
         headers, key_ts = self.headers_key_ts
@@ -453,6 +487,10 @@ class JmApiClient(AbstractJmClient):
 
     def debug_topic_request(self):
         return 'api'
+
+    # noinspection PyMethodMayBeStatic
+    def require_resp_success(self, resp: JmApiResp):
+        resp.require_success()
 
 
 JmModuleConfig.register_client(JmHtmlClient)

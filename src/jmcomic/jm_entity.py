@@ -42,11 +42,11 @@ class DetailEntity(JmBaseEntity, IndexedEntity):
         raise NotImplementedError
 
     @property
-    def name(self) -> str:
-        return getattr(self, 'title')
+    def title(self) -> str:
+        return getattr(self, 'name')
 
     def __str__(self):
-        return f'{self.__class__.__name__}({self.id}-{self.name})'
+        return f'{self.__class__.__name__}({self.id}-{self.title})'
 
     @classmethod
     def __alias__(cls):
@@ -139,7 +139,7 @@ class JmPhotoDetail(DetailEntity):
     def __init__(self,
                  photo_id,
                  scramble_id,
-                 title,
+                 name,
                  keywords,
                  series_id,
                  sort,
@@ -151,7 +151,7 @@ class JmPhotoDetail(DetailEntity):
                  ):
         self.photo_id: str = photo_id
         self.scramble_id: str = scramble_id
-        self.title: str = str(title).strip()
+        self.name: str = str(name).strip()
         self.sort: int = int(sort)
         self._keywords: str = keywords
         self._series_id: int = int(series_id)
@@ -188,13 +188,13 @@ class JmPhotoDetail(DetailEntity):
     @property
     def tags(self) -> List[str]:
         if self.from_album is not None:
-            return self.from_album.tag_list
+            return self.from_album.tags
 
         return self._keywords.split(',')
 
     @property
     def indextitle(self):
-        return f'第{self.album_index}話 {self.title}'
+        return f'第{self.album_index}話 {self.name}'
 
     @property
     def album_id(self) -> str:
@@ -287,22 +287,23 @@ class JmAlbumDetail(DetailEntity):
     def __init__(self,
                  album_id,
                  scramble_id,
-                 title,
+                 name,
                  episode_list,
                  page_count,
-                 author_list,
-                 tag_list,
                  pub_date,
                  update_date,
                  likes,
                  views,
                  comment_count,
-                 work_list,
-                 actor_list,
+                 works,
+                 actors,
+                 authors,
+                 tags,
+                 related_list=None,
                  ):
         self.album_id: str = album_id
         self.scramble_id: str = scramble_id
-        self.title: str = title
+        self.name: str = name
         self.page_count = int(page_count)  # 总页数
         self.pub_date: str = pub_date  # 发布日期
         self.update_date: str = update_date  # 更新日期
@@ -310,19 +311,20 @@ class JmAlbumDetail(DetailEntity):
         self.likes: str = likes  # [1K] 點擊喜歡
         self.views: str = views  # [40K] 次觀看
         self.comment_count: int = self.__parse_comment_count(comment_count)  # 评论数
-        self.work_list: List[str] = work_list  # 作品
-        self.actor_list: List[str] = actor_list  # 登場人物
-        self.tag_list: List[str] = tag_list  # 標籤
-        self.author_list: List[str] = author_list  # 作者
+        self.works: List[str] = works  # 作品
+        self.actors: List[str] = actors  # 登場人物
+        self.tags: List[str] = tags  # 標籤
+        self.authors: List[str] = authors  # 作者
 
         # 有的 album 没有章节，则自成一章。
         if len(episode_list) == 0:
             # photo_id, photo_index, photo_title, photo_pub_date
-            episode_list = [(album_id, 1, title, pub_date)]
+            episode_list = [(album_id, 1, name, pub_date)]
         else:
             episode_list = self.distinct_episode(episode_list)
 
         self.episode_list: List[Tuple] = episode_list
+        self.related_list = related_list
 
     @property
     def author(self):
@@ -330,8 +332,8 @@ class JmAlbumDetail(DetailEntity):
         作者
         禁漫本子的作者标签可能有多个，全部作者请使用字段 self.author_list
         """
-        if len(self.author_list) >= 1:
-            return self.author_list[0]
+        if len(self.authors) >= 1:
+            return self.authors[0]
 
         return JmModuleConfig.default_author
 
@@ -358,18 +360,7 @@ class JmAlbumDetail(DetailEntity):
 
     # noinspection PyMethodMayBeStatic
     def __parse_comment_count(self, comment_count: str) -> int:
-        if comment_count == '':
-            return 0
-
-        try:
-            from .jm_toolkit import JmcomicText
-            match = JmcomicText.pattern_total_video_comments.search(comment_count)
-            if match is None:
-                return 0
-            return int(match[1])
-        except ValueError:
-            jm_debug('regular.error', f'评论数匹配失败: {comment_count}')
-            return 0
+        return int(comment_count)
 
     def create_photo_detail(self, index) -> Tuple[JmPhotoDetail, Tuple]:
         # 校验参数
@@ -378,24 +369,23 @@ class JmAlbumDetail(DetailEntity):
         if index >= length:
             raise JmModuleConfig.exception(f'创建JmPhotoDetail失败，{index} >= {length}')
 
-        # episode_info: ('212214', '81', '94 突然打來', '2020-08-29')
-        episode_info: tuple = self.episode_list[index]
-        photo_id, photo_index, photo_title, photo_pub_date = episode_info
+        # ('212214', '81', '94 突然打來', '2020-08-29')
+        pid, pindex, pname, _pub_date = self.episode_list[index]
 
         photo = JmModuleConfig.photo_class()(
-            photo_id=photo_id,
+            photo_id=pid,
             scramble_id=self.scramble_id,
-            title=photo_title,
+            name=pname,
             keywords='',
             series_id=self.album_id,
-            sort=photo_index,
+            sort=pindex,
             author=self.author,
             from_album=self,
             page_arr=None,
             data_original_domain=None
         )
 
-        return photo, episode_info
+        return photo, (self.episode_list[index])
 
     def getindex(self, item) -> JmPhotoDetail:
         return self.create_photo_detail(item)[0]
@@ -454,8 +444,8 @@ class JmSearchPage(JmBaseEntity, IndexedEntity):
     def wrap_single_album(cls, album: JmAlbumDetail) -> 'JmSearchPage':
         page = JmSearchPage([(
             album.album_id, {
-                'name': album.title,
-                'tag_list': album.tag_list,
+                'name': album.name,
+                'tag_list': album.tags,
             }
         )])
         setattr(page, 'album', album)

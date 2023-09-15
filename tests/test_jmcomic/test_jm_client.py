@@ -42,10 +42,10 @@ class Test_Client(JmTestConfigurable):
         album = self.client.get_album_detail(410090)
 
         ans = [
-            (album.work_list, ['原神', 'Genshin']),
-            (album.actor_list, ['申鶴', '神里綾華', '甘雨']),
-            (album.tag_list, ['C101', '巨乳', '校服', '口交', '乳交', '群交', '連褲襪', '中文', '禁漫漢化組', '纯爱']),
-            (album.author_list, ['うぱ西']),
+            (album.works, ['原神', 'Genshin']),
+            (album.actors, ['申鶴', '神里綾華', '甘雨']),
+            (album.tags, ['C101', '巨乳', '校服', '口交', '乳交', '群交', '連褲襪', '中文', '禁漫漢化組', '纯爱']),
+            (album.authors, ['うぱ西']),
         ]
 
         for pair in ans:
