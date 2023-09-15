@@ -1,0 +1,34 @@
+name: 发布PYPI(auto)
+
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - dev
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Extract Version and Details
+        run: |
+          commit_message=$(git log --format=%B -n 1 ${{ github.sha }})
+          python release.py "$commit_message"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.extract.outputs.tag }}
+          body: ${{ steps.extract.outputs.body }}

@@ -25,3 +25,13 @@ class Test_MobileClient(JmTestConfigurable):
 
         for aid, atitle, tag_list in page.iter_id_title_tag():
             print(aid, atitle, tag_list)
+
+    def test_get_detail(self):
+        client = self.client
+        
+        album = client.get_album_detail(400222)
+        print(album.id, album.name, album.tags)
+
+        for photo in album[0:3]:
+            photo = client.get_photo_detail(photo.photo_id)
+            print(photo.id, photo.name)

@@ -346,7 +346,7 @@ class JmOption:
         # 保证 jm_plugin.py 被加载
         from .jm_plugin import JmOptionPlugin
 
-        plugin_registry = JmModuleConfig.plugin_registry
+        plugin_registry = JmModuleConfig.PLUGIN_REGISTRY
         for pinfo in plugin_list:
             key, kwargs = pinfo['plugin'], pinfo['kwargs']
             plugin_class: Optional[Type[JmOptionPlugin]] = plugin_registry.get(key, None)

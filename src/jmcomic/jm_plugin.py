@@ -81,7 +81,7 @@ class UsageLogPlugin(JmOptionPlugin):
             interval=1,
             enable_warning=True,
             warning_cpu_percent=70,
-            warning_mem_percent=50,
+            warning_mem_percent=70,
             warning_thread_count=100,
     ):
         try:
