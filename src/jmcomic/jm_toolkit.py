@@ -10,7 +10,7 @@ class JmcomicText:
 
     pattern_html_photo_photo_id = compile('<meta property="og:url" content=".*?/photo/(\d+)/?.*?">')
     pattern_html_photo_scramble_id = compile('var scramble_id = (\d+);')
-    pattern_html_photo_title = compile('<title>([\s\S]*?)\|.*</title>')
+    pattern_html_photo_name = compile('<title>([\s\S]*?)\|.*</title>')
     # pattern_html_photo_data_original_list = compile('data-original="(.*?)" id="album_photo_.+?"')
     pattern_html_photo_data_original_domain = compile('src="https://(.*?)/media/albums/blank')
     pattern_html_photo_data_original_0 = compile('data-original="(.*?)"[ \n]*?id="album_photo')
@@ -21,7 +21,7 @@ class JmcomicText:
 
     pattern_html_album_album_id = compile('<span class="number">.*?：JM(\d+)</span>')
     pattern_html_album_scramble_id = compile('var scramble_id = (\d+);')
-    pattern_html_album_title = compile('<h1 class="book-name" id="book-name">([\s\S]*?)</h1>')
+    pattern_html_album_name = compile('<h1 class="book-name" id="book-name">([\s\S]*?)</h1>')
     pattern_html_album_episode_list = compile('data-album="(\d+)">\n *?<li.*?>\n *'
                                               '第(\d+)話\n([\s\S]*?)\n *'
                                               '<[\s\S]*?>(\d+-\d+-\d+).*?')
@@ -29,36 +29,31 @@ class JmcomicText:
     pattern_html_album_pub_date = compile('>上架日期 : (.*?)</span>')
     pattern_html_album_update_date = compile('>更新日期 : (.*?)</span>')
     # 作品
-    pattern_html_album_work_list = [
+    pattern_html_album_works = [
         compile('<span itemprop="author" data-type="works">([\s\S]*?)</span>'),
         compile('<a[\s\S]*?>(.*?)</a>')
     ]
     # 登場人物
-    pattern_html_album_actor_list = [
+    pattern_html_album_actors = [
         compile('<span itemprop="author" data-type="actor">([\s\S]*?)</span>'),
         compile('<a[\s\S]*?>(.*?)</a>')
     ]
     # 标签
-    pattern_html_album_tag_list = [
+    pattern_html_album_tags = [
         compile('<span itemprop="genre" data-type="tags">([\s\S]*?)</span>'),
         compile('<a[\s\S]*?>(.*?)</a>')
     ]
     # 作者
-    pattern_html_album_author_list = [
+    pattern_html_album_authors = [
         compile('作者： *<span itemprop="author" data-type="author">([\s\S]*?)</span>'),
         compile("<a[\s\S]*?>(.*?)</a>"),
     ]
     # 點擊喜歡
     pattern_html_album_likes = compile('<span id="albim_likes_\d+">(.*?)</span>')
     # 觀看
-    pattern_html_album_views = compile('<span>(.*?)</span> 次觀看')
+    pattern_html_album_views = compile('<span>(.*?)</span> (次觀看|观看次数)')
     # 評論(div)
-    pattern_html_album_comment_count = compile(
-        'forum-open btn btn-primary" .*>\w{2}\n'
-        '(<div class="badge" id="total_video_comments">(\d+)</div>|)?'
-    )
-    # 评论(number)
-    pattern_total_video_comments = compile('<div class="badge" id="total_video_comments">(\d+)</div>')
+    pattern_html_album_comment_count = compile('<div class="badge"\n? *id="total_video_comments">(\d+)</div>'), 0
 
     @classmethod
     def parse_to_jm_domain(cls, text: str):
@@ -145,7 +140,8 @@ class JmcomicText:
                     if match is None:
                         return None
                     text = match[0]
-                pattern = last_pattern
+
+                return last_pattern.findall(text)
 
             if field_key.endswith("_list"):
                 return pattern.findall(text)
@@ -157,21 +153,30 @@ class JmcomicText:
 
         field_dict = {}
         pattern_name: str
-        for pattern_name, pattern_value in cls.__dict__.items():
+        for pattern_name, pattern in cls.__dict__.items():
             if not pattern_name.startswith(cls_field_prefix):
                 continue
 
+            # 支持如果不匹配，使用默认值
+            if isinstance(pattern, tuple):
+                pattern, default = pattern
+            else:
+                default = None
+
             # 获取字段名和值
             field_name = pattern_name[pattern_name.index(cls_field_prefix) + len(cls_field_prefix):]
-            field_value = match_field(field_name, pattern_value, html)
+            field_value = match_field(field_name, pattern, html)
 
             if field_value is None:
-                JmModuleConfig.raise_regex_error_executor(
-                    f"文本没有匹配上字段：字段名为'{field_name}'，pattern: [{pattern_value}]",
-                    html,
-                    field_name,
-                    pattern_value
-                )
+                if default is None:
+                    JmModuleConfig.raise_regex_error_executor(
+                        f"文本没有匹配上字段：字段名为'{field_name}'，pattern: [{pattern}]",
+                        html,
+                        field_name,
+                        pattern
+                    )
+                else:
+                    field_value = default
 
             # 保存字段
             field_dict[field_name] = field_value
@@ -315,6 +320,140 @@ class JmcomicSearchTool:
         ]
 
         return JmSearchPage(content)
+
+
+class JmApiAdaptTool:
+    """
+    # album
+    {
+      "id": 123,
+      "name": "[狗野叉漢化]",
+      "author": [
+        "AREA188"
+      ],
+      "images": [
+        "00004.webp"
+      ],
+      "description": null,
+      "total_views": "41314",
+      "likes": "918",
+      "series": [],
+      "series_id": "0",
+      "comment_total": "5",
+      "tags": [
+        "全彩",
+        "中文"
+      ],
+      "works": [],
+      "actors": [],
+      "related_list": [
+        {
+          "id": "333718",
+          "author": "been",
+          "description": "",
+          "name": "[been]The illusion of lies（1）[中國語][無修正][全彩]",
+          "image": ""
+        }
+      ],
+      "liked": false,
+      "is_favorite": false
+    }
+
+    # photo
+    {
+      "id": 413446,
+      "series": [
+        {
+          "id": "487043",
+          "name": "第48話",
+          "sort": "48"
+        }
+      ],
+      "tags": "慾望 調教 NTL 地鐵 戲劇",
+      "name": "癡漢成癮-第2話",
+      "images": [
+        "00047.webp"
+      ],
+      "series_id": "400222",
+      "is_favorite": false,
+      "liked": false
+    }
+    """
+    field_adapter = {
+        JmAlbumDetail: [
+            'likes',
+            'tags',
+            'works',
+            'actors',
+            'related_list',
+            'name',
+            ('id', 'album_id'),
+            ('author', 'authors'),
+            ('total_views', 'views'),
+            ('comment_total', 'comment_count'),
+        ],
+        JmPhotoDetail: [
+            'name',
+            'series_id',
+            ('tags', 'keywords'),
+            ('id', 'photo_id'),
+            ('images', 'page_arr')
+
+        ]
+    }
+
+    @classmethod
+    def parse_entity(cls, data: dict, clazz: type):
+        adapter = cls.get_adapter(clazz)
+
+        fields = {}
+        for k in adapter:
+            if isinstance(k, str):
+                v = data[k]
+                fields[k] = v
+            elif isinstance(k, tuple):
+                k, rename_k = k
+                v = data[k]
+                fields[rename_k] = v
+
+        if issubclass(clazz, JmAlbumDetail):
+            cls.post_adapt_album(data, clazz, fields)
+        else:
+            cls.post_adapt_photo(data, clazz, fields)
+
+        return clazz(**fields)
+
+    @classmethod
+    def get_adapter(cls, clazz: type):
+        for k, v in cls.field_adapter.items():
+            if issubclass(clazz, k):
+                return v
+
+        raise AssertionError(clazz)
+
+    @classmethod
+    def post_adapt_album(cls, data: dict, _clazz: type, fields: dict):
+        series = data['series']
+        episode_list = []
+        for chapter in series:
+            chapter = DictModel(chapter)
+            # photo_id, photo_index, photo_title, photo_pub_date
+            episode_list.append(
+                (chapter.id, chapter.sort, chapter.name, None)
+            )
+        fields['episode_list'] = episode_list
+        for it in 'scramble_id', 'page_count', 'pub_date', 'update_date':
+            fields[it] = '0'
+
+    @classmethod
+    def post_adapt_photo(cls, data: dict, _clazz: type, fields: dict):
+        for chapter in data['series']:
+            chapter = DictModel(chapter)
+            if int(chapter.id) == int(data['id']):
+                fields['sort'] = chapter.sort
+                break
+
+        fields['scramble_id'] = '0'
 
 
 class JmImageSupport:

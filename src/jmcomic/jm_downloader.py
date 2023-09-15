@@ -22,8 +22,8 @@ class DownloadCallback:
                  f'作者: [{album.author}], '
                  f'章节数: [{len(album)}], '
                  f'总页数: [{album.page_count}], '
-                 f'标题: [{album.title}], '
-                 f'关键词: [{album.tag_list}]'
+                 f'标题: [{album.name}], '
+                 f'关键词: [{album.tags}]'
                  )
 
     def after_album(self, album: JmAlbumDetail):
@@ -32,7 +32,7 @@ class DownloadCallback:
     def before_photo(self, photo: JmPhotoDetail):
         jm_debug('photo.before',
                  f'开始下载章节: {photo.id} ({photo.album_id}[{photo.index}/{len(photo.from_album)}]), '
-                 f'标题: [{photo.title}], '
+                 f'标题: [{photo.name}], '
                  f'图片数为[{len(photo)}]'
                  )
 
