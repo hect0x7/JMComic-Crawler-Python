@@ -1,0 +1,39 @@
+name: 发布PYPI(auto)
+
+on:
+  workflow_dispatch:
+
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Build Module
+        run: |
+          python -m pip install build
+          python -m build
+
+      - name: Prepare Tag And Body
+        run: |
+          commit_message=$(git log --format=%B -n 1 ${{ github.sha }})
+          python release.py "$commit_message"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.extract.outputs.tag }}
+          body: ${{ steps.extract.outputs.body }}
+
+#      - name: Publish PYPI
+#        uses: pypa/gh-action-pypi-publish@release/v1
+#        with:
+#          password: ${{ secrets.PYPI_JMCOMIC }}
