@@ -1,4 +1,4 @@
-name: 发布PYPI(auto)
+name: Auto Release
 
 
 on:
@@ -8,12 +8,13 @@ on:
       - dev
 
 jobs:
-  release:
-    name: release
+  create-release:
+    name: Create Release
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v4
@@ -21,6 +22,7 @@ jobs:
           python-version: "3.11"
 
       - name: Extract Version and Details
+        id: extract
         run: |
           commit_message=$(git log --format=%B -n 1 ${{ github.sha }})
           python release.py "$commit_message"
