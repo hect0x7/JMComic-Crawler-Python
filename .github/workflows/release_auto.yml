@@ -1,4 +1,4 @@
-name: Auto Release
+name: 发布PYPI(auto)
 
 
 on:
@@ -8,13 +8,11 @@ on:
       - dev
 
 jobs:
-  create-release:
-    name: Create Release
+  release:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v4
