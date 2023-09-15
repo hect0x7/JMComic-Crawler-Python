@@ -2,6 +2,7 @@ import os
 import sys
 import re
 
+
 def add_output(k, v):
     print(f'set {k} = {v}')
     print(os.system(f'echo "{k}={v}" >> $GITHUB_OUTPUT'))
