@@ -7,6 +7,7 @@ on:
 
 jobs:
   release:
+    name: ${{ steps.extract.outputs.version }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -34,7 +35,7 @@ jobs:
           tag_name: ${{ steps.extract.outputs.tag }}
           body: ${{ steps.extract.outputs.body }}
 
-      - name: Publish PYPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_JMCOMIC }}
+#      - name: Publish PYPI
+#        uses: pypa/gh-action-pypi-publish@release/v1
+#        with:
+#          password: ${{ secrets.PYPI_JMCOMIC }}
