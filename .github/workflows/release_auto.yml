@@ -16,7 +16,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Set Tag And Body To Output
+      - name: Parse Tag & Body
         id: tb
         run: |
           commit_message=$(git log --format=%B -n 1 ${{ github.sha }})
