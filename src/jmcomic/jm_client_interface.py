@@ -81,6 +81,10 @@ class JmApiResp(JmResp):
         self.key_ts = key_ts
         self.cache_decode_data = None
 
+    @property
+    def is_success(self) -> bool:
+        return super().is_success and self.json()['code'] == 200
+
     @staticmethod
     def parse_data(text, time) -> str:
         # 1. base64解码
@@ -102,11 +106,9 @@ class JmApiResp(JmResp):
         return res
 
     @property
+    @field_cache('__cache_decoded_data__')
     def decoded_data(self) -> str:
-        if self.cache_decode_data is None:
-            self.cache_decode_data = self.parse_data(self.encoded_data, self.key_ts)
-
-        return self.cache_decode_data
+        return self.parse_data(self.encoded_data, self.key_ts)
 
     @property
     def encoded_data(self) -> str:
@@ -118,6 +120,7 @@ class JmApiResp(JmResp):
         from json import loads
         return loads(self.decoded_data)
 
+    @field_cache('__cache_json__')
     def json(self, **kwargs) -> Dict:
         return self.resp.json()
 
@@ -135,9 +138,6 @@ class JmAcResp(JmResp):
 
     def json(self, **kwargs) -> Dict:
         return self.resp.json()
-
-    def model(self) -> DictModel:
-        return DictModel(self.json())
 
 
 """
