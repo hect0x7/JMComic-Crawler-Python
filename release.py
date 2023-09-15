@@ -4,7 +4,7 @@ import re
 
 def add_output(k, v):
     print(f'set {k} = {v}')
-    print(os.system(f'echo {k}={v} >> $GITHUB_OUTPUT'))
+    print(os.system(f'echo "{k}={v}" >> $GITHUB_OUTPUT'))
 
 
 msg = sys.argv[1]
