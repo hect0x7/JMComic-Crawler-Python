@@ -30,8 +30,6 @@
 
 ![5](./images/5.png)
 
-
-
 ### 2.2. 方式二
 
 访问下面这个网址：
@@ -39,6 +37,8 @@
 `https://github.com/你的用户名/JMComic-Crawler-Python/edit/workflow/usage/workflow_download.py`
 
 其实就是编辑`workflow`分支下的 `usage/workflow_download.py`文件
+
+例如：https://github.com/hect0x7/JMComic-Crawler-Python/blob/89deeda02e80bf1f61574b4d74a152baefce1ec1/usage/workflow_download.py#L10C16-L14C1
 
 按下图步骤进行操作：
 
@@ -61,7 +61,6 @@
 ![4](./images/4.png)
 
 如果你发现GitHub Actions显示❌，表明出现了问题，运行失败。
-
 
 下面是问题的排查步骤：
 
