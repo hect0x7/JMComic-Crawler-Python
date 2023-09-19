@@ -38,7 +38,7 @@
 
 其实就是编辑`workflow`分支下的 `usage/workflow_download.py`文件
 
-例如：https://github.com/hect0x7/JMComic-Crawler-Python/blob/89deeda02e80bf1f61574b4d74a152baefce1ec1/usage/workflow_download.py#L10C16-L14C1
+ https://github.com/hect0x7/JMComic-Crawler-Python/blob/89deeda02e80bf1f61574b4d74a152baefce1ec1/usage/workflow_download.py#L10C16-L14C1 
 
 按下图步骤进行操作：
 
