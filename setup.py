@@ -47,7 +47,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'jmcomic = jmcomic:main'
+            'jmcomic = jmcomic.cl:main'
         ]
     }
 )

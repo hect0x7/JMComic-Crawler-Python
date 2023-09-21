@@ -42,14 +42,16 @@ class JmcomicUI:
         parser.add_argument(
             '--option',
             help='path to the option file, you can also specify it by env `JM_OPTION_PATH`',
+            type=str,
             default=get_env('JM_OPTION_PATH', ''),
         )
 
         args = parser.parse_args()
-        if len(args.option) != 0:
-            self.option_path = os.path.abspath(args.option)
-        else:
+        option = args.option
+        if len(option) == 0 or option == "''":
             self.option_path = None
+        else:
+            self.option_path = os.path.abspath(option)
 
         self.raw_id_list = args.id_list
         self.parse_raw_id()
