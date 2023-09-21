@@ -30,13 +30,15 @@
 
 ![5](./images/5.png)
 
+
+
 ### 2.2. 方式二
 
 访问下面这个网址：
 
 `https://github.com/你的用户名/JMComic-Crawler-Python/edit/workflow/usage/workflow_download.py`
 
-其实就是编辑`workflow`分支下的 `usage/workflow_download.py`文件[](https://)
+其实就是编辑`workflow`分支下的 `usage/workflow_download.py`文件
 
 按下图步骤进行操作：
 
