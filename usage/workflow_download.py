@@ -8,7 +8,7 @@ from jmcomic.cl import get_env, JmcomicUI
 # [https://18comic.vip/album/452859/mana-ディシア-1-原神-中国語-無修正] -> [452859]
 #
 jm_albums = '''
-
+285085
 
 
 '''
