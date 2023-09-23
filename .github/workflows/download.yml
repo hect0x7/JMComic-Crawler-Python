@@ -3,8 +3,6 @@ name: 下载JM本子
 on:
   workflow_dispatch:
   push:
-    branches-ignore:
-      - 'master' # master专门用于发布pip和repo介绍
     paths:
       - '.github/workflows/download.yml' # 工作流定义
       - 'usage/workflow_download.py' # 下载脚本

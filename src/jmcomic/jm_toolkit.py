@@ -13,7 +13,7 @@ class JmcomicText:
     pattern_html_photo_name = compile('<title>([\s\S]*?)\|.*</title>')
     # pattern_html_photo_data_original_list = compile('data-original="(.*?)" id="album_photo_.+?"')
     pattern_html_photo_data_original_domain = compile('src="https://(.*?)/media/albums/blank')
-    pattern_html_photo_data_original_0 = compile('data-original="(.*?)"[ \n]*?id="album_photo')
+    pattern_html_photo_data_original_0 = compile('data-original="(.*?)"[^>]*?id="album_photo[^>]*data-page="0"')
     pattern_html_photo_keywords = compile('<meta name="keywords"[\s\S]*?content="(.*?)"')
     pattern_html_photo_series_id = compile('var series_id = (\d+);')
     pattern_html_photo_sort = compile('var sort = (\d+);')
@@ -31,29 +31,29 @@ class JmcomicText:
     # 作品
     pattern_html_album_works = [
         compile('<span itemprop="author" data-type="works">([\s\S]*?)</span>'),
-        compile('<a[\s\S]*?>(.*?)</a>')
+        compile('<a[^>]*?>(.*?)</a>')
     ]
     # 登場人物
     pattern_html_album_actors = [
         compile('<span itemprop="author" data-type="actor">([\s\S]*?)</span>'),
-        compile('<a[\s\S]*?>(.*?)</a>')
+        compile('<a[^>]*?>(.*?)</a>')
     ]
     # 标签
     pattern_html_album_tags = [
         compile('<span itemprop="genre" data-type="tags">([\s\S]*?)</span>'),
-        compile('<a[\s\S]*?>(.*?)</a>')
+        compile('<a[^>]*?>(.*?)</a>')
     ]
     # 作者
     pattern_html_album_authors = [
         compile('作者： *<span itemprop="author" data-type="author">([\s\S]*?)</span>'),
-        compile("<a[\s\S]*?>(.*?)</a>"),
+        compile("<a[^>]*?>(.*?)</a>"),
     ]
     # 點擊喜歡
     pattern_html_album_likes = compile('<span id="albim_likes_\d+">(.*?)</span>')
     # 觀看
     pattern_html_album_views = compile('<span>(.*?)</span> (次觀看|观看次数)')
     # 評論(div)
-    pattern_html_album_comment_count = compile('<div class="badge"\n? *id="total_video_comments">(\d+)</div>'), 0
+    pattern_html_album_comment_count = compile('<div class="badge"[^>]*?id="total_video_comments">(\d+)</div>'), 0
 
     @classmethod
     def parse_to_jm_domain(cls, text: str):
@@ -157,7 +157,7 @@ class JmcomicText:
             if not pattern_name.startswith(cls_field_prefix):
                 continue
 
-            # 支持如果不匹配，使用默认值
+            # 支持：如果不匹配，使用默认值
             if isinstance(pattern, tuple):
                 pattern, default = pattern
             else:
