@@ -17,7 +17,7 @@ def default_postman_constructor(session, **kwargs):
     return Postmans.new_postman(**kwargs)
 
 
-def default_raise_regex_error(msg, *_args, **_kwargs):
+def default_raise_exception_executor(msg, **_kwargs):
     raise JmModuleConfig.exception(msg)
 
 
@@ -76,7 +76,7 @@ class JmModuleConfig:
     # postman构造函数
     postman_constructor = default_postman_constructor
     # 网页正则表达式解析失败时，执行抛出异常的函数，可以替换掉用于debug
-    raise_regex_error_executor = default_raise_regex_error
+    raise_exception_executor = default_raise_exception_executor
 
     # debug开关标记
     enable_jm_debug = True
@@ -135,10 +135,24 @@ class JmModuleConfig:
 
     @classmethod
     def exception(cls, msg: str):
+        """
+        获取jmcomic模块的异常类
+        """
         if cls.CLASS_EXCEPTION is not None:
             return cls.CLASS_EXCEPTION(msg)
 
         return JmcomicException(msg)
+
+    @classmethod
+    def raises(cls, msg: str, **kwargs):
+        """
+        抛出异常，支持把一些上下文参数传递为kwargs
+        真正抛出异常的是函数 cls.raise_exception_executor，用户可自定义此字段
+
+        如果只想抛异常，不想支持一些扩展处理，使用 raise cls.exception(msg)
+        如果想支持一些扩展处理，使用 cls.raises(msg, context=context)
+        """
+        cls.raise_exception_executor(msg, **kwargs)
 
     @classmethod
     @field_cache("DOMAIN")

@@ -157,7 +157,7 @@ class JmcomicText:
             if not pattern_name.startswith(cls_field_prefix):
                 continue
 
-            # 支持：如果不匹配，使用默认值
+            # 支持如果不匹配，使用默认值
             if isinstance(pattern, tuple):
                 pattern, default = pattern
             else:
@@ -169,11 +169,11 @@ class JmcomicText:
 
             if field_value is None:
                 if default is None:
-                    JmModuleConfig.raise_regex_error_executor(
+                    JmModuleConfig.raises(
                         f"文本没有匹配上字段：字段名为'{field_name}'，pattern: [{pattern}]",
-                        html,
-                        field_name,
-                        pattern
+                        re_match_html=html,
+                        re_match_field_name=field_name,
+                        re_match_pattern=pattern,
                     )
                 else:
                     field_value = default
@@ -260,12 +260,12 @@ class JmcomicSearchTool:
         match = cls.pattern_html_search_error.search(html)
         if match is not None:
             topic, reason = match[1], match[2]
-            JmModuleConfig.raise_regex_error_executor(f'{topic}: {reason}', html)
+            JmModuleConfig.raises(f'{topic}: {reason}', re_search_html=html)
 
         # 缩小文本范围
         match = cls.pattern_html_search_shorten_for.search(html)
         if match is None:
-            JmModuleConfig.raise_regex_error_executor('未匹配到搜索结果', html)
+            JmModuleConfig.raises('未匹配到搜索结果', re_shorten_html=html)
         html = match[0]
 
         # 提取结果
