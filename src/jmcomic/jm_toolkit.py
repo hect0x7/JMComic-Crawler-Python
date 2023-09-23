@@ -13,7 +13,7 @@ class JmcomicText:
     pattern_html_photo_name = compile('<title>([\s\S]*?)\|.*</title>')
     # pattern_html_photo_data_original_list = compile('data-original="(.*?)" id="album_photo_.+?"')
     pattern_html_photo_data_original_domain = compile('src="https://(.*?)/media/albums/blank')
-    pattern_html_photo_data_original_0 = compile('data-original="(.*?)"[^>]*?id="album_photo[^>]*data-page="0"')
+    pattern_html_photo_data_original_0 = compile('data-original="(.*?)"[^>]*?id="album_photo[^>]*?data-page="0"')
     pattern_html_photo_keywords = compile('<meta name="keywords"[\s\S]*?content="(.*?)"')
     pattern_html_photo_series_id = compile('var series_id = (\d+);')
     pattern_html_photo_sort = compile('var sort = (\d+);')
