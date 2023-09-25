@@ -285,7 +285,8 @@ class JmHtmlClient(AbstractJmClient):
                   + (f"响应文本=[{resp.text}]" if len(resp.text) < 200 else
                      f'响应文本过长(len={len(resp.text)})，不打印'
                      )
-        raise JmModuleConfig.exception(msg)
+
+        JmModuleConfig.raises(msg, resp=resp)
 
     def get_jm_image(self, img_url) -> JmImageResp:
 

@@ -50,7 +50,7 @@ def get_option():
     cover_option_config(option)
 
     # 覆盖client实现类，实现把请求错误的html下载到文件，方便GitHub Actions下载查看日志
-    hook_debug(option)
+    hook_debug()
 
     # 登录，如果有配置的话
     login_if_configured(option.build_jm_client())
@@ -80,24 +80,27 @@ def login_if_configured(client):
         print_eye_catching(f'登录禁漫成功')
 
 
-# noinspection PyUnusedLocal
-def hook_debug(option):
+def hook_debug():
     jm_download_dir = get_env('JM_DOWNLOAD_DIR', workspace())
     mkdir_if_not_exists(jm_download_dir)
 
-    class RaiseErrorAwareClient(JmHtmlClient):
+    orginal_exec = JmModuleConfig.raise_exception_executor
 
-        @classmethod
-        def raise_request_error(cls, resp, msg=None):
-            from common import write_text, fix_windir_name
-            write_text(
-                f'{jm_download_dir}/{fix_windir_name(resp.url)}',
-                resp.text
-            )
+    def log_text_exec(msg, **kwargs):
+        if 'resp' not in kwargs:
+            return orginal_exec(msg, **kwargs)
 
-            return super().raise_request_error(resp, msg)
+        resp = kwargs['resp']
 
-    JmModuleConfig.CLASS_CLIENT_IMPL['html'] = RaiseErrorAwareClient
+        from common import write_text, fix_windir_name
+        write_text(
+            f'{jm_download_dir}/{fix_windir_name(resp.url)}',
+            resp.text
+        )
+
+        return orginal_exec(msg, **kwargs)
+
+    JmModuleConfig.raise_exception_executor = log_text_exec
 
 
 if __name__ == '__main__':
