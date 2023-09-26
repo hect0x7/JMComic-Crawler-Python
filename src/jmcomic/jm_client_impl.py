@@ -149,7 +149,7 @@ class AbstractJmClient(
     def fallback(self, request, url, domain_index, retry_count, **kwargs):
         msg = f"请求重试全部失败: [{url}], {self.domain_list}"
         jm_debug('req.fallback', msg)
-        raise JmModuleConfig.exception(msg)
+        ExceptionTool.raises(msg)
 
     # noinspection PyMethodMayBeStatic
     def append_params_to_url(self, url, params):
@@ -251,7 +251,7 @@ class JmHtmlClient(AbstractJmClient):
                          )
 
         if resp.status_code != 301:
-            raise JmModuleConfig.exception(f'登录失败，状态码为{resp.status_code}')
+            ExceptionTool.raises_resp(f'登录失败，状态码为{resp.status_code}', resp)
 
         if refresh_client_cookies is True:
             self['cookies'] = resp.cookies
@@ -286,7 +286,7 @@ class JmHtmlClient(AbstractJmClient):
                      f'响应文本过长(len={len(resp.text)})，不打印'
                      )
 
-        JmModuleConfig.raises(msg, resp=resp)
+        ExceptionTool.raises_resp(msg, resp)
 
     def get_jm_image(self, img_url) -> JmImageResp:
 

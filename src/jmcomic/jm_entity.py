@@ -229,7 +229,7 @@ class JmPhotoDetail(DetailEntity):
         # 校验参数
         length = len(self.page_arr)
         if index >= length:
-            raise JmModuleConfig.exception(f'创建JmImageDetail失败，{index} >= {length}')
+            raise IndexError(f'image index out of range for photo-{self.photo_id}: {index} >= {length}')
 
         data_original = self.get_img_data_original(self.page_arr[index])
 
@@ -248,11 +248,12 @@ class JmPhotoDetail(DetailEntity):
         例如：img_name = 01111.webp
         返回：https://cdn-msp2.18comic.org/media/photos/147643/01111.webp
         """
-        data_original_domain = self.data_original_domain
-        if data_original_domain is None:
-            raise JmModuleConfig.exception(f'图片域名为空: {self.__dict__}')
+        domain = self.data_original_domain or None
 
-        return f'https://{data_original_domain}/media/photos/{self.photo_id}/{img_name}'
+        from .jm_toolkit import ExceptionTool
+        ExceptionTool.require_true(domain is not None, f'图片域名为空: {domain}')
+
+        return f'https://{domain}/media/photos/{self.photo_id}/{img_name}'
 
     # noinspection PyMethodMayBeStatic
     def get_data_original_query_params(self, data_original_0: StrNone) -> str:
@@ -367,7 +368,7 @@ class JmAlbumDetail(DetailEntity):
         length = len(self.episode_list)
 
         if index >= length:
-            raise JmModuleConfig.exception(f'创建JmPhotoDetail失败，{index} >= {length}')
+            raise IndexError(f'photo index out of range for album-{self.album_id}: {index} >= {length}')
 
         # ('212214', '81', '94 突然打來', '2020-08-29')
         pid, pindex, pname, _pub_date = self.episode_list[index]

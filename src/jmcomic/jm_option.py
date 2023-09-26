@@ -278,8 +278,7 @@ class JmOption:
         if filepath is None:
             filepath = self.filepath
 
-        if filepath is None:
-            raise JmModuleConfig.exception("未指定JmOption的保存路径")
+        ExceptionTool.require_true(filepath is not None, "未指定JmOption的保存路径")
 
         PackerUtil.pack(self.deconstruct(), filepath)
 
@@ -369,8 +368,7 @@ class JmOption:
             key, kwargs = pinfo['plugin'], pinfo['kwargs']
             plugin_class: Optional[Type[JmOptionPlugin]] = plugin_registry.get(key, None)
 
-            if plugin_class is None:
-                raise JmModuleConfig.exception(f'[{group}] 未注册的plugin: {key}')
+            ExceptionTool.require_true(plugin_class is not None, f'[{group}] 未注册的plugin: {key}')
 
             self.invoke_plugin(plugin_class, kwargs, extra)
 
@@ -408,8 +406,10 @@ class JmOption:
         kwargs将来要传给方法参数，这要求kwargs的key是str类型，
         该方法检查kwargs的key的类型，如果不是str，尝试转为str，不行则抛异常。
         """
-        if not isinstance(kwargs, dict):
-            raise JmModuleConfig.exception(f'插件的kwargs参数必须为dict类型，而不能是类型: {type(kwargs)}')
+        ExceptionTool.require_true(
+            isinstance(kwargs, dict),
+            f'插件的kwargs参数必须为dict类型，而不能是类型: {type(kwargs)}'
+        )
 
         kwargs: dict
         new_kwargs: Dict[str, Any] = {}
@@ -425,7 +425,7 @@ class JmOption:
                 new_kwargs[newk] = v
                 continue
 
-            raise JmModuleConfig.exception(
+            ExceptionTool.raises(
                 f'插件kwargs参数类型有误，'
                 f'字段: {k}，预期类型为str，实际类型为{type(k)}'
             )

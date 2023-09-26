@@ -67,16 +67,14 @@ class JmcomicText:
         if isinstance(text, int):
             return str(text)
 
-        if not isinstance(text, str):
-            raise JmModuleConfig.exception(f"无法解析jm车号, 参数类型为: {type(text)}")
+        ExceptionTool.require_true(isinstance(text, str), f"无法解析jm车号, 参数类型为: {type(text)}")
 
         # 43210
         if text.isdigit():
             return text
 
         # Jm43210
-        if len(text) <= 2:
-            raise JmModuleConfig.exception(f"无法解析jm车号, 文本为: {text}")
+        ExceptionTool.require_true(len(text) >= 2, f"无法解析jm车号, 文本太短: {text}")
 
         # text: JM12341
         c0 = text[0]
@@ -87,8 +85,7 @@ class JmcomicText:
         else:
             # https://xxx/photo/412038
             match = cls.pattern_jm_pa_id.search(text)
-            if match is None:
-                raise JmModuleConfig.exception(f"无法解析jm车号, 文本为: {text}")
+            ExceptionTool.require_true(match is not None, f"无法解析jm车号, 文本为: {text}")
             return match[2]
 
     @classmethod
@@ -169,11 +166,10 @@ class JmcomicText:
 
             if field_value is None:
                 if default is None:
-                    JmModuleConfig.raises(
+                    ExceptionTool.raises_re(
                         f"文本没有匹配上字段：字段名为'{field_name}'，pattern: [{pattern}]",
-                        re_match_html=html,
-                        re_match_field_name=field_name,
-                        re_match_pattern=pattern,
+                        html=html,
+                        pattern=pattern,
                     )
                 else:
                     field_value = default
@@ -260,12 +256,20 @@ class JmcomicSearchTool:
         match = cls.pattern_html_search_error.search(html)
         if match is not None:
             topic, reason = match[1], match[2]
-            JmModuleConfig.raises(f'{topic}: {reason}', re_search_html=html)
+            ExceptionTool.raises_re(
+                f'{topic}: {reason}',
+                html=html,
+                pattern=cls.pattern_html_search_error,
+            )
 
         # 缩小文本范围
         match = cls.pattern_html_search_shorten_for.search(html)
         if match is None:
-            JmModuleConfig.raises('未匹配到搜索结果', re_shorten_html=html)
+            ExceptionTool.raises_re(
+                '未匹配到搜索结果',
+                html=html,
+                pattern=cls.pattern_html_search_shorten_for,
+            )
         html = match[0]
 
         # 提取结果
@@ -579,3 +583,62 @@ class JmImageSupport:
         获得图片分割数
         """
         return cls.get_num(detail.scramble_id, detail.aid, detail.img_file_name)
+
+
+class ExceptionTool:
+    """
+    抛异常的工具
+    1: 能简化 if-raise 语句的编写
+    2: 有更好的上下文信息传递方式
+    """
+
+    EXTRA_KEY_RESP = 'resp'
+    EXTRA_KEY_HTML = 'html'
+    EXTRA_KEY_RE_PATTERN = 'pattern'
+
+    @classmethod
+    def raises(cls, msg, extra: dict = None):
+        if extra is None:
+            extra = {}
+
+        JmModuleConfig.raise_exception_executor(msg, extra)
+
+    @classmethod
+    def raises_re(cls,
+                  msg,
+                  html,
+                  pattern,
+                  ):
+        cls.raises(
+            msg, {
+                cls.EXTRA_KEY_HTML: html,
+                cls.EXTRA_KEY_RE_PATTERN: pattern,
+            }
+        )
+
+    @classmethod
+    def raises_resp(cls,
+                    msg,
+                    resp,
+                    ):
+        cls.raises(
+            msg, {
+                cls.EXTRA_KEY_RESP: resp
+            }
+        )
+
+    @classmethod
+    def require_true(cls, case, msg):
+        if case:
+            return
+
+        cls.raises(msg)
+
+    @classmethod
+    def replace_old_exception_executor(cls, raises: Callable[[Callable, str, dict], None]):
+        old = JmModuleConfig.raise_exception_executor
+
+        def new(msg, extra):
+            raises(old, msg, extra)
+
+        JmModuleConfig.raise_exception_executor = new

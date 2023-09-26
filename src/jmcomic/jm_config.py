@@ -17,8 +17,8 @@ def default_postman_constructor(session, **kwargs):
     return Postmans.new_postman(**kwargs)
 
 
-def default_raise_exception_executor(msg, **_kwargs):
-    raise JmModuleConfig.exception(msg)
+def default_raise_exception_executor(msg, _extra):
+    raise JmModuleConfig.CLASS_EXCEPTION(msg)
 
 
 class JmcomicException(Exception):
@@ -66,7 +66,7 @@ class JmModuleConfig:
     CLASS_PHOTO = None
     CLASS_IMAGE = None
     CLASS_CLIENT_IMPL = {}
-    CLASS_EXCEPTION = None
+    CLASS_EXCEPTION = JmcomicException
 
     # 插件注册表
     PLUGIN_REGISTRY = {}
@@ -134,27 +134,6 @@ class JmModuleConfig:
         return impl_class
 
     @classmethod
-    def exception(cls, msg: str):
-        """
-        获取jmcomic模块的异常类
-        """
-        if cls.CLASS_EXCEPTION is not None:
-            return cls.CLASS_EXCEPTION(msg)
-
-        return JmcomicException(msg)
-
-    @classmethod
-    def raises(cls, msg: str, **kwargs):
-        """
-        抛出异常，支持把一些上下文参数传递为kwargs
-        真正抛出异常的是函数 cls.raise_exception_executor，用户可自定义此字段
-
-        如果只想抛异常，不想支持一些扩展处理，使用 raise cls.exception(msg)
-        如果想支持一些扩展处理，使用 cls.raises(msg, context=context)
-        """
-        cls.raise_exception_executor(msg, **kwargs)
-
-    @classmethod
     @field_cache("DOMAIN")
     def domain(cls, postman=None):
         """
@@ -189,7 +168,8 @@ class JmModuleConfig:
 
         resp = postman.get(cls.JM_PUB_URL)
         if resp.status_code != 200:
-            raise JmModuleConfig.exception(resp.text)
+            from .jm_toolkit import ExceptionTool
+            ExceptionTool.raises_resp(f'请求失败，访问禁漫发布页获取所有域名，HTTP状态码为: {resp.status_code}', resp)
 
         from .jm_toolkit import JmcomicText
         domain_list = JmcomicText.analyse_jm_pub_html(resp.text)

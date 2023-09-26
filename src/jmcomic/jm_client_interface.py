@@ -8,6 +8,7 @@ Response Entity
 
 DictModel = AdvancedEasyAccessDict
 
+
 class JmResp(CommonResp):
 
     @property
@@ -22,7 +23,8 @@ class JmResp(CommonResp):
 
     def require_success(self):
         if self.is_not_success:
-            raise JmModuleConfig.exception(self.resp.text)
+            ExceptionTool.raises_resp(self.text, self.resp)
+
 
 class JmImageResp(JmResp):
 
@@ -30,10 +32,7 @@ class JmImageResp(JmResp):
         raise NotImplementedError
 
     def require_success(self):
-        if self.is_success:
-            return
-
-        raise JmModuleConfig.exception(self.get_error_msg())
+        ExceptionTool.require_true(self.is_success, self.get_error_msg())
 
     def get_error_msg(self):
         msg = f'禁漫图片获取失败: [{self.url}]'
@@ -71,8 +70,7 @@ class JmApiResp(JmResp):
 
     @classmethod
     def wrap(cls, resp, key_ts):
-        if isinstance(resp, JmApiResp):
-            raise JmModuleConfig.exception('重复包装')
+        ExceptionTool.require_true(not isinstance(resp, JmApiResp), f'重复包装: {resp}')
 
         return cls(resp, key_ts)
 

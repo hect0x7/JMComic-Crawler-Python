@@ -133,30 +133,3 @@ def custom_jm_debug():
 
     # 2. 让my_debug生效
     JmModuleConfig.debug_executor = my_debug
-
-
-def custom_exception_raise():
-    """
-    该函数演示jmcomic的异常机制
-    """
-
-    # jmcomic 代码在运行过程中可能抛出异常，以获取album实体类为例：
-    album = client.get_album_detail('999999')
-
-    # 上面这行代码用于获取本子id为 999999 的JmAlbumDetail
-    # 如果本子不存在，则会抛出异常，异常类默认是 JmcomicException
-
-    # 你可以自定义抛出的异常类，做法如下：
-    # 1. 自定义异常类
-    class MyExceptionClass(Exception):
-        pass
-
-    # 2. 替换默认异常类
-    JmModuleConfig.CLASS_EXCEPTION = MyExceptionClass
-
-    # 这样一来，抛出的异常类就是 MyExceptionClass
-    try:
-        album = client.get_album_detail('999999')
-    except MyExceptionClass as e:
-        print('捕获MyExceptionClass异常')
-        pass

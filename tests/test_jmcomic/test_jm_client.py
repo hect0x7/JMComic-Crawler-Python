@@ -31,12 +31,28 @@ class Test_Client(JmTestConfigurable):
         self.client.download_by_image_detail(image, self.option.decide_image_filepath(image))
 
     def test_album_missing(self):
-        JmModuleConfig.CLASS_EXCEPTION = JmcomicException
+        class A(BaseException):
+            pass
+
+        JmModuleConfig.CLASS_EXCEPTION = A
         self.assertRaises(
-            JmcomicException,
+            A,
             self.client.get_album_detail,
             '332583'
         )
+
+    def test_raise_exception(self):
+
+        class B(BaseException):
+            pass
+
+        def raises(old, _msg, _extra):
+            self.assertEqual(old, default_raise_exception_executor)
+            raise B()
+
+        JmModuleConfig.raise_exception_executor = default_raise_exception_executor
+        ExceptionTool.replace_old_exception_executor(raises)
+        self.assertRaises(B, JmcomicText.parse_to_album_id, 'asdhasjhkd')
 
     def test_detail_property_list(self):
         album = self.client.get_album_detail(410090)
