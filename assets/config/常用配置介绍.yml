@@ -38,11 +38,13 @@ download:
     decode: true # JM的原图是混淆过的，要不要还原？
     suffix: .jpg # 把图片都转为.jpg格式
   threading:
-    # batch_count: 章节的批量下载图片线程数
+    # image: 同时下载的图片数，默认是30张图
     # 数值大，下得快，配置要求高，对禁漫压力大
     # 数值小，下得慢，配置要求低，对禁漫压力小
-    # PS: 禁漫网页一般是一次请求50张图
-    batch_count: 30
+    # PS: 禁漫网页一次最多请求50张图
+    image: 30
+    # photo: 同时下载的章节数，不配置默认是cpu核心数
+    photo: 16
 
 
 

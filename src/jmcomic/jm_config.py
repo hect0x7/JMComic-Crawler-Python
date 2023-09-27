@@ -1,3 +1,6 @@
+from os import cpu_count
+
+
 def field_cache(*args, **kwargs):
     from common import field_cache
     return field_cache(*args, **kwargs)
@@ -235,14 +238,18 @@ class JmModuleConfig:
     }
 
     # option 默认配置字典
+    JM_OPTION_VER = '2.1'
     default_option_dict: dict = {
-        'version': '2.0',
+        'version': JM_OPTION_VER,
         'debug': None,
         'dir_rule': {'rule': 'Bd_Pname', 'base_dir': None},
         'download': {
             'cache': True,
             'image': {'decode': True, 'suffix': None},
-            'threading': {'batch_count': 30},
+            'threading': {
+                'image': 30,
+                'photo': cpu_count(),
+            },
         },
         'client': {
             'cache': None,

@@ -116,7 +116,6 @@ class DirRule:
 
 
 class JmOption:
-    JM_OP_VER = '2.0'
 
     def __init__(self,
                  dir_rule: Dict,
@@ -126,7 +125,7 @@ class JmOption:
                  filepath=None,
                  ):
         # 版本号
-        self.version = self.JM_OP_VER
+        self.version = JmModuleConfig.JM_OPTION_VER
         # 路径规则配置
         self.dir_rule = DirRule(**dir_rule)
         # 请求配置
@@ -149,10 +148,6 @@ class JmOption:
         return self.download.image.decode
 
     @property
-    def download_threading_batch_count(self):
-        return self.download.threading.batch_count
-
-    @property
     def download_image_suffix(self):
         return self.download.image.suffix
 
@@ -162,11 +157,11 @@ class JmOption:
 
     # noinspection PyUnusedLocal
     def decide_image_batch_count(self, photo: JmPhotoDetail):
-        return self.download_threading_batch_count
+        return self.download.threading.image
 
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
     def decide_photo_batch_count(self, album: JmAlbumDetail):
-        return os.cpu_count()
+        return self.download.threading.photo
 
     def decide_image_save_dir(self, photo) -> str:
         # 使用 self.dir_rule 决定 save_dir
@@ -242,18 +237,26 @@ class JmOption:
         return cls.construct({})
 
     @classmethod
-    def construct(cls, dic: Dict, cover_default=True) -> 'JmOption':
-        if cover_default:
-            dic = cls.merge_default_dict(dic)
+    def construct(cls, orgdic: Dict, cover_default=True) -> 'JmOption':
+        dic = cls.merge_default_dict(orgdic) if cover_default else orgdic
 
-        version = dic.pop('version', None)
-        if float(version) != float(cls.JM_OP_VER):
-            # 版本兼容
-            ExceptionTool.raises('不支持的option版本')
-
+        # debug
         debug = dic.pop('debug', True)
         if debug is False:
             disable_jm_debug()
+
+        # version
+        version = dic.pop('version', None)
+        if version is None or float(version) >= float(JmModuleConfig.JM_OPTION_VER):
+            return cls(**dic)
+
+        # 旧版本option，做兼容
+
+        # 1) 2.0 -> 2.1，并发配置的键名更改了
+        dt: dict = dic['download']['threading']
+        if 'batch_count' in dt:
+            batch_count = dt.pop('batch_count')
+            dt['image'] = batch_count
 
         return cls(**dic)
 
