@@ -328,6 +328,8 @@ class JmcomicSearchTool:
 
 class JmApiAdaptTool:
     """
+    本类复杂把移动端的api返回值，适配为标准的实体类
+
     # album
     {
       "id": 123,
@@ -401,7 +403,7 @@ class JmApiAdaptTool:
             'series_id',
             ('tags', 'keywords'),
             ('id', 'photo_id'),
-            ('images', 'page_arr')
+            ('images', 'page_arr'),
 
         ]
     }
@@ -433,7 +435,7 @@ class JmApiAdaptTool:
             if issubclass(clazz, k):
                 return v
 
-        raise AssertionError(clazz)
+        ExceptionTool.raises(f'不支持的类型: {clazz}')
 
     @classmethod
     def post_adapt_album(cls, data: dict, _clazz: type, fields: dict):
@@ -460,7 +462,7 @@ class JmApiAdaptTool:
         fields['scramble_id'] = '0'
 
 
-class JmImageSupport:
+class JmImageTool:
 
     @classmethod
     def save_resp_img(cls, resp: Any, filepath: str, need_convert=True):
@@ -597,7 +599,7 @@ class ExceptionTool:
     EXTRA_KEY_RE_PATTERN = 'pattern'
 
     @classmethod
-    def raises(cls, msg, extra: dict = None):
+    def raises(cls, msg: str, extra: dict = None):
         if extra is None:
             extra = {}
 
@@ -605,9 +607,9 @@ class ExceptionTool:
 
     @classmethod
     def raises_re(cls,
-                  msg,
-                  html,
-                  pattern,
+                  msg: str,
+                  html: str,
+                  pattern: Pattern,
                   ):
         cls.raises(
             msg, {
@@ -618,7 +620,7 @@ class ExceptionTool:
 
     @classmethod
     def raises_resp(cls,
-                    msg,
+                    msg: str,
                     resp,
                     ):
         cls.raises(
@@ -628,7 +630,7 @@ class ExceptionTool:
         )
 
     @classmethod
-    def require_true(cls, case, msg):
+    def require_true(cls, case: bool, msg: str):
         if case:
             return
 

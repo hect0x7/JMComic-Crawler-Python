@@ -125,13 +125,14 @@ class JmModuleConfig:
 
     @classmethod
     def client_impl_class(cls, client_key: str):
-        client_impl_dict = cls.CLASS_CLIENT_IMPL
+        clazz_dict = cls.CLASS_CLIENT_IMPL
 
-        impl_class = client_impl_dict.get(client_key, None)
-        if impl_class is None:
-            raise NotImplementedError(f'not found client impl class for key: "{client_key}"')
+        clazz = clazz_dict.get(client_key, None)
+        if clazz is None:
+            from .jm_toolkit import ExceptionTool
+            ExceptionTool.raises(f'not found client impl class for key: "{client_key}"')
 
-        return impl_class
+        return clazz
 
     @classmethod
     @field_cache("DOMAIN")

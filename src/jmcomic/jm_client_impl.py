@@ -109,9 +109,9 @@ class AbstractJmClient(
                 setattr(self, cache_dict_name, cache_dict)
             else:
                 if sys.version_info < (3, 9):
-                    raise NotImplementedError('不支持启用JmcomicClient缓存。\n'
-                                              '请更新python版本到3.9以上，'
-                                              '或更新commonX: `pip install commonX --upgrade`')
+                    ExceptionTool.raises('不支持启用JmcomicClient缓存。\n'
+                                         '请更新python版本到3.9以上，'
+                                         '或更新commonX: `pip install commonX --upgrade`')
                 import functools
                 cache = functools.cache
 

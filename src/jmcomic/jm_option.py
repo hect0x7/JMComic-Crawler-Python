@@ -50,7 +50,7 @@ class DirRule:
         """
 
         if '_' not in rule_dsl and rule_dsl != 'Bd':
-            raise NotImplementedError(f'不支持的dsl: "{rule_dsl}"')
+            ExceptionTool.raises(f'不支持的dsl: "{rule_dsl}"')
 
         rule_ls = rule_dsl.split('_')
         solver_ls = []
@@ -62,7 +62,7 @@ class DirRule:
 
             rule_solver = self.get_rule_solver(rule)
             if rule_solver is None:
-                raise NotImplementedError(f'不支持的dsl: "{rule}" in "{rule_dsl}"')
+                ExceptionTool.raises(f'不支持的dsl: "{rule}" in "{rule_dsl}"')
 
             solver_ls.append(rule_solver)
 
@@ -249,7 +249,7 @@ class JmOption:
         version = dic.pop('version', None)
         if float(version) != float(cls.JM_OP_VER):
             # 版本兼容
-            raise NotImplementedError('不支持的option版本')
+            ExceptionTool.raises('不支持的option版本')
 
         debug = dic.pop('debug', True)
         if debug is False:
