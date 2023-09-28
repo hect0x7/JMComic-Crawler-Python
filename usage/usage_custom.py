@@ -77,17 +77,15 @@ def custom_client_class():
 def custom_album_photo_image_detail_class():
     """
     该函数演示替换实体类（本子/章节/图片）
-    """
 
-    # 在使用路径规则 DirRule 时，可能会遇到需要自定义实体类属性的情况，例如：
-    """
+    在使用路径规则 DirRule 时，可能会遇到需要自定义实体类属性的情况，例如：
     dir_rule:
         base_dir: ${workspace}
         rule: Bd_Acustom_Pcustom
-    """
 
-    # 上面的Acustom，Pcustom都是自定义字段
-    # 如果你想要使用这种自定义字段，你就需要替换默认的实体类，例如
+    上面的Acustom，Pcustom都是自定义字段
+    如果你想要使用这种自定义字段，你就需要替换默认的实体类，方式如下
+    """
 
     # 自定义本子实体类
     class MyAlbum(JmAlbumDetail):
@@ -103,14 +101,21 @@ def custom_album_photo_image_detail_class():
         def custom(self):
             return f'custom_{self.title}'
 
-    # 自定义图片实体类
-    class MyImage(JmImageDetail):
-        pass
+    """
+    v2.3.3: 支持更灵活的自定义方式，可以使用函数，效果同上，示例见下
+    """
+
+    class MyAlbum2(JmAlbumDetail):
+
+        def get_dirname(self, ref: str) -> str:
+            if ref == 'custom':
+                return f'custom_{self.name}'
+
+            return super().get_dirname(ref)
 
     # 最后，替换默认实体类来让你的自定义类生效
     JmModuleConfig.CLASS_ALBUM = MyAlbum
     JmModuleConfig.CLASS_PHOTO = MyPhoto
-    JmModuleConfig.CLASS_IMAGE = MyImage
 
 
 def custom_jm_debug():

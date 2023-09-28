@@ -55,6 +55,20 @@ class DetailEntity(JmBaseEntity, IndexedEntity):
         cls_name = cls.__name__
         return cls_name[cls_name.index("m") + 1: cls_name.rfind("Detail")].lower()
 
+    def get_dirname(self, ref: str) -> str:
+        """
+        该方法被 DirDule 调用，用于生成特定层次的文件夹
+        通常调用方式如下:
+        Atitle -> ref = 'title' -> album.get_dirname(ref)
+        该方法需要返回 ref 对应的文件夹名，默认实现直接返回 getattr(self, ref)
+
+        用户可重写此方法，来实现自定义文件夹名
+
+        @param ref: 字段名
+        @return: 文件夹名
+        """
+        return getattr(self, ref)
+
 
 class JmImageDetail(JmBaseEntity):
 
@@ -71,7 +85,7 @@ class JmImageDetail(JmBaseEntity):
         self.aid: str = aid
         self.scramble_id: str = scramble_id
         self.img_url: str = img_url
-        self.img_file_name: str = img_file_name
+        self.img_file_name: str = img_file_name  # without suffix
         self.img_file_suffix: str = img_file_suffix
 
         self.from_photo: Optional[JmPhotoDetail] = from_photo
@@ -80,15 +94,15 @@ class JmImageDetail(JmBaseEntity):
         self.index = index
 
     @property
-    def filename(self) -> str:
-        return self.img_file_name + self.img_file_suffix
+    def filename_without_suffix(self):
+        return self.img_file_name
 
     @property
     def download_url(self) -> str:
         """
         图片的下载路径
         与 self.img_url 的唯一不同是，在最后会带上 ?{self.query_params}
-        @return:
+        @return: 图片的下载路径
         """
         if self.query_params is None:
             return self.img_url
@@ -131,7 +145,7 @@ class JmImageDetail(JmBaseEntity):
 
     @property
     def tag(self) -> str:
-        return f'{self.aid}/{self.filename} [{self.index + 1}/{len(self.from_photo)}]'
+        return f'{self.aid}/{self.img_file_name}{self.img_file_suffix} [{self.index + 1}/{len(self.from_photo)}]'
 
 
 class JmPhotoDetail(DetailEntity):

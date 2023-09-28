@@ -1,6 +1,3 @@
-from os import cpu_count
-
-
 def field_cache(*args, **kwargs):
     from common import field_cache
     return field_cache(*args, **kwargs)
@@ -248,7 +245,7 @@ class JmModuleConfig:
             'image': {'decode': True, 'suffix': None},
             'threading': {
                 'image': 30,
-                'photo': cpu_count(),
+                'photo': None,
             },
         },
         'client': {
@@ -296,6 +293,12 @@ class JmModuleConfig:
         meta_data = client['postman']['meta_data']
         if meta_data['headers'] is None:
             meta_data['headers'] = cls.headers()
+
+        # threading photo
+        dt = option_dict['download']['threading']
+        if dt['photo'] is None:
+            import os
+            dt['photo'] = os.cpu_count()
 
         return option_dict
 

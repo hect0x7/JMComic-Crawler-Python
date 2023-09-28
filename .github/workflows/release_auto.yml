@@ -1,5 +1,5 @@
-name: Release (auto)
-
+# auto release and publish
+name: Auto Release & Publish
 
 on:
   workflow_dispatch:
@@ -30,7 +30,7 @@ jobs:
           tag_name: ${{ steps.tb.outputs.tag }}
           body: ${{ steps.tb.outputs.body }}
 
-      - name: Build Module
+      - name: Build
         run: |
           python -m pip install build
           python -m build

@@ -80,7 +80,7 @@ class DirRule:
 
         # Axxx or Pyyy
         key = 1 if rule[0] == 'A' else 2
-        solve_func = lambda entity, ref=rule[1:]: fix_windir_name(str(getattr(entity, ref)))
+        solve_func = lambda detail, ref=rule[1:]: fix_windir_name(str(detail.get_dirname(ref)))
 
         # 保存缓存
         rule_solver = (key, solve_func)
@@ -207,7 +207,7 @@ class JmOption:
         # 通过拼接生成绝对路径
         save_dir = self.decide_image_save_dir(image.from_photo)
         suffix = self.decide_image_suffix(image)
-        return save_dir + image.img_file_name + suffix
+        return os.path.join(save_dir, image.filename_without_suffix + suffix)
 
     """
     下面是创建对象相关方法
