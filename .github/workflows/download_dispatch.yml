@@ -1,4 +1,4 @@
-name: 下载JM本子(dispatch)
+name: 下载JM本子 (dispatch)
 
 on:
   workflow_dispatch:
@@ -54,7 +54,7 @@ jobs:
       DIR_RULE: ${{ github.event.inputs.DIR_RULE }}
       ZIP_NAME: ${{ github.event.inputs.ZIP_NAME }}
       UPLOAD_NAME: ${{ github.event.inputs.UPLOAD_NAME }}
-      # sccrets
+      # secrets
       JM_USERNAME: ${{ secrets.JM_USERNAME }}
       JM_PASSWORD: ${{ secrets.JM_PASSWORD }}
       # 固定值

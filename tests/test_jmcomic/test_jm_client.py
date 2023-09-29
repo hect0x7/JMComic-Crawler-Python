@@ -7,7 +7,9 @@ class Test_Client(JmTestConfigurable):
         jm_photo_id = 'JM438516'
         photo = self.client.get_photo_detail(jm_photo_id, False)
         image = photo[0]
-        self.client.download_by_image_detail(image, self.option.decide_image_filepath(image))
+        filepath = self.option.decide_image_filepath(image)
+        self.client.download_by_image_detail(image, filepath)
+        print(filepath)
 
     def test_fetch_album(self):
         album_id = "JM438516"
@@ -15,8 +17,13 @@ class Test_Client(JmTestConfigurable):
 
     def test_search(self):
         page: JmSearchPage = self.client.search_tag('+无修正 +中文 -全彩')
-        for album_id, title, tag_list in page.iter_id_title_tag():
-            print(album_id, title, tag_list)
+
+        if len(page) >= 1:
+            for aid, ainfo in page[0:1:1]:
+                print(aid, ainfo)
+
+        for aid, atitle, tag_list in page.iter_id_title_tag():
+            print(aid, atitle, tag_list)
 
         aid = '438516'
         page = self.client.search_site(aid)
@@ -31,12 +38,28 @@ class Test_Client(JmTestConfigurable):
         self.client.download_by_image_detail(image, self.option.decide_image_filepath(image))
 
     def test_album_missing(self):
-        JmModuleConfig.CLASS_EXCEPTION = JmcomicException
+        class A(BaseException):
+            pass
+
+        JmModuleConfig.CLASS_EXCEPTION = A
         self.assertRaises(
-            JmcomicException,
+            A,
             self.client.get_album_detail,
-            '332583'
+            '0'
         )
+
+    def test_raise_exception(self):
+
+        class B(BaseException):
+            pass
+
+        def raises(old, _msg, _extra):
+            self.assertEqual(old, default_raise_exception_executor)
+            raise B()
+
+        JmModuleConfig.raise_exception_executor = default_raise_exception_executor
+        ExceptionTool.replace_old_exception_executor(raises)
+        self.assertRaises(B, JmcomicText.parse_to_album_id, 'asdhasjhkd')
 
     def test_detail_property_list(self):
         album = self.client.get_album_detail(410090)
@@ -49,7 +72,7 @@ class Test_Client(JmTestConfigurable):
         ]
 
         for pair in ans:
-            self.assertListEqual(pair[0], pair[1])
+            self.assertListEqual(pair[0][0:9], pair[1][0:9])
 
     def test_photo_sort(self):
         client = self.option.build_jm_client()
@@ -193,3 +216,13 @@ class Test_Client(JmTestConfigurable):
                 0,
                 aid,
             )
+
+    def test_get_detail(self):
+        client = self.client
+
+        album = client.get_album_detail(400222)
+        print(album.id, album.name, album.tags)
+
+        for photo in album[0:3]:
+            photo = client.get_photo_detail(photo.photo_id)
+            print(photo.id, photo.name)

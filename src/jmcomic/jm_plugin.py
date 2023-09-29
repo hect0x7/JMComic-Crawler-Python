@@ -238,7 +238,7 @@ class ZipPlugin(JmOptionPlugin):
                 dir_zip_dict[dir_path] = zip_path
 
         else:
-            raise NotImplementedError(f'level: {level}')
+            ExceptionTool.raises(f'Not Implemented Zip Level: {level}')
 
         self.after_zip(dir_zip_dict)
 

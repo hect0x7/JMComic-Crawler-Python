@@ -33,6 +33,18 @@ class AbstractJmClient(
     def of_api_url(self, api_path, domain):
         return JmcomicText.format_url(api_path, domain)
 
+    def get_jm_image(self, img_url) -> JmImageResp:
+
+        def get_if_fail_raise(url):
+            """
+            使用此方法包装 self.get，使得图片数据为空时，判定为请求失败时，走重试逻辑
+            """
+            resp = JmImageResp(self.get(url))
+            resp.require_success()
+            return resp
+
+        return self.request_with_retry(get_if_fail_raise, img_url)
+
     def request_with_retry(self,
                            request,
                            url,
@@ -84,7 +96,7 @@ class AbstractJmClient(
 
     # noinspection PyMethodMayBeStatic
     def debug_topic_request(self):
-        return 'html'
+        return self.client_key
 
     # noinspection PyMethodMayBeStatic, PyUnusedLocal
     def before_retry(self, e, kwargs, retry_count, url):
@@ -109,9 +121,9 @@ class AbstractJmClient(
                 setattr(self, cache_dict_name, cache_dict)
             else:
                 if sys.version_info < (3, 9):
-                    raise NotImplementedError('不支持启用JmcomicClient缓存。\n'
-                                              '请更新python版本到3.9以上，'
-                                              '或更新commonX: `pip install commonX --upgrade`')
+                    ExceptionTool.raises('不支持启用JmcomicClient缓存。\n'
+                                         '请更新python版本到3.9以上，'
+                                         '或更新commonX: `pip install commonX --upgrade`')
                 import functools
                 cache = functools.cache
 
@@ -149,7 +161,7 @@ class AbstractJmClient(
     def fallback(self, request, url, domain_index, retry_count, **kwargs):
         msg = f"请求重试全部失败: [{url}], {self.domain_list}"
         jm_debug('req.fallback', msg)
-        raise JmModuleConfig.exception(msg)
+        ExceptionTool.raises(msg)
 
     # noinspection PyMethodMayBeStatic
     def append_params_to_url(self, url, params):
@@ -251,7 +263,7 @@ class JmHtmlClient(AbstractJmClient):
                          )
 
         if resp.status_code != 301:
-            raise JmModuleConfig.exception(f'登录失败，状态码为{resp.status_code}')
+            ExceptionTool.raises_resp(f'登录失败，状态码为{resp.status_code}', resp)
 
         if refresh_client_cookies is True:
             self['cookies'] = resp.cookies
@@ -265,7 +277,10 @@ class JmHtmlClient(AbstractJmClient):
         resp = self.get(url, **kwargs)
 
         if require_200 is True and resp.status_code != 200:
+            # 检查是否是特殊的状态码（JmModuleConfig.JM_ERROR_STATUS_CODE）
+            # 如果是，直接抛出异常
             self.check_special_http_code(resp)
+            # 运行到这里说明上一步没有抛异常，说明是未知状态码，抛异常兜底处理
             self.raise_request_error(resp)
 
         # 检查请求是否成功
@@ -285,26 +300,8 @@ class JmHtmlClient(AbstractJmClient):
                   + (f"响应文本=[{resp.text}]" if len(resp.text) < 200 else
                      f'响应文本过长(len={len(resp.text)})，不打印'
                      )
-        raise JmModuleConfig.exception(msg)
 
-    def get_jm_image(self, img_url) -> JmImageResp:
-
-        def get_if_fail_raise(url):
-            """
-            使用此方法包装 self.get
-            """
-            resp = JmImageResp(self.get(url))
-
-            if resp.is_success:
-                return resp
-
-            self.raise_request_error(
-                resp.resp, resp.get_error_msg()
-            )
-
-            return resp
-
-        return self.request_with_retry(get_if_fail_raise, img_url)
+        ExceptionTool.raises_resp(msg, resp)
 
     def album_comment(self,
                       video_id,
@@ -344,17 +341,15 @@ class JmHtmlClient(AbstractJmClient):
         return ret
 
     @classmethod
-    def require_resp_success_else_raise(cls, resp, req_url):
+    def require_resp_success_else_raise(cls, resp, org_req_url: str):
+        """
+        @param resp: 响应对象
+        @param org_req_url: /photo/12412312
+        """
         # 1. 检查是否 album_missing
         error_album_missing = '/error/album_missing'
-        if resp.url.endswith(error_album_missing) and not req_url.endswith(error_album_missing):
-            cls.raise_request_error(
-                resp,
-                f'请求的本子不存在！({req_url})\n'
-                '原因可能为:\n'
-                '1. id有误，检查你的本子/章节id\n'
-                '2. 该漫画只对登录用户可见，请配置你的cookies\n'
-            )
+        if resp.url.endswith(error_album_missing) and not org_req_url.endswith(error_album_missing):
+            ExceptionTool.raise_missing(resp, org_req_url)
 
         # 2. 是否是特殊的内容
         cls.check_special_text(resp)
@@ -400,6 +395,7 @@ class JmApiClient(AbstractJmClient):
     API_SEARCH = '/search'
     API_ALBUM = '/album'
     API_CHAPTER = '/chapter'
+    API_SCRAMBLE = '/chapter_view_template'
 
     def __init__(self,
                  postman: Postman,
@@ -416,7 +412,7 @@ class JmApiClient(AbstractJmClient):
                order_by: str,
                time: str,
                ) -> JmSearchPage:
-        resp = self.get(
+        resp = self.get_decode(
             self.API_SEARCH,
             params={
                 'search_query': search_query,
@@ -447,13 +443,16 @@ class JmApiClient(AbstractJmClient):
                                         )
 
     def get_photo_detail(self, photo_id, fetch_album=True) -> JmPhotoDetail:
-        return self.fetch_detail_entity(photo_id,
-                                        JmModuleConfig.photo_class(),
-                                        )
+        photo_id = JmcomicText.parse_to_photo_id(photo_id)
+        photo: JmPhotoDetail = self.fetch_detail_entity(photo_id,
+                                                        JmModuleConfig.photo_class(),
+                                                        )
+        photo.scramble_id = self.get_scramble_id(photo.photo_id)
+        return photo
 
     def fetch_detail_entity(self, apid, clazz, **kwargs):
         url = self.API_ALBUM if issubclass(clazz, JmAlbumDetail) else self.API_CHAPTER
-        resp = self.get(
+        resp = self.get_decode(
             url,
             params={
                 'id': JmcomicText.parse_to_album_id(apid),
@@ -461,11 +460,37 @@ class JmApiClient(AbstractJmClient):
             }
         )
 
-        self.require_resp_success(resp)
+        self.require_resp_success(resp, url)
 
         return JmApiAdaptTool.parse_entity(resp.res_data, clazz)
 
-    def get(self, url, **kwargs) -> JmApiResp:
+    def get_scramble_id(self, photo_id):
+        cache = JmModuleConfig.SCRAMBLE_CACHE
+        if photo_id in cache:
+            return cache[photo_id]
+
+        resp = self.get_decode(
+            self.API_SCRAMBLE,
+            params={
+                "id": photo_id,
+                "mode": "vertical",
+                "page": "0",
+                "app_img_shunt": "NaN",
+            }
+        )
+
+        match = JmcomicText.pattern_html_album_scramble_id.search(resp.text)
+
+        if match is not None:
+            scramble_id = match[1]
+        else:
+            jm_debug('api.scramble', '未从响应中匹配到scramble_id，返回默认值220980')
+            scramble_id = 220980
+
+        cache[photo_id] = scramble_id
+        return scramble_id
+
+    def get_decode(self, url, **kwargs) -> JmApiResp:
         # set headers
         headers, key_ts = self.headers_key_ts
         kwargs.setdefault('headers', headers)
@@ -488,9 +513,18 @@ class JmApiClient(AbstractJmClient):
     def debug_topic_request(self):
         return 'api'
 
-    # noinspection PyMethodMayBeStatic
-    def require_resp_success(self, resp: JmApiResp):
+    @classmethod
+    def require_resp_success(cls, resp: JmApiResp, org_req_url: str):
         resp.require_success()
+
+        # 1. 检查是否 album_missing
+        # json: {'code': 200, 'data': []}
+        data = resp.model().data
+        if isinstance(data, list) and len(data) == 0:
+            ExceptionTool.raise_missing(resp, org_req_url)
+
+        # 2. 是否是特殊的内容
+        # 暂无
 
 
 JmModuleConfig.register_client(JmHtmlClient)

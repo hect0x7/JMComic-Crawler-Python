@@ -17,8 +17,8 @@ def default_postman_constructor(session, **kwargs):
     return Postmans.new_postman(**kwargs)
 
 
-def default_raise_exception_executor(msg, **_kwargs):
-    raise JmModuleConfig.exception(msg)
+def default_raise_exception_executor(msg, _extra):
+    raise JmModuleConfig.CLASS_EXCEPTION(msg)
 
 
 class JmcomicException(Exception):
@@ -50,9 +50,13 @@ class JmModuleConfig:
     SCRAMBLE_0 = 220980
     SCRAMBLE_10 = 268850
     SCRAMBLE_NUM_8 = 421926  # 2023-02-08后改了图片切割算法
+    SCRAMBLE_CACHE = {}
 
     # API的相关配置
+    # 移动端api密钥
     MAGIC_18COMICAPPCONTENT = '18comicAPPContent'
+    # 移动端的图片域名
+    DOMAIN_IMAGE_LIST = [f"cdn-msp.jmapiproxy{i}.cc" for i in range(1, 4)]
 
     # 下载时的一些默认值配置
     default_author = 'default-author'
@@ -66,7 +70,7 @@ class JmModuleConfig:
     CLASS_PHOTO = None
     CLASS_IMAGE = None
     CLASS_CLIENT_IMPL = {}
-    CLASS_EXCEPTION = None
+    CLASS_EXCEPTION = JmcomicException
 
     # 插件注册表
     PLUGIN_REGISTRY = {}
@@ -125,34 +129,14 @@ class JmModuleConfig:
 
     @classmethod
     def client_impl_class(cls, client_key: str):
-        client_impl_dict = cls.CLASS_CLIENT_IMPL
+        clazz_dict = cls.CLASS_CLIENT_IMPL
 
-        impl_class = client_impl_dict.get(client_key, None)
-        if impl_class is None:
-            raise NotImplementedError(f'not found client impl class for key: "{client_key}"')
+        clazz = clazz_dict.get(client_key, None)
+        if clazz is None:
+            from .jm_toolkit import ExceptionTool
+            ExceptionTool.raises(f'not found client impl class for key: "{client_key}"')
 
-        return impl_class
-
-    @classmethod
-    def exception(cls, msg: str):
-        """
-        获取jmcomic模块的异常类
-        """
-        if cls.CLASS_EXCEPTION is not None:
-            return cls.CLASS_EXCEPTION(msg)
-
-        return JmcomicException(msg)
-
-    @classmethod
-    def raises(cls, msg: str, **kwargs):
-        """
-        抛出异常，支持把一些上下文参数传递为kwargs
-        真正抛出异常的是函数 cls.raise_exception_executor，用户可自定义此字段
-
-        如果只想抛异常，不想支持一些扩展处理，使用 raise cls.exception(msg)
-        如果想支持一些扩展处理，使用 cls.raises(msg, context=context)
-        """
-        cls.raise_exception_executor(msg, **kwargs)
+        return clazz
 
     @classmethod
     @field_cache("DOMAIN")
@@ -189,7 +173,8 @@ class JmModuleConfig:
 
         resp = postman.get(cls.JM_PUB_URL)
         if resp.status_code != 200:
-            raise JmModuleConfig.exception(resp.text)
+            from .jm_toolkit import ExceptionTool
+            ExceptionTool.raises_resp(f'请求失败，访问禁漫发布页获取所有域名，HTTP状态码为: {resp.status_code}', resp)
 
         from .jm_toolkit import JmcomicText
         domain_list = JmcomicText.analyse_jm_pub_html(resp.text)
@@ -254,14 +239,18 @@ class JmModuleConfig:
     }
 
     # option 默认配置字典
+    JM_OPTION_VER = '2.1'
     default_option_dict: dict = {
-        'version': '2.0',
+        'version': JM_OPTION_VER,
         'debug': None,
         'dir_rule': {'rule': 'Bd_Pname', 'base_dir': None},
         'download': {
             'cache': True,
             'image': {'decode': True, 'suffix': None},
-            'threading': {'batch_count': 30},
+            'threading': {
+                'image': 30,
+                'photo': None,
+            },
         },
         'client': {
             'cache': None,
@@ -308,6 +297,12 @@ class JmModuleConfig:
         meta_data = client['postman']['meta_data']
         if meta_data['headers'] is None:
             meta_data['headers'] = cls.headers()
+
+        # threading photo
+        dt = option_dict['download']['threading']
+        if dt['photo'] is None:
+            import os
+            dt['photo'] = os.cpu_count()
 
         return option_dict
 
