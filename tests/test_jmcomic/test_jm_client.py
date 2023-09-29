@@ -217,7 +217,7 @@ class Test_Client(JmTestConfigurable):
 
         if len(page) >= 1:
             for aid, ainfo in page[0:1:1]:
-                print(aid, ainfo['description'], ainfo['category'])
+                print(aid, ainfo)
 
         for aid, atitle, tag_list in page.iter_id_title_tag():
             print(aid, atitle, tag_list)
