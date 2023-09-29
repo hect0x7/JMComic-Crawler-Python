@@ -17,8 +17,13 @@ class Test_Client(JmTestConfigurable):
 
     def test_search(self):
         page: JmSearchPage = self.client.search_tag('+无修正 +中文 -全彩')
-        for album_id, title, tag_list in page.iter_id_title_tag():
-            print(album_id, title, tag_list)
+
+        if len(page) >= 1:
+            for aid, ainfo in page[0:1:1]:
+                print(aid, ainfo)
+
+        for aid, atitle, tag_list in page.iter_id_title_tag():
+            print(aid, atitle, tag_list)
 
         aid = '438516'
         page = self.client.search_site(aid)
@@ -211,16 +216,6 @@ class Test_Client(JmTestConfigurable):
                 0,
                 aid,
             )
-
-    def test_search(self):
-        page = self.client.search_site('MANA')
-
-        if len(page) >= 1:
-            for aid, ainfo in page[0:1:1]:
-                print(aid, ainfo)
-
-        for aid, atitle, tag_list in page.iter_id_title_tag():
-            print(aid, atitle, tag_list)
 
     def test_get_detail(self):
         client = self.client
