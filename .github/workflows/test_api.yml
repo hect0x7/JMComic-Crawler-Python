@@ -9,7 +9,7 @@ on:
     paths:
       - 'src/**/*.py'
       - 'tests/**/*.py'
-      - '.github/workflows/test.yml'
+      - '.github/workflows/test_api.yml'
       - 'assets/config/option_test_api.yml'
 
 jobs:
@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 5
     env:
       # 配置文件路径
-      JM_OPTION_PATH_TEST: ./assets/config/option_test_html.yml
+      JM_OPTION_PATH_TEST: ./assets/config/option_test_api.yml
 
     steps:
       - name: Checkout repository
