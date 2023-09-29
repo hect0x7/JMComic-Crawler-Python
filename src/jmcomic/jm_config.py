@@ -50,9 +50,13 @@ class JmModuleConfig:
     SCRAMBLE_0 = 220980
     SCRAMBLE_10 = 268850
     SCRAMBLE_NUM_8 = 421926  # 2023-02-08后改了图片切割算法
+    SCRAMBLE_CACHE = {}
 
     # API的相关配置
+    # 移动端api密钥
     MAGIC_18COMICAPPCONTENT = '18comicAPPContent'
+    # 移动端的图片域名
+    DOMAIN_IMAGE_LIST = [f"cdn-msp.jmapiproxy{i}.cc" for i in range(1, 4)]
 
     # 下载时的一些默认值配置
     default_author = 'default-author'

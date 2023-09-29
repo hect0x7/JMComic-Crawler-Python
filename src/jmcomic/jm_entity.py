@@ -267,7 +267,7 @@ class JmPhotoDetail(DetailEntity):
         from .jm_toolkit import ExceptionTool
         ExceptionTool.require_true(domain is not None, f'图片域名为空: {domain}')
 
-        return f'https://{domain}/media/photos/{self.photo_id}/{img_name}'
+        return f'{JmModuleConfig.PROT}{domain}/media/photos/{self.photo_id}/{img_name}'
 
     # noinspection PyMethodMayBeStatic
     def get_data_original_query_params(self, data_original_0: StrNone) -> str:
@@ -316,8 +316,8 @@ class JmAlbumDetail(DetailEntity):
                  tags,
                  related_list=None,
                  ):
-        self.album_id: str = album_id
-        self.scramble_id: str = scramble_id
+        self.album_id: str = str(album_id)
+        self.scramble_id: str = str(scramble_id)
         self.name: str = name
         self.page_count = int(page_count)  # 总页数
         self.pub_date: str = pub_date  # 发布日期

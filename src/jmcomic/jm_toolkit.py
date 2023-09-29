@@ -166,7 +166,7 @@ class JmcomicText:
 
             if field_value is None:
                 if default is None:
-                    ExceptionTool.raises_re(
+                    ExceptionTool.raises_regex(
                         f"文本没有匹配上字段：字段名为'{field_name}'，pattern: [{pattern}]",
                         html=html,
                         pattern=pattern,
@@ -256,7 +256,7 @@ class JmcomicSearchTool:
         match = cls.pattern_html_search_error.search(html)
         if match is not None:
             topic, reason = match[1], match[2]
-            ExceptionTool.raises_re(
+            ExceptionTool.raises_regex(
                 f'{topic}: {reason}',
                 html=html,
                 pattern=cls.pattern_html_search_error,
@@ -265,7 +265,7 @@ class JmcomicSearchTool:
         # 缩小文本范围
         match = cls.pattern_html_search_shorten_for.search(html)
         if match is None:
-            ExceptionTool.raises_re(
+            ExceptionTool.raises_regex(
                 '未匹配到搜索结果',
                 html=html,
                 pattern=cls.pattern_html_search_shorten_for,
@@ -453,13 +453,19 @@ class JmApiAdaptTool:
 
     @classmethod
     def post_adapt_photo(cls, data: dict, _clazz: type, fields: dict):
-        for chapter in data['series']:
+        # 1. 获取sort字段，如果data['series']中没有，使用默认值1
+        sort = 1
+        series: list = data['series']  # series中的sort从1开始
+        for chapter in series:
             chapter = DictModel(chapter)
             if int(chapter.id) == int(data['id']):
-                fields['sort'] = chapter.sort
+                sort = chapter.sort
                 break
 
+        fields['sort'] = sort
         fields['scramble_id'] = '0'
+        import random
+        fields['data_original_domain'] = random.choice(JmModuleConfig.DOMAIN_IMAGE_LIST)
 
 
 class JmImageTool:
@@ -606,11 +612,11 @@ class ExceptionTool:
         JmModuleConfig.raise_exception_executor(msg, extra)
 
     @classmethod
-    def raises_re(cls,
-                  msg: str,
-                  html: str,
-                  pattern: Pattern,
-                  ):
+    def raises_regex(cls,
+                     msg: str,
+                     html: str,
+                     pattern: Pattern,
+                     ):
         cls.raises(
             msg, {
                 cls.EXTRA_KEY_HTML: html,
@@ -628,6 +634,27 @@ class ExceptionTool:
                 cls.EXTRA_KEY_RESP: resp
             }
         )
+
+    @classmethod
+    def raise_missing(cls,
+                      resp,
+                      org_req_url=None,
+                      ):
+        """
+        抛出本子/章节的异常
+        @param resp: 响应对象
+        @param org_req_url: 原始请求url，可不传
+        """
+        if org_req_url is None:
+            org_req_url = resp.url
+
+        req_type = "本子" if "album" in org_req_url else "章节"
+        cls.raises_resp((
+            f'请求的{req_type}不存在！({org_req_url})\n'
+            '原因可能为:\n'
+            f'1. id有误，检查你的{req_type}id\n'
+            '2. 该漫画只对登录用户可见，请配置你的cookies\n'
+        ), resp)
 
     @classmethod
     def require_true(cls, case: bool, msg: str):

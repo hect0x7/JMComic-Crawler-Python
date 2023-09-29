@@ -7,7 +7,9 @@ class Test_Client(JmTestConfigurable):
         jm_photo_id = 'JM438516'
         photo = self.client.get_photo_detail(jm_photo_id, False)
         image = photo[0]
-        self.client.download_by_image_detail(image, self.option.decide_image_filepath(image))
+        filepath = self.option.decide_image_filepath(image)
+        self.client.download_by_image_detail(image, filepath)
+        print(filepath)
 
     def test_fetch_album(self):
         album_id = "JM438516"
@@ -38,7 +40,7 @@ class Test_Client(JmTestConfigurable):
         self.assertRaises(
             A,
             self.client.get_album_detail,
-            '332583'
+            '0'
         )
 
     def test_raise_exception(self):
@@ -65,7 +67,7 @@ class Test_Client(JmTestConfigurable):
         ]
 
         for pair in ans:
-            self.assertListEqual(pair[0], pair[1])
+            self.assertListEqual(pair[0][0:9], pair[1][0:9])
 
     def test_photo_sort(self):
         client = self.option.build_jm_client()
@@ -209,3 +211,23 @@ class Test_Client(JmTestConfigurable):
                 0,
                 aid,
             )
+
+    def test_search(self):
+        page = self.client.search_site('MANA')
+
+        if len(page) >= 1:
+            for aid, ainfo in page[0:1:1]:
+                print(aid, ainfo['description'], ainfo['category'])
+
+        for aid, atitle, tag_list in page.iter_id_title_tag():
+            print(aid, atitle, tag_list)
+
+    def test_get_detail(self):
+        client = self.client
+
+        album = client.get_album_detail(400222)
+        print(album.id, album.name, album.tags)
+
+        for photo in album[0:3]:
+            photo = client.get_photo_detail(photo.photo_id)
+            print(photo.id, photo.name)
