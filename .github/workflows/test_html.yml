@@ -1,0 +1,48 @@
+name: Run Test (HTML)
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+  push:
+    branches: [ "dev" ]
+    paths:
+      - 'src/**/*.py'
+      - 'tests/**/*.py'
+      - '.github/workflows/test.yml'
+      - 'assets/config/option_test_html.yml'
+
+jobs:
+  test: # This code is based on https://github.com/gaogaotiantian/viztracer/blob/master/.github/workflows/python-package.yml
+    strategy:
+      matrix:
+        python-version: [ 3.7, 3.8, 3.9, "3.10", "3.11" ]
+        os: [ ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    env:
+      # 配置文件路径
+      JM_OPTION_PATH_TEST: ./assets/config/option_test_api.yml
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+
+      - name: Install local
+        run: |
+          pip install -e ./
+
+      - name: Run Test
+        run: |
+          cd ./tests/
+          python -m unittest

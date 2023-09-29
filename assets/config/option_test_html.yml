@@ -1,5 +1,5 @@
 # GitHub Actions 测试用
-version: '2.0'
+# 网页端配置
 
 client:
   domain:

@@ -1,4 +1,4 @@
-name: Run Test
+name: Run Test (API)
 
 on:
   schedule:
@@ -10,7 +10,7 @@ on:
       - 'src/**/*.py'
       - 'tests/**/*.py'
       - '.github/workflows/test.yml'
-      - 'assets/config/option_test.yml'
+      - 'assets/config/option_test_api.yml'
 
 jobs:
   test: # This code is based on https://github.com/gaogaotiantian/viztracer/blob/master/.github/workflows/python-package.yml
@@ -20,6 +20,9 @@ jobs:
         os: [ ubuntu-latest ]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5
+    env:
+      # 配置文件路径
+      JM_OPTION_PATH_TEST: ./assets/config/option_test_html.yml
 
     steps:
       - name: Checkout repository
