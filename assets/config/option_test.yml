@@ -5,6 +5,9 @@ client:
   domain:
     - jmcomic1.me
     - jmcomic.me
+  postman:
+    meta_data:
+      timeout: 10
 
 # 插件配置
 plugin:
