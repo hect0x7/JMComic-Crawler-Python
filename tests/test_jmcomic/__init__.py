@@ -17,10 +17,10 @@ class JmTestConfigurable(unittest.TestCase):
     project_dir: str = None
 
     def setUp(self) -> None:
-        print_sep('>')
+        print_eye_catching(f' [{self._testMethodName}] '.center(40, '🚀'))
 
     def tearDown(self) -> None:
-        print_sep('<')
+        print_eye_catching(f' [{self._testMethodName}] '.center(40, '✅'))
 
     @classmethod
     def setUpClass(cls):

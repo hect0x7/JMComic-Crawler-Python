@@ -318,6 +318,11 @@ class JmOption:
         if len(domain_list) == 0:
             domain_list = self.decide_client_domain(impl)
 
+        # headers
+        meta_data = postman_conf['meta_data']
+        if meta_data['headers'] is None:
+            meta_data['headers'] = JmModuleConfig.headers(domain_list[0])
+
         # client
         client = JmModuleConfig.client_impl_class(impl)(
             postman,

@@ -304,11 +304,6 @@ class JmModuleConfig:
         if client['cache'] is None:
             client['cache'] = True
 
-        # headers
-        meta_data = client['postman']['meta_data']
-        if meta_data['headers'] is None:
-            meta_data['headers'] = cls.headers()
-
         # threading photo
         dt = option_dict['download']['threading']
         if dt['photo'] is None:

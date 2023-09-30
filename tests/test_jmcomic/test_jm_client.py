@@ -60,6 +60,8 @@ class Test_Client(JmTestConfigurable):
         JmModuleConfig.raise_exception_executor = default_raise_exception_executor
         ExceptionTool.replace_old_exception_executor(raises)
         self.assertRaises(B, JmcomicText.parse_to_album_id, 'asdhasjhkd')
+        # 还原
+        JmModuleConfig.raise_exception_executor = default_raise_exception_executor
 
     def test_detail_property_list(self):
         album = self.client.get_album_detail(410090)
