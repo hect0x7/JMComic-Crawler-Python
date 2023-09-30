@@ -251,6 +251,8 @@ class JmModuleConfig:
 
     # option 默认配置字典
     JM_OPTION_VER = '2.1'
+    CLIENT_IMPL_DEFAULT = 'html'
+
     default_option_dict: dict = {
         'version': JM_OPTION_VER,
         'debug': None,
@@ -273,7 +275,7 @@ class JmModuleConfig:
                     'headers': None,
                 }
             },
-            'impl': 'html',
+            'impl': None,
             'retry_times': 5
         },
         'plugin': {},
@@ -303,6 +305,10 @@ class JmModuleConfig:
         client = option_dict['client']
         if client['cache'] is None:
             client['cache'] = True
+
+        # client impl
+        if client['impl'] is None:
+            client['impl'] = cls.CLIENT_IMPL_DEFAULT
 
         # threading photo
         dt = option_dict['download']['threading']

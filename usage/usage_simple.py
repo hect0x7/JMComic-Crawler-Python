@@ -22,7 +22,7 @@ client = option.build_jm_client()
 def download_jm_album():
     ls = str_to_list('''
     438696
-
+    https://18comic.vip/album/497896/
 
     ''')
 

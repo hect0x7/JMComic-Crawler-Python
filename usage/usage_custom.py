@@ -56,21 +56,20 @@ def custom_client_class():
     # 默认情况下，JmOption使用client类是根据配置项 `client.impl` 决定的
     # JmOption会根据`client.impl`到 JmModuleConfig.CLASS_CLIENT_IMPL 中查找
 
-    # 你可以自定义一个`client.impl`，例如 'my-client'，
-    # 或者使用jmcomic内置 'html' 和 'api'，
-    # 然后把你的`client.impl`和类一起配置到JmModuleConfig中
+    # 自定义client的步骤如下
 
     # 1. 自定义Client类
     class MyClient(JmHtmlClient):
+        client_key = 'myclient'
         pass
 
-    # 2. 让你的配置类生效
-    JmModuleConfig.CLASS_CLIENT_IMPL['my-client'] = MyClient
+    # 2. 让MyClient生效
+    JmModuleConfig.register_client(MyClient)
 
     # 3. 在配置文件中使用你定义的client.impl，后续使用这个option即可
     """
     client:
-        impl: 'my-client'
+        impl: myclient
     """
 
 
