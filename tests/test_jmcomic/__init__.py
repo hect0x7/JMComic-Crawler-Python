@@ -29,7 +29,11 @@ class JmTestConfigurable(unittest.TestCase):
         os.chdir(cls.project_dir)
 
         # 设置 JmOption，JmcomicClient
-        option = create_option_by_env('JM_OPTION_PATH_TEST')
+        try:
+            option = create_option_by_env('JM_OPTION_PATH_TEST')
+        except JmcomicException:
+            option = create_option('./assets/config/option_test.yml')
+
         cls.option = option
         cls.client = option.build_jm_client()
 

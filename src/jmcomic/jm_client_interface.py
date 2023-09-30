@@ -373,14 +373,22 @@ class JmcomicClient(
     JmSearchAlbumClient,
     Postman,
 ):
-    def get_jmcomic_url(self):
-        return JmModuleConfig.get_jmcomic_url()
-
-    def get_jmcomic_domain_all(self):
-        return JmModuleConfig.get_jmcomic_domain_all()
+    client_key: None
 
     def get_domain_list(self) -> List[str]:
+        """
+        获取当前client的域名配置
+        """
         raise NotImplementedError
 
     def set_domain_list(self, domain_list: List[str]):
+        """
+        设置当前client的域名配置
+        """
         raise NotImplementedError
+
+    def get_html_domain(self):
+        return JmModuleConfig.get_html_domain()
+
+    def get_html_domain_all(self):
+        return JmModuleConfig.get_html_domain_all()

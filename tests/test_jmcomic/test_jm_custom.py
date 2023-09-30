@@ -36,3 +36,63 @@ class Test_Custom(JmTestConfigurable):
             os.path.abspath(save_dir),
             os.path.abspath(base_dir + dic[1] + '/' + dic[2]),
         )
+
+    def test_extends_api_client(self):
+        class MyClient(JmApiClient):
+            pass
+
+        JmModuleConfig.register_client(MyClient)
+
+        self.assertListEqual(
+            JmModuleConfig.DOMAIN_API_LIST,
+            self.option.new_jm_client(domain_list=[], impl=MyClient.client_key).get_domain_list()
+        )
+
+    def test_extends_html_client(self):
+        class MyClient(JmHtmlClient):
+            pass
+
+        JmModuleConfig.register_client(MyClient)
+
+        html_domain = self.client.get_html_domain()
+        self.assertListEqual(
+            [html_domain],
+            self.option.new_jm_client(domain_list=[], impl=MyClient.client_key).get_domain_list()
+        )
+
+    def test_client_key_missing(self):
+        class MyClient(JmcomicClient):
+            pass
+
+        # '不重写 client_key'
+        self.assertRaises(
+            JmModuleConfig.CLASS_EXCEPTION,
+            JmModuleConfig.register_client,
+            MyClient,
+        )
+
+    def test_custom_client_empty_domain(self):
+        class MyClient(JmcomicClient):
+            client_key = 'myclient'
+            pass
+
+        JmModuleConfig.register_client(MyClient)
+        # '自定义client，不配置域名'
+        self.assertRaises(
+            JmModuleConfig.CLASS_EXCEPTION,
+            self.option.new_jm_client,
+            domain_list=[],
+            impl=MyClient.client_key,
+        )
+
+    def test_client_empty_domain(self):
+        class MyClient(JmApiClient):
+            client_key = 'myclient'
+            pass
+
+        JmModuleConfig.register_client(MyClient)
+        self.assertListEqual(
+            JmModuleConfig.DOMAIN_API_LIST,
+            self.option.new_jm_client(domain_list=[], impl=MyClient.client_key).get_domain_list(),
+            msg='继承client，不配置域名',
+        )

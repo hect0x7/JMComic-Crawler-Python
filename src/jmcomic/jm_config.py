@@ -52,18 +52,27 @@ class JmModuleConfig:
     SCRAMBLE_NUM_8 = 421926  # 2023-02-08后改了图片切割算法
     SCRAMBLE_CACHE = {}
 
-    # API的相关配置
-    # 移动端api密钥
+    # 移动端API的相关配置
+    # API密钥
     MAGIC_18COMICAPPCONTENT = '18comicAPPContent'
-    # 移动端的图片域名
-    DOMAIN_IMAGE_LIST = [f"cdn-msp.jmapiproxy{i}.cc" for i in range(1, 4)]
 
-    # 下载时的一些默认值配置
-    default_author = 'default-author'
+    # 域名配置 - 移动端
+    # 图片域名
+    DOMAIN_API_IMAGE_LIST = [f"cdn-msp.jmapiproxy{i}.cc" for i in range(1, 4)]
+    # API域名
+    DOMAIN_API_LIST = [
+        "www.jmapinode1.cc",
+        "www.jmapinode2.cc",
+        "www.jmapinode3.cc",
+        "www.jmapibranch2.cc",
+    ]
 
-    # 模块级别的可重写配置
-    DOMAIN = None
-    DOMAIN_LIST = None
+    # 域名配置 - 网页端
+    # 无需配置，默认为None，需要的时候会发起请求获得
+    DOMAIN_HTML = None
+    DOMAIN_HTML_LIST = None
+
+    # 模块级别的可重写类配置
     CLASS_DOWNLOADER = None
     CLASS_OPTION = None
     CLASS_ALBUM = None
@@ -86,6 +95,8 @@ class JmModuleConfig:
     enable_jm_debug = True
     # debug时解码url
     decode_url_when_debug = True
+    # 下载时的一些默认值配置
+    default_author = 'default-author'
 
     @classmethod
     def downloader_class(cls):
@@ -139,18 +150,18 @@ class JmModuleConfig:
         return clazz
 
     @classmethod
-    @field_cache("DOMAIN")
-    def domain(cls, postman=None):
+    @field_cache("DOMAIN_HTML")
+    def get_html_domain(cls, postman=None):
         """
         由于禁漫的域名经常变化，调用此方法可以获取一个当前可用的最新的域名 domain，
         并且设置把 domain 设置为禁漫模块的默认域名。
         这样一来，配置文件也不用配置域名了，一切都在运行时动态获取。
         """
         from .jm_toolkit import JmcomicText
-        return JmcomicText.parse_to_jm_domain(cls.get_jmcomic_url(postman))
+        return JmcomicText.parse_to_jm_domain(cls.get_html_url(postman))
 
     @classmethod
-    def get_jmcomic_url(cls, postman=None):
+    def get_html_url(cls, postman=None):
         """
         访问禁漫的永久网域，从而得到一个可用的禁漫网址
         @return: https://jm-comic2.cc
@@ -158,14 +169,14 @@ class JmModuleConfig:
         postman = postman or cls.new_postman(session=True)
 
         url = postman.with_redirect_catching().get(cls.JM_REDIRECT_URL)
-        cls.jm_debug('获取禁漫URL', f'[{cls.JM_REDIRECT_URL}] → [{url}]')
+        cls.jm_debug('获取禁漫网页URL', f'[{cls.JM_REDIRECT_URL}] → [{url}]')
         return url
 
     @classmethod
-    @field_cache("DOMAIN_LIST")
-    def get_jmcomic_domain_all(cls, postman=None):
+    @field_cache("DOMAIN_HTML_LIST")
+    def get_html_domain_all(cls, postman=None):
         """
-        访问禁漫发布页，得到所有禁漫的域名
+        访问禁漫发布页，得到所有的禁漫网页域名
 
         @return: ['18comic.vip', ..., 'jm365.xyz/ZNPJam'], 最后一个是【APP軟件下載】
         """
@@ -179,7 +190,7 @@ class JmModuleConfig:
         from .jm_toolkit import JmcomicText
         domain_list = JmcomicText.analyse_jm_pub_html(resp.text)
 
-        cls.jm_debug('获取禁漫全部域名', f'[{resp.url}] → {domain_list}')
+        cls.jm_debug('获取禁漫网页全部域名', f'[{resp.url}] → {domain_list}')
         return domain_list
 
     @classmethod
@@ -312,7 +323,12 @@ class JmModuleConfig:
 
     @classmethod
     def register_client(cls, client_class):
-        cls.CLASS_CLIENT_IMPL[client_class.client_key] = client_class
+        client_key = getattr(client_class, 'client_key', None)
+        if client_key is None:
+            from .jm_toolkit import ExceptionTool
+            ExceptionTool.raises(f'未配置client_key, class: {client_class}')
+
+        cls.CLASS_CLIENT_IMPL[client_key] = client_class
 
 
 jm_debug = JmModuleConfig.jm_debug

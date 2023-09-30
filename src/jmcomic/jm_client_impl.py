@@ -1,11 +1,12 @@
 from .jm_client_interface import *
 
 
+# 抽象基类，实现了域名管理，发请求，重试机制，debug，缓存等功能
 class AbstractJmClient(
     JmcomicClient,
     PostmanProxy,
 ):
-    client_key: None
+    client_key = None
 
     def __init__(self,
                  postman: Postman,
@@ -145,11 +146,11 @@ class AbstractJmClient(
     def is_cache_enabled(self) -> bool:
         return getattr(self, '__enable_cache__', False)
 
-    def get_jmcomic_url(self, postman=None):
-        return JmModuleConfig.get_jmcomic_url(postman or self.get_root_postman())
+    def get_html_domain(self, postman=None):
+        return JmModuleConfig.get_html_domain(postman or self.get_root_postman())
 
-    def get_jmcomic_domain_all(self, postman=None):
-        return JmModuleConfig.get_jmcomic_domain_all(postman or self.get_root_postman())
+    def get_html_domain_all(self, postman=None):
+        return JmModuleConfig.get_html_domain_all(postman or self.get_root_postman())
 
     def get_domain_list(self):
         return self.domain_list
@@ -390,6 +391,7 @@ class JmHtmlClient(AbstractJmClient):
         )
 
 
+# 基于禁漫移动端（APP）实现的JmClient
 class JmApiClient(AbstractJmClient):
     client_key = 'api'
     API_SEARCH = '/search'

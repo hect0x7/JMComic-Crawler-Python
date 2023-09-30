@@ -465,7 +465,7 @@ class JmApiAdaptTool:
         fields['sort'] = sort
         fields['scramble_id'] = '0'
         import random
-        fields['data_original_domain'] = random.choice(JmModuleConfig.DOMAIN_IMAGE_LIST)
+        fields['data_original_domain'] = random.choice(JmModuleConfig.DOMAIN_API_IMAGE_LIST)
 
 
 class JmImageTool:
