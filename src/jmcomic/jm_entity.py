@@ -154,20 +154,20 @@ class JmPhotoDetail(DetailEntity):
                  photo_id,
                  scramble_id,
                  name,
-                 keywords,
                  series_id,
                  sort,
+                 tags='',
                  page_arr=None,
                  data_original_domain=None,
                  data_original_0=None,
                  author=None,
                  from_album=None,
                  ):
-        self.photo_id: str = photo_id
-        self.scramble_id: str = scramble_id
+        self.photo_id: str = str(photo_id)
+        self.scramble_id: str = str(scramble_id)
         self.name: str = str(name).strip()
         self.sort: int = int(sort)
-        self._keywords: str = keywords
+        self._tags: str = tags
         self._series_id: int = int(series_id)
 
         self._author: StrNone = author
@@ -204,7 +204,13 @@ class JmPhotoDetail(DetailEntity):
         if self.from_album is not None:
             return self.from_album.tags
 
-        return self._keywords.split(',')
+        tag_str = self._tags
+        if ',' in tag_str:
+            # html
+            return tag_str.split(',')
+        else:
+            # api
+            return tag_str.split()
 
     @property
     def indextitle(self):
@@ -262,7 +268,7 @@ class JmPhotoDetail(DetailEntity):
         例如：img_name = 01111.webp
         返回：https://cdn-msp2.18comic.org/media/photos/147643/01111.webp
         """
-        domain = self.data_original_domain or None
+        domain = self.data_original_domain
 
         from .jm_toolkit import ExceptionTool
         ExceptionTool.require_true(domain is not None, f'图片域名为空: {domain}')
@@ -319,26 +325,27 @@ class JmAlbumDetail(DetailEntity):
         self.album_id: str = str(album_id)
         self.scramble_id: str = str(scramble_id)
         self.name: str = name
-        self.page_count = int(page_count)  # 总页数
+        self.page_count: int = int(page_count)  # 总页数
         self.pub_date: str = pub_date  # 发布日期
         self.update_date: str = update_date  # 更新日期
 
         self.likes: str = likes  # [1K] 點擊喜歡
         self.views: str = views  # [40K] 次觀看
-        self.comment_count: int = self.__parse_comment_count(comment_count)  # 评论数
+        self.comment_count: int = int(comment_count)  # 评论数
         self.works: List[str] = works  # 作品
         self.actors: List[str] = actors  # 登場人物
         self.tags: List[str] = tags  # 標籤
         self.authors: List[str] = authors  # 作者
 
         # 有的 album 没有章节，则自成一章。
+        episode_list: List[Tuple[str, str, str, str]]
         if len(episode_list) == 0:
             # photo_id, photo_index, photo_title, photo_pub_date
-            episode_list = [(album_id, 1, name, pub_date)]
+            episode_list = [(album_id, "1", name, pub_date)]
         else:
             episode_list = self.distinct_episode(episode_list)
 
-        self.episode_list: List[Tuple] = episode_list
+        self.episode_list = episode_list
         self.related_list = related_list
 
     @property
@@ -357,25 +364,19 @@ class JmAlbumDetail(DetailEntity):
         return self.album_id
 
     @staticmethod
-    def distinct_episode(episode_list):
-        ret = []
+    def distinct_episode(episode_list: list):
+        """
+        去重章节
+        photo_id, photo_index, photo_title, photo_pub_date
+        """
+        episode_list.sort(key=lambda e: int(e[1]))  # 按照photo_index排序
+        ret = [episode_list[0]]
 
-        def not_exist(episode):
-            photo_id = episode[0]
-            for each in ret:
-                if each[0] == photo_id:
-                    return False
-            return True
-
-        for episode in episode_list:
-            if not_exist(episode):
-                ret.append(episode)
+        for i in range(1, len(episode_list)):
+            if ret[-1][1] != episode_list[i][1]:
+                ret.append(episode_list[i])
 
         return ret
-
-    # noinspection PyMethodMayBeStatic
-    def __parse_comment_count(self, comment_count: str) -> int:
-        return int(comment_count)
 
     def create_photo_detail(self, index) -> Tuple[JmPhotoDetail, Tuple]:
         # 校验参数
@@ -391,13 +392,9 @@ class JmAlbumDetail(DetailEntity):
             photo_id=pid,
             scramble_id=self.scramble_id,
             name=pname,
-            keywords='',
             series_id=self.album_id,
             sort=pindex,
-            author=self.author,
             from_album=self,
-            page_arr=None,
-            data_original_domain=None
         )
 
         return photo, (self.episode_list[index])

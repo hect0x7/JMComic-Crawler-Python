@@ -3,15 +3,6 @@ dir_rule:
   base_dir: ${JM_DOWNLOAD_DIR}
   rule: Bd_Aauthor_Atitle_Pindex
 
-client:
-  impl: api
-  domain: [
-    "www.jmapinode1.cc",
-    "www.jmapinode2.cc",
-    "www.jmapinode3.cc",
-    "www.jmapibranch2.cc",
-  ]
-
 # 插件配置
 plugin:
   after_init:

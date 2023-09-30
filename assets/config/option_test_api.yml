@@ -3,15 +3,10 @@
 
 client:
   impl: api
-  domain: [
-    "www.jmapinode1.cc",
-    "www.jmapinode2.cc",
-    "www.jmapinode3.cc",
-    "www.jmapibranch2.cc"
-  ]
+  retry_times: 3
   postman:
     meta_data:
-      timeout: 10
+      timeout: 5
 
 # 插件配置
 plugin:

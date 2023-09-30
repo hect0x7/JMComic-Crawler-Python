@@ -19,6 +19,12 @@ on:
         default: ''
         required: false
 
+      CLIENT_IMPL:
+        type: string
+        description: 客户端类型，[api]=移动端，[html]=网页端
+        default: api
+        required: false
+
       ZIP_NAME:
         type: string
         default: 本子.tar.gz
@@ -52,6 +58,7 @@ jobs:
       JM_ALBUM_IDS: ${{ github.event.inputs.JM_ALBUM_IDS }}
       JM_PHOTO_IDS: ${{ github.event.inputs.JM_PHOTO_IDS }}
       DIR_RULE: ${{ github.event.inputs.DIR_RULE }}
+      CLIENT_IMPL: ${{ github.event.inputs.CLIENT_IMPL }}
       ZIP_NAME: ${{ github.event.inputs.ZIP_NAME }}
       UPLOAD_NAME: ${{ github.event.inputs.UPLOAD_NAME }}
       # secrets
