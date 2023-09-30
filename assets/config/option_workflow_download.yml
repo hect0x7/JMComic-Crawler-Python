@@ -1,15 +1,16 @@
 # GitHub Actions 下载脚本配置
-version: '2.0'
-
 dir_rule:
   base_dir: ${JM_DOWNLOAD_DIR}
   rule: Bd_Aauthor_Atitle_Pindex
 
-
 client:
-  domain:
-    - jmcomic1.me
-    - jmcomic.me
+  impl: api
+  domain: [
+    "www.jmapinode1.cc",
+    "www.jmapinode2.cc",
+    "www.jmapinode3.cc",
+    "www.jmapibranch2.cc",
+  ]
 
 # 插件配置
 plugin:
@@ -18,10 +19,3 @@ plugin:
       kwargs:
         interval: 0.5 # 间隔时间
         enable_warning: false # 不告警
-
-#  after_album:
-#    - plugin: zip # 压缩文件插件
-#      kwargs:
-#        level: album # 按照章节，一个章节一个压缩文件
-#        filename_rule: Atitle # 压缩文件的命名规则
-#        zip_dir: ${JM_ZIP_DIR} # 压缩文件存放的文件夹

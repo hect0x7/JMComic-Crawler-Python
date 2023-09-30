@@ -300,6 +300,10 @@ class JmOption:
 
     def new_jm_client(self, domain_list=None, impl=None, **kwargs) -> JmcomicClient:
         postman_conf: dict = self.client.postman.src_dict
+        impl = impl or self.client.impl
+        if domain_list is None:
+            domain_list = self.client.domain
+        domain_list: List[str]
 
         # support kwargs overwrite meta_data
         if len(kwargs) != 0:
@@ -311,15 +315,16 @@ class JmOption:
         postman = Postmans.create(data=postman_conf)
 
         # domain_list
-        if domain_list is None:
-            domain_list = self.client.domain
-
-        domain_list: List[str]
         if len(domain_list) == 0:
-            domain_list = [JmModuleConfig.domain()]
+            domain_list = self.decide_client_domain(impl)
+
+        # headers
+        meta_data = postman_conf['meta_data']
+        if meta_data['headers'] is None:
+            meta_data['headers'] = JmModuleConfig.headers(domain_list[0])
 
         # client
-        client = JmModuleConfig.client_impl_class(impl or self.client.impl)(
+        client = JmModuleConfig.client_impl_class(impl)(
             postman,
             self.client.retry_times,
             fallback_domain_list=domain_list,
@@ -330,6 +335,28 @@ class JmOption:
             client.enable_cache()
 
         return client
+
+    # noinspection PyMethodMayBeStatic
+    def decide_client_domain(self, client_key: str) -> List[str]:
+        def is_client_type(ct: Type[JmcomicClient]):
+            if client_key == ct:
+                return True
+
+            clazz = JmModuleConfig.client_impl_class(client_key)
+            if issubclass(clazz, ct):
+                return True
+
+            return False
+
+        if is_client_type(JmApiClient):
+            # 移动端
+            return JmModuleConfig.DOMAIN_API_LIST
+
+        if is_client_type(JmHtmlClient):
+            # 网页端
+            return [JmModuleConfig.get_html_domain()]
+
+        ExceptionTool.raises(f'没有配置域名，且是无法识别的client类型: {client_key}')
 
     @classmethod
     def merge_default_dict(cls, user_dict, default_dict=None):
