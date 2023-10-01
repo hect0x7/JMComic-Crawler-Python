@@ -10,12 +10,12 @@ on:
 
       JM_PHOTO_IDS:
         type: string
-        description: 章节id（可以单独下载某个本子的某个章节，多个id用-隔开（同上））
+        description: 章节id（单独下载章节，多个id同上）
         required: false
 
       DIR_RULE:
         type: string
-        description: 下载文件夹规则（dir_rule.rule）。此处可以不填，默认使用配置文件的'Bd_Aauthor_Atitle_Pindex'
+        description: 下载文件夹规则（dir_rule.rule）。此处可以不填，默认使用配置文件的'Bd_Aauthor_Atitle_Pindex'。
         default: ''
         required: false
 
