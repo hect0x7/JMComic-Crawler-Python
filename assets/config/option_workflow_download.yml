@@ -5,8 +5,8 @@ dir_rule:
 
 client:
   domain:
-    jmcomic1.me
-    jmcomic.me
+    - jmcomic1.me
+    - jmcomic.me
 
 # 插件配置
 plugin:
