@@ -2,12 +2,14 @@
 # 网页端配置
 
 client:
+  impl: html
+  retry_times: 3
+  postman:
+    meta_data:
+      timeout: 5
   domain:
     - jmcomic1.me
     - jmcomic.me
-  postman:
-    meta_data:
-      timeout: 10
 
 # 插件配置
 plugin:

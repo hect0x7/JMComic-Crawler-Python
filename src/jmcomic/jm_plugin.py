@@ -27,12 +27,10 @@ class JmOptionPlugin:
         return cls(option)
 
 
-"""
-扩展功能：登录禁漫，并保存登录后的cookies，让所有client都带上此cookies
-"""
-
-
 class JmLoginPlugin(JmOptionPlugin):
+    """
+    功能：登录禁漫，并保存登录后的cookies，让所有client都带上此cookies
+    """
     plugin_key = 'login'
 
     def invoke(self, username, password) -> None:
@@ -152,8 +150,10 @@ class UsageLogPlugin(JmOptionPlugin):
             sleep(interval)
 
 
-# 参考: https://github.com/hect0x7/JMComic-Crawler-Python/issues/95
 class FindUpdatePlugin(JmOptionPlugin):
+    """
+    参考: https://github.com/hect0x7/JMComic-Crawler-Python/issues/95
+    """
     plugin_key = 'find_update'
 
     def invoke(self, **kwargs) -> None:

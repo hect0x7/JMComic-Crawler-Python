@@ -65,6 +65,15 @@ def cover_option_config(option: JmOption):
         the_new = DirRule(dir_rule, base_dir=the_old.base_dir)
         option.dir_rule = the_new
 
+    impl = get_env('CLIENT_IMPL', None)
+    if impl is not None:
+        option.client.impl = impl
+    else:
+        impl = option.client.impl
+
+    if impl == 'api':
+        option.client.domain = JmModuleConfig.DOMAIN_API_LIST
+
 
 def login_if_configured(option):
     # 检查环境变量中是否有禁漫的用户名和密码，如果有则登录

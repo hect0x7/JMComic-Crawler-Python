@@ -10,12 +10,18 @@ on:
 
       JM_PHOTO_IDS:
         type: string
-        description: 章节id（可以单独下载某个本子的某个章节，多个id用-隔开（同上））
+        description: 章节id（单独下载章节，多个id同上）
         required: false
 
       DIR_RULE:
         type: string
-        description: 下载文件夹规则，对应option配置文件里的dir_rule.rule。此处可以不填，默认使用repo里的配置文件的`Bd_Aauthor_Atitle_Pindex`。
+        description: 下载文件夹规则（dir_rule.rule）。此处可以不填，默认使用配置文件的'Bd_Aauthor_Atitle_Pindex'。
+        default: ''
+        required: false
+
+      CLIENT_IMPL:
+        type: string
+        description: 客户端类型（client.impl），[api]=移动端，[html]=网页端，此处可以不填，默认使用'html'。如果你发现默认的下载不了，可以填api试试。
         default: ''
         required: false
 
@@ -52,6 +58,7 @@ jobs:
       JM_ALBUM_IDS: ${{ github.event.inputs.JM_ALBUM_IDS }}
       JM_PHOTO_IDS: ${{ github.event.inputs.JM_PHOTO_IDS }}
       DIR_RULE: ${{ github.event.inputs.DIR_RULE }}
+      CLIENT_IMPL: ${{ github.event.inputs.CLIENT_IMPL }}
       ZIP_NAME: ${{ github.event.inputs.ZIP_NAME }}
       UPLOAD_NAME: ${{ github.event.inputs.UPLOAD_NAME }}
       # secrets

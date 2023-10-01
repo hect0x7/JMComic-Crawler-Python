@@ -24,6 +24,10 @@ class AbstractJmClient(
             fallback_domain_list.insert(0, domain)
 
         self.domain_list = fallback_domain_list
+        self.after_init()
+
+    def after_init(self):
+        pass
 
     def get(self, url, **kwargs):
         return self.request_with_retry(self.postman.get, url, **kwargs)
@@ -104,31 +108,35 @@ class AbstractJmClient(
         jm_debug('req.error', str(e))
 
     def enable_cache(self, debug=False):
-        def wrap_func_cache(func_name, cache_dict_name):
-            import common
-            if common.VERSION > '0.4.8':
-                if hasattr(self, cache_dict_name):
-                    return
+        if self.is_cache_enabled():
+            return
 
-                cache = common.cache
-                cache_dict = {}
-                cache_hit_msg = (f'【缓存命中】{cache_dict_name} ' + '→ [{}]') if debug is True else None
-                cache_miss_msg = (f'【缓存缺失】{cache_dict_name} ' + '← [{}]') if debug is True else None
-                cache = cache(
-                    cache_dict=cache_dict,
-                    cache_hit_msg=cache_hit_msg,
-                    cache_miss_msg=cache_miss_msg,
-                )
-                setattr(self, cache_dict_name, cache_dict)
+        def wrap_func_cache(func_name, cache_dict_name):
+            if hasattr(self, cache_dict_name):
+                return
+
+            if sys.version_info > (3, 9):
+                import functools
+                cache = functools.cache
             else:
-                if sys.version_info < (3, 9):
+                import common
+                if common.VERSION > '0.4.8':
+                    cache = common.cache
+                    cache_dict = {}
+                    cache_hit_msg = (f'【缓存命中】{cache_dict_name} ' + '→ [{}]') if debug is True else None
+                    cache_miss_msg = (f'【缓存缺失】{cache_dict_name} ' + '← [{}]') if debug is True else None
+                    cache = cache(
+                        cache_dict=cache_dict,
+                        cache_hit_msg=cache_hit_msg,
+                        cache_miss_msg=cache_miss_msg,
+                    )
+                    setattr(self, cache_dict_name, cache_dict)
+                else:
                     ExceptionTool.raises('不支持启用JmcomicClient缓存。\n'
                                          '请更新python版本到3.9以上，'
                                          '或更新commonX: `pip install commonX --upgrade`')
-                import functools
-                cache = functools.cache
+                    return
 
-            # 重载本对象的方法
             func = getattr(self, func_name)
             wrap_func = cache(func)
 
@@ -399,14 +407,6 @@ class JmApiClient(AbstractJmClient):
     API_CHAPTER = '/chapter'
     API_SCRAMBLE = '/chapter_view_template'
 
-    def __init__(self,
-                 postman: Postman,
-                 retry_times: int,
-                 domain=None,
-                 fallback_domain_list=None,
-                 ):
-        super().__init__(postman, retry_times, domain, fallback_domain_list)
-
     def search(self,
                search_query: str,
                page: int,
@@ -445,19 +445,34 @@ class JmApiClient(AbstractJmClient):
                                         )
 
     def get_photo_detail(self, photo_id, fetch_album=True) -> JmPhotoDetail:
-        photo_id = JmcomicText.parse_to_photo_id(photo_id)
         photo: JmPhotoDetail = self.fetch_detail_entity(photo_id,
                                                         JmModuleConfig.photo_class(),
                                                         )
-        photo.scramble_id = self.get_scramble_id(photo.photo_id)
+        self.fetch_photo_additional_field(photo, fetch_album)
         return photo
 
+    def get_scramble_id(self, photo_id):
+        """
+        带有缓存的fetch_scramble_id，缓存位于JmModuleConfig.SCRAMBLE_CACHE
+        """
+        cache = JmModuleConfig.SCRAMBLE_CACHE
+        if photo_id in cache:
+            return cache[photo_id]
+
+        scramble_id = self.fetch_scramble_id(photo_id)
+        cache[photo_id] = scramble_id
+        return scramble_id
+
     def fetch_detail_entity(self, apid, clazz, **kwargs):
+        """
+        请求实体类
+        """
+        apid = JmcomicText.parse_to_album_id(apid)
         url = self.API_ALBUM if issubclass(clazz, JmAlbumDetail) else self.API_CHAPTER
         resp = self.get_decode(
             url,
             params={
-                'id': JmcomicText.parse_to_album_id(apid),
+                'id': apid,
                 **kwargs,
             }
         )
@@ -466,11 +481,11 @@ class JmApiClient(AbstractJmClient):
 
         return JmApiAdaptTool.parse_entity(resp.res_data, clazz)
 
-    def get_scramble_id(self, photo_id):
-        cache = JmModuleConfig.SCRAMBLE_CACHE
-        if photo_id in cache:
-            return cache[photo_id]
-
+    def fetch_scramble_id(self, photo_id):
+        """
+        请求scramble_id
+        """
+        photo_id: str = JmcomicText.parse_to_photo_id(photo_id)
         resp = self.get_decode(
             self.API_SCRAMBLE,
             params={
@@ -487,10 +502,42 @@ class JmApiClient(AbstractJmClient):
             scramble_id = match[1]
         else:
             jm_debug('api.scramble', '未从响应中匹配到scramble_id，返回默认值220980')
-            scramble_id = 220980
+            scramble_id = '220980'
 
-        cache[photo_id] = scramble_id
         return scramble_id
+
+    def fetch_photo_additional_field(self, photo: JmPhotoDetail, fetch_album: bool):
+        """
+        获取章节的额外信息
+        1. scramble_id
+        2. album
+
+        这里的难点是，是否要采用异步的方式并发请求。
+        """
+        aid = photo.album_id
+        pid = photo.photo_id
+        scramble_cache = JmModuleConfig.SCRAMBLE_CACHE
+
+        if fetch_album is False and pid in scramble_cache:
+            # 不用发请求，直接返回
+            photo.scramble_id = scramble_cache[pid]
+            return
+
+        if fetch_album is True and pid not in scramble_cache:
+            # 要发起两个请求，这里实现很简易，直接排队请求
+            # todo: 改进实现
+            # 1. 直接开两个线程跑
+            # 2. 开两个线程，但是开之前检查重复性
+            # 3. 线程池，也要检查重复性
+            # 23做法要改不止一处地方
+            photo.from_album = self.get_scramble_id(pid)
+            photo.scramble_id = self.get_album_detail(aid)
+            return
+
+        if fetch_album is True:
+            photo.from_album = self.get_album_detail(aid)
+        else:
+            photo.scramble_id = self.get_scramble_id(pid)
 
     def get_decode(self, url, **kwargs) -> JmApiResp:
         # set headers

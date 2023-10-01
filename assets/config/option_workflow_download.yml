@@ -4,13 +4,9 @@ dir_rule:
   rule: Bd_Aauthor_Atitle_Pindex
 
 client:
-  impl: api
-  domain: [
-    "www.jmapinode1.cc",
-    "www.jmapinode2.cc",
-    "www.jmapinode3.cc",
-    "www.jmapibranch2.cc",
-  ]
+  domain:
+    - jmcomic1.me
+    - jmcomic.me
 
 # 插件配置
 plugin:
