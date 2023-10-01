@@ -137,7 +137,6 @@ class AbstractJmClient(
                                          '或更新commonX: `pip install commonX --upgrade`')
                     return
 
-                    # 重载本对象的方法
             func = getattr(self, func_name)
             wrap_func = cache(func)
 
