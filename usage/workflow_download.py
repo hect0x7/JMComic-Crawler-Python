@@ -68,8 +68,7 @@ def cover_option_config(option: JmOption):
     impl = get_env('CLIENT_IMPL', None)
     if impl is not None:
         option.client.impl = impl
-
-    option.client.domain = option.decide_client_domain(impl)
+        option.client.domain = option.decide_client_domain(impl)
 
 def login_if_configured(option):
     # 检查环境变量中是否有禁漫的用户名和密码，如果有则登录
