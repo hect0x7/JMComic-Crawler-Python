@@ -4,7 +4,9 @@ dir_rule:
   rule: Bd_Aauthor_Atitle_Pindex
 
 client:
-  impl: api
+  domain:
+    jmcomic1.me
+    jmcomic.me
 
 # 插件配置
 plugin:
