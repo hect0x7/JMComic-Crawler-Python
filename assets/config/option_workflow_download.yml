@@ -3,6 +3,9 @@ dir_rule:
   base_dir: ${JM_DOWNLOAD_DIR}
   rule: Bd_Aauthor_Atitle_Pindex
 
+client:
+  impl: api
+
 # 插件配置
 plugin:
   after_init:

@@ -22,7 +22,7 @@ on:
       CLIENT_IMPL:
         type: string
         description: 客户端类型，[api]=移动端，[html]=网页端
-        default: api
+        default: ''
         required: false
 
       ZIP_NAME:
