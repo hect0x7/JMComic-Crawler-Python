@@ -15,13 +15,13 @@ on:
 
       DIR_RULE:
         type: string
-        description: 下载文件夹规则，对应option配置文件里的dir_rule.rule。此处可以不填，默认使用repo里的配置文件的`Bd_Aauthor_Atitle_Pindex`。
+        description: 下载文件夹规则（dir_rule.rule）。此处可以不填，默认使用配置文件的`Bd_Aauthor_Atitle_Pindex`
         default: ''
         required: false
 
       CLIENT_IMPL:
         type: string
-        description: 客户端类型，[api]=移动端，[html]=网页端
+        description: 客户端类型（client.impl），[api]=移动端，[html]=网页端，此处可以不填
         default: ''
         required: false
 
