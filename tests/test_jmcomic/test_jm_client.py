@@ -5,7 +5,7 @@ class Test_Client(JmTestConfigurable):
 
     def test_download_image(self):
         jm_photo_id = 'JM438516'
-        photo = self.client.get_photo_detail(jm_photo_id, False)
+        photo = self.client.get_photo_detail(jm_photo_id)
         image = photo[0]
         filepath = self.option.decide_image_filepath(image)
         self.client.download_by_image_detail(image, filepath)
@@ -32,7 +32,7 @@ class Test_Client(JmTestConfigurable):
 
     def test_gt_300_photo(self):
         photo_id = '147643'
-        photo: JmPhotoDetail = self.client.get_photo_detail(photo_id, False)
+        photo: JmPhotoDetail = self.client.get_photo_detail(photo_id)
         image = photo[3000]
         print(image.img_url)
         self.client.download_by_image_detail(image, self.option.decide_image_filepath(image))
@@ -59,7 +59,7 @@ class Test_Client(JmTestConfigurable):
 
         JmModuleConfig.raise_exception_executor = default_raise_exception_executor
         ExceptionTool.replace_old_exception_executor(raises)
-        self.assertRaises(B, JmcomicText.parse_to_album_id, 'asdhasjhkd')
+        self.assertRaises(B, JmcomicText.parse_to_jm_id, 'asdhasjhkd')
         # 还原
         JmModuleConfig.raise_exception_executor = default_raise_exception_executor
 
@@ -123,9 +123,13 @@ class Test_Client(JmTestConfigurable):
         )
 
         for album, photo_ls in multi_photo_album_dict.items():
+            ls1 = sorted([each.sort for each in album])
+            ls2 = sorted([ans.sort for ans in photo_ls])
+            print(ls1)
+            print(ls2)
             self.assertListEqual(
-                sorted([each.sort for each in album]),
-                sorted([ans.sort for ans in photo_ls]),
+                ls1,
+                ls2,
                 album.album_id
             )
 
@@ -228,3 +232,20 @@ class Test_Client(JmTestConfigurable):
         for photo in album[0:3]:
             photo = client.get_photo_detail(photo.photo_id)
             print(photo.id, photo.name)
+
+    def test_cache_result_equal(self):
+        cl = self.client
+        cases = [
+            (123, False, False),
+            (123,),
+            (123, False, True),
+            (123, True, False),
+        ]
+
+        ans = None
+        for args in cases:
+            photo = cl.get_photo_detail(*args)
+            if ans is None:
+                ans = id(photo)
+            else:
+                self.assertEqual(ans, id(photo))

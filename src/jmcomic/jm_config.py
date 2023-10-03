@@ -47,9 +47,9 @@ class JmModuleConfig:
     }
 
     # 图片分隔相关
-    SCRAMBLE_0 = 220980
-    SCRAMBLE_10 = 268850
-    SCRAMBLE_NUM_8 = 421926  # 2023-02-08后改了图片切割算法
+    SCRAMBLE_220980 = 220980
+    SCRAMBLE_268850 = 268850
+    SCRAMBLE_421926 = 421926  # 2023-02-08后改了图片切割算法
     SCRAMBLE_CACHE = {}
 
     # 移动端API的相关配置

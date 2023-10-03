@@ -150,7 +150,11 @@ class JmDetailClient:
     def get_album_detail(self, album_id) -> JmAlbumDetail:
         raise NotImplementedError
 
-    def get_photo_detail(self, photo_id, fetch_album=True) -> JmPhotoDetail:
+    def get_photo_detail(self,
+                         photo_id,
+                         fetch_album=True,
+                         fetch_scramble_id=True,
+                         ) -> JmPhotoDetail:
         raise NotImplementedError
 
     def of_api_url(self, api_path, domain):
@@ -234,7 +238,7 @@ class JmImageClient:
         @param decode_image: 要保存的是解密后的图还是原图
         """
         if scramble_id is None:
-            scramble_id = JmModuleConfig.SCRAMBLE_0
+            scramble_id = JmModuleConfig.SCRAMBLE_220980
 
         # 请求图片
         resp = self.get_jm_image(img_url)
@@ -387,8 +391,8 @@ class JmcomicClient(
         """
         raise NotImplementedError
 
-    def get_html_domain(self):
-        return JmModuleConfig.get_html_domain()
+    def get_html_domain(self, postman=None):
+        return JmModuleConfig.get_html_domain(postman or self.get_root_postman())
 
-    def get_html_domain_all(self):
-        return JmModuleConfig.get_html_domain_all()
+    def get_html_domain_all(self, postman=None):
+        return JmModuleConfig.get_html_domain_all(postman or self.get_root_postman())

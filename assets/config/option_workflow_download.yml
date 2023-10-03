@@ -5,8 +5,7 @@ dir_rule:
 
 client:
   domain:
-    - jmcomic1.me
-    - jmcomic.me
+    html: [jmcomic1.me, jmcomic.me]
 
 # 插件配置
 plugin:
@@ -15,3 +14,8 @@ plugin:
       kwargs:
         interval: 0.5 # 间隔时间
         enable_warning: false # 不告警
+
+    - plugin: client_proxy
+      kwargs:
+        proxy_client_key: cl_proxy_future
+        whitelist: [ api, ]

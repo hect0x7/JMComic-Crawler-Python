@@ -16,7 +16,7 @@ class DirRule:
 
     Detail = Union[JmAlbumDetail, JmPhotoDetail, None]
     RuleFunc = Callable[[Detail], str]
-    RuleSolver = Tuple[int, RuleFunc]
+    RuleSolver = Tuple[int, RuleFunc, str]
     RuleSolverList = List[RuleSolver]
 
     rule_solver_cache: Dict[str, RuleSolver] = {}
@@ -37,7 +37,7 @@ class DirRule:
                 ret = self.apply_rule_solver(album, photo, solver)
             except BaseException as e:
                 # noinspection PyUnboundLocalVariable
-                jm_debug('dir_rule', f'路径规则"{self.rule_dsl}"的解析出错: {e},')
+                jm_debug('dir_rule', f'路径规则"{solver[2]}"的解析出错: {e}, album={album}, photo={photo}')
                 raise e
 
             path_ls.append(str(ret))
@@ -52,12 +52,12 @@ class DirRule:
         if '_' not in rule_dsl and rule_dsl != 'Bd':
             ExceptionTool.raises(f'不支持的dsl: "{rule_dsl}"')
 
-        rule_ls = rule_dsl.split('_')
-        solver_ls = []
+        rule_list = rule_dsl.split('_')
+        solver_ls: List[DirRule.RuleSolver] = []
 
-        for rule in rule_ls:
+        for rule in rule_list:
             if rule == 'Bd':
-                solver_ls.append((0, lambda _: base_dir))
+                solver_ls.append((0, lambda _: base_dir, 'Bd'))
                 continue
 
             rule_solver = self.get_rule_solver(rule)
@@ -83,7 +83,7 @@ class DirRule:
         solve_func = lambda detail, ref=rule[1:]: fix_windir_name(str(detail.get_dirname(ref)))
 
         # 保存缓存
-        rule_solver = (key, solve_func)
+        rule_solver = (key, solve_func, rule)
         cls.rule_solver_cache[rule] = rule_solver
         return rule_solver
 
@@ -106,7 +106,7 @@ class DirRule:
             if key == 2:
                 return photo
 
-        key, func = rule_solver
+        key, func, _ = rule_solver
         detail = choose_detail(key)
         return func(detail)
 
@@ -301,27 +301,30 @@ class JmOption:
     def new_jm_client(self, domain_list=None, impl=None, **kwargs) -> JmcomicClient:
         postman_conf: dict = self.client.postman.src_dict
         impl = impl or self.client.impl
+
+        # domain_list
         if domain_list is None:
             domain_list = self.client.domain
-        domain_list: List[str]
+
+        domain_list: Union[List[str], DictModel]
+        if not isinstance(domain_list, list):
+            domain_list_dict: DictModel = domain_list
+            domain_list = domain_list_dict.get(impl, [])
+
+        if len(domain_list) == 0:
+            domain_list = self.decide_client_domain(impl)
 
         # support kwargs overwrite meta_data
         if len(kwargs) != 0:
-            meta_data = postman_conf.get('meta_data', {})
-            meta_data.update(kwargs)
-            postman_conf['meta_data'] = meta_data
-
-        # postman
-        postman = Postmans.create(data=postman_conf)
-
-        # domain_list
-        if len(domain_list) == 0:
-            domain_list = self.decide_client_domain(impl)
+            postman_conf['meta_data'].update(kwargs)
 
         # headers
         meta_data = postman_conf['meta_data']
         if meta_data['headers'] is None:
             meta_data['headers'] = JmModuleConfig.headers(domain_list[0])
+
+        # postman
+        postman = Postmans.create(data=postman_conf)
 
         # client
         client = JmModuleConfig.client_impl_class(impl)(

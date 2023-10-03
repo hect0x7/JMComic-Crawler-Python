@@ -327,7 +327,36 @@ class ZipPlugin(JmOptionPlugin):
                 jm_debug('plugin.zip.remove', f'删除文件夹: {d}')
 
 
+class ClientProxyPlugin(JmOptionPlugin):
+    plugin_key = 'client_proxy'
+
+    def invoke(self,
+               proxy_client_key,
+               whitelist=None,
+               **kwargs,
+               ) -> None:
+        if whitelist is None:
+            whitelist = set()
+        else:
+            whitelist = set(whitelist)
+
+        clazz = JmModuleConfig.client_impl_class(proxy_client_key)
+        clazz_init_kwargs = kwargs
+        new_jm_client = self.option.new_jm_client
+
+        def hook_new_jm_client(*args, **kwargs):
+            client = new_jm_client(*args, **kwargs)
+            if client.client_key not in whitelist:
+                return client
+
+            jm_debug('plugin.client_proxy', f'proxy client {client} with {clazz}')
+            return clazz(client, **clazz_init_kwargs)
+
+        self.option.new_jm_client = hook_new_jm_client
+
+
 JmModuleConfig.register_plugin(JmLoginPlugin)
 JmModuleConfig.register_plugin(UsageLogPlugin)
 JmModuleConfig.register_plugin(FindUpdatePlugin)
 JmModuleConfig.register_plugin(ZipPlugin)
+JmModuleConfig.register_plugin(ClientProxyPlugin)
