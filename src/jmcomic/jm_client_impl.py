@@ -568,7 +568,7 @@ class FutureClientProxy(JmcomicClient):
             proxy_client_key: cl_proxy_future
     ```
     """
-    client_key = 'cl_proxy_future'
+    client_key = ''
     proxy_methods = ['album_comment', 'enable_cache', 'get_domain_list',
                      'get_html_domain', 'get_html_domain_all', 'get_jm_image',
                      'is_cache_enabled', 'set_domain_list', ]

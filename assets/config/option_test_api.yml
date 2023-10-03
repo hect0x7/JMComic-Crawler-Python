@@ -18,5 +18,5 @@ plugin:
 
     - plugin: client_proxy
       kwargs:
-        proxy_client_key: cl_proxy_tpe
+        proxy_client_key: cl_proxy_future
         whitelist: [ api, ]
