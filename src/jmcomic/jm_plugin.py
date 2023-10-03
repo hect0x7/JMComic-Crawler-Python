@@ -349,7 +349,7 @@ class ClientProxyPlugin(JmOptionPlugin):
             if client.client_key not in whitelist:
                 return client
 
-            jm_debug('plugin.client_proxy', f'proxy client {client} with {proxy_client_key}')
+            jm_debug('plugin.client_proxy', f'proxy client {client} with {clazz}')
             return clazz(client, **clazz_init_kwargs)
 
         self.option.new_jm_client = hook_new_jm_client
