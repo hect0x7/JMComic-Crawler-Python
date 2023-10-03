@@ -6,7 +6,7 @@ client:
   retry_times: 3
   postman:
     meta_data:
-      timeout: 5
+      timeout: 7
 
 # 插件配置
 plugin:
