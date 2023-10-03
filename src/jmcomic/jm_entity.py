@@ -82,8 +82,12 @@ class JmImageDetail(JmBaseEntity):
                  query_params=None,
                  index=-1,
                  ) -> None:
-        self.aid: str = aid
-        self.scramble_id: str = scramble_id
+        if scramble_id is None or (isinstance(scramble_id, str) and scramble_id == ''):
+            from .jm_toolkit import ExceptionTool
+            ExceptionTool.raises(f'图片的scramble_id不能为空D')
+
+        self.aid: str = str(aid)
+        self.scramble_id: str = str(scramble_id)
         self.img_url: str = img_url
         self.img_file_name: str = img_file_name  # without suffix
         self.img_file_suffix: str = img_file_suffix
@@ -152,11 +156,11 @@ class JmPhotoDetail(DetailEntity):
 
     def __init__(self,
                  photo_id,
-                 scramble_id,
                  name,
                  series_id,
                  sort,
                  tags='',
+                 scramble_id='',
                  page_arr=None,
                  data_original_domain=None,
                  data_original_0=None,

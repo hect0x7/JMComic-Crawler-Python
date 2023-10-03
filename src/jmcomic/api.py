@@ -22,7 +22,7 @@ def download_batch(download_api,
 
     return multi_thread_launcher(
         iter_objs=set(
-            JmcomicText.parse_to_album_id(jmid)
+            JmcomicText.parse_to_jm_id(jmid)
             for jmid in jm_id_iter
         ),
         apply_each_obj_func=lambda aid: download_api(aid, option, downloader),

@@ -57,13 +57,13 @@ class JmcomicText:
 
     @classmethod
     def parse_to_jm_domain(cls, text: str):
-        if text.startswith("https"):
+        if text.startswith(JmModuleConfig.PROT):
             return cls.pattern_jm_domain.search(text)[1]
 
         return text
 
     @classmethod
-    def parse_to_photo_id(cls, text) -> str:
+    def parse_to_jm_id(cls, text) -> str:
         if isinstance(text, int):
             return str(text)
 
@@ -87,10 +87,6 @@ class JmcomicText:
             match = cls.pattern_jm_pa_id.search(text)
             ExceptionTool.require_true(match is not None, f"无法解析jm车号, 文本为: {text}")
             return match[2]
-
-    @classmethod
-    def parse_to_album_id(cls, text) -> str:
-        return cls.parse_to_photo_id(text)
 
     @classmethod
     def analyse_jm_pub_html(cls, html: str, domain_keyword=('jm', 'comic')) -> List[str]:
@@ -178,14 +174,6 @@ class JmcomicText:
             field_dict[field_name] = field_value
 
         return clazz(**field_dict)
-
-    @classmethod
-    def format_photo_url(cls, photo_id, domain=None):
-        return cls.format_url(f'/photo/{cls.parse_to_photo_id(photo_id)}', domain)
-
-    @classmethod
-    def format_album_url(cls, album_id, domain=None):
-        return cls.format_url(f'/album/{cls.parse_to_album_id(album_id)}', domain)
 
     @classmethod
     def format_url(cls, path, domain):
@@ -328,7 +316,7 @@ class JmcomicSearchTool:
 
 class JmApiAdaptTool:
     """
-    本类复杂把移动端的api返回值，适配为标准的实体类
+    本类负责把移动端的api返回值，适配为标准的实体类
 
     # album
     {
@@ -463,7 +451,6 @@ class JmApiAdaptTool:
                 break
 
         fields['sort'] = sort
-        fields['scramble_id'] = '0'
         import random
         fields['data_original_domain'] = random.choice(JmModuleConfig.DOMAIN_API_IMAGE_LIST)
 
@@ -561,11 +548,11 @@ class JmImageTool:
 
         if aid < scramble_id:
             return 0
-        elif aid < JmModuleConfig.SCRAMBLE_10:
+        elif aid < JmModuleConfig.SCRAMBLE_268850:
             return 10
         else:
             import hashlib
-            x = 10 if aid < JmModuleConfig.SCRAMBLE_NUM_8 else 8
+            x = 10 if aid < JmModuleConfig.SCRAMBLE_421926 else 8
             s = f"{aid}{filename}"  # 拼接
             s = s.encode()
             s = hashlib.md5(s).hexdigest()
@@ -581,7 +568,7 @@ class JmImageTool:
         """
         return cls.get_num(
             scramble_id,
-            aid=JmcomicText.parse_to_photo_id(url),
+            aid=JmcomicText.parse_to_jm_id(url),
             filename=of_file_name(url, True),
         )
 
@@ -653,7 +640,7 @@ class ExceptionTool:
             f'请求的{req_type}不存在！({org_req_url})\n'
             '原因可能为:\n'
             f'1. id有误，检查你的{req_type}id\n'
-            '2. 该漫画只对登录用户可见，请配置你的cookies\n'
+            '2. 该漫画只对登录用户可见，请配置你的cookies，或者使用移动端Client（api）\n'
         ), resp)
 
     @classmethod

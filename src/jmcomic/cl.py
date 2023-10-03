@@ -62,7 +62,7 @@ class JmcomicUI:
             from .jm_toolkit import JmcomicText
 
             try:
-                return JmcomicText.parse_to_album_id(text)
+                return JmcomicText.parse_to_jm_id(text)
             except Exception as e:
                 print(e.args[0])
                 exit(1)
