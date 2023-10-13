@@ -321,14 +321,14 @@ class JmModuleConfig:
     @classmethod
     def register_plugin(cls, plugin_class):
         from .jm_toolkit import ExceptionTool
-        ExceptionTool.require_true(plugin_class.plugin_key is not None,
+        ExceptionTool.require_true(getattr(plugin_class, 'plugin_key', None) is not None,
                                    f'未配置plugin_key, class: {plugin_class}')
         cls.REGISTRY_PLUGIN[plugin_class.plugin_key] = plugin_class
 
     @classmethod
     def register_client(cls, client_class):
         from .jm_toolkit import ExceptionTool
-        ExceptionTool.require_true(client_class.client_key is not None,
+        ExceptionTool.require_true(getattr(client_class, 'client_key', None) is not None,
                                    f'未配置client_key, class: {client_class}')
         cls.REGISTRY_CLIENT[client_class.client_key] = client_class
 
