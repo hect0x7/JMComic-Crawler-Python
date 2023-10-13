@@ -84,7 +84,7 @@ class JmImageDetail(JmBaseEntity):
                  ) -> None:
         if scramble_id is None or (isinstance(scramble_id, str) and scramble_id == ''):
             from .jm_toolkit import ExceptionTool
-            ExceptionTool.raises(f'图片的scramble_id不能为空D')
+            ExceptionTool.raises(f'图片的scramble_id不能为空')
 
         self.aid: str = str(aid)
         self.scramble_id: str = str(scramble_id)

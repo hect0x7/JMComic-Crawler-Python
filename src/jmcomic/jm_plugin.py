@@ -1,5 +1,5 @@
 """
-该文件存放的是option扩展功能类
+该文件存放的是option插件
 """
 
 from .jm_option import *
@@ -335,9 +335,7 @@ class ClientProxyPlugin(JmOptionPlugin):
                whitelist=None,
                **kwargs,
                ) -> None:
-        if whitelist is None:
-            whitelist = set()
-        else:
+        if whitelist is not None:
             whitelist = set(whitelist)
 
         clazz = JmModuleConfig.client_impl_class(proxy_client_key)
@@ -346,17 +344,10 @@ class ClientProxyPlugin(JmOptionPlugin):
 
         def hook_new_jm_client(*args, **kwargs):
             client = new_jm_client(*args, **kwargs)
-            if client.client_key not in whitelist:
+            if whitelist is not None and client.client_key not in whitelist:
                 return client
 
-            jm_debug('plugin.client_proxy', f'proxy client {client} with {clazz}')
+            jm_debug('plugin.client_proxy', f'proxy client {client} with {proxy_client_key}')
             return clazz(client, **clazz_init_kwargs)
 
         self.option.new_jm_client = hook_new_jm_client
-
-
-JmModuleConfig.register_plugin(JmLoginPlugin)
-JmModuleConfig.register_plugin(UsageLogPlugin)
-JmModuleConfig.register_plugin(FindUpdatePlugin)
-JmModuleConfig.register_plugin(ZipPlugin)
-JmModuleConfig.register_plugin(ClientProxyPlugin)

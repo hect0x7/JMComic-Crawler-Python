@@ -6,7 +6,7 @@ class AbstractJmClient(
     JmcomicClient,
     PostmanProxy,
 ):
-    client_key = None
+    client_key = '__just_for_placeholder_do_not_use_me__'
     func_to_cache = []
 
     def __init__(self,
@@ -324,7 +324,7 @@ class JmHtmlClient(AbstractJmClient):
                  (f' to ({comment_id})' if comment_id is not None else '')
                  )
 
-        resp = self.post('https://18comic.vip/ajax/album_comment',
+        resp = self.post('/ajax/album_comment',
                          headers=JmModuleConfig.album_comment_headers,
                          data=data,
                          )
@@ -679,8 +679,3 @@ class FutureClientProxy(JmcomicClient):
         cache_key = f'search_query_{search_query}_page_{page}_main_tag_{main_tag}_order_by_{order_by}_time_{time}'
         future = self.get_future(cache_key, task=lambda: self.client.search(search_query, page, main_tag, order_by, time))
         return future.result()
-
-
-JmModuleConfig.register_client(JmHtmlClient)
-JmModuleConfig.register_client(JmApiClient)
-JmModuleConfig.register_client(FutureClientProxy)

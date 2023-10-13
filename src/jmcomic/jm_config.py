@@ -78,11 +78,11 @@ class JmModuleConfig:
     CLASS_ALBUM = None
     CLASS_PHOTO = None
     CLASS_IMAGE = None
-    CLASS_CLIENT_IMPL = {}
     CLASS_EXCEPTION = JmcomicException
-
+    # 客户端注册表
+    REGISTRY_CLIENT = {}
     # 插件注册表
-    PLUGIN_REGISTRY = {}
+    REGISTRY_PLUGIN = {}
 
     # 执行debug的函数
     debug_executor = default_jm_debug
@@ -140,7 +140,7 @@ class JmModuleConfig:
 
     @classmethod
     def client_impl_class(cls, client_key: str):
-        clazz_dict = cls.CLASS_CLIENT_IMPL
+        clazz_dict = cls.REGISTRY_CLIENT
 
         clazz = clazz_dict.get(client_key, None)
         if clazz is None:
@@ -320,16 +320,17 @@ class JmModuleConfig:
 
     @classmethod
     def register_plugin(cls, plugin_class):
-        cls.PLUGIN_REGISTRY[plugin_class.plugin_key] = plugin_class
+        from .jm_toolkit import ExceptionTool
+        ExceptionTool.require_true(plugin_class.plugin_key is not None,
+                                   f'未配置plugin_key, class: {plugin_class}')
+        cls.REGISTRY_PLUGIN[plugin_class.plugin_key] = plugin_class
 
     @classmethod
     def register_client(cls, client_class):
-        client_key = getattr(client_class, 'client_key', None)
-        if client_key is None:
-            from .jm_toolkit import ExceptionTool
-            ExceptionTool.raises(f'未配置client_key, class: {client_class}')
-
-        cls.CLASS_CLIENT_IMPL[client_key] = client_class
+        from .jm_toolkit import ExceptionTool
+        ExceptionTool.require_true(client_class.client_key is not None,
+                                   f'未配置client_key, class: {client_class}')
+        cls.REGISTRY_CLIENT[client_class.client_key] = client_class
 
 
 jm_debug = JmModuleConfig.jm_debug
