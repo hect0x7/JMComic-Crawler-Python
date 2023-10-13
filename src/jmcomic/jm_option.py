@@ -298,21 +298,27 @@ class JmOption:
         """
         return self.new_jm_client(**kwargs)
 
-    def new_jm_client(self, domain_list=None, impl=None, **kwargs) -> JmcomicClient:
-        postman_conf: dict = self.client.postman.src_dict
-        impl = impl or self.client.impl
+    def new_jm_client(self, domain=None, impl=None, **kwargs) -> JmcomicClient:
+        # 所有需要用到的 self.client 配置项如下
+        postman_conf: dict = self.client.postman.src_dict  # postman dsl 配置
+        impl: str = impl or self.client.impl  # client_key
+        retry_times: int = self.client.retry_times  # 重试次数
+        cache: str = self.client.cache  # 启用缓存
 
-        # domain_list
-        if domain_list is None:
-            domain_list = self.client.domain
+        # domain
+        def decide_domain():
+            domain_list: Union[List[str], DictModel, dict] = domain if domain is not None \
+                else self.client.domain  # 域名
 
-        domain_list: Union[List[str], DictModel]
-        if not isinstance(domain_list, list):
-            domain_list_dict: DictModel = domain_list
-            domain_list = domain_list_dict.get(impl, [])
+            if not isinstance(domain_list, list):
+                domain_list = domain_list.get(impl, [])
 
-        if len(domain_list) == 0:
-            domain_list = self.decide_client_domain(impl)
+            if len(domain_list) == 0:
+                domain_list = self.decide_client_domain(impl)
+
+            return domain_list
+
+        domain: List[str] = decide_domain()
 
         # support kwargs overwrite meta_data
         if len(kwargs) != 0:
@@ -321,20 +327,23 @@ class JmOption:
         # headers
         meta_data = postman_conf['meta_data']
         if meta_data['headers'] is None:
-            meta_data['headers'] = JmModuleConfig.headers(domain_list[0])
+            meta_data['headers'] = JmModuleConfig.headers(domain[0])
 
         # postman
         postman = Postmans.create(data=postman_conf)
 
         # client
-        client = JmModuleConfig.client_impl_class(impl)(
+        clazz = JmModuleConfig.client_impl_class(impl)
+        if clazz == AbstractJmClient or not issubclass(clazz, AbstractJmClient):
+            raise NotImplementedError(clazz)
+        client = clazz(
             postman,
-            self.client.retry_times,
-            fallback_domain_list=domain_list,
+            retry_times,
+            fallback_domain_list=decide_domain(),
         )
 
         # enable cache
-        if self.client.cache is True:
+        if cache is True:
             client.enable_cache()
 
         return client
@@ -396,7 +405,7 @@ class JmOption:
         # 保证 jm_plugin.py 被加载
         from .jm_plugin import JmOptionPlugin
 
-        plugin_registry = JmModuleConfig.PLUGIN_REGISTRY
+        plugin_registry = JmModuleConfig.REGISTRY_PLUGIN
         for pinfo in plugin_list:
             key, kwargs = pinfo['plugin'], pinfo['kwargs']
             plugin_class: Optional[Type[JmOptionPlugin]] = plugin_registry.get(key, None)

@@ -1,5 +1,7 @@
 # GitHub Actions 测试用
 # 移动端配置
+dir_rule:
+  rule: Bd_Aauthor_Aid_Pindextitle
 
 client:
   impl: api
@@ -7,6 +9,10 @@ client:
   postman:
     meta_data:
       timeout: 7
+  domain:
+    html:
+      - jmcomic1.me
+      - jmcomic.me
 
 # 插件配置
 plugin:

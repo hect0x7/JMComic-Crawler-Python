@@ -1,15 +1,18 @@
 # GitHub Actions 测试用
 # 网页端配置
+dir_rule:
+  rule: Bd_Aauthor_Aid_Pindextitle
 
 client:
   impl: html
   retry_times: 3
   postman:
     meta_data:
-      timeout: 5
+      timeout: 7
   domain:
-    - jmcomic1.me
-    - jmcomic.me
+    html:
+      - jmcomic1.me
+      - jmcomic.me
 
 # 插件配置
 plugin:
@@ -18,3 +21,8 @@ plugin:
       kwargs:
         interval: 0.5 # 间隔时间
         enable_warning: false # 不告警
+
+    - plugin: client_proxy
+      kwargs:
+        proxy_client_key: cl_proxy_future
+        whitelist: [ api, ]

@@ -45,7 +45,7 @@ class Test_Custom(JmTestConfigurable):
 
         self.assertListEqual(
             JmModuleConfig.DOMAIN_API_LIST,
-            self.option.new_jm_client(domain_list=[], impl=MyClient.client_key).get_domain_list()
+            self.option.new_jm_client(domain=[], impl=MyClient.client_key).get_domain_list()
         )
 
     def test_extends_html_client(self):
@@ -57,7 +57,7 @@ class Test_Custom(JmTestConfigurable):
         html_domain = self.client.get_html_domain()
         self.assertListEqual(
             [html_domain],
-            self.option.new_jm_client(domain_list=[], impl=MyClient.client_key).get_domain_list()
+            self.option.new_jm_client(domain=[], impl=MyClient.client_key).get_domain_list()
         )
 
     def test_client_key_missing(self):
@@ -93,6 +93,6 @@ class Test_Custom(JmTestConfigurable):
         JmModuleConfig.register_client(MyClient)
         self.assertListEqual(
             JmModuleConfig.DOMAIN_API_LIST,
-            self.option.new_jm_client(domain_list=[], impl=MyClient.client_key).get_domain_list(),
+            self.option.new_jm_client(domain=[], impl=MyClient.client_key).get_domain_list(),
             msg='继承client，不配置域名',
         )
