@@ -1,13 +1,10 @@
 # GitHub Actions 测试用
 # 网页端配置
-impl: &key html
-
-# 下面为统一模版
 dir_rule:
   rule: Bd_Aauthor_Aid_Pindextitle
 
 client:
-  impl: *key
+  impl: html
   retry_times: 3
   postman:
     meta_data:
