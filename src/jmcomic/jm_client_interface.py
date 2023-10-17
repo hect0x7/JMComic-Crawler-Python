@@ -271,7 +271,14 @@ class JmImageClient:
         raise NotImplementedError
 
     @classmethod
-    def img_is_not_need_to_decode(cls, data_original: str, _resp):
+    def img_is_not_need_to_decode(cls, data_original: str, _resp) -> bool:
+        # https://cdn-msp2.18comic.vip/media/photos/498976/00027.gif?v=1697541064
+        query_params_index = data_original.find('?')
+
+        if query_params_index != -1:
+            data_original = data_original[:query_params_index]
+
+        # https://cdn-msp2.18comic.vip/media/photos/498976/00027.gif
         return data_original.endswith('.gif')
 
 
