@@ -3,11 +3,14 @@ name: Auto Release & Publish
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - master
 
 jobs:
   release:
     runs-on: ubuntu-latest
-
+    if: startsWith(github.event.head_commit.message, 'v')
     steps:
       - uses: actions/checkout@v3
 

@@ -21,6 +21,11 @@ def default_raise_exception_executor(msg, _extra):
     raise JmModuleConfig.CLASS_EXCEPTION(msg)
 
 
+def system_proxy():
+    from common import ProxyBuilder
+    return ProxyBuilder.system_proxy()
+
+
 class JmcomicException(Exception):
     pass
 
@@ -249,9 +254,10 @@ class JmModuleConfig:
         'x-requested-with': 'XMLHttpRequest',
     }
 
-    # option 默认配置字典
+    # option 相关的默认配置
     JM_OPTION_VER = '2.1'
     CLIENT_IMPL_DEFAULT = 'html'
+    DEFAULT_PROXIES = system_proxy()  # use system proxy by default
 
     default_option_dict: dict = {
         'version': JM_OPTION_VER,
@@ -273,6 +279,7 @@ class JmModuleConfig:
                 'meta_data': {
                     'impersonate': 'chrome110',
                     'headers': None,
+                    'proxies': None,
                 }
             },
             'impl': None,
@@ -309,6 +316,12 @@ class JmModuleConfig:
         # client impl
         if client['impl'] is None:
             client['impl'] = cls.CLIENT_IMPL_DEFAULT
+
+        # postman proxies
+        meta_data = client['postman']['meta_data']
+        if meta_data['proxies'] is None:
+            # use system proxy by default
+            meta_data['proxies'] = cls.DEFAULT_PROXIES
 
         # threading photo
         dt = option_dict['download']['threading']

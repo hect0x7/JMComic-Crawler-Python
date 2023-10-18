@@ -102,6 +102,10 @@ class JmImageDetail(JmBaseEntity):
         return self.img_file_name
 
     @property
+    def is_gif(self):
+        return self.img_file_suffix == '.gif'
+
+    @property
     def download_url(self) -> str:
         """
         图片的下载路径
@@ -143,12 +147,11 @@ class JmImageDetail(JmBaseEntity):
             index=index,
         )
 
-    """
-    below help for debug method 
-    """
-
     @property
     def tag(self) -> str:
+        """
+        this tag is used to print pretty info when debug
+        """
         return f'{self.aid}/{self.img_file_name}{self.img_file_suffix} [{self.index + 1}/{len(self.from_photo)}]'
 
 

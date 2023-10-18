@@ -62,9 +62,6 @@ class JmDownloader(DownloadCallback):
 
     def __init__(self, option: JmOption) -> None:
         self.option = option
-        self.use_cache = self.option.download_cache
-        self.decode_image = self.option.download_image_decode
-
         # 收集所有下载的image，为plugin提供数据
         self.all_downloaded: Dict[JmAlbumDetail, Dict[JmPhotoDetail, List[Tuple[str, JmImageDetail]]]] = {}
 
@@ -103,12 +100,19 @@ class JmDownloader(DownloadCallback):
         image.is_exists = file_exists(img_save_path)
 
         self.before_image(image, img_save_path)
-        if self.use_cache is True and image.is_exists:
+
+        # let option decide use_cache and decode_image
+        use_cache = self.option.decide_download_cache(image)
+        decode_image = self.option.decide_download_image_decode(image)
+
+        # skip download
+        if use_cache is True and image.is_exists:
             return
+
         client.download_by_image_detail(
             image,
             img_save_path,
-            decode_image=self.decode_image,
+            decode_image=decode_image,
         )
         self.after_image(image, img_save_path)
 

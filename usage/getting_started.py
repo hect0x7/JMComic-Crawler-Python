@@ -84,5 +84,8 @@ download_album('xxx', option)
 
 # 方式2. 使用全局配置
 JmModuleConfig.default_option_dict['client']['postman']['meta_data']['proxies'] = ProxyBuilder.clash_proxy()
+# v2.3.9 以后，支持更简便的代理配置，且不配时默认使用系统代理：
+JmModuleConfig.DEFAULT_PROXIES = ProxyBuilder.clash_proxy()
+
 # 调用下载api**不需要**传入option
 download_album('xxx')
