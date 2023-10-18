@@ -139,20 +139,8 @@ class JmOption:
 
         self.call_all_plugin('after_init')
 
-    @property
-    def download_cache(self):
-        return self.download.cache
-
-    @property
-    def download_image_decode(self):
-        return self.download.image.decode
-
-    @property
-    def download_image_suffix(self):
-        return self.download.image.suffix
-
     """
-    下面是决定图片保存路径的方法
+    下面是decide系列方法，为了支持重写和增加程序动态性。
     """
 
     # noinspection PyUnusedLocal
@@ -196,18 +184,27 @@ class JmOption:
 
     def decide_image_suffix(self, image: JmImageDetail):
         # 动图则使用原后缀
-        suffix = image.img_file_suffix
-        if suffix.endswith("gif"):
-            return suffix
+        if image.is_gif:
+            return image.img_file_suffix
 
         # 非动图，以配置为先
-        return self.download_image_suffix or suffix
+        return self.download.image.suffix or image.img_file_suffix
 
-    def decide_image_filepath(self, image: JmImageDetail) -> str:
+    def decide_image_filepath(self, image: JmImageDetail, consider_custom_suffix=True) -> str:
         # 通过拼接生成绝对路径
         save_dir = self.decide_image_save_dir(image.from_photo)
-        suffix = self.decide_image_suffix(image)
+        suffix = self.decide_image_suffix(image) if consider_custom_suffix else image.img_file_suffix
         return os.path.join(save_dir, image.filename_without_suffix + suffix)
+
+    def decide_download_cache(self, _image: JmImageDetail) -> bool:
+        return self.download.cache
+
+    def decide_download_image_decode(self, image: JmImageDetail) -> bool:
+        # .gif file needn't be decoded
+        if image.is_gif:
+            return False
+
+        return self.download.image.decode
 
     """
     下面是创建对象相关方法
@@ -272,6 +269,10 @@ class JmOption:
             'client': self.client.src_dict,
         }
 
+    """
+    下面是文件IO方法
+    """
+
     @classmethod
     def from_file(cls, filepath: str) -> 'JmOption':
         dic: dict = PackerUtil.unpack(filepath)[0]
@@ -286,7 +287,7 @@ class JmOption:
         PackerUtil.pack(self.deconstruct(), filepath)
 
     """
-    下面是 build 方法
+    下面是创建客户端的相关方法
     """
 
     @field_cache("__jm_client_cache__")
