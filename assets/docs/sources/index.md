@@ -8,7 +8,7 @@ Python API for JMComic（禁漫天堂）
 
 - Bypasses Cloudflare anti-bot measures.
 - Multiple usage options:
-  - GitHub Actions: Requires only a GitHub account. See tutorial → [download_album_via_github_actions.md](./download_album_via_github_actions.md)).
+  * GitHub Actions: Requires only a GitHub account. See tutorial → [download_album_via_github_actions.md](./download_album_via_github_actions.md)).
   - Command line: No need to write Python code, simple and easy to use.
   - Python code: The most flexible and powerful method, requires some basic knowledge of Python programming.
 - Supports two client implementations: web-based and mobile-based. Switchable through configuration (mobile-based has better IP compatibility, web-based has higher efficiency).
@@ -31,13 +31,13 @@ Python API for JMComic（禁漫天堂）
 
 - Install via official pip source (recommended, and also used for updates):
 
-  ```bash
+  ```
   pip install jmcomic -i https://pypi.org/project --upgrade
   ```
 
 - Install via GitHub code:
 
-  ```bash
+  ```
   pip install git+https://github.com/hect0x7/JMComic-Crawler-Python
   ```
 
@@ -57,7 +57,7 @@ jmcomic.download_album('422866')
 
 - Command line
 
-```bash
+```
 jmcomic 422866
 ```
 
@@ -85,7 +85,7 @@ download_album('422866', option)
 
 * Command line
 
-```bash
+```
 jmcomic 422866 --option="/path/to/your/optionfile"
 ```
 
