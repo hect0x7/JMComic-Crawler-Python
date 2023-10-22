@@ -1,4 +1,4 @@
-# 教程：使用GitHub Actions下载禁漫本子
+# Download Album via GitHub Actions
 
 一共需要三步：
 
