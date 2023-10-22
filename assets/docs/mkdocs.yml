@@ -1,0 +1,21 @@
+site_name: jmcomic
+theme:
+  name: readthedocs
+  highlightjs: true
+plugins:
+  - search
+  - mkdocstrings:
+      custom_templates: templates
+      handlers:
+        # See: https://mkdocstrings.github.io/python/usage/
+        python:
+          options:
+            docstring_section_style: list
+            docstring_style: google
+            show_source: false
+markdown_extensions:
+  - markdown_include.include:
+      base_path: .
+  - admonition
+
+docs_dir: sources
