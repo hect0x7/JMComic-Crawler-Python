@@ -10,7 +10,8 @@ plugins:
         # See: https://mkdocstrings.github.io/python/usage/
         python:
           options:
-            docstring_style: Epytext
+#            docstring_style: Epytext
+
 markdown_extensions:
   - markdown_include.include:
       base_path: .
