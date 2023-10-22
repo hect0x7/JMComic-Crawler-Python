@@ -1,3 +1,4 @@
+```yml
 client:
   # impl: 客户端实现类，不配默认是html，表示网页端
   impl: html
@@ -68,3 +69,4 @@ dir_rule:
 
   # 默认规则是: 根目录 / 章节标题 / 图片文件
   rule: Bd_Ptitle
+```

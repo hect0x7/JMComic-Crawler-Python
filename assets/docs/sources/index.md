@@ -24,6 +24,7 @@ Python API for JMComic（禁漫天堂）
     - Configuration options
       include: `request domain`, `client implementation`, `number of chapters/images downloaded simultaneously`, `image format conversion`, `download path rules`, `request metadata (headers, cookies, proxies)`,
       and more.
+
 - Highly extensible:
 
     - Supports Plugin plugins for easy functionality extension and use of other plugins.
@@ -70,7 +71,7 @@ jmcomic 422866
 ### 2. Customize download behavior using an option:
 
 For example, if you want to convert all downloaded images to the .jpg format, you can create a YAML file with the
-following content (refer to [option file syntax](./option_file_syntax.yml)):
+following content (refer to [option file syntax](./option_file_syntax.md)):
 
 ```yml
 download:

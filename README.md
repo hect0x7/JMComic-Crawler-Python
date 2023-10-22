@@ -30,7 +30,6 @@ jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载�
 # 配置项的作用是告诉程序下载时候的一些选择，
 # 比如，要下载到哪个文件夹，使用怎样的路径组织规则（比如[/作者/本子id/图片] 或者 [/作者/本子名称/图片]）.
 # 如果没有配置，则会使用 JmOption.default()，下载的路径是[当前工作文件夹/本子名称/图片].
-# 如果你想要配置，请参考文件 assets/config/常用配置介绍.yml
 ```
 
 * v2.2.9: 新增命令行调用方式，上述的代码可以转为一行命令
@@ -43,6 +42,9 @@ $ jmcomic 422866
 
 ## 进阶使用
 
+文档链接：[docs for jmcomic](https://jmcomic.readthedocs.io/en/latest)
+option配置文件语法：[option file syntax](./assets/docs/sources/option_file_syntax.md)
+
 进阶使用可以参考本repo下usage文件夹内的示例代码文件，下面是各个文件的作用，你可以挑感兴趣的阅读：
 
 - API上手介绍: `getting_started.py`
@@ -53,8 +55,8 @@ $ jmcomic 422866
 - 使用API的Filter过滤功能: `usage_feature_filter.py`
 - 演示jmcomic模块的Plugin插件体系: `usage_feature_plugin.py`
 - 演示一个综合使用实例: `usage_advanced.py`
-  - 包括6个功能需求的介绍、实现方案和完整运行日志
-  - 实现方案非常简洁，充分jmcomic的便利性，以及强大的插件扩展机制
+    - 包括6个功能需求的介绍、实现方案和完整运行日志
+    - 实现方案非常简洁，充分jmcomic的便利性，以及强大的插件扩展机制
 
 以及一些趣味用法：
 
@@ -65,23 +67,26 @@ $ jmcomic 422866
 
 - **绕过Cloudflare的反爬虫**
 - 支持使用**命令行**下载本子，无需写Python代码，简单易用
-- 支持使用**GitHub Actions**下载本子，网页上直接输入本子id就能下载（[教程：使用GitHub Actions下载禁漫本子](./assets/docs/教程：使用GitHub%20Actions下载禁漫本子.md)）
+- 支持使用**GitHub Actions**
+  下载本子，网页上直接输入本子id就能下载（[教程：使用GitHub Actions下载禁漫本子](./assets/docs/sources/download_album_via_github_actions.md)）
 - 支持**网页端**和**移动端**两种客户端实现，可通过配置切换（**移动端不限ip兼容性好，网页端限制ip地区但效率高**）
 - 支持**自动重试和域名切换**机制
 - **多线程下载**（可细化到一图一线程，效率极高）
 - 跟进了JM最新的图片分割算法（2023-02-08）
 - **可配置性强**
 
-  - 不配置也能使用，十分方便
-  - 配置可以从**配置文件**生成，支持多种文件格式
-  - 配置点有：`请求域名` `客户端实现` `是否使用磁盘缓存` `同时下载的章节/图片数量` `图片格式转换` `下载路径规则` `请求元信息（headers,cookies,proxies）`等
+    - 不配置也能使用，十分方便
+    - 配置可以从**配置文件**生成，支持多种文件格式
+    -
+    配置点有：`请求域名` `客户端实现` `是否使用磁盘缓存` `同时下载的章节/图片数量` `图片格式转换` `下载路径规则` `请求元信息（headers,cookies,proxies）`
+    等
 - **可扩展性强**
 
-  - **支持Plugin插件，可以方便地扩展功能，以及使用别人的插件**
-    - 目前内置支持的插件有：`登录插件` `硬件占用监控插件` `只下载新章插件` `压缩文件插件`
-  - 支持自定义本子/章节/图片下载前后的回调函数
-  - 支持自定义debug日志
-  - 支持自定义类：`Downloader（负责调度）` `Option（负责配置）` `Client（负责请求）` `实体类`等
+    - **支持Plugin插件，可以方便地扩展功能，以及使用别人的插件**
+        - 目前内置支持的插件有：`登录插件` `硬件占用监控插件` `只下载新章插件` `压缩文件插件`
+    - 支持自定义本子/章节/图片下载前后的回调函数
+    - 支持自定义debug日志
+    - 支持自定义类：`Downloader（负责调度）` `Option（负责配置）` `Client（负责请求）` `实体类`等
 
 ## 使用小说明
 
@@ -92,13 +97,14 @@ $ jmcomic 422866
 
 * assets：存放一些非代码的资源文件
 
-  * config：存放配置文件
-  * docs：项目文档
+    * config：存放配置文件
+    * docs：项目文档
+
 * src：存放源代码
 
-  * jmcomic：`jmcomic`模块
-* tests：测试目录，存放测试代码，使用unittest
-* usage：用法目录，存放示例/使用代码
+    * jmcomic：`jmcomic`模块
+    * tests：测试目录，存放测试代码，使用unittest
+    * usage：用法目录，存放示例/使用代码
 
 ## 感谢以下项目
 
