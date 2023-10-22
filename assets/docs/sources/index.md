@@ -1,5 +1,7 @@
 # jmcomic
 
+Python API for JMComic（禁漫天堂）
+
 
 
 ## Features
@@ -29,13 +31,13 @@
 
 - Install via official pip source (recommended, and also used for updates):
 
-  ```shell
+  ```sh
   pip install jmcomic -i https://pypi.org/project --upgrade
   ```
 
 - Install via GitHub code:
 
-  ```shell
+  ```sh
   pip install git+https://github.com/hect0x7/JMComic-Crawler-Python
   ```
 
@@ -45,7 +47,7 @@
 
 1. The simplest way to use:
 
-* Python code
+- Python code
 
 ```python
 import jmcomic
@@ -53,7 +55,7 @@ import jmcomic
 jmcomic.download_album('422866')
 ```
 
-* Command line
+- Command line
 
 ```shell
 jmcomic 422866
