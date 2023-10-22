@@ -97,6 +97,8 @@ class JmDownloader(DownloadCallback):
 
     def download_by_image_detail(self, image: JmImageDetail, client: JmcomicClient):
         img_save_path = self.option.decide_image_filepath(image)
+
+        image.save_path = img_save_path
         image.is_exists = file_exists(img_save_path)
 
         self.before_image(image, img_save_path)
@@ -153,8 +155,8 @@ class JmDownloader(DownloadCallback):
         只想下载 本子的最新一章，返回 [album[-1]]
         只想下载 章节的前10张图片，返回 [photo[:10]]
 
-        @param iter_objs: 可能是本子或者章节，需要自行使用 isinstance 判断
-        @return: 只想要下载的 本子的章节 或 章节的图片
+        :param iter_objs: 可能是本子或者章节，需要自行使用 isinstance 判断
+        :returns: 只想要下载的 本子的章节 或 章节的图片
         """
         return iter_objs
 

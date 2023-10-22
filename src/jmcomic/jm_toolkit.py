@@ -464,9 +464,9 @@ class JmImageTool:
         如果需要改变图片的文件格式，比如 .jpg → .png，则需要指定参数 neet_convert=True.
         如果不需要改变图片的文件格式，使用 need_convert=False，可以跳过PIL解析图片，效率更高.
 
-        @param resp: HTTP响应对象
-        @param filepath: 图片文件路径
-        @param need_convert: 是否转换图片
+        :param resp: HTTP响应对象
+        :param filepath: 图片文件路径
+        :param need_convert: 是否转换图片
         """
         if need_convert is False:
             cls.save_directly(resp, filepath)
@@ -478,8 +478,8 @@ class JmImageTool:
         """
         保存图片
 
-        @param image: PIL.Image对象
-        @param filepath: 保存文件路径
+        :param image: PIL.Image对象
+        :param filepath: 保存文件路径
         """
         image.save(filepath)
 
@@ -496,9 +496,9 @@ class JmImageTool:
                         ) -> None:
         """
         解密图片并保存
-        @param num: 分割数，可以用 cls.calculate_segmentation_num 计算
-        @param img_src: 原始图片
-        @param decoded_save_path: 解密图片的保存路径
+        :param num: 分割数，可以用 cls.calculate_segmentation_num 计算
+        :param img_src: 原始图片
+        :param decoded_save_path: 解密图片的保存路径
         """
 
         # 无需解密，直接保存
@@ -625,19 +625,19 @@ class ExceptionTool:
     @classmethod
     def raise_missing(cls,
                       resp,
-                      org_req_url=None,
+                      orig_req_url=None,
                       ):
         """
         抛出本子/章节的异常
-        @param resp: 响应对象
-        @param org_req_url: 原始请求url，可不传
+        :param resp: 响应对象
+        :param orig_req_url: 原始请求url，可不传
         """
-        if org_req_url is None:
-            org_req_url = resp.url
+        if orig_req_url is None:
+            orig_req_url = resp.url
 
-        req_type = "本子" if "album" in org_req_url else "章节"
+        req_type = "本子" if "album" in orig_req_url else "章节"
         cls.raises_resp((
-            f'请求的{req_type}不存在！({org_req_url})\n'
+            f'请求的{req_type}不存在！({orig_req_url})\n'
             '原因可能为:\n'
             f'1. id有误，检查你的{req_type}id\n'
             '2. 该漫画只对登录用户可见，请配置你的cookies，或者使用移动端Client（api）\n'

@@ -101,7 +101,7 @@ class JmModuleConfig:
     # debug时解码url
     decode_url_when_debug = True
     # 下载时的一些默认值配置
-    default_author = 'default-author'
+    DEFAULT_AUTHOR = 'default-author'
 
     @classmethod
     def downloader_class(cls):
@@ -169,7 +169,7 @@ class JmModuleConfig:
     def get_html_url(cls, postman=None):
         """
         访问禁漫的永久网域，从而得到一个可用的禁漫网址
-        @return: https://jm-comic2.cc
+        :returns: https://jm-comic2.cc
         """
         postman = postman or cls.new_postman(session=True)
 
@@ -183,7 +183,7 @@ class JmModuleConfig:
         """
         访问禁漫发布页，得到所有的禁漫网页域名
 
-        @return: ['18comic.vip', ..., 'jm365.xyz/ZNPJam'], 最后一个是【APP軟件下載】
+        :returns: ['18comic.vip', ..., 'jm365.xyz/ZNPJam'], 最后一个是【APP軟件下載】
         """
         postman = postman or cls.new_postman(session=True)
 
@@ -232,6 +232,7 @@ class JmModuleConfig:
     def new_postman(cls, session=False, **kwargs):
         kwargs.setdefault('impersonate', 'chrome110')
         kwargs.setdefault('headers', JmModuleConfig.headers())
+        kwargs.setdefault('proxies', JmModuleConfig.DEFAULT_PROXIES)
         return cls.postman_constructor(session, **kwargs)
 
     album_comment_headers = {
@@ -256,7 +257,7 @@ class JmModuleConfig:
 
     # option 相关的默认配置
     JM_OPTION_VER = '2.1'
-    CLIENT_IMPL_DEFAULT = 'html'
+    DEFAULT_CLIENT_IMPL = 'html'
     DEFAULT_PROXIES = system_proxy()  # use system proxy by default
 
     default_option_dict: dict = {
@@ -315,7 +316,7 @@ class JmModuleConfig:
 
         # client impl
         if client['impl'] is None:
-            client['impl'] = cls.CLIENT_IMPL_DEFAULT
+            client['impl'] = cls.DEFAULT_CLIENT_IMPL
 
         # postman proxies
         meta_data = client['postman']['meta_data']

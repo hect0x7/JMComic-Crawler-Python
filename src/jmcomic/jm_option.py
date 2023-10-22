@@ -92,10 +92,10 @@ class DirRule:
         """
         应用规则解析器(RuleSolver)
 
-        @param album: JmAlbumDetail
-        @param photo: JmPhotoDetail
-        @param rule_solver: Ptitle
-        @return: photo.title
+        :param album: JmAlbumDetail
+        :param photo: JmPhotoDetail
+        :param rule_solver: Ptitle
+        :returns: photo.title
         """
 
         def choose_detail(key):
@@ -220,8 +220,8 @@ class JmOption:
         使用默认的 JmOption
         proxies, domain 为常用配置项，为了方便起见直接支持参数配置。
         其他配置项建议还是使用配置文件
-        @param proxies: clash; 127.0.0.1:7890; v2ray
-        @param domain: 18comic.vip; ["18comic.vip"]
+        :param proxies: clash; 127.0.0.1:7890; v2ray
+        :param domain: 18comic.vip; ["18comic.vip"]
         """
         if proxies is not None or domain is not None:
             return cls.construct({
@@ -234,8 +234,8 @@ class JmOption:
         return cls.construct({})
 
     @classmethod
-    def construct(cls, orgdic: Dict, cover_default=True) -> 'JmOption':
-        dic = cls.merge_default_dict(orgdic) if cover_default else orgdic
+    def construct(cls, origdic: Dict, cover_default=True) -> 'JmOption':
+        dic = cls.merge_default_dict(origdic) if cover_default else origdic
 
         # debug
         debug = dic.pop('debug', True)

@@ -176,7 +176,7 @@ class JmDetailClient:
         本方法会检查photo是不是[1]，
         如果是[1]，通过请求获取[2]，然后把2中的一些重要字段更新到1中
 
-        @param photo: 被检查的JmPhotoDetail对象
+        :param photo: 被检查的JmPhotoDetail对象
         """
         # 检查 from_album
         if photo.from_album is None:
@@ -210,12 +210,12 @@ class JmUserClient:
                       ) -> JmAcResp:
         """
         评论漫画/评论回复
-        @param video_id: album_id/photo_id
-        @param comment: 评论内容
-        @param status: 是否 "有劇透"
-        @param comment_id: 被回复评论的id
-        @param originator:
-        @return: JmAcResp 对象
+        :param video_id: album_id/photo_id
+        :param comment: 评论内容
+        :param status: 是否 "有劇透"
+        :param comment_id: 被回复评论的id
+        :param originator:
+        :returns: JmAcResp 对象
         """
         raise NotImplementedError
 
@@ -232,10 +232,10 @@ class JmImageClient:
                        ):
         """
         下载JM的图片
-        @param img_url: 图片url
-        @param img_save_path: 图片保存位置
-        @param scramble_id: 图片所在photo的scramble_id
-        @param decode_image: 要保存的是解密后的图还是原图
+        :param img_url: 图片url
+        :param img_save_path: 图片保存位置
+        :param scramble_id: 图片所在photo的scramble_id
+        :param decode_image: 要保存的是解密后的图还是原图
         """
         if scramble_id is None:
             scramble_id = JmModuleConfig.SCRAMBLE_220980
