@@ -22,11 +22,11 @@
 
 ## 2. 填写你需要下载的本子id
 
-### 2.1. 方式一（最新、推荐）
+### 2.1. 方式一（最新、简单、推荐）
 
 访问下面这个网址：
 
-`https://github.com/你的用户名/JMComic-Crawler-Python/actions/workflows/download_dispatch.yml`
+`https://github.com/你的用户名/JMComic-Crawler-Python/master/workflows/download_dispatch.yml`
 
 按下图步骤进行操作：
 
@@ -36,9 +36,9 @@
 
 访问下面这个网址：
 
-`https://github.com/你的用户名/JMComic-Crawler-Python/edit/workflow/usage/workflow_download.py`
+`https://github.com/你的用户名/JMComic-Crawler-Python/edit/master/usage/workflow_download.py`
 
-其实就是编辑`workflow`分支下的 `usage/workflow_download.py`文件
+其实就是编辑 `usage/workflow_download.py`文件，任意分支皆可。
 
 按下图步骤进行操作：
 
