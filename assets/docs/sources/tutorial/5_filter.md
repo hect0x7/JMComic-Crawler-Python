@@ -1,33 +1,33 @@
-"""
+# Filter - 下载过滤器
+
 filter(过滤器)是v2.1.12新引入的机制，
 利用filter，你可以实现下载时过滤本子/章节/图片，完全控制你要下载的内容。
 
 使用filter的步骤如下：
+
+```
 1. 自定义class，继承JmDownloader，重写filter_iter_objs方法，即:
-    class MyDownloader(JmDownloader):
-        def filter_iter_objs(self, iter_objs: DownloadIterObjs):
-            # 如何重写？参考JmDownloader.filter_iter_objs和下面的示例
-            ...
+   class MyDownloader(JmDownloader):
+       def filter_iter_objs(self, iter_objs: DownloadIterObjs):
+           # 如何重写？参考JmDownloader.filter_iter_objs和下面的示例
+           ...
 
 2. 让你的class生效，使用如下代码：
-    JmModuleConfig.CLASS_DOWNLOADER = MyDownloader
+   JmModuleConfig.CLASS_DOWNLOADER = MyDownloader
 
 3. 照常使用下载api:
-    download_album(xxx, option)
+   download_album(xxx, option)
+```
 
-** 本文件下面的示例只演示步骤1 **
-
-本文件包含如下示例：
-- 只下载章节的前三张图
-- 只下载本子的特定章节以后的章节
+* 下面的示例只演示步骤1
 
 
-"""
 
+## 示例1：只下载章节的前三张图
+
+```python
 from jmcomic import *
 
-
-# 示例：只下载章节的前三张图
 class First3ImageDownloader(JmDownloader):
 
     def filter_iter_objs(self, iter_objs: DownloadIterObjs):
@@ -37,9 +37,15 @@ class First3ImageDownloader(JmDownloader):
             return photo[:3]
 
         return iter_objs
+```
 
 
-# 示例：只下载本子的特定章节以后的章节
+
+## 示例2：只下载本子的特定章节以后的章节
+
+```python
+from jmcomic import *
+
 # 参考：https://github.com/hect0x7/JMComic-Crawler-Python/issues/95
 class FindUpdateDownloader(JmDownloader):
     album_after_photo = {
@@ -69,3 +75,4 @@ class FindUpdateDownloader(JmDownloader):
                 is_new_photo = True
 
         return photo_ls
+```

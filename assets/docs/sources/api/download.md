@@ -1,0 +1,4 @@
+# download
+
+::: jmcomic.api
+

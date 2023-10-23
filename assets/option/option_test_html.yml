@@ -1,14 +1,21 @@
-# GitHub Actions 下载脚本配置
+# GitHub Actions 测试用
+# 网页端配置
 dir_rule:
-  base_dir: ${JM_DOWNLOAD_DIR}
-  rule: Bd_Aauthor_Atitle_Pindex
+  rule: Bd_Aauthor_Aid_Pindextitle
 
 client:
+  impl: html
+  retry_times: 3
+  postman:
+    meta_data:
+      timeout: 7
   domain:
-    html: [jmcomic1.me, jmcomic.me]
+    html:
+      - jmcomic1.me
+      - jmcomic.me
 
 # 插件配置
-plugin:
+plugins:
   after_init:
     - plugin: usage_log # 实时打印硬件占用率的插件
       kwargs:

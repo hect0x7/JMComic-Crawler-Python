@@ -1,4 +1,4 @@
-# 教程：使用GitHub Actions下载禁漫本子
+# GitHub Actions教程
 
 一共需要三步：
 
@@ -18,31 +18,31 @@
 
 （最新提示，下图的1可以不做，即直接点绿色的Create fork按钮）
 
-![1](./images/1.png)
+![1](../images/1.png)
 
 ## 2. 填写你需要下载的本子id
 
-### 2.1. 方式一（最新、推荐）
+### 2.1. 方式一（最新、简单、推荐）
 
 访问下面这个网址：
 
-`https://github.com/你的用户名/JMComic-Crawler-Python/actions/workflows/download_dispatch.yml`
+`https://github.com/你的用户名/JMComic-Crawler-Python/master/workflows/download_dispatch.yml`
 
 按下图步骤进行操作：
 
-![5](./images/5.png)
+![5](../images/5.png)
 
 ### 2.2. 方式二
 
 访问下面这个网址：
 
-`https://github.com/你的用户名/JMComic-Crawler-Python/edit/workflow/usage/workflow_download.py`
+`https://github.com/你的用户名/JMComic-Crawler-Python/edit/master/usage/workflow_download.py`
 
-其实就是编辑`workflow`分支下的 `usage/workflow_download.py`文件
+其实就是编辑 `usage/workflow_download.py`文件，任意分支皆可。
 
 按下图步骤进行操作：
 
-![2](./images/2.png)
+![2](../images/2.png)
 
 看到上面的绿色框里的代码了吗？（位置可能有些变化）
 
@@ -54,11 +54,11 @@
 
 来到Actions页面，选择最新的一次记录，等待它完成。
 
-![3](./images/3.png)
+![3](../images/3.png)
 
 完成以后，在页面最底部，点击下载你的成品即可。
 
-![4](./images/4.png)
+![4](../images/4.png)
 
 如果你发现GitHub Actions显示❌，表明出现了问题，运行失败。
 

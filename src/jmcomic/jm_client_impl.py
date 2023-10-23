@@ -61,12 +61,12 @@ class AbstractJmClient(
                            ):
         """
         统一请求，支持重试
-        @param request: 请求方法
-        @param url: 图片url / path (/album/xxx)
-        @param domain_index: 域名下标
-        @param retry_count: 重试次数
-        @param judge: 判定响应是否成功
-        @param kwargs: 请求方法的kwargs
+        :param request: 请求方法
+        :param url: 图片url / path (/album/xxx)
+        :param domain_index: 域名下标
+        :param retry_count: 重试次数
+        :param judge: 判定响应是否成功
+        :param kwargs: 请求方法的kwargs
         """
         if domain_index >= len(self.domain_list):
             self.fallback(request, url, domain_index, retry_count, **kwargs)
@@ -335,15 +335,15 @@ class JmHtmlClient(AbstractJmClient):
         return ret
 
     @classmethod
-    def require_resp_success_else_raise(cls, resp, org_req_url: str):
+    def require_resp_success_else_raise(cls, resp, orig_req_url: str):
         """
-        @param resp: 响应对象
-        @param org_req_url: /photo/12412312
+        :param resp: 响应对象
+        :param orig_req_url: /photo/12412312
         """
         # 1. 检查是否 album_missing
         error_album_missing = '/error/album_missing'
-        if resp.url.endswith(error_album_missing) and not org_req_url.endswith(error_album_missing):
-            ExceptionTool.raise_missing(resp, org_req_url)
+        if resp.url.endswith(error_album_missing) and not orig_req_url.endswith(error_album_missing):
+            ExceptionTool.raise_missing(resp, orig_req_url)
 
         # 2. 是否是特殊的内容
         cls.check_special_text(resp)
@@ -541,14 +541,14 @@ class JmApiClient(AbstractJmClient):
         return 'api'
 
     @classmethod
-    def require_resp_success(cls, resp: JmApiResp, org_req_url: str):
+    def require_resp_success(cls, resp: JmApiResp, orig_req_url: str):
         resp.require_success()
 
         # 1. 检查是否 album_missing
         # json: {'code': 200, 'data': []}
         data = resp.model().data
         if isinstance(data, list) and len(data) == 0:
-            ExceptionTool.raise_missing(resp, org_req_url)
+            ExceptionTool.raise_missing(resp, orig_req_url)
 
         # 2. 是否是特殊的内容
         # 暂无
@@ -561,7 +561,7 @@ class FutureClientProxy(JmcomicClient):
 
     可通过插件 ClientProxyPlugin 启用本类，配置如下:
     ```yml
-    plugin:
+    plugins:
       after_init:
         - plugin: client_proxy
           kwargs:

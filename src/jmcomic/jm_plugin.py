@@ -14,7 +14,7 @@ class JmOptionPlugin:
     def invoke(self, **kwargs) -> None:
         """
         执行插件的功能
-        @param kwargs: 给插件的参数
+        :param kwargs: 给插件的参数
         """
         raise NotImplementedError
 
@@ -22,7 +22,7 @@ class JmOptionPlugin:
     def build(cls, option: JmOption) -> 'JmOptionPlugin':
         """
         创建插件实例
-        @param option: JmOption对象
+        :param option: JmOption对象
         """
         return cls(option)
 
@@ -245,7 +245,7 @@ class ZipPlugin(JmOptionPlugin):
     def zip_photo(self, photo, image_list: list, zip_path: str):
         """
         压缩photo文件夹
-        @return: photo文件夹路径
+        :returns: photo文件夹路径
         """
         photo_dir = self.option.decide_image_save_dir(photo) \
             if len(image_list) == 0 \
@@ -265,7 +265,7 @@ class ZipPlugin(JmOptionPlugin):
     def zip_album(self, album, photo_dict: dict, zip_path):
         """
         压缩album文件夹
-        @return: album文件夹路径
+        :returns: album文件夹路径
         """
         album_dir = self.option.decide_album_dir(album)
         all_filepath: Set[str] = set()
@@ -351,3 +351,31 @@ class ClientProxyPlugin(JmOptionPlugin):
             return clazz(client, **clazz_init_kwargs)
 
         self.option.new_jm_client = hook_new_jm_client
+
+
+class ImageSuffixFilterPlugin(JmOptionPlugin):
+    plugin_key = 'image_suffix_filter'
+
+    def invoke(self,
+               allowed_orig_suffix=None,
+               ) -> None:
+        if allowed_orig_suffix is None:
+            return
+
+        allowed_suffix_set = set(fix_suffix(suffix) for suffix in allowed_orig_suffix)
+
+        option_decide_cache = self.option.decide_download_cache
+
+        def apply_filter_then_decide_cache(image: JmImageDetail):
+            if image.img_file_suffix not in allowed_suffix_set:
+                jm_debug('image.filter.skip',
+                         f'跳过下载图片: {image.tag}，'
+                         f'因为其后缀\'{image.img_file_suffix}\'不在允许的后缀集合{allowed_suffix_set}内')
+                # hook is_exists True to skip download
+                image.is_exists = True
+                return True
+
+            # let option decide
+            return option_decide_cache(image)
+
+        self.option.decide_download_cache = apply_filter_then_decide_cache

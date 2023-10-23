@@ -4,56 +4,56 @@ from .jm_entity import *
 
 
 class JmcomicText:
-    pattern_jm_domain = compile('https://([\w.-]+)')
-    pattern_jm_pa_id = compile('(photos?|album)/(\d+)')
-    pattern_html_jm_pub_domain = compile('[\w-]+\.\w+/?\w+')
+    pattern_jm_domain = compile(r'https://([\w.-]+)')
+    pattern_jm_pa_id = compile(r'(photos?|album)/(\d+)')
+    pattern_html_jm_pub_domain = compile(r'[\w-]+\.\w+/?\w+')
 
-    pattern_html_photo_photo_id = compile('<meta property="og:url" content=".*?/photo/(\d+)/?.*?">')
-    pattern_html_photo_scramble_id = compile('var scramble_id = (\d+);')
-    pattern_html_photo_name = compile('<title>([\s\S]*?)\|.*</title>')
-    # pattern_html_photo_data_original_list = compile('data-original="(.*?)" id="album_photo_.+?"')
-    pattern_html_photo_data_original_domain = compile('src="https://(.*?)/media/albums/blank')
-    pattern_html_photo_data_original_0 = compile('data-original="(.*?)"[^>]*?id="album_photo[^>]*?data-page="0"')
-    pattern_html_photo_tags = compile('<meta name="keywords"[\s\S]*?content="(.*?)"')
-    pattern_html_photo_series_id = compile('var series_id = (\d+);')
-    pattern_html_photo_sort = compile('var sort = (\d+);')
-    pattern_html_photo_page_arr = compile('var page_arr = (.*?);')
+    pattern_html_photo_photo_id = compile(r'<meta property="og:url" content=".*?/photo/(\d+)/?.*?">')
+    pattern_html_photo_scramble_id = compile(r'var scramble_id = (\d+);')
+    pattern_html_photo_name = compile(r'<title>([\s\S]*?)\|.*</title>')
+    # pattern_html_photo_data_original_list = compile(r'data-original="(.*?)" id="album_photo_.+?"')
+    pattern_html_photo_data_original_domain = compile(r'src="https://(.*?)/media/albums/blank')
+    pattern_html_photo_data_original_0 = compile(r'data-original="(.*?)"[^>]*?id="album_photo[^>]*?data-page="0"')
+    pattern_html_photo_tags = compile(r'<meta name="keywords"[\s\S]*?content="(.*?)"')
+    pattern_html_photo_series_id = compile(r'var series_id = (\d+);')
+    pattern_html_photo_sort = compile(r'var sort = (\d+);')
+    pattern_html_photo_page_arr = compile(r'var page_arr = (.*?);')
 
-    pattern_html_album_album_id = compile('<span class="number">.*?：JM(\d+)</span>')
-    pattern_html_album_scramble_id = compile('var scramble_id = (\d+);')
-    pattern_html_album_name = compile('<h1 class="book-name" id="book-name">([\s\S]*?)</h1>')
-    pattern_html_album_episode_list = compile('data-album="(\d+)">\n *?<li.*?>\n *'
-                                              '第(\d+)話\n([\s\S]*?)\n *'
-                                              '<[\s\S]*?>(\d+-\d+-\d+).*?')
-    pattern_html_album_page_count = compile('<span class="pagecount">.*?:(\d+)</span>')
-    pattern_html_album_pub_date = compile('>上架日期 : (.*?)</span>')
-    pattern_html_album_update_date = compile('>更新日期 : (.*?)</span>')
+    pattern_html_album_album_id = compile(r'<span class="number">.*?：JM(\d+)</span>')
+    pattern_html_album_scramble_id = compile(r'var scramble_id = (\d+);')
+    pattern_html_album_name = compile(r'<h1 class="book-name" id="book-name">([\s\S]*?)</h1>')
+    pattern_html_album_episode_list = compile(r'data-album="(\d+)">\n *?<li.*?>\n *'
+                                              r'第(\d+)話\n([\s\S]*?)\n *'
+                                              r'<[\s\S]*?>(\d+-\d+-\d+).*?')
+    pattern_html_album_page_count = compile(r'<span class="pagecount">.*?:(\d+)</span>')
+    pattern_html_album_pub_date = compile(r'>上架日期 : (.*?)</span>')
+    pattern_html_album_update_date = compile(r'>更新日期 : (.*?)</span>')
     # 作品
     pattern_html_album_works = [
-        compile('<span itemprop="author" data-type="works">([\s\S]*?)</span>'),
-        compile('<a[^>]*?>(.*?)</a>')
+        compile(r'<span itemprop="author" data-type="works">([\s\S]*?)</span>'),
+        compile(r'<a[^>]*?>(.*?)</a>')
     ]
     # 登場人物
     pattern_html_album_actors = [
-        compile('<span itemprop="author" data-type="actor">([\s\S]*?)</span>'),
-        compile('<a[^>]*?>(.*?)</a>')
+        compile(r'<span itemprop="author" data-type="actor">([\s\S]*?)</span>'),
+        compile(r'<a[^>]*?>(.*?)</a>')
     ]
     # 标签
     pattern_html_album_tags = [
-        compile('<span itemprop="genre" data-type="tags">([\s\S]*?)</span>'),
-        compile('<a[^>]*?>(.*?)</a>')
+        compile(r'<span itemprop="genre" data-type="tags">([\s\S]*?)</span>'),
+        compile(r'<a[^>]*?>(.*?)</a>')
     ]
     # 作者
     pattern_html_album_authors = [
-        compile('作者： *<span itemprop="author" data-type="author">([\s\S]*?)</span>'),
-        compile("<a[^>]*?>(.*?)</a>"),
+        compile(r'作者： *<span itemprop="author" data-type="author">([\s\S]*?)</span>'),
+        compile(r"<a[^>]*?>(.*?)</a>"),
     ]
     # 點擊喜歡
-    pattern_html_album_likes = compile('<span id="albim_likes_\d+">(.*?)</span>')
+    pattern_html_album_likes = compile(r'<span id="albim_likes_\d+">(.*?)</span>')
     # 觀看
-    pattern_html_album_views = compile('<span>(.*?)</span> (次觀看|观看次数)')
+    pattern_html_album_views = compile(r'<span>(.*?)</span> (次觀看|观看次数)')
     # 評論(div)
-    pattern_html_album_comment_count = compile('<div class="badge"[^>]*?id="total_video_comments">(\d+)</div>'), 0
+    pattern_html_album_comment_count = compile(r'<div class="badge"[^>]*?id="total_video_comments">(\d+)</div>'), 0
 
     @classmethod
     def parse_to_jm_domain(cls, text: str):
@@ -214,29 +214,29 @@ class JmcomicText:
 
 
 # 支持dsl: #{???} -> os.getenv(???)
-JmcomicText.dsl_replacer.add_dsl_and_replacer('\$\{(.*?)\}', JmcomicText.match_os_env)
+JmcomicText.dsl_replacer.add_dsl_and_replacer(r'\$\{(.*?)\}', JmcomicText.match_os_env)
 
 
 class JmcomicSearchTool:
     # 用来缩减html的长度
-    pattern_html_search_shorten_for = compile('<div class="well well-sm">([\s\S]*)<div class="row">')
+    pattern_html_search_shorten_for = compile(r'<div class="well well-sm">([\s\S]*)<div class="row">')
 
     # 用来提取搜索页面的的album的信息
     pattern_html_search_album_info_list = compile(
-        '<a href="/album/(\d+)/.+"[\s\S]*?'
-        'title="(.*?)"[\s\S]*?'
-        '(<div class="label-category" style="">'
-        '\n(.*)\n</div>\n<div class="label-sub" style=" ">'
-        '(.*?)\n<[\s\S]*?)?'
-        '<div class="title-truncate tags .*>\n'
-        '(<a[\s\S]*?) </div>'
+        r'<a href="/album/(\d+)/.+"[\s\S]*?'
+        r'title="(.*?)"[\s\S]*?'
+        r'(<div class="label-category" style="">'
+        r'\n(.*)\n</div>\n<div class="label-sub" style=" ">'
+        r'(.*?)\n<[\s\S]*?)?'
+        r'<div class="title-truncate tags .*>\n'
+        r'(<a[\s\S]*?) </div>'
     )
 
     # 用来查找tag列表
-    pattern_html_search_tag_list = compile('<a href=".*?">(.*?)</a>')
+    pattern_html_search_tag_list = compile(r'<a href=".*?">(.*?)</a>')
 
     # 查找错误，例如 [错误，關鍵字過短，請至少輸入兩個字以上。]
-    pattern_html_search_error = compile('<fieldset>\n<legend>(.*?)</legend>\n<div class=.*?>\n(.*?)\n</div>\n</fieldset>')
+    pattern_html_search_error = compile(r'<fieldset>\n<legend>(.*?)</legend>\n<div class=.*?>\n(.*?)\n</div>\n</fieldset>')
 
     @classmethod
     def parse_html_to_page(cls, html: str) -> JmSearchPage:
@@ -464,9 +464,9 @@ class JmImageTool:
         如果需要改变图片的文件格式，比如 .jpg → .png，则需要指定参数 neet_convert=True.
         如果不需要改变图片的文件格式，使用 need_convert=False，可以跳过PIL解析图片，效率更高.
 
-        @param resp: HTTP响应对象
-        @param filepath: 图片文件路径
-        @param need_convert: 是否转换图片
+        :param resp: HTTP响应对象
+        :param filepath: 图片文件路径
+        :param need_convert: 是否转换图片
         """
         if need_convert is False:
             cls.save_directly(resp, filepath)
@@ -478,8 +478,8 @@ class JmImageTool:
         """
         保存图片
 
-        @param image: PIL.Image对象
-        @param filepath: 保存文件路径
+        :param image: PIL.Image对象
+        :param filepath: 保存文件路径
         """
         image.save(filepath)
 
@@ -496,9 +496,9 @@ class JmImageTool:
                         ) -> None:
         """
         解密图片并保存
-        @param num: 分割数，可以用 cls.calculate_segmentation_num 计算
-        @param img_src: 原始图片
-        @param decoded_save_path: 解密图片的保存路径
+        :param num: 分割数，可以用 cls.calculate_segmentation_num 计算
+        :param img_src: 原始图片
+        :param decoded_save_path: 解密图片的保存路径
         """
 
         # 无需解密，直接保存
@@ -625,19 +625,19 @@ class ExceptionTool:
     @classmethod
     def raise_missing(cls,
                       resp,
-                      org_req_url=None,
+                      orig_req_url=None,
                       ):
         """
         抛出本子/章节的异常
-        @param resp: 响应对象
-        @param org_req_url: 原始请求url，可不传
+        :param resp: 响应对象
+        :param orig_req_url: 原始请求url，可不传
         """
-        if org_req_url is None:
-            org_req_url = resp.url
+        if orig_req_url is None:
+            orig_req_url = resp.url
 
-        req_type = "本子" if "album" in org_req_url else "章节"
+        req_type = "本子" if "album" in orig_req_url else "章节"
         cls.raises_resp((
-            f'请求的{req_type}不存在！({org_req_url})\n'
+            f'请求的{req_type}不存在！({orig_req_url})\n'
             '原因可能为:\n'
             f'1. id有误，检查你的{req_type}id\n'
             '2. 该漫画只对登录用户可见，请配置你的cookies，或者使用移动端Client（api）\n'

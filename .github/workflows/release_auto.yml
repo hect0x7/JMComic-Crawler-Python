@@ -23,7 +23,7 @@ jobs:
         id: tb
         run: |
           commit_message=$(git log --format=%B -n 1 ${{ github.sha }})
-          python release.py "$commit_message"
+          python .github/release.py "$commit_message"
 
       - name: Create Release
         uses: softprops/action-gh-release@v1

@@ -49,7 +49,7 @@ class JmTestConfigurable(unittest.TestCase):
         try:
             option = create_option_by_env('JM_OPTION_PATH_TEST')
         except JmcomicException:
-            option = create_option('./assets/config/option_test.yml')
+            option = create_option('./assets/option/option_test.yml')
 
         cls.option = option
         cls.client = option.build_jm_client()
@@ -68,10 +68,6 @@ class JmTestConfigurable(unittest.TestCase):
         begin = cost_time_dict[cls.__name__]
         end = ts()
         print_eye_catching(f' [total cost {end - begin:.02f}s | {cls.__name__}] '.center(60, '-'))
-
-    @classmethod
-    def use_option(cls, op_filename: str) -> JmOption:
-        return create_option(f'./assets/config/{op_filename}')
 
     @classmethod
     def adapt_os(cls):

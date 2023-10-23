@@ -1,3 +1,22 @@
+# Option File Syntax
+
+## 1. 配置前需知
+
+* option有`默认值`，当你使用配置文件来创建option时，你配置文件中的值会覆盖`默认值`。
+
+  因此，在配置option时，不需要配置全部的值，只需要配置特定部分即可。
+
+* 你可以使用下面的代码来得到option的默认值，你可以删除其中的大部分配置项，只保留你要覆盖的配置项
+
+```python
+from jmcomic import JmOption
+JmOption.default().to_file('./option.yml') # 创建默认option，导出为option.yml文件
+```
+
+## 2. option常用配置项
+
+```yml
+# 配置客户端相关
 client:
   # impl: 客户端实现类，不配默认是html，表示网页端
   impl: html
@@ -37,17 +56,17 @@ client:
 
 # 下载配置
 download:
-  cache: true # 如果要下载的文件在磁盘上已存在，不用再下一遍了吧？
+  cache: true # 如果要下载的文件在磁盘上已存在，不用再下一遍了吧？默认为true
   image:
-    decode: true # JM的原图是混淆过的，要不要还原？
-    suffix: .jpg # 把图片都转为.jpg格式
+    decode: true # JM的原图是混淆过的，要不要还原？默认为true
+    suffix: .jpg # 把图片都转为.jpg格式，默认为null，表示不转换。
   threading:
     # image: 同时下载的图片数，默认是30张图
     # 数值大，下得快，配置要求高，对禁漫压力大
     # 数值小，下得慢，配置要求低，对禁漫压力小
     # PS: 禁漫网页一次最多请求50张图
     image: 30
-    # photo: 同时下载的章节数，不配置默认是cpu核心数
+    # photo: 同时下载的章节数，不配置默认是cpu的线程数。例如8核16线程的cpu → 16.
     photo: 16
 
 
@@ -68,3 +87,44 @@ dir_rule:
 
   # 默认规则是: 根目录 / 章节标题 / 图片文件
   rule: Bd_Ptitle
+```
+
+
+## 3. option插件配置项
+```yml
+# 插件的配置示例
+plugins:
+  after_init:
+    - plugin: usage_log # 实时打印硬件占用率的插件
+      kwargs:
+        interval: 0.5 # 间隔时间
+        enable_warning: true # 占用过大时发出预警
+
+    - plugin: login # 登录插件
+      kwargs:
+        username: un # 用户名
+        password: pw # 密码
+
+    - plugin: find_update # 只下载新章插件
+      kwargs:
+        145504: 290266 # 下载本子145504的章节290266以后的新章
+        
+    - plugin: image_suffix_filter # 图片后缀过滤器插件，可以控制只下载哪些后缀的图片
+      kwargs:
+        allowed_orig_suffix: # 后缀列表，表示只想下载以.gif结尾的图片
+          - .gif 
+
+    - plugin: client_proxy # 客户端实现类代理插件，不建议非开发人员使用
+      kwargs:
+        proxy_client_key: cl_proxy_future # 代理类的client_key
+        whitelist: [ api, ] # 白名单，当client.impl匹配白名单时才代理
+
+  after_album:
+    - plugin: zip # 压缩文件插件
+      kwargs:
+        level: photo # 按照章节，一个章节一个压缩文件
+        filename_rule: Ptitle # 压缩文件的命名规则
+        zip_dir: D:/jmcomic/zip/ # 压缩文件存放的文件夹
+        delete_original_file: true # 压缩成功后，删除所有原文件和文件夹
+
+```
