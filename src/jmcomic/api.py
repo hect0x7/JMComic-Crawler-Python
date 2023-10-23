@@ -13,7 +13,7 @@ def download_batch(download_api,
 
     :param download_api: 下载api
     :param jm_id_iter: jmid (album_id, photo_id) 的迭代器
-    :param option: 下载选项，对所有的jmid使用同一个，默认是 JmOption.default()
+    :param option: 下载选项，所有的jmid共用一个option
     :param downloader: 下载器类
     """
     from common import multi_thread_launcher
@@ -32,9 +32,12 @@ def download_batch(download_api,
 
 def download_album(jm_album_id, option=None, downloader=None):
     """
-    下载一个本子1
-    :param jm_album_id: 禁漫的本子的id，类型可以是str/int/iterable[str]。如果是iterable[str]，则会调用 download_album_batch
-    :param option: 下载选项，为空默认是 JmOption.default()
+    下载一个本子（album），包含其所有的章节（photo）
+
+    当jm_album_id不是str或int时，相当于调用 download_batch(download_album, jm_album_id, option, downloader)
+
+    :param jm_album_id: 本子的禁漫车号
+    :param option: 下载选项
     :param downloader: 下载器类
     """
 
@@ -47,7 +50,7 @@ def download_album(jm_album_id, option=None, downloader=None):
 
 def download_photo(jm_photo_id, option=None, downloader=None):
     """
-    下载一个章节
+    下载一个章节（photo），参数同 download_album
     """
     if not isinstance(jm_photo_id, (str, int)):
         return download_batch(download_photo, jm_photo_id, option)

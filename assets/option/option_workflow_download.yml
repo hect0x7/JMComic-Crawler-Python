@@ -8,7 +8,7 @@ client:
     html: [jmcomic1.me, jmcomic.me]
 
 # 插件配置
-plugin:
+plugins:
   after_init:
     - plugin: usage_log # 实时打印硬件占用率的插件
       kwargs:

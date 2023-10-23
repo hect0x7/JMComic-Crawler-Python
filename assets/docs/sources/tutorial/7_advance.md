@@ -33,7 +33,7 @@ client:
   domain:
     - 18comic.vip # 指定域名
 
-plugin:
+plugins:
   after_init:
     - plugin: login # 登录插件
       kwargs:

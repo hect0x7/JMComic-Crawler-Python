@@ -561,7 +561,7 @@ class FutureClientProxy(JmcomicClient):
 
     可通过插件 ClientProxyPlugin 启用本类，配置如下:
     ```yml
-    plugin:
+    plugins:
       after_init:
         - plugin: client_proxy
           kwargs:

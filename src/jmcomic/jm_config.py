@@ -261,7 +261,6 @@ class JmModuleConfig:
     DEFAULT_PROXIES = system_proxy()  # use system proxy by default
 
     default_option_dict: dict = {
-        'version': JM_OPTION_VER,
         'debug': None,
         'dir_rule': {'rule': 'Bd_Pname', 'base_dir': None},
         'download': {
@@ -286,7 +285,7 @@ class JmModuleConfig:
             'impl': None,
             'retry_times': 5
         },
-        'plugin': {},
+        'plugins': {},
     }
 
     @classmethod

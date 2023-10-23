@@ -93,7 +93,7 @@ dir_rule:
 ## 3. option插件配置项
 ```yml
 # 插件的配置示例
-plugin:
+plugins:
   after_init:
     - plugin: usage_log # 实时打印硬件占用率的插件
       kwargs:

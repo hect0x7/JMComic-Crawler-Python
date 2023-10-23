@@ -121,7 +121,7 @@ class JmOption:
                  dir_rule: Dict,
                  download: Dict,
                  client: Dict,
-                 plugin: Dict,
+                 plugins: Dict,
                  filepath=None,
                  ):
         # 版本号
@@ -133,7 +133,7 @@ class JmOption:
         # 下载配置
         self.download = AdvancedEasyAccessDict(download)
         # 插件配置
-        self.plugin = AdvancedEasyAccessDict(plugin)
+        self.plugins = AdvancedEasyAccessDict(plugins)
         # 其他配置
         self.filepath = filepath
 
@@ -244,18 +244,29 @@ class JmOption:
 
         # version
         version = dic.pop('version', None)
-        if version is None or float(version) >= float(JmModuleConfig.JM_OPTION_VER):
+        if version is not None and float(version) >= float(JmModuleConfig.JM_OPTION_VER):
+            # 版本号更高，跳过兼容代码
             return cls(**dic)
 
         # 旧版本option，做兼容
+        cls.compatible_with_old_versions(dic)
 
-        # 1) 2.0 -> 2.1，并发配置的键名更改了
+        return cls(**dic)
+
+    @classmethod
+    def compatible_with_old_versions(cls, dic):
+        """
+        兼容旧的option版本
+        """
+        # 1: 并发配置项
         dt: dict = dic['download']['threading']
         if 'batch_count' in dt:
             batch_count = dt.pop('batch_count')
             dt['image'] = batch_count
 
-        return cls(**dic)
+        # 2: 插件配置项 plugin -> plugins
+        if 'plugin' in dic:
+            dic['plugins'] = dic.pop('plugin')
 
     def deconstruct(self) -> Dict:
         return {
@@ -267,6 +278,7 @@ class JmOption:
             },
             'download': self.download.src_dict,
             'client': self.client.src_dict,
+            'plugins': self.plugins.src_dict
         }
 
     """
@@ -399,7 +411,7 @@ class JmOption:
     # 下面的方法为调用插件提供支持
 
     def call_all_plugin(self, group: str, **extra):
-        plugin_list: List[dict] = self.plugin.get(group, [])
+        plugin_list: List[dict] = self.plugins.get(group, [])
         if plugin_list is None or len(plugin_list) == 0:
             return
 
