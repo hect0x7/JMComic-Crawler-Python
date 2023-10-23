@@ -1,4 +1,6 @@
-# 1. 配置前需知
+# option file syntax
+
+## 1. 配置前需知
 
 * option有`默认值`，当你使用配置文件来创建option时，你配置文件中的值会覆盖`默认值`。
 
@@ -11,7 +13,7 @@ from jmcomic import JmOption
 JmOption.default().to_file('./option.yml') # 创建默认option，导出为option.yml文件
 ```
 
-# 2. option文件可配置项
+## 2. option文件可配置项
 
 ```yml
 # 配置客户端相关
