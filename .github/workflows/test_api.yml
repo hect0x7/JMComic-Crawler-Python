@@ -10,19 +10,19 @@ on:
       - 'src/**/*.py'
       - 'tests/**/*.py'
       - '.github/workflows/test_api.yml'
-      - 'assets/config/option_test_api.yml'
+      - 'assets/option/option_test_api.yml'
 
 jobs:
   test: # This code is based on https://github.com/gaogaotiantian/viztracer/blob/master/.github/workflows/python-package.yml
     strategy:
       matrix:
-        python-version: [ 3.7, 3.8, 3.9, "3.10", "3.11" ]
+        python-version: ['3.7', '3.8', '3.11', '3.12']
         os: [ ubuntu-latest ]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5
     env:
       # 配置文件路径
-      JM_OPTION_PATH_TEST: ./assets/config/option_test_api.yml
+      JM_OPTION_PATH_TEST: ./assets/option/option_test_api.yml
 
     steps:
       - name: Checkout repository

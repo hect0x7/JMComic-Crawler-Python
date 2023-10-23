@@ -70,10 +70,6 @@ class JmTestConfigurable(unittest.TestCase):
         print_eye_catching(f' [total cost {end - begin:.02f}s | {cls.__name__}] '.center(60, '-'))
 
     @classmethod
-    def use_option(cls, op_filename: str) -> JmOption:
-        return create_option(f'./assets/config/{op_filename}')
-
-    @classmethod
     def adapt_os(cls):
         adapt_func_dict = {
             'Windows': cls.adapt_win,

@@ -6,7 +6,7 @@ on:
     paths:
       - '.github/workflows/download.yml' # 工作流定义
       - 'usage/workflow_download.py' # 下载脚本
-      - 'assets/config/option_workflow_download.yml' # 配置文件
+      - 'assets/option/option_workflow_download.yml' # 配置文件
 
 jobs:
   crawler:
