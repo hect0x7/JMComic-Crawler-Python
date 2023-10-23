@@ -1,7 +1,5 @@
 # 使用jmcomic实现简单功能
 
-
-
 ## 下载本子
 
 ```python
@@ -14,8 +12,6 @@ https://18comic.vip/album/497896/
 
 download_album(ls)
 ```
-
-
 
 ## 获取实体类
 
@@ -45,8 +41,6 @@ multi_thread_launcher(
 )
 ```
 
-
-
 ## 搜索本子
 
 ```python
@@ -65,8 +59,6 @@ page = client.search_site(search_query='427413')
 album: JmAlbumDetail = page.single_album
 print(album.tags)
 ```
-
-
 
 ## 搜索并下载本子
 

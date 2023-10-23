@@ -26,10 +26,6 @@
 ```python
 import jmcomic  # 导入此模块，需要先安装.
 jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载整个album到本地.
-# 上面的这行代码，还有一个可选参数option: JmOption，表示配置项，
-# 配置项的作用是告诉程序下载时候的一些选择，
-# 比如，要下载到哪个文件夹，使用怎样的路径组织规则（比如[/作者/本子id/图片] 或者 [/作者/本子名称/图片]）.
-# 如果没有配置，则会使用 JmOption.default()，下载的路径是[当前工作文件夹/本子名称/图片].
 ```
 
 * v2.2.9: 新增命令行调用方式，上述的代码可以转为一行命令
@@ -37,17 +33,16 @@ jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载�
 ```bash
 # 下载album_id为422866的本子
 $ jmcomic 422866
-# 更多用法请参考文件 usage/usage_cl.py (命令行使用介绍)
 ```
 
 ## 项目特点
 
 - **绕过Cloudflare的反爬虫**
 - 用法多样：
+
   - GitHub Actions：网页上直接输入本子id就能下载（[教程：使用GitHub Actions下载禁漫本子](./assets/docs/sources/download_album_via_github_actions.md)）
   - 命令行：无需写Python代码，简单易用
   - Python代码：最直接的使用方式，需要你有一定的python编程基础
-
 - 支持**网页端**和**移动端**两种客户端实现，可通过配置切换（**移动端不限ip兼容性好，网页端限制ip地区但效率高**）
 - 支持**自动重试和域名切换**机制
 - **多线程下载**（可细化到一图一线程，效率极高）
@@ -56,7 +51,6 @@ $ jmcomic 422866
   - 不配置也能使用，十分方便
   - 配置可以从配置文件生成，支持多种文件格式
   - 配置点有：`请求域名` `客户端实现` `是否使用磁盘缓存` `同时下载的章节/图片数量` `图片格式转换` `下载路径规则` `请求元信息（headers,cookies,proxies）`等
-
 - **可扩展性强**
 
   - **支持Plugin插件，可以方便地扩展功能，以及使用别人的插件**
@@ -67,7 +61,7 @@ $ jmcomic 422866
 
 ## 进阶使用
 
-进阶使用请查阅文档：[docs for jmcomic](https://jmcomic.readthedocs.io/en/latest)
+进阶使用请查阅文档：[文档](https://jmcomic.readthedocs.io/en/latest)
 
 下面列出一些常用的文档链接：
 
@@ -76,7 +70,7 @@ $ jmcomic 422866
 * [命令行使用教程](./assets/docs/sources/usage/command_line.md)
 * [GitHub Actions使用教程](./assets/docs/sources/download_album_via_github_actions.md)
 * [插件机制](./assets/docs/sources/usage/plugin.md)
-* [下载过滤器机制](./assets/docs/sources/usage/filter.md)	
+* [下载过滤器机制](./assets/docs/sources/usage/filter.md)
 
 ## 使用小说明
 
