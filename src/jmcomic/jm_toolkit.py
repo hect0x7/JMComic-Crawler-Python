@@ -23,8 +23,8 @@ class JmcomicText:
     pattern_html_album_scramble_id = compile(r'var scramble_id = (\d+);')
     pattern_html_album_name = compile(r'<h1 class="book-name" id="book-name">([\s\S]*?)</h1>')
     pattern_html_album_episode_list = compile(r'data-album="(\d+)">\n *?<li.*?>\n *'
-                                              '第(\d+)話\n([\s\S]*?)\n *'
-                                              '<[\s\S]*?>(\d+-\d+-\d+).*?')
+                                              r'第(\d+)話\n([\s\S]*?)\n *'
+                                              r'<[\s\S]*?>(\d+-\d+-\d+).*?')
     pattern_html_album_page_count = compile(r'<span class="pagecount">.*?:(\d+)</span>')
     pattern_html_album_pub_date = compile(r'>上架日期 : (.*?)</span>')
     pattern_html_album_update_date = compile(r'>更新日期 : (.*?)</span>')
@@ -214,7 +214,7 @@ class JmcomicText:
 
 
 # 支持dsl: #{???} -> os.getenv(???)
-JmcomicText.dsl_replacer.add_dsl_and_replacer('\$\{(.*?)\}', JmcomicText.match_os_env)
+JmcomicText.dsl_replacer.add_dsl_and_replacer(r'\$\{(.*?)\}', JmcomicText.match_os_env)
 
 
 class JmcomicSearchTool:
