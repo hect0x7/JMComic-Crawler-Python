@@ -13,7 +13,7 @@ from jmcomic import JmOption
 JmOption.default().to_file('./option.yml') # 创建默认option，导出为option.yml文件
 ```
 
-## 2. option文件可配置项
+## 2. option常用配置项
 
 ```yml
 # 配置客户端相关
@@ -87,4 +87,44 @@ dir_rule:
 
   # 默认规则是: 根目录 / 章节标题 / 图片文件
   rule: Bd_Ptitle
+```
+
+
+## 3. option插件配置项
+```yml
+# 插件的配置示例
+plugin:
+  after_init:
+    - plugin: usage_log # 实时打印硬件占用率的插件
+      kwargs:
+        interval: 0.5 # 间隔时间
+        enable_warning: true # 占用过大时发出预警
+
+    - plugin: login # 登录插件
+      kwargs:
+        username: un # 用户名
+        password: pw # 密码
+
+    - plugin: find_update # 只下载新章插件
+      kwargs:
+        145504: 290266 # 下载本子145504的章节290266以后的新章
+        
+    - plugin: image_suffix_filter # 图片后缀过滤器插件，可以控制只下载哪些后缀的图片
+      kwargs:
+        allowed_orig_suffix: # 后缀列表，表示只想下载以.gif结尾的图片
+          - .gif 
+
+    - plugin: client_proxy # 客户端实现类代理插件，不建议非开发人员使用
+      kwargs:
+        proxy_client_key: cl_proxy_future # 代理类的client_key
+        whitelist: [ api, ] # 白名单，当client.impl匹配白名单时才代理
+
+  after_album:
+    - plugin: zip # 压缩文件插件
+      kwargs:
+        level: photo # 按照章节，一个章节一个压缩文件
+        filename_rule: Ptitle # 压缩文件的命名规则
+        zip_dir: D:/jmcomic/zip/ # 压缩文件存放的文件夹
+        delete_original_file: true # 压缩成功后，删除所有原文件和文件夹
+
 ```
