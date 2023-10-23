@@ -8,9 +8,9 @@ Python API for JMComic（禁漫天堂）
 - Multiple usage ways:
 
     - GitHub Actions: Requires only a GitHub account. (See
-      tutorial → [Tutorial - Download Album via GitHub Actions](./tutorial/github_actions.md))
+      tutorial → [Tutorial - Download Album via GitHub Actions](./tutorial/1_github_actions.md))
 
-    - Command line: No need to write Python code, simple and easy to use. (See tutorial → [Tutorial - Download Album via Command Line](./tutorial/command_line.md))
+    - Command line: No need to write Python code, simple and easy to use. (See tutorial → [Tutorial - Download Album via Command Line](./tutorial/2_command_line.md))
     - Python code: The most flexible and powerful way, requires some basic knowledge of Python programming.
 
 - Supports two client implementations: web-based and mobile-based. Switchable through configuration (mobile-based has

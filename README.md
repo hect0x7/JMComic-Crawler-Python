@@ -40,8 +40,8 @@ $ jmcomic 422866
 - **绕过Cloudflare的反爬虫**
 - 用法多样：
 
-  - GitHub Actions：网页上直接输入本子id就能下载（[教程：使用GitHub Actions下载禁漫本子](./assets/docs/sources/tutorial/github_actions.md)）
-  - 命令行：无需写Python代码，简单易用（[教程：使用命令行下载禁漫本子](./assets/docs/sources/tutorial/command_line.md)）
+  - GitHub Actions：网页上直接输入本子id就能下载（[教程：使用GitHub Actions下载禁漫本子](./assets/docs/sources/tutorial/1_github_actions.md)）
+  - 命令行：无需写Python代码，简单易用（[教程：使用命令行下载禁漫本子](./assets/docs/sources/tutorial/2_command_line.md)）
   - Python代码：最直接的使用方式，需要你有一定的python编程基础
 - 支持**网页端**和**移动端**两种客户端实现，可通过配置切换（**移动端不限ip兼容性好，网页端限制ip地区但效率高**）
 - 支持**自动重试和域名切换**机制
@@ -66,11 +66,11 @@ $ jmcomic 422866
 下面列出一些常用的文档链接：
 
 * [option配置文件语法](./assets/docs/sources/option_file_syntax.md)
-* [常用类和方法演示（下载本子、获取实体类、搜索本子）](assets/docs/sources/tutorial/demo.md)
-* [命令行使用教程](assets/docs/sources/tutorial/command_line.md)
-* [GitHub Actions使用教程](./assets/docs/sources/tutorial/github_actions.md)
-* [插件机制](assets/docs/sources/tutorial/plugin.md)
-* [下载过滤器机制](assets/docs/sources/tutorial/filter.md)
+* [常用类和方法演示（下载本子、获取实体类、搜索本子）](assets/docs/sources/tutorial/3_demo.md)
+* [命令行使用教程](assets/docs/sources/tutorial/2_command_line.md)
+* [GitHub Actions使用教程](./assets/docs/sources/tutorial/1_github_actions.md)
+* [插件机制](assets/docs/sources/tutorial/6_plugin.md)
+* [下载过滤器机制](assets/docs/sources/tutorial/5_filter.md)
 
 ## 使用小说明
 
