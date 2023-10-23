@@ -1,4 +1,4 @@
-# option file syntax
+# Option File Syntax
 
 ## 1. 配置前需知
 

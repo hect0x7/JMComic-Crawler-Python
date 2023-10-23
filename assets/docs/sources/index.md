@@ -5,13 +5,13 @@ Python API for JMComic（禁漫天堂）
 ## Features
 
 - Bypasses Cloudflare anti-bot measures.
-- Multiple usage options:
+- Multiple usage ways:
 
-    - GitHub Actions: Requires only a GitHub account. See
-      tutorial → [download_album_via_github_actions.md](./download_album_via_github_actions.md)).
+    - GitHub Actions: Requires only a GitHub account. (See
+      tutorial → [Tutorial - Download Album via GitHub Actions](./tutorial/github_actions.md))
 
-    - Command line: No need to write Python code, simple and easy to use. See tutorial → [command_line.md](./usage/command_line.md)
-    - Python code: The most flexible and powerful method, requires some basic knowledge of Python programming.
+    - Command line: No need to write Python code, simple and easy to use. (See tutorial → [Tutorial - Download Album via Command Line](./tutorial/command_line.md))
+    - Python code: The most flexible and powerful way, requires some basic knowledge of Python programming.
 
 - Supports two client implementations: web-based and mobile-based. Switchable through configuration (mobile-based has
   better IP compatibility, web-based has higher efficiency).
