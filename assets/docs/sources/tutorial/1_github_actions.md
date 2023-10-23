@@ -1,4 +1,4 @@
-# 教程：使用GitHub Actions下载禁漫本子
+# GitHub Actions教程
 
 一共需要三步：
 
