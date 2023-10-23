@@ -1,6 +1,10 @@
+# 测试你的ip可以访问哪些禁漫域名
+
+运行下面的python代码
+
+```python
 """
 该脚本的作用：测试使用当前ip可以访问哪些禁漫域名
-
 """
 
 from jmcomic import *
@@ -62,3 +66,6 @@ multi_thread_launcher(
 
 for domain, status in domain_status_dict.items():
     print(f'{domain}: {status}')
+
+```
+

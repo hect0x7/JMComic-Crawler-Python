@@ -10,7 +10,7 @@ Python API for JMComic（禁漫天堂）
     - GitHub Actions: Requires only a GitHub account. See
       tutorial → [download_album_via_github_actions.md](./download_album_via_github_actions.md)).
 
-    - Command line: No need to write Python code, simple and easy to use.
+    - Command line: No need to write Python code, simple and easy to use. See tutorial → [command_line.md](./usage/command_line.md)
     - Python code: The most flexible and powerful method, requires some basic knowledge of Python programming.
 
 - Supports two client implementations: web-based and mobile-based. Switchable through configuration (mobile-based has
@@ -50,9 +50,9 @@ pip install jmcomic -i https://pypi.org/project --upgrade
 pip install git+https://github.com/hect0x7/JMComic-Crawler-Python
 ```
 
-## Usage
+## Getting Started
 
-### 1. Simple usage:
+### 1. download album:
 
 - Python code
 

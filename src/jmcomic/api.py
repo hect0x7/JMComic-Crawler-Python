@@ -8,6 +8,7 @@ def download_batch(download_api,
                    ):
     """
     批量下载 album / photo
+
     一个album/photo，对应一个线程，对应一个option
 
     :param download_api: 下载api
@@ -31,9 +32,8 @@ def download_batch(download_api,
 
 def download_album(jm_album_id, option=None, downloader=None):
     """
-    下载一个本子
-    :param jm_album_id: 禁漫的本子的id，类型可以是str/int/iterable[str]。
-    如果是iterable[str]，则会调用 download_album_batch
+    下载一个本子1
+    :param jm_album_id: 禁漫的本子的id，类型可以是str/int/iterable[str]。如果是iterable[str]，则会调用 download_album_batch
     :param option: 下载选项，为空默认是 JmOption.default()
     :param downloader: 下载器类
     """
