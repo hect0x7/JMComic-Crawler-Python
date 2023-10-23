@@ -52,7 +52,7 @@ pip install git+https://github.com/hect0x7/JMComic-Crawler-Python
 
 ## Getting Started
 
-### 1. download album:
+### 1. Download album:
 
 - Python code
 
