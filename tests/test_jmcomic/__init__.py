@@ -49,7 +49,7 @@ class JmTestConfigurable(unittest.TestCase):
         try:
             option = create_option_by_env('JM_OPTION_PATH_TEST')
         except JmcomicException:
-            option = create_option('./assets/config/option_test.yml')
+            option = create_option('./assets/option/option_test.yml')
 
         cls.option = option
         cls.client = option.build_jm_client()
