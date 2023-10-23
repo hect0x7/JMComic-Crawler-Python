@@ -5,7 +5,8 @@ plugin(扩展/插件)是v2.2.0新引入的机制，使用插件可以实现灵�
 plugin的机制为，可在`特定时间` 回调 `特定插件`。
 
 目前jmcomic已经内置了一些强大的插件，源码位于 src/jmcomic/jm_plugin.py。
-配置插件的方式请查看 assets/config/option_plugin。
+
+配置插件的方式请查看 [option_file_syntax](../option_file_syntax.md)
 
 
 

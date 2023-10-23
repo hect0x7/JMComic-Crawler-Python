@@ -2,7 +2,7 @@
 
 
 
-# 下载本子
+## 下载本子
 
 ```python
 from jmcomic import *
@@ -17,7 +17,7 @@ download_album(ls)
 
 
 
-# 获取实体类
+## 获取实体类
 
 ```python
 from jmcomic import *
