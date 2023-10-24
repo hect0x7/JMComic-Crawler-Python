@@ -128,7 +128,7 @@ class JmOption:
         self.version = JmModuleConfig.JM_OPTION_VER
         # 路径规则配置
         self.dir_rule = DirRule(**dir_rule)
-        # 请求配置
+        # 客户端配置
         self.client = AdvancedEasyAccessDict(client)
         # 下载配置
         self.download = AdvancedEasyAccessDict(download)
@@ -340,7 +340,7 @@ class JmOption:
         # headers
         meta_data = postman_conf['meta_data']
         if meta_data['headers'] is None:
-            meta_data['headers'] = JmModuleConfig.headers(domain[0])
+            meta_data['headers'] = self.decide_postman_headers(impl, domain[0])
 
         # postman
         postman = Postmans.create(data=postman_conf)
@@ -363,15 +363,7 @@ class JmOption:
 
     # noinspection PyMethodMayBeStatic
     def decide_client_domain(self, client_key: str) -> List[str]:
-        def is_client_type(ct: Type[JmcomicClient]):
-            if client_key == ct:
-                return True
-
-            clazz = JmModuleConfig.client_impl_class(client_key)
-            if issubclass(clazz, ct):
-                return True
-
-            return False
+        is_client_type = lambda ctype: self.client_key_is_given_type(client_key, ctype)
 
         if is_client_type(JmApiClient):
             # 移动端
@@ -382,6 +374,31 @@ class JmOption:
             return [JmModuleConfig.get_html_domain()]
 
         ExceptionTool.raises(f'没有配置域名，且是无法识别的client类型: {client_key}')
+
+    def decide_postman_headers(self, client_key, domain):
+        is_client_type = lambda ctype: self.client_key_is_given_type(client_key, ctype)
+
+        if is_client_type(JmApiClient):
+            # 移动端
+            # 不配置headers，由client每次请求前创建headers
+            return {}
+
+        if is_client_type(JmHtmlClient):
+            # 网页端
+            return JmModuleConfig.new_html_headers(domain)
+
+        ExceptionTool.raises(f'没有配置域名，且是无法识别的client类型: {client_key}')
+
+    @classmethod
+    def client_key_is_given_type(cls, client_key, ctype: Type[JmcomicClient]):
+        if client_key == ctype.client_key:
+            return True
+
+        clazz = JmModuleConfig.client_impl_class(client_key)
+        if issubclass(clazz, ctype):
+            return True
+
+        return False
 
     @classmethod
     def merge_default_dict(cls, user_dict, default_dict=None):
