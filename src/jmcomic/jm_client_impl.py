@@ -484,7 +484,7 @@ class JmApiClient(AbstractJmClient):
                 "id": photo_id,
                 "mode": "vertical",
                 "page": "0",
-                "app_img_shunt": "NaN",
+                "app_img_shunt": "1",
             }
         )
 
@@ -528,14 +528,7 @@ class JmApiClient(AbstractJmClient):
     @property
     def headers_key_ts(self):
         key_ts = time_stamp()
-        import hashlib
-        token = hashlib.md5(f"{key_ts}{JmModuleConfig.MAGIC_18COMICAPPCONTENT}".encode()).hexdigest()
-        return {
-            "token": token,
-            "tokenparam": f"{key_ts},1.5.2",
-            "user-agent": "okhttp/3.12.1",
-            "accept-encoding": "gzip",
-        }, key_ts
+        return JmModuleConfig.new_api_headers(key_ts), key_ts
 
     def debug_topic_request(self):
         return 'api'

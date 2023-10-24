@@ -78,6 +78,8 @@ class Test_Client(JmTestConfigurable):
 
     def test_photo_sort(self):
         client = self.option.build_jm_client()
+        get_photo_detail = lambda *args: client.get_photo_detail(*args, fetch_album=False, fetch_scramble_id=False)
+        get_album_detail = client.get_album_detail
 
         # 测试用例 - 单章本子
         single_photo_album_is = str_to_list('''
@@ -92,8 +94,8 @@ class Test_Client(JmTestConfigurable):
         122061
         ''')
 
-        photo_dict: Dict[str, JmPhotoDetail] = multi_call(client.get_photo_detail, single_photo_album_is)
-        album_dict: Dict[str, JmAlbumDetail] = multi_call(client.get_album_detail, single_photo_album_is)
+        photo_dict: Dict[str, JmPhotoDetail] = multi_call(get_photo_detail, single_photo_album_is)
+        album_dict: Dict[str, JmAlbumDetail] = multi_call(get_album_detail, single_photo_album_is)
 
         for each in photo_dict.values():
             each: JmPhotoDetail
@@ -107,10 +109,10 @@ class Test_Client(JmTestConfigurable):
         multi_photo_album_dict: Dict[JmAlbumDetail, List[JmPhotoDetail]] = {}
 
         def run(aid):
-            album = client.get_album_detail(aid)
+            album = get_album_detail(aid)
 
             photo_dict = multi_call(
-                client.get_photo_detail,
+                get_photo_detail,
                 (photo.photo_id for photo in album),
                 launcher=thread_pool_executor,
             )

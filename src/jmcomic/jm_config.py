@@ -65,12 +65,7 @@ class JmModuleConfig:
     # 图片域名
     DOMAIN_API_IMAGE_LIST = [f"cdn-msp.jmapiproxy{i}.cc" for i in range(1, 4)]
     # API域名
-    DOMAIN_API_LIST = [
-        "www.jmapinode1.cc",
-        "www.jmapinode2.cc",
-        "www.jmapinode3.cc",
-        "www.jmapibranch2.cc",
-    ]
+    DOMAIN_API_LIST = [f'www.jmapinode{i}.top' for i in range(1, 4)]
 
     # 域名配置 - 网页端
     # 无需配置，默认为None，需要的时候会发起请求获得
@@ -199,7 +194,10 @@ class JmModuleConfig:
         return domain_list
 
     @classmethod
-    def headers(cls, domain='18comic.vip'):
+    def new_html_headers(cls, domain='18comic.vip'):
+        """
+        网页端的headers
+        """
         return {
             'authority': domain,
             'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,'
@@ -218,6 +216,33 @@ class JmModuleConfig:
                           'Safari/537.36',
         }
 
+    @classmethod
+    def new_api_headers(cls, key_ts):
+        """
+        根据key_ts生成移动端的headers
+        """
+        if key_ts is None:
+            from common import time_stamp
+            key_ts = time_stamp()
+
+        import hashlib
+        token = hashlib.md5(f"{key_ts}{cls.MAGIC_18COMICAPPCONTENT}".encode()).hexdigest()
+
+        return {
+            'token': token,
+            'tokenparam': f"{key_ts},1.6.0",
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 9; V1938CT Build/PQ3A.190705.09211555; wv) AppleWebKit/537.36 (KHTML, '
+                          'like Gecko) Version/4.0 Chrome/91.0.4472.114 Safari/537.36',
+            'X-Requested-With': 'com.jiaohua_browser',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,'
+                      'application/signed-exchange;v=b3;q=0.9',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-User': '?1',
+            'Sec-Fetch-Dest': 'document',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+        }
+
     # noinspection PyUnusedLocal
     @classmethod
     def jm_debug(cls, topic: str, msg: str):
@@ -231,7 +256,7 @@ class JmModuleConfig:
     @classmethod
     def new_postman(cls, session=False, **kwargs):
         kwargs.setdefault('impersonate', 'chrome110')
-        kwargs.setdefault('headers', JmModuleConfig.headers())
+        kwargs.setdefault('headers', JmModuleConfig.new_html_headers())
         kwargs.setdefault('proxies', JmModuleConfig.DEFAULT_PROXIES)
         return cls.postman_constructor(session, **kwargs)
 
