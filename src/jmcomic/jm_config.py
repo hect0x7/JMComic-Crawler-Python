@@ -26,6 +26,11 @@ def system_proxy():
     return ProxyBuilder.system_proxy()
 
 
+def str_to_list(text):
+    from common import str_to_list
+    return str_to_list(text)
+
+
 class JmcomicException(Exception):
     pass
 
@@ -63,9 +68,25 @@ class JmModuleConfig:
 
     # 域名配置 - 移动端
     # 图片域名
-    DOMAIN_API_IMAGE_LIST = [f"cdn-msp.jmapiproxy{i}.cc" for i in range(1, 4)]
+    DOMAIN_API_IMAGE_LIST = str_to_list('''
+    cdn-msp.jmapiproxy1.monster
+    cdn-msp2.jmapiproxy1.monster
+    cdn-msp.jmapiproxy1.cc
+    cdn-msp.jmapiproxy2.cc
+    cdn-msp.jmapiproxy3.cc
+    cdn-msp.jmapiproxy4.cc
+
+    ''')
+
     # API域名
-    DOMAIN_API_LIST = [f'www.jmapinode{i}.top' for i in range(1, 4)]
+    DOMAIN_API_LIST = str_to_list('''
+    www.jmapinode1.top
+    www.jmapinode2.top
+    www.jmapinode3.top
+    www.jmapinode.biz
+    www.jmapinode.top
+    
+    ''')
 
     # 域名配置 - 网页端
     # 无需配置，默认为None，需要的时候会发起请求获得

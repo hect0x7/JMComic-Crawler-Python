@@ -425,11 +425,17 @@ class JmAlbumDetail(DetailEntity):
 class JmSearchPage(JmBaseEntity, IndexedEntity):
     ContentItem = Tuple[str, Dict[str, Any]]
 
-    def __init__(self, content: List[ContentItem]):
-        # [
-        #   album_id, {title, tag_list, ...}
-        # ]
+    def __init__(self, content: List[ContentItem], page_count):
+
+        """
+        [
+          album_id, {title, tag_list, ...}
+        ]
+        :param content: 搜索结果，移动端和网页端都一次返回80个
+        :param page_count: 总页数，登录和不登录能看到的总页数不一样
+        """
         self.content = content
+        self.page_count = page_count
 
     def iter_id(self) -> Generator[str, None, None]:
         """
@@ -469,7 +475,7 @@ class JmSearchPage(JmBaseEntity, IndexedEntity):
                 'name': album.name,
                 'tag_list': album.tags,
             }
-        )])
+        )], -1)
         setattr(page, 'album', album)
         return page
 

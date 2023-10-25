@@ -251,3 +251,16 @@ class Test_Client(JmTestConfigurable):
                 ans = id(photo)
             else:
                 self.assertEqual(ans, id(photo))
+
+    def test_search_generator(self):
+        JmModuleConfig.decode_url_when_debug = False
+
+        gen = self.client.search_gen('MANA')
+        for i, page in enumerate(gen):
+            print(page.page_count)
+            page = gen.send({
+                'search_query': 'MANA +无修正',
+                'page': 1
+            })
+            print(page.page_count)
+            break
