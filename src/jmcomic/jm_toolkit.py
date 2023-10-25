@@ -115,7 +115,7 @@ class JmcomicText:
 
     @classmethod
     def analyse_jm_search_html(cls, html: str) -> JmSearchPage:
-        return JmcomicSearchTool.parse_html_to_page(html)
+        return JmSearchTool.parse_html_to_page(html)
 
     @classmethod
     def reflect_new_instance(cls, html: str, cls_field_prefix: str, clazz: type):
@@ -217,7 +217,39 @@ class JmcomicText:
 JmcomicText.dsl_replacer.add_dsl_and_replacer(r'\$\{(.*?)\}', JmcomicText.match_os_env)
 
 
-class JmcomicSearchTool:
+class PatternTool:
+
+    @classmethod
+    def match_or_default(cls, html: str, pattern: Pattern, default):
+        match = pattern.search(html)
+        return default if match is None else match[1]
+
+    @classmethod
+    def require_match(cls, html: str, pattern: Pattern, msg, rindex=1):
+        match = pattern.search(html)
+        if match is not None:
+            return match[rindex]
+
+        ExceptionTool.raises_regex(
+            msg,
+            html=html,
+            pattern=pattern,
+        )
+
+    @classmethod
+    def require_not_match(cls, html: str, pattern: Pattern, *, msg_func):
+        match = pattern.search(html)
+        if match is None:
+            return
+
+        ExceptionTool.raises_regex(
+            msg_func(match),
+            html=html,
+            pattern=pattern,
+        )
+
+
+class JmSearchTool:
     # 用来缩减html的长度
     pattern_html_search_shorten_for = compile(r'<div class="well well-sm">([\s\S]*)<div class="row">')
 
@@ -238,30 +270,31 @@ class JmcomicSearchTool:
     # 查找错误，例如 [错误，關鍵字過短，請至少輸入兩個字以上。]
     pattern_html_search_error = compile(r'<fieldset>\n<legend>(.*?)</legend>\n<div class=.*?>\n(.*?)\n</div>\n</fieldset>')
 
+    pattern_html_search_total_count = compile(r'<span class="text-white">(\d+)</span> A漫.'), 0
+
     @classmethod
     def parse_html_to_page(cls, html: str) -> JmSearchPage:
-        # 检查是否失败
-        match = cls.pattern_html_search_error.search(html)
-        if match is not None:
-            topic, reason = match[1], match[2]
-            ExceptionTool.raises_regex(
-                f'{topic}: {reason}',
-                html=html,
-                pattern=cls.pattern_html_search_error,
-            )
+        # 1. 检查是否失败
+        PatternTool.require_not_match(
+            html,
+            cls.pattern_html_search_error,
+            msg_func=lambda match: '{}: {}'.format(match[1], match[2])
+        )
 
-        # 缩小文本范围
-        match = cls.pattern_html_search_shorten_for.search(html)
-        if match is None:
-            ExceptionTool.raises_regex(
-                '未匹配到搜索结果',
-                html=html,
-                pattern=cls.pattern_html_search_shorten_for,
-            )
-        html = match[0]
+        # 2. 缩小文本范围
+        html = PatternTool.require_match(
+            html,
+            cls.pattern_html_search_shorten_for,
+            msg='未匹配到搜索结果',
+        )
 
-        # 提取结果
+        # 3. 提取结果
+        import math
+
         content = []  # content这个名字来源于api版搜索返回值
+        total_count = PatternTool.match_or_default(html, *cls.pattern_html_search_total_count)  # 总结果数
+        page_count = math.ceil(int(total_count) / 80)
+
         album_info_list = cls.pattern_html_search_album_info_list.findall(html)
 
         for (album_id, title, _, label_category, label_sub, tag_text) in album_info_list:
@@ -273,7 +306,7 @@ class JmcomicSearchTool:
                 }
             ))
 
-        return JmSearchPage(content)
+        return JmSearchPage(content, page_count)
 
     @classmethod
     def parse_api_resp_to_page(cls, data: DictModel) -> JmSearchPage:
@@ -300,6 +333,7 @@ class JmcomicSearchTool:
           ]
         }
         """
+        total: int = int(data.total)
 
         def adapt_item(item: DictModel):
             item: dict = item.src_dict
@@ -311,7 +345,7 @@ class JmcomicSearchTool:
             for item in data.content
         ]
 
-        return JmSearchPage(content)
+        return JmSearchPage(content, total)
 
 
 class JmApiAdaptTool:

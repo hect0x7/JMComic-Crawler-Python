@@ -371,6 +371,69 @@ class JmSearchAlbumClient:
         """
         return self.search(search_query, page, 4, order_by, time)
 
+    def search_gen(self,
+                   search_query: str,
+                   main_tag=0,
+                   page: int = 1,
+                   order_by: str = ORDER_BY_LATEST,
+                   time: str = TIME_ALL,
+                   ):
+        """
+        搜索结果的生成器，支持下面这种调用方式：
+
+        ```
+        for page in self.search_gen('无修正'):
+            # 每次循环，page为新页的结果
+            pass
+        ```
+
+        同时支持外界send参数，可以改变搜索的设定，例如：
+
+        ```
+        gen = client.search_gen('MANA')
+        for i, page in enumerate(gen):
+            print(page.page_count)
+            page = gen.send({
+                'search_query': '+MANA +无修正',
+                'page': 1
+            })
+            print(page.page_count)
+            break
+        ```
+
+        """
+        params = {
+            'search_query': search_query,
+            'main_tag': main_tag,
+            'order_by': order_by,
+            'time': time,
+        }
+
+        def search(page):
+            params['page'] = page
+            return self.search(**params)
+
+        from math import inf
+
+        def update(value: Union[Dict], page: int, search_page: JmSearchPage):
+            if value is None:
+                return page + 1, search_page.page_count
+
+            ExceptionTool.require_true(isinstance(value, dict), 'require dict params')
+
+            # 根据外界传递的参数，更新params和page
+            page = value.get('page', page)
+            params.update(value)
+
+            return page, inf
+
+        total = inf
+
+        while page <= total:
+            search_page = search(page)
+            value = yield search_page
+            page, total = update(value, page, search_page)
+
 
 # noinspection PyAbstractClass
 class JmcomicClient(
