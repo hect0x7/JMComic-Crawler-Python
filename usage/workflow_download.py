@@ -64,11 +64,6 @@ def cover_option_config(option: JmOption):
     impl = get_env('CLIENT_IMPL', None)
     if impl is not None:
         option.client.impl = impl
-    else:
-        impl = option.client.impl
-
-    if impl == 'api':
-        option.client.domain = JmModuleConfig.DOMAIN_API_LIST
 
     suffix = get_env('IMAGE_SUFFIX', None)
     if suffix is not None:
