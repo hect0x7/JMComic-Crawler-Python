@@ -41,7 +41,6 @@ jobs:
           pip install -e ./
 
       - name: 运行下载脚本
-        continue-on-error: true
         run: |
           cd ./usage/
           python workflow_download.py
