@@ -25,6 +25,12 @@ on:
         default: ''
         required: false
 
+      IMAGE_SUFFIX:
+        type: string
+        description: 客户端类型（download.cache.suffix），默认为空，表示不做图片格式转换
+        default: ''
+        required: false
+
       ZIP_NAME:
         type: string
         default: 本子.tar.gz
@@ -61,6 +67,7 @@ jobs:
       CLIENT_IMPL: ${{ github.event.inputs.CLIENT_IMPL }}
       ZIP_NAME: ${{ github.event.inputs.ZIP_NAME }}
       UPLOAD_NAME: ${{ github.event.inputs.UPLOAD_NAME }}
+      IMAGE_SUFFIX: ${{ github.event.inputs.IMAGE_SUFFIX }}
       # secrets
       JM_USERNAME: ${{ secrets.JM_USERNAME }}
       JM_PASSWORD: ${{ secrets.JM_PASSWORD }}
@@ -90,7 +97,6 @@ jobs:
           pip install -e ./
 
       - name: 运行下载脚本
-        continue-on-error: true
         run: |
           cd ./usage/
           python workflow_download.py
