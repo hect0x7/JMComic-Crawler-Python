@@ -27,7 +27,7 @@ on:
 
       IMAGE_SUFFIX:
         type: string
-        description: 客户端类型（download.cache.suffix），默认为空，表示不做图片格式转换
+        description: 图片后缀（download.cache.suffix），默认为空，表示不做图片格式转换。可填入例如 "png" "jpg"
         default: ''
         required: false
 
