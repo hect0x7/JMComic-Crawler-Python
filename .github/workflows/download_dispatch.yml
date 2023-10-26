@@ -13,15 +13,21 @@ on:
         description: 章节id（单独下载章节，多个id同上）
         required: false
 
-      DIR_RULE:
+      CLIENT_IMPL:
         type: string
-        description: 下载文件夹规则（dir_rule.rule）。此处可以不填，默认使用配置文件的'Bd_Aauthor_Atitle_Pindex'。
+        description: 客户端类型（client.impl），[api]=移动端，[html]=网页端。
+        default: 'api'
+        required: false
+
+      IMAGE_SUFFIX:
+        type: string
+        description: 图片后缀（download.cache.suffix），默认为空，表示不做图片格式转换。可填入例如 "png" "jpg"。
         default: ''
         required: false
 
-      CLIENT_IMPL:
+      DIR_RULE:
         type: string
-        description: 客户端类型（client.impl），[api]=移动端，[html]=网页端，此处可以不填，默认使用'html'。如果你发现默认的下载不了，可以填api试试。
+        description: 下载文件夹规则（dir_rule.rule）。此处可以不填，默认使用配置文件的'Bd_Aauthor_Atitle_Pindex'。
         default: ''
         required: false
 
@@ -61,6 +67,7 @@ jobs:
       CLIENT_IMPL: ${{ github.event.inputs.CLIENT_IMPL }}
       ZIP_NAME: ${{ github.event.inputs.ZIP_NAME }}
       UPLOAD_NAME: ${{ github.event.inputs.UPLOAD_NAME }}
+      IMAGE_SUFFIX: ${{ github.event.inputs.IMAGE_SUFFIX }}
       # secrets
       JM_USERNAME: ${{ secrets.JM_USERNAME }}
       JM_PASSWORD: ${{ secrets.JM_PASSWORD }}
@@ -90,7 +97,6 @@ jobs:
           pip install -e ./
 
       - name: 运行下载脚本
-        continue-on-error: true
         run: |
           cd ./usage/
           python workflow_download.py

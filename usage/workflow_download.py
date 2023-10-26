@@ -1,12 +1,7 @@
 from jmcomic import *
 from jmcomic.cl import get_env, JmcomicUI
 
-# 下方填入你要下载的本子的id，一行一个。
-# 每行的首尾可以有空白字符
-# 你也可以填入本子网址，程序会识别出本子id
-# 例如:
-# [https://18comic.vip/album/452859/mana-ディシア-1-原神-中国語-無修正] -> [452859]
-#
+# 下方填入你要下载的本子的id，一行一个，每行的首尾可以有空白字符
 jm_albums = '''
 
 
@@ -15,6 +10,7 @@ jm_albums = '''
 
 # 单独下载章节
 jm_photos = '''
+
 
 
 '''
@@ -68,11 +64,10 @@ def cover_option_config(option: JmOption):
     impl = get_env('CLIENT_IMPL', None)
     if impl is not None:
         option.client.impl = impl
-    else:
-        impl = option.client.impl
 
-    if impl == 'api':
-        option.client.domain = JmModuleConfig.DOMAIN_API_LIST
+    suffix = get_env('IMAGE_SUFFIX', None)
+    if suffix is not None:
+        option.download.image.suffix = fix_suffix(suffix)
 
 
 def login_if_configured(option):
