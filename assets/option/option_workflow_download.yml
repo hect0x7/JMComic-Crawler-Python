@@ -4,7 +4,6 @@ dir_rule:
   rule: Bd_Aauthor_Atitle_Pindex
 
 client:
-  impl: api
   domain:
     html: [jmcomic1.me, jmcomic.me]
 
