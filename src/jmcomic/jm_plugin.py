@@ -26,6 +26,13 @@ class JmOptionPlugin:
         """
         return cls(option)
 
+    @classmethod
+    def debug(cls, msg, topic=None):
+        jm_debug(
+            topic=f'plugin.{cls.plugin_key}' + (f'.{topic}' if topic is not None else ''),
+            msg=msg
+        )
+
 
 class JmLoginPlugin(JmOptionPlugin):
     """
@@ -33,9 +40,12 @@ class JmLoginPlugin(JmOptionPlugin):
     """
     plugin_key = 'login'
 
-    def invoke(self, username, password) -> None:
-        assert isinstance(username, str), '用户名必须是str'
-        assert isinstance(password, str), '密码必须是str'
+    def invoke(self,
+               username: str,
+               password: str,
+               ) -> None:
+        if not (username and password):
+            return
 
         client = self.option.new_jm_client()
         client.login(username, password)
@@ -45,7 +55,7 @@ class JmLoginPlugin(JmOptionPlugin):
         meta_data = postman.get('meta_data', {})
         meta_data['cookies'] = cookies
         postman['meta_data'] = meta_data
-        jm_debug('plugin.login', '登录成功')
+        self.debug('登录成功')
 
 
 class UsageLogPlugin(JmOptionPlugin):
@@ -119,7 +129,7 @@ class UsageLogPlugin(JmOptionPlugin):
             if len(warning_msg_list) != 0:
                 warning_msg_list.insert(0, '硬件占用告警，占用过高可能导致系统卡死！')
                 warning_msg_list.append('')
-                jm_debug('plugin.psutil.warning', '\n'.join(warning_msg_list))
+                self.debug('\n'.join(warning_msg_list), topic='warning')
 
         while True:
             # 获取CPU占用率（0~100）
@@ -140,7 +150,7 @@ class UsageLogPlugin(JmOptionPlugin):
                 # f"发送的字节数: {network_bytes_sent}",
                 # f"接收的字节数: {network_bytes_received}",
             ])
-            jm_debug('plugin.psutil.log', msg)
+            self.debug(msg, topic='log')
 
             if enable_warning is True:
                 # 警告
@@ -254,12 +264,13 @@ class ZipPlugin(JmOptionPlugin):
         all_filepath = set(map(lambda t: t[0], image_list))
 
         if len(all_filepath) == 0:
-            jm_debug('plugin.zip.skip', '无下载文件，无需压缩')
+            self.debug('无下载文件，无需压缩', 'skip')
             return
 
         from common import backup_dir_to_zip
         backup_dir_to_zip(photo_dir, zip_path, acceptor=lambda f: f in all_filepath)
-        jm_debug('plugin.zip.finish', f'压缩章节[{photo.photo_id}]成功 → {zip_path}')
+        self.debug(f'压缩章节[{photo.photo_id}]成功 → {zip_path}', 'finish')
+
         return photo_dir
 
     def zip_album(self, album, photo_dict: dict, zip_path):
@@ -276,7 +287,7 @@ class ZipPlugin(JmOptionPlugin):
                 all_filepath.add(path)
 
         if len(all_filepath) == 0:
-            jm_debug('plugin.zip.skip', '无下载文件，无需压缩')
+            self.debug('无下载文件，无需压缩', 'skip')
             return
 
         from common import backup_dir_to_zip
@@ -286,7 +297,7 @@ class ZipPlugin(JmOptionPlugin):
             acceptor=lambda f: f in all_filepath
         )
 
-        jm_debug('plugin.zip.finish', f'压缩本子[{album.album_id}]成功 → {zip_path}')
+        self.debug(f'压缩本子[{album.album_id}]成功 → {zip_path}', 'finish')
         return album_dir
 
     def after_zip(self, dir_zip_dict: Dict[str, str]):
@@ -319,12 +330,12 @@ class ZipPlugin(JmOptionPlugin):
             for photo, image_list in photo_dict.items():
                 for f, image in image_list:
                     os.remove(f)
-                    jm_debug('plugin.zip.remove', f'删除原文件: {f}')
+                    self.debug(f'删除原文件: {f}', 'remove')
 
         for d in dir_list:
             if len(os.listdir(d)) == 0:
                 os.removedirs(d)
-                jm_debug('plugin.zip.remove', f'删除文件夹: {d}')
+                self.debug(f'删除文件夹: {d}', 'remove')
 
 
 class ClientProxyPlugin(JmOptionPlugin):
@@ -338,7 +349,7 @@ class ClientProxyPlugin(JmOptionPlugin):
         if whitelist is not None:
             whitelist = set(whitelist)
 
-        clazz = JmModuleConfig.client_impl_class(proxy_client_key)
+        proxy_clazz = JmModuleConfig.client_impl_class(proxy_client_key)
         clazz_init_kwargs = kwargs
         new_jm_client = self.option.new_jm_client
 
@@ -347,8 +358,8 @@ class ClientProxyPlugin(JmOptionPlugin):
             if whitelist is not None and client.client_key not in whitelist:
                 return client
 
-            jm_debug('plugin.client_proxy', f'proxy client {client} with {proxy_client_key}')
-            return clazz(client, **clazz_init_kwargs)
+            self.debug(f'proxy client {client} with {proxy_clazz}')
+            return proxy_clazz(client, **clazz_init_kwargs)
 
         self.option.new_jm_client = hook_new_jm_client
 
@@ -368,9 +379,8 @@ class ImageSuffixFilterPlugin(JmOptionPlugin):
 
         def apply_filter_then_decide_cache(image: JmImageDetail):
             if image.img_file_suffix not in allowed_suffix_set:
-                jm_debug('image.filter.skip',
-                         f'跳过下载图片: {image.tag}，'
-                         f'因为其后缀\'{image.img_file_suffix}\'不在允许的后缀集合{allowed_suffix_set}内')
+                self.debug(f'跳过下载图片: {image.tag}，'
+                           f'因为其后缀\'{image.img_file_suffix}\'不在允许的后缀集合{allowed_suffix_set}内')
                 # hook is_exists True to skip download
                 image.is_exists = True
                 return True
@@ -379,3 +389,25 @@ class ImageSuffixFilterPlugin(JmOptionPlugin):
             return option_decide_cache(image)
 
         self.option.decide_download_cache = apply_filter_then_decide_cache
+
+
+class SendQQEmailPlugin(JmOptionPlugin):
+    plugin_key = 'send_qq_email'
+
+    def invoke(self,
+               msg_from,
+               msg_to,
+               password,
+               title,
+               content,
+               album=None,
+               downloader=None,
+               ) -> None:
+        if not (msg_from and msg_to and password):
+            self.debug('发送邮件的相关参数为空，不处理')
+            return
+        from common import EmailConfig
+        econfig = EmailConfig(msg_from, msg_to, password)
+        epostman = econfig.create_email_postman()
+        epostman.send(content, title)
+        self.debug('Email sent successfully')

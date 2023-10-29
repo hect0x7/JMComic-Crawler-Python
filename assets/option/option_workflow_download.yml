@@ -5,7 +5,7 @@ dir_rule:
 
 client:
   domain:
-    html: [jmcomic1.me, jmcomic.me]
+    html: [ jmcomic1.me, jmcomic.me ]
 
 # 插件配置
 plugins:
@@ -15,7 +15,21 @@ plugins:
         interval: 0.5 # 间隔时间
         enable_warning: false # 不告警
 
-    - plugin: client_proxy
+    - plugin: client_proxy # 提高移动端的请求效率的插件
       kwargs:
         proxy_client_key: cl_proxy_future
         whitelist: [ api, ]
+
+    - plugin: login # 登录插件
+      kwargs:
+        username: ${JM_USERNAME}
+        password: ${JM_PASSWORD}
+
+  after_download: # 全部下载完成以后
+    - plugin: send_qq_email # 发送邮件，如果未配置下面的前3个环境变量则不会发送。
+      kwargs:
+        msg_from: ${EMAIL_FROM}
+        msg_to: ${EMAIL_TO}
+        password: ${EMAIL_PASS}
+        title: ${EMAIL_TITLE}
+        content: ${EMAIL_CONTENT}

@@ -381,7 +381,7 @@ class JmOption:
         if is_client_type(JmApiClient):
             # 移动端
             # 不配置headers，由client每次请求前创建headers
-            return {}
+            return None
 
         if is_client_type(JmHtmlClient):
             # 网页端
@@ -487,6 +487,10 @@ class JmOption:
         new_kwargs: Dict[str, Any] = {}
 
         for k, v in kwargs.items():
+            if isinstance(v, str):
+                newv = JmcomicText.parse_dsl_text(v)
+                v = newv
+
             if isinstance(k, str):
                 new_kwargs[k] = v
                 continue

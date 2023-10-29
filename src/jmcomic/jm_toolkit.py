@@ -203,14 +203,17 @@ class JmcomicText:
         name = match[1]
         value = os.getenv(name, None)
         assert value is not None, f"未配置环境变量: {name}"
-        return os.path.abspath(value)
+        return value
 
     dsl_replacer = DSLReplacer()
 
     @classmethod
     def parse_to_abspath(cls, dsl_text: str) -> str:
-        path = cls.dsl_replacer.parse_dsl_text(dsl_text)
-        return os.path.abspath(path)
+        return os.path.abspath(cls.parse_dsl_text(dsl_text))
+
+    @classmethod
+    def parse_dsl_text(cls, dsl_text: str) -> str:
+        return cls.dsl_replacer.parse_dsl_text(dsl_text)
 
 
 # 支持dsl: #{???} -> os.getenv(???)

@@ -54,7 +54,7 @@ $ jmcomic 422866
 - **可扩展性强**
 
   - **支持Plugin插件，可以方便地扩展功能，以及使用别人的插件**
-    - 目前内置支持的插件有：`登录插件` `硬件占用监控插件` `只下载新章插件` `压缩文件插件` `下载特定后缀图片插件`
+    - 目前内置支持的插件有：`登录插件` `硬件占用监控插件` `只下载新章插件` `压缩文件插件` `下载特定后缀图片插件` `发送QQ邮件插件`
   - 支持自定义本子/章节/图片下载前后的回调函数
   - 支持自定义debug日志
   - 支持自定义类：`Downloader（负责调度）` `Option（负责配置）` `Client（负责请求）` `实体类`等
@@ -65,7 +65,7 @@ $ jmcomic 422866
 
 下面列出一些常用的文档链接：
 
-* [option配置文件语法](./assets/docs/sources/option_file_syntax.md)
+* [option配置文件语法（包含插件配置）](./assets/docs/sources/option_file_syntax.md)
 * [常用类和方法演示（下载本子、获取实体类、搜索本子）](assets/docs/sources/tutorial/3_demo.md)
 * [命令行使用教程](assets/docs/sources/tutorial/2_command_line.md)
 * [GitHub Actions使用教程](./assets/docs/sources/tutorial/1_github_actions.md)
