@@ -203,7 +203,7 @@ class JmcomicText:
         name = match[1]
         value = os.getenv(name, None)
         assert value is not None, f"未配置环境变量: {name}"
-        return os.path.abspath(value)
+        return value
 
     dsl_replacer = DSLReplacer()
 

@@ -70,20 +70,6 @@ def cover_option_config(option: JmOption):
         option.download.image.suffix = fix_suffix(suffix)
 
 
-def login_if_configured(option):
-    # 检查环境变量中是否有禁漫的用户名和密码，如果有则登录
-    # 禁漫的大部分本子，下载是不需要登录的，少部分敏感题材需要登录
-    # 如果你希望以登录状态下载本子，你需要自己配置一下GitHub Actions的 `secrets`
-    # 配置的方式很简单，网页上点一点就可以了
-    # 具体做法请去看官方教程：https://docs.github.com/en/actions/security-guides/encrypted-secrets
-    # 萌新注意！！！如果你想 `开源` 你的禁漫帐号，你也可以直接把账号密码写到下面的代码😅
-    username = get_env('JM_USERNAME', None)
-    password = get_env('JM_PASSWORD', None)
-    if username is not None and password is not None:
-        # 调用login插件
-        JmLoginPlugin(option).invoke(username, password)
-
-
 def log_before_raise():
     jm_download_dir = get_env('JM_DOWNLOAD_DIR', workspace())
     mkdir_if_not_exists(jm_download_dir)

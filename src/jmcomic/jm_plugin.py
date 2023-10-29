@@ -40,9 +40,12 @@ class JmLoginPlugin(JmOptionPlugin):
     """
     plugin_key = 'login'
 
-    def invoke(self, username, password) -> None:
-        assert isinstance(username, str), '用户名必须是str'
-        assert isinstance(password, str), '密码必须是str'
+    def invoke(self,
+               username: str,
+               password: str,
+               ) -> None:
+        if not (username and password):
+            return
 
         client = self.option.new_jm_client()
         client.login(username, password)
@@ -400,6 +403,9 @@ class SendQQEmailPlugin(JmOptionPlugin):
                album=None,
                downloader=None,
                ) -> None:
+        if not (msg_from and msg_to and password):
+            self.debug('发送邮件的相关参数为空，不处理')
+            return
         from common import EmailConfig
         econfig = EmailConfig(msg_from, msg_to, password)
         epostman = econfig.create_email_postman()
