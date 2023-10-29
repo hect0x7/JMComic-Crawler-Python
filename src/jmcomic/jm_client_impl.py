@@ -443,7 +443,7 @@ class JmApiClient(AbstractJmClient):
 
         return photo
 
-    def get_scramble_id(self, photo_id):
+    def get_scramble_id(self, photo_id, album_id=None):
         """
         带有缓存的fetch_scramble_id，缓存位于JmModuleConfig.SCRAMBLE_CACHE
         """
@@ -451,8 +451,14 @@ class JmApiClient(AbstractJmClient):
         if photo_id in cache:
             return cache[photo_id]
 
+        if album_id is not None and album_id in cache:
+            return cache[album_id]
+
         scramble_id = self.fetch_scramble_id(photo_id)
         cache[photo_id] = scramble_id
+        if album_id is not None:
+            cache[album_id] = scramble_id
+
         return scramble_id
 
     def fetch_detail_entity(self, apid, clazz):
@@ -511,10 +517,11 @@ class JmApiClient(AbstractJmClient):
         23做法要改不止一处地方
         """
         if fetch_album:
-            photo.from_album = self.get_album_detail(photo.photo_id)
+            photo.from_album = self.get_album_detail(photo.album_id)
 
         if fetch_scramble_id:
-            photo.scramble_id = self.get_scramble_id(photo.album_id)
+            # 同album的scramble_id相同
+            photo.scramble_id = self.get_scramble_id(photo.photo_id, photo.album_id)
 
     def setting(self) -> JmApiResp:
         """

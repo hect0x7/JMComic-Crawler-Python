@@ -93,6 +93,7 @@ dir_rule:
 ## 3. option插件配置项
 ```yml
 # 插件的配置示例
+# 当kwargs的值为字符串类型时，支持使用环境变量，语法为 ${环境变量名}
 plugins:
   after_init:
     - plugin: usage_log # 实时打印硬件占用率的插件
@@ -126,5 +127,13 @@ plugins:
         filename_rule: Ptitle # 压缩文件的命名规则
         zip_dir: D:/jmcomic/zip/ # 压缩文件存放的文件夹
         delete_original_file: true # 压缩成功后，删除所有原文件和文件夹
+
+    - plugin: send_qq_email # 发送qq邮件插件
+      kwargs:
+        msg_from: ${EMAIL} # 发件人
+        msg_to: aaa@qq.com # 收件人
+        password: dkjlakdjlkas # 发件人的授权码
+        title: jmcomic # 标题
+        content: jmcomic finished !!! # 内容
 
 ```
