@@ -25,7 +25,7 @@ plugins:
         username: ${JM_USERNAME}
         password: ${JM_PASSWORD}
 
-  after_album: # 下载完成以后
+  after_download: # 全部下载完成以后
     - plugin: send_qq_email # 发送邮件，如果未配置下面的前3个环境变量则不会发送。
       kwargs:
         msg_from: ${EMAIL_FROM}

@@ -35,8 +35,9 @@ def main():
     helper.album_id_list = list(album_id_set)
     helper.photo_id_list = list(photo_id_set)
 
-    helper.run(get_option())
-
+    option = get_option()
+    helper.run(option)
+    option.call_all_plugin('after_download')
 
 def get_option():
     # 读取 option 配置文件
@@ -47,9 +48,6 @@ def get_option():
 
     # 把请求错误的html下载到文件，方便GitHub Actions下载查看日志
     log_before_raise()
-
-    # 登录，如果有配置的话
-    login_if_configured(option)
 
     return option
 
