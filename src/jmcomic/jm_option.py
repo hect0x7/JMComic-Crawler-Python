@@ -314,6 +314,7 @@ class JmOption:
     def new_jm_client(self, domain=None, impl=None, cache=None, **kwargs) -> JmcomicClient:
         # 所有需要用到的 self.client 配置项如下
         postman_conf: dict = self.client.postman.src_dict  # postman dsl 配置
+        meta_data: dict = postman_conf['meta_data']  # 请求元信息
         impl: str = impl or self.client.impl  # client_key
         retry_times: int = self.client.retry_times  # 重试次数
         cache: str = cache or self.client.cache  # 启用缓存
@@ -335,15 +336,11 @@ class JmOption:
 
         # support kwargs overwrite meta_data
         if len(kwargs) != 0:
-            postman_conf['meta_data'].update(kwargs)
+            meta_data.update(kwargs)
 
         # headers
-        meta_data = postman_conf['meta_data']
         if meta_data['headers'] is None:
-            headers = self.decide_postman_headers(impl, domain[0])
-            # if headers is None:
-            #     postman_conf['type'] = 'requests'
-            meta_data['headers'] = headers
+            meta_data['headers'] = self.decide_postman_headers(impl, domain[0])
 
         # postman
         postman = Postmans.create(data=postman_conf)
@@ -375,6 +372,9 @@ class JmOption:
 
         if is_client_type(JmHtmlClient):
             # 网页端
+            domain_list = JmModuleConfig.DOMAIN_HTML_LIST
+            if domain_list is not None:
+                return domain_list
             return [JmModuleConfig.get_html_domain()]
 
         ExceptionTool.raises(f'没有配置域名，且是无法识别的client类型: {client_key}')

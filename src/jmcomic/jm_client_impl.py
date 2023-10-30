@@ -493,13 +493,13 @@ class JmApiClient(AbstractJmClient):
             }
         )
 
-        match = JmcomicText.pattern_html_album_scramble_id.search(resp.text)
-
-        if match is not None:
-            scramble_id = match[1]
-        else:
-            jm_debug('api.scramble', '未从响应中匹配到scramble_id，返回默认值220980')
-            scramble_id = '220980'
+        scramble_id = PatternTool.match_or_default(resp.text,
+                                                   JmcomicText.pattern_html_album_scramble_id,
+                                                   None,
+                                                   )
+        if scramble_id is None:
+            jm_debug('api.scramble', f'未匹配到scramble_id，响应文本：{resp.text}')
+            scramble_id = str(JmModuleConfig.SCRAMBLE_220980)
 
         return scramble_id
 
@@ -610,15 +610,12 @@ class JmApiClient(AbstractJmClient):
         # 2. 是否是特殊的内容
         # 暂无
 
-    @classmethod
-    @field_cache('__init_cookies__')
-    def fetch_init_cookies(cls, client: 'JmApiClient'):
-        resp = client.setting()
-        return dict(resp.resp.cookies)
-
     def after_init(self):
-        cookies = self.__class__.fetch_init_cookies(self)
-        self.get_root_postman().get_meta_data()['cookies'] = cookies
+        # cookies = self.__class__.fetch_init_cookies(self)
+        # self.get_root_postman().get_meta_data()['cookies'] = cookies
+
+        self.get_root_postman().get_meta_data()['cookies'] = JmModuleConfig.get_cookies(self)
+        pass
 
 
 class FutureClientProxy(JmcomicClient):
