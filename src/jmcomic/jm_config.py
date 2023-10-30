@@ -64,7 +64,7 @@ class JmModuleConfig:
 
     # 移动端API的相关配置
     # API密钥
-    MAGIC_18COMICAPPCONTENT = '18comicAPPContent'
+    APP_SECRET = '18comicAPP'
 
     # 域名配置 - 移动端
     # 图片域名
@@ -247,7 +247,7 @@ class JmModuleConfig:
             key_ts = time_stamp()
 
         import hashlib
-        token = hashlib.md5(f"{key_ts}{cls.MAGIC_18COMICAPPCONTENT}".encode()).hexdigest()
+        token = hashlib.md5(f"{key_ts}{cls.APP_SECRET}".encode()).hexdigest()
 
         return {
             'token': token,
@@ -331,7 +331,11 @@ class JmModuleConfig:
             'impl': None,
             'retry_times': 5
         },
-        'plugins': {},
+        'plugins': {
+            # 如果插件抛出参数校验异常，只debug。（全局配置，可以被插件的局部配置覆盖）
+            # 可选值：ignore（忽略），debug（打印日志），raise（抛异常）。
+            'valid': 'debug',
+        },
     }
 
     @classmethod
