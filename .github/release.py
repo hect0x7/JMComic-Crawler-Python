@@ -18,7 +18,7 @@ def parse_body(body):
         e: str = e.strip()
         if e == '':
             continue
-        points.append(f'{i}. {e}')
+        points.append(f'{i + 1}. {e}')
 
     return '\n'.join(points)
 

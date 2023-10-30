@@ -3,7 +3,7 @@ def field_cache(*args, **kwargs):
     return field_cache(*args, **kwargs)
 
 
-def default_jm_debug(topic: str, msg: str):
+def default_jm_debug_logging(topic: str, msg: str):
     from common import format_ts
     print(f'{format_ts()}:【{topic}】{msg}')
 
@@ -62,13 +62,14 @@ class JmModuleConfig:
     SCRAMBLE_421926 = 421926  # 2023-02-08后改了图片切割算法
     SCRAMBLE_CACHE = {}
 
-    # 移动端API的相关配置
-    # API密钥
-    APP_SECRET = '18comicAPP'
+    # 移动端API密钥
+    APP_SECRET = '18comicAPPContent'
 
-    # 域名配置 - 移动端
-    # 图片域名
-    DOMAIN_API_IMAGE_LIST = str_to_list('''
+    # cookies，目前只在移动端使用，因为移动端请求接口须携带，但不会校验cookies的内容。
+    APP_COOKIES = None
+
+    # 移动端图片域名
+    DOMAIN_IMAGE_LIST = str_to_list('''
     cdn-msp.jmapiproxy1.monster
     cdn-msp2.jmapiproxy1.monster
     cdn-msp.jmapiproxy1.cc
@@ -78,7 +79,7 @@ class JmModuleConfig:
 
     ''')
 
-    # API域名
+    # 移动端API域名
     DOMAIN_API_LIST = str_to_list('''
     www.jmapinode1.top
     www.jmapinode2.top
@@ -88,8 +89,11 @@ class JmModuleConfig:
     
     ''')
 
-    # 域名配置 - 网页端
+    # 网页端域名配置
     # 无需配置，默认为None，需要的时候会发起请求获得
+    # 使用优先级:
+    # 1. DOMAIN_HTML_LIST
+    # 2. [DOMAIN_HTML]
     DOMAIN_HTML = None
     DOMAIN_HTML_LIST = None
 
@@ -106,7 +110,7 @@ class JmModuleConfig:
     REGISTRY_PLUGIN = {}
 
     # 执行debug的函数
-    debug_executor = default_jm_debug
+    debug_executor = default_jm_debug_logging
     # postman构造函数
     postman_constructor = default_postman_constructor
     # 网页正则表达式解析失败时，执行抛出异常的函数，可以替换掉用于debug
@@ -190,7 +194,7 @@ class JmModuleConfig:
         postman = postman or cls.new_postman(session=True)
 
         url = postman.with_redirect_catching().get(cls.JM_REDIRECT_URL)
-        cls.jm_debug('获取禁漫网页URL', f'[{cls.JM_REDIRECT_URL}] → [{url}]')
+        cls.jm_debug('module.html_url', f'获取禁漫网页URL: [{cls.JM_REDIRECT_URL}] → [{url}]')
         return url
 
     @classmethod
@@ -211,8 +215,21 @@ class JmModuleConfig:
         from .jm_toolkit import JmcomicText
         domain_list = JmcomicText.analyse_jm_pub_html(resp.text)
 
-        cls.jm_debug('获取禁漫网页全部域名', f'[{resp.url}] → {domain_list}')
+        cls.jm_debug('module.html_domain_all', f'获取禁漫网页全部域名: [{resp.url}] → {domain_list}')
         return domain_list
+
+    @classmethod
+    @field_cache("APP_COOKIES")
+    def get_cookies(cls, postman=None):
+        from .jm_toolkit import JmcomicText
+        url = JmcomicText.format_url('/setting', cls.DOMAIN_API_LIST[0])
+        postman = postman or cls.new_postman()
+
+        resp = postman.get(url)
+        cookies = dict(resp.cookies)
+
+        cls.jm_debug('module.cookies', f'获取cookies: [{url}] → {cookies}')
+        return cookies
 
     @classmethod
     def new_html_headers(cls, domain='18comic.vip'):
@@ -247,7 +264,7 @@ class JmModuleConfig:
             key_ts = time_stamp()
 
         import hashlib
-        token = hashlib.md5(f"{key_ts}{cls.APP_SECRET}".encode()).hexdigest()
+        token = hashlib.md5(f"{key_ts}{cls.APP_SECRET}".encode("utf-8")).hexdigest()
 
         return {
             'token': token,

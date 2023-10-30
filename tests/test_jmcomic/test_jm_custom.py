@@ -55,8 +55,10 @@ class Test_Custom(JmTestConfigurable):
         JmModuleConfig.register_client(MyClient)
 
         html_domain = self.client.get_html_domain()
+        JmModuleConfig.DOMAIN_HTML_LIST = [html_domain]
+
         self.assertListEqual(
-            [html_domain],
+            JmModuleConfig.DOMAIN_HTML_LIST,
             self.option.new_jm_client(domain=[], impl=MyClient.client_key).get_domain_list()
         )
 
