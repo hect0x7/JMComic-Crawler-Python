@@ -5,6 +5,13 @@
 from .jm_option import *
 
 
+class PluginValidationException(Exception):
+
+    def __init__(self, plugin: 'JmOptionPlugin', msg: str):
+        self.plugin = plugin
+        self.msg = msg
+
+
 class JmOptionPlugin:
     plugin_key: str
 
@@ -33,6 +40,15 @@ class JmOptionPlugin:
             msg=msg
         )
 
+    def require_true(self, case: Any, msg: str):
+        """
+        独立于ExceptionTool的一套异常抛出体系
+        """
+        if case:
+            return
+
+        raise PluginValidationException(self, msg)
+
 
 class JmLoginPlugin(JmOptionPlugin):
     """
@@ -44,8 +60,8 @@ class JmLoginPlugin(JmOptionPlugin):
                username: str,
                password: str,
                ) -> None:
-        if not (username and password):
-            return
+        self.require_true(username, '用户名不能为空')
+        self.require_true(password, '密码不能为空')
 
         client = self.option.new_jm_client()
         client.login(username, password)
@@ -326,14 +342,19 @@ class ZipPlugin(JmOptionPlugin):
         删除所有文件和文件夹
         """
         import os
-        for album, photo_dict in all_downloaded.items():
-            for photo, image_list in photo_dict.items():
-                for f, image in image_list:
+        for photo_dict in all_downloaded.values():
+            for image_list in photo_dict.values():
+                for f, _ in image_list:
+                    # check not exist
+                    if file_not_exists(f):
+                        continue
+
                     os.remove(f)
                     self.debug(f'删除原文件: {f}', 'remove')
 
         for d in dir_list:
-            if len(os.listdir(d)) == 0:
+            # check exist
+            if file_exists(d) and len(os.listdir(d)) == 0:
                 os.removedirs(d)
                 self.debug(f'删除文件夹: {d}', 'remove')
 
@@ -403,11 +424,29 @@ class SendQQEmailPlugin(JmOptionPlugin):
                album=None,
                downloader=None,
                ) -> None:
-        if not (msg_from and msg_to and password):
-            self.debug('发送邮件的相关参数为空，不处理')
-            return
+        self.require_true(msg_from and msg_to and password, '发件人、收件人、授权码都不能为空')
+
         from common import EmailConfig
         econfig = EmailConfig(msg_from, msg_to, password)
         epostman = econfig.create_email_postman()
         epostman.send(content, title)
+
         self.debug('Email sent successfully')
+
+
+class DebugTopicFilterPlugin(JmOptionPlugin):
+    plugin_key = 'debug_topic_filter'
+
+    def invoke(self, whitelist) -> None:
+        if whitelist is not None:
+            whitelist = set(whitelist)
+
+        old_jm_debug = JmModuleConfig.debug_executor
+
+        def new_jm_debug(topic, msg):
+            if whitelist is not None and topic not in whitelist:
+                return
+
+            old_jm_debug(topic, msg)
+
+        JmModuleConfig.debug_executor = new_jm_debug

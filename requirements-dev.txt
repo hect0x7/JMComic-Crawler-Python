@@ -4,3 +4,4 @@ PyYAML
 Pillow
 psutil
 pycryptodome
+requests

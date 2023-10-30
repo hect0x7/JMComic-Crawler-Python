@@ -311,12 +311,12 @@ class JmOption:
         """
         return self.new_jm_client(**kwargs)
 
-    def new_jm_client(self, domain=None, impl=None, **kwargs) -> JmcomicClient:
+    def new_jm_client(self, domain=None, impl=None, cache=None, **kwargs) -> JmcomicClient:
         # 所有需要用到的 self.client 配置项如下
         postman_conf: dict = self.client.postman.src_dict  # postman dsl 配置
         impl: str = impl or self.client.impl  # client_key
         retry_times: int = self.client.retry_times  # 重试次数
-        cache: str = self.client.cache  # 启用缓存
+        cache: str = cache or self.client.cache  # 启用缓存
 
         # domain
         def decide_domain():
@@ -340,7 +340,10 @@ class JmOption:
         # headers
         meta_data = postman_conf['meta_data']
         if meta_data['headers'] is None:
-            meta_data['headers'] = self.decide_postman_headers(impl, domain[0])
+            headers = self.decide_postman_headers(impl, domain[0])
+            # if headers is None:
+            #     postman_conf['type'] = 'requests'
+            meta_data['headers'] = headers
 
         # postman
         postman = Postmans.create(data=postman_conf)
@@ -349,7 +352,8 @@ class JmOption:
         clazz = JmModuleConfig.client_impl_class(impl)
         if clazz == AbstractJmClient or not issubclass(clazz, AbstractJmClient):
             raise NotImplementedError(clazz)
-        client = clazz(
+
+        client: AbstractJmClient = clazz(
             postman,
             retry_times,
             fallback_domain_list=decide_domain(),
@@ -442,35 +446,76 @@ class JmOption:
 
             ExceptionTool.require_true(plugin_class is not None, f'[{group}] 未注册的plugin: {key}')
 
-            self.invoke_plugin(plugin_class, kwargs, extra)
+            self.invoke_plugin(plugin_class, kwargs, extra, pinfo)
 
-    def invoke_plugin(self, plugin_class, kwargs: Any, extra: dict):
+    def invoke_plugin(self, plugin_class, kwargs: Any, extra: dict, pinfo: dict):
+        # 检查插件的参数类型
+        kwargs = self.fix_kwargs(kwargs)
+        # 把插件的配置数据kwargs和附加数据extra合并，extra会覆盖kwargs
+        if len(extra) != 0:
+            kwargs.update(extra)
+
         # 保证 jm_plugin.py 被加载
-        from .jm_plugin import JmOptionPlugin
+        from .jm_plugin import JmOptionPlugin, PluginValidationException
 
+        plugin = plugin_class
         plugin_class: Type[JmOptionPlugin]
-        pkey = plugin_class.plugin_key
 
         try:
-            # 检查插件的参数类型
-            kwargs = self.fix_kwargs(kwargs)
-            # 把插件的配置数据kwargs和附加数据extra合并
-            # extra会覆盖kwargs
-            if len(extra) != 0:
-                kwargs.update(extra)
             # 构建插件对象
-            plugin = plugin_class.build(self)
+            plugin: JmOptionPlugin = plugin_class.build(self)
+
+            jm_debug('plugin.invoke', f'调用插件: [{plugin_class.plugin_key}]')
             # 调用插件功能
-            jm_debug('plugin.invoke', f'调用插件: [{pkey}]')
             plugin.invoke(**kwargs)
+
+        except PluginValidationException as e:
+            # 插件抛出的参数校验异常
+            self.handle_plugin_valid_exception(e, pinfo, kwargs, plugin)
+
         except JmcomicException as e:
-            msg = str(e)
-            jm_debug('plugin.exception', f'插件[{pkey}]调用失败，异常信息: {msg}')
-            raise e
+            # 模块内部异常，通过不是插件抛出的，而是插件调用了例如Client，Client请求失败抛出的
+            self.handle_plugin_exception(e, pinfo, kwargs, plugin)
+
         except BaseException as e:
-            msg = str(e)
-            jm_debug('plugin.error', f'插件[{pkey}]运行遇到未捕获异常，异常信息: {msg}')
+            # 为插件兜底，捕获其他所有异常
+            self.handle_plugin_unexpected_error(e, pinfo, kwargs, plugin)
+
+    # noinspection PyMethodMayBeStatic,PyUnusedLocal
+    def handle_plugin_valid_exception(self, e, pinfo: dict, kwargs: dict, plugin):
+        from .jm_plugin import PluginValidationException
+        e: PluginValidationException
+
+        mode = pinfo.get('valid', self.plugins.valid)
+
+        if mode == 'ignore':
+            # ignore
+            return
+
+        if mode == 'debug':
+            # debug
+            jm_debug('plugin.validation',
+                     f'插件 [{e.plugin.plugin_key}] 参数校验异常：{e.msg}'
+                     )
+            return
+
+        if mode == 'raise':
+            # raise
             raise e
+
+        # 其他的mode可以通过继承+方法重写来扩展
+
+    # noinspection PyMethodMayBeStatic,PyUnusedLocal
+    def handle_plugin_unexpected_error(self, e, pinfo: dict, kwargs: dict, plugin):
+        msg = str(e)
+        jm_debug('plugin.error', f'插件 [{plugin.plugin_key}]，运行遇到未捕获异常，异常信息: {msg}')
+        raise e
+
+    # noinspection PyMethodMayBeStatic,PyUnusedLocal
+    def handle_plugin_exception(self, e, pinfo: dict, kwargs: dict, plugin):
+        msg = str(e)
+        jm_debug('plugin.exception', f'插件 [{plugin.plugin_key}]，调用失败，异常信息: {msg}')
+        raise e
 
     # noinspection PyMethodMayBeStatic
     def fix_kwargs(self, kwargs) -> Dict[str, Any]:

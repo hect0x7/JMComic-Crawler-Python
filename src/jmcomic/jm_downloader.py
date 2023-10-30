@@ -9,10 +9,6 @@ DownloadIterObjs = Union[
 ]
 
 
-class JmDownloadException(Exception):
-    pass
-
-
 # noinspection PyMethodMayBeStatic
 class DownloadCallback:
 

@@ -31,7 +31,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.tb.outputs.tag }}
-          body: ${{ steps.tb.outputs.body }}
+          body_path: release_body.txt
 
       - name: Build
         run: |

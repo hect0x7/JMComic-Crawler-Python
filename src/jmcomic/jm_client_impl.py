@@ -584,7 +584,7 @@ class JmApiClient(AbstractJmClient):
     def get_decode(self, url, **kwargs) -> JmApiResp:
         # set headers
         headers, key_ts = self.headers_key_ts
-        kwargs.setdefault('headers', headers)
+        kwargs['headers'] = headers
 
         resp = self.get(url, **kwargs)
         return JmApiResp.wrap(resp, key_ts)
@@ -609,6 +609,16 @@ class JmApiClient(AbstractJmClient):
 
         # 2. 是否是特殊的内容
         # 暂无
+
+    @classmethod
+    @field_cache('__init_cookies__')
+    def fetch_init_cookies(cls, client: 'JmApiClient'):
+        resp = client.setting()
+        return dict(resp.resp.cookies)
+
+    def after_init(self):
+        cookies = self.__class__.fetch_init_cookies(self)
+        self.get_root_postman().get_meta_data()['cookies'] = cookies
 
 
 class FutureClientProxy(JmcomicClient):
