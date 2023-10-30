@@ -18,7 +18,7 @@ def parse_body(body):
         e: str = e.strip()
         points.append(f'{i}. {e}')
 
-    print('\n'.join(points))
+    return '\n'.join(points)
 
 
 msg = sys.argv[1]
