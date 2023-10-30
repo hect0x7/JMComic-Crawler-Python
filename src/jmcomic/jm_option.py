@@ -341,8 +341,8 @@ class JmOption:
         meta_data = postman_conf['meta_data']
         if meta_data['headers'] is None:
             headers = self.decide_postman_headers(impl, domain[0])
-            if headers is None:
-                postman_conf['type'] = 'requests_Session'
+            # if headers is None:
+            #     postman_conf['type'] = 'requests'
             meta_data['headers'] = headers
 
         # postman

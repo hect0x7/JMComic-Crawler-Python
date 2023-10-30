@@ -40,7 +40,7 @@ class JmOptionPlugin:
             msg=msg
         )
 
-    def validate_params(self, case: Any, msg: str):
+    def require_true(self, case: Any, msg: str):
         """
         独立于ExceptionTool的一套异常抛出体系
         """
@@ -60,8 +60,8 @@ class JmLoginPlugin(JmOptionPlugin):
                username: str,
                password: str,
                ) -> None:
-        self.validate_params(username, '用户名不能为空')
-        self.validate_params(password, '密码不能为空')
+        self.require_true(username, '用户名不能为空')
+        self.require_true(password, '密码不能为空')
 
         client = self.option.new_jm_client()
         client.login(username, password)
@@ -424,7 +424,7 @@ class SendQQEmailPlugin(JmOptionPlugin):
                album=None,
                downloader=None,
                ) -> None:
-        self.validate_params(msg_from and msg_to and password, '发件人、收件人、授权码都不能为空')
+        self.require_true(msg_from and msg_to and password, '发件人、收件人、授权码都不能为空')
 
         from common import EmailConfig
         econfig = EmailConfig(msg_from, msg_to, password)
