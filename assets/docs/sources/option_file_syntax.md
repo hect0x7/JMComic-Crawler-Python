@@ -120,6 +120,11 @@ plugins:
         proxy_client_key: cl_proxy_future # 代理类的client_key
         whitelist: [ api, ] # 白名单，当client.impl匹配白名单时才代理
 
+    - plugin: auto_set_browser_cookies # 自动获取浏览器cookies，详见插件类
+      kwargs:
+        browser: chrome
+        domain: 18comic.vip
+
   after_album:
     - plugin: zip # 压缩文件插件
       kwargs:

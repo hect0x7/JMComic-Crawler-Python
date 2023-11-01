@@ -335,7 +335,7 @@ class JmModuleConfig:
             },
         },
         'client': {
-            'cache': None,
+            'cache': None,  # see CacheRegistry
             'domain': [],
             'postman': {
                 'type': 'cffi',

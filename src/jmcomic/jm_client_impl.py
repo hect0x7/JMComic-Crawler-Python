@@ -25,6 +25,8 @@ class AbstractJmClient(
             fallback_domain_list.insert(0, domain)
 
         self.domain_list = fallback_domain_list
+        self.CLIENT_CACHE = None
+        self.enable_cache()
         self.after_init()
 
     def after_init(self):
@@ -111,31 +113,59 @@ class AbstractJmClient(
     def before_retry(self, e, kwargs, retry_count, url):
         jm_debug('req.error', str(e))
 
-    def enable_cache(self, debug=False):
-        if self.is_cache_enabled():
-            return
+    def enable_cache(self):
+        # noinspection PyDefaultArgument,PyShadowingBuiltins
+        def make_key(args, kwds, typed,
+                     kwd_mark=(object(),),
+                     fasttypes={int, str},
+                     tuple=tuple, type=type, len=len):
+            key = args
+            if kwds:
+                key += kwd_mark
+                for item in kwds.items():
+                    key += item
+            if typed:
+                key += tuple(type(v) for v in args)
+                if kwds:
+                    key += tuple(type(v) for v in kwds.values())
+            elif len(key) == 1 and type(key[0]) in fasttypes:
+                return key[0]
+            return hash(key)
 
         def wrap_func_with_cache(func_name, cache_field_name):
             if hasattr(self, cache_field_name):
                 return
 
-            if sys.version_info > (3, 9):
-                import functools
-                cache = functools.cache
-            else:
-                from functools import lru_cache
-                cache = lru_cache()
-
             func = getattr(self, func_name)
-            setattr(self, func_name, cache(func))
+
+            def cache_wrapper(*args, **kwargs):
+                cache = self.CLIENT_CACHE
+
+                # Equivalent to not enable cache
+                if cache is None:
+                    return func(*args, **kwargs)
+
+                key = make_key(args, kwargs, False)
+                sentinel = object()  # unique object used to signal cache misses
+
+                result = cache.get(key, sentinel)
+                if result is not sentinel:
+                    return result
+
+                result = func(*args, **kwargs)
+                cache[key] = result
+                return result
+
+            setattr(self, func_name, cache_wrapper)
 
         for func_name in self.func_to_cache:
             wrap_func_with_cache(func_name, f'__{func_name}.cache.dict__')
 
-        setattr(self, '__enable_cache__', True)
+    def set_cache_dict(self, cache_dict: Optional[Dict]):
+        self.CLIENT_CACHE = cache_dict
 
-    def is_cache_enabled(self) -> bool:
-        return getattr(self, '__enable_cache__', False)
+    def get_cache_dict(self):
+        return self.CLIENT_CACHE
 
     def get_domain_list(self):
         return self.domain_list
@@ -635,7 +665,7 @@ class FutureClientProxy(JmcomicClient):
     client_key = 'cl_proxy_future'
     proxy_methods = ['album_comment', 'enable_cache', 'get_domain_list',
                      'get_html_domain', 'get_html_domain_all', 'get_jm_image',
-                     'is_cache_enabled', 'set_domain_list', ]
+                     'set_cache_dict', 'get_cache_dict', 'set_domain_list', ]
 
     class FutureWrapper:
         def __init__(self, future):

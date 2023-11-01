@@ -264,3 +264,55 @@ class Test_Client(JmTestConfigurable):
             })
             print(page.page_count)
             break
+
+    def test_cache_level(self):
+        op = self.option
+
+        def get(cl):
+            return cl.get_album_detail('123')
+
+        def assertEqual(first_cl, second_cl, msg):
+            return self.assertEqual(
+                get(first_cl),
+                get(second_cl),
+                msg,
+            )
+
+        def assertNotEqual(first_cl, second_cl, msg):
+            return self.assertNotEqual(
+                get(first_cl),
+                get(second_cl),
+                msg,
+            )
+
+        cases = [
+            [
+                CacheRegistry.level_option,
+                CacheRegistry.level_option,
+                CacheRegistry.level_client,
+                CacheRegistry.level_client,
+            ],
+            [
+                True,
+                'level_option',
+                'level_client',
+                CacheRegistry.level_client,
+            ]
+        ]
+
+        for arg1, arg2, arg3, arg4 in cases:
+            c1 = op.new_jm_client(cache=arg1)
+            c2 = op.new_jm_client(cache=arg2)
+            c3 = op.new_jm_client(cache=arg3)
+            c4 = op.new_jm_client(cache=arg4)
+            c5 = op.new_jm_client(cache=False)
+
+            # c1 == c2
+            # c3 == c4
+            # c1 != c3
+            # c5 != c1, c2, c3, c4
+            assertEqual(c1, c2, 'equals in same option level')
+            assertNotEqual(c3, c4, 'not equals in client level')
+            assertNotEqual(c1, c3, 'not equals in different level')
+            assertNotEqual(c1, c5, 'not equals for None level')
+            assertNotEqual(c3, c5, 'not equals for None level')

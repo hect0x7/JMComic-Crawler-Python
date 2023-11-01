@@ -1,6 +1,58 @@
 from .jm_client_impl import *
 
 
+class CacheRegistry:
+    REGISTRY = {}
+
+    @classmethod
+    def level_option(cls, option, _client):
+        registry = cls.REGISTRY
+        registry.setdefault(option, {})
+        return registry[option]
+
+    @classmethod
+    def level_client(cls, _option, client):
+        registry = cls.REGISTRY
+        registry.setdefault(client, {})
+        return registry[client]
+
+    @classmethod
+    def enable_client_cache_on_condition(cls, option: 'JmOption', client: JmcomicClient, cache: Union[None, bool, str, Callable]):
+        """
+        cache parameter
+
+        if None: no cache
+
+        if bool:
+          true: level_option
+
+          false: no cache
+
+        if str:
+          (invoke corresponding Cache class method)
+
+        :param option: JmOption
+        :param client: JmcomicClient
+        :param cache: config dsl
+        """
+        if cache is None:
+            return
+
+        elif isinstance(cache, bool):
+            if cache is False:
+                return
+            else:
+                cache = cls.level_option
+
+        elif isinstance(cache, str):
+            func = getattr(cls, cache, None)
+            assert func is not None, f'未实现的cache配置名: {cache}'
+            cache = func
+
+        cache: Callable
+        client.set_cache_dict(cache(option, client))
+
+
 class DirRule:
     rule_sample = [
         # 根目录 / Album-id / Photo-序号 /
@@ -312,12 +364,17 @@ class JmOption:
         return self.new_jm_client(**kwargs)
 
     def new_jm_client(self, domain=None, impl=None, cache=None, **kwargs) -> JmcomicClient:
+        """
+        创建新的Client（客户端），不同Client之间的元数据不共享
+        """
+        from copy import deepcopy
+
         # 所有需要用到的 self.client 配置项如下
-        postman_conf: dict = self.client.postman.src_dict  # postman dsl 配置
-        meta_data: dict = postman_conf['meta_data']  # 请求元信息
+        postman_conf: dict = deepcopy(self.client.postman.src_dict)  # postman dsl 配置
+        meta_data: dict = postman_conf['meta_data']  # 元数据
         impl: str = impl or self.client.impl  # client_key
         retry_times: int = self.client.retry_times  # 重试次数
-        cache: str = cache or self.client.cache  # 启用缓存
+        cache: str = cache if cache is not None else self.client.cache  # 启用缓存
 
         # domain
         def decide_domain():
@@ -357,10 +414,18 @@ class JmOption:
         )
 
         # enable cache
-        if cache is True:
-            client.enable_cache()
+        CacheRegistry.enable_client_cache_on_condition(self, client, cache)
 
         return client
+
+    def update_cookies(self, cookies: dict):
+        metadata: dict = self.client.postman.meta_data.src_dict
+        orig_cookies: Optional[Dict] = metadata.get('cookies', None)
+        if orig_cookies is None:
+            metadata['cookies'] = cookies
+        else:
+            orig_cookies.update(cookies)
+            metadata['cookies'] = orig_cookies
 
     # noinspection PyMethodMayBeStatic
     def decide_client_domain(self, client_key: str) -> List[str]:
