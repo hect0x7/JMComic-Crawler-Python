@@ -160,10 +160,10 @@ class JmDetailClient:
     def of_api_url(self, api_path, domain):
         raise NotImplementedError
 
-    def enable_cache(self, debug=False):
+    def set_cache_dict(self, cache_dict: Optional[Dict]):
         raise NotImplementedError
 
-    def is_cache_enabled(self) -> bool:
+    def get_cache_dict(self) -> Optional[Dict]:
         raise NotImplementedError
 
     def check_photo(self, photo: JmPhotoDetail):

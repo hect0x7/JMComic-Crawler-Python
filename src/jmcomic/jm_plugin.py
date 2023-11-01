@@ -49,6 +49,12 @@ class JmOptionPlugin:
 
         raise PluginValidationException(self, msg)
 
+    def warning_lib_not_install(self, lib='psutil'):
+        msg = (f'插件`{self.plugin_key}`依赖库: {lib}，请先安装{lib}再使用。'
+               f'安装命令: [pip install {lib}]')
+        import warnings
+        warnings.warn(msg)
+
 
 class JmLoginPlugin(JmOptionPlugin):
     """
@@ -111,12 +117,7 @@ class UsageLogPlugin(JmOptionPlugin):
         try:
             import psutil
         except ImportError:
-            msg = (f'插件`{self.plugin_key}`依赖psutil库，请先安装psutil再使用。'
-                   f'安装命令: [pip install psutil]')
-            import warnings
-            warnings.warn(msg)
-            # import sys
-            # print(msg, file=sys.stderr)
+            self.warning_lib_not_install('psutil')
             return
 
         from time import sleep
@@ -464,3 +465,55 @@ class DebugTopicFilterPlugin(JmOptionPlugin):
             old_jm_debug(topic, msg)
 
         JmModuleConfig.debug_executor = new_jm_debug
+
+
+class AutoSetBrowserCookiesPlugin(JmOptionPlugin):
+    plugin_key = 'auto_set_browser_cookies'
+
+    accepted_cookies_keys = str_to_set('''
+    yuo1
+    remember_id
+    remember
+    ''')
+
+    def invoke(self,
+               browser: str,
+               domain: str,
+               ) -> None:
+        """
+        坑点预警：由于禁漫需要校验同一设备，使用该插件需要配置自己浏览器的headers，例如
+
+        ```yml
+        client:
+          postman:
+            meta_data:
+              headers: {
+               # 浏览器headers
+              }
+
+        # 插件配置如下：
+        plugins:
+          after_init:
+            - plugin: auto_set_browser_cookies
+              kwargs:
+                browser: chrome
+                domain: 18comic.vip
+        ```
+
+        :param browser: chrome/edge/...
+        :param domain: 18comic.vip/...
+        :return: cookies
+        """
+        cookies, e = get_browser_cookies(browser, domain, safe=True)
+
+        if cookies is None:
+            if isinstance(e, ImportError):
+                self.warning_lib_not_install('browser_cookie3')
+            else:
+                self.debug('获取浏览器cookies失败，请关闭浏览器重试')
+            return
+
+        self.option.update_cookies(
+            {k: v for k, v in cookies.items() if k in self.accepted_cookies_keys}
+        )
+        self.debug('获取浏览器cookies成功')
