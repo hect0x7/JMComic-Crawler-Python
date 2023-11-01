@@ -46,11 +46,7 @@ class JmTestConfigurable(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # 设置 JmOption，JmcomicClient
-        try:
-            option = create_option_by_env('JM_OPTION_PATH_TEST')
-        except JmcomicException:
-            option = create_option('./assets/option/option_test.yml')
-
+        option = cls.new_option()
         cls.option = option
         cls.client = option.build_jm_client()
 
@@ -60,6 +56,13 @@ class JmTestConfigurable(unittest.TestCase):
         if skip_time_cost_debug:
             return
         cost_time_dict[cls.__name__] = ts()
+
+    @classmethod
+    def new_option(cls):
+        try:
+            return create_option_by_env('JM_OPTION_PATH_TEST')
+        except JmcomicException:
+            return create_option('./assets/option/option_test.yml')
 
     @classmethod
     def tearDownClass(cls) -> None:
