@@ -12,6 +12,7 @@ Python API for JMComic（禁漫天堂）
     - Command line: No need to write Python code, simple and easy to use. (See
       tutorial → [Tutorial - Download Album via Command Line](./tutorial/2_command_line.md))
     - Python code: The most flexible and powerful way, requires some basic knowledge of Python programming.
+
 - Supports two client implementations: web-based and mobile-based. Switchable through configuration (mobile-based has
   better IP compatibility, web-based has higher efficiency).
 - Supports automatic request retry and domain switching mechanism.
@@ -23,6 +24,7 @@ Python API for JMComic（禁漫天堂）
     - Configuration options
       include: `request domain`, `client implementation`, `number of chapters/images downloaded simultaneously`, `image format conversion`, `download path rules`, `request metadata (headers, cookies, proxies)`,
       and more.
+
 - Highly extensible:
 
     - Supports Plugin for easy functionality extension and use of other plugins.
