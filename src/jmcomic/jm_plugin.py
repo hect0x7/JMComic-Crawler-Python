@@ -416,7 +416,7 @@ class ImageSuffixFilterPlugin(JmOptionPlugin):
         def apply_filter_then_decide_cache(image: JmImageDetail):
             if image.img_file_suffix not in allowed_suffix_set:
                 self.log(f'跳过下载图片: {image.tag}，'
-                           f'因为其后缀\'{image.img_file_suffix}\'不在允许的后缀集合{allowed_suffix_set}内')
+                         f'因为其后缀\'{image.img_file_suffix}\'不在允许的后缀集合{allowed_suffix_set}内')
                 # hook is_exists True to skip download
                 image.is_exists = True
                 return True

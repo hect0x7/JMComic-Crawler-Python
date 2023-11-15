@@ -79,7 +79,7 @@ class DirRule:
         self.rule_dsl = rule
         self.solver_list = self.get_role_solver_list(rule, base_dir)
 
-    def deside_image_save_dir(self,
+    def decide_image_save_dir(self,
                               album: JmAlbumDetail,
                               photo: JmPhotoDetail,
                               ) -> str:
@@ -205,7 +205,7 @@ class JmOption:
 
     def decide_image_save_dir(self, photo) -> str:
         # 使用 self.dir_rule 决定 save_dir
-        save_dir = self.dir_rule.deside_image_save_dir(
+        save_dir = self.dir_rule.decide_image_save_dir(
             photo.from_album,
             photo
         )
@@ -566,7 +566,7 @@ class JmOption:
         if mode == 'log':
             # log
             jm_log('plugin.validation',
-                     f'插件 [{e.plugin.plugin_key}] 参数校验异常：{e.msg}'
+                   f'插件 [{e.plugin.plugin_key}] 参数校验异常：{e.msg}'
                    )
             return
 

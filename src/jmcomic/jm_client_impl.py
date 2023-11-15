@@ -86,12 +86,12 @@ class AbstractJmClient(
 
         if domain_index != 0 or retry_count != 0:
             jm_log(f'req.retry',
-                     ', '.join([
-                         f'次数: [{retry_count}/{self.retry_times}]',
-                         f'域名: [{domain_index} of {self.domain_list}]',
-                         f'路径: [{url}]',
-                         f'参数: [{kwargs if "login" not in url else "#login_form#"}]'
-                     ])
+                   ', '.join([
+                       f'次数: [{retry_count}/{self.retry_times}]',
+                       f'域名: [{domain_index} of {self.domain_list}]',
+                       f'路径: [{url}]',
+                       f'参数: [{kwargs if "login" not in url else "#login_form#"}]'
+                   ])
                    )
 
         try:
@@ -386,7 +386,7 @@ class JmHtmlClient(AbstractJmClient):
             data['forum_subject'] = 1
 
         jm_log('album.comment',
-                 f'{video_id}: [{comment}]' +
+               f'{video_id}: [{comment}]' +
                (f' to ({comment_id})' if comment_id is not None else '')
                )
 

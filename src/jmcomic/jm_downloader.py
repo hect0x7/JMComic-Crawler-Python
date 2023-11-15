@@ -6,12 +6,12 @@ class DownloadCallback:
 
     def before_album(self, album: JmAlbumDetail):
         jm_log('album.before',
-                 f'本子获取成功: [{album.id}], '
-                 f'作者: [{album.author}], '
-                 f'章节数: [{len(album)}], '
-                 f'总页数: [{album.page_count}], '
-                 f'标题: [{album.name}], '
-                 f'关键词: [{album.tags}]'
+               f'本子获取成功: [{album.id}], '
+               f'作者: [{album.author}], '
+               f'章节数: [{len(album)}], '
+               f'总页数: [{album.page_count}], '
+               f'标题: [{album.name}], '
+               f'关键词: [{album.tags}]'
                )
 
     def after_album(self, album: JmAlbumDetail):
@@ -19,28 +19,28 @@ class DownloadCallback:
 
     def before_photo(self, photo: JmPhotoDetail):
         jm_log('photo.before',
-                 f'开始下载章节: {photo.id} ({photo.album_id}[{photo.index}/{len(photo.from_album)}]), '
-                 f'标题: [{photo.name}], '
-                 f'图片数为[{len(photo)}]'
+               f'开始下载章节: {photo.id} ({photo.album_id}[{photo.index}/{len(photo.from_album)}]), '
+               f'标题: [{photo.name}], '
+               f'图片数为[{len(photo)}]'
                )
 
     def after_photo(self, photo: JmPhotoDetail):
         jm_log('photo.after',
-                 f'章节下载完成: [{photo.id}] ({photo.album_id}[{photo.index}/{len(photo.from_album)}])')
+               f'章节下载完成: [{photo.id}] ({photo.album_id}[{photo.index}/{len(photo.from_album)}])')
 
     def before_image(self, image: JmImageDetail, img_save_path):
         if image.is_exists:
             jm_log('image.before',
-                     f'图片已存在: {image.tag} ← [{img_save_path}]'
+                   f'图片已存在: {image.tag} ← [{img_save_path}]'
                    )
         else:
             jm_log('image.before',
-                     f'图片准备下载: {image.tag}, [{image.img_url}] → [{img_save_path}]'
+                   f'图片准备下载: {image.tag}, [{image.img_url}] → [{img_save_path}]'
                    )
 
     def after_image(self, image: JmImageDetail, img_save_path):
         jm_log('image.after',
-                 f'图片下载完成: {image.tag}, [{image.img_url}] → [{img_save_path}]')
+               f'图片下载完成: {image.tag}, [{image.img_url}] → [{img_save_path}]')
 
 
 class JmDownloader(DownloadCallback):
@@ -196,5 +196,5 @@ class JmDownloader(DownloadCallback):
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is not None:
             jm_log('dler.exception',
-                     f'{self.__class__.__name__} Exit with exception: {exc_type, exc_val}'
+                   f'{self.__class__.__name__} Exit with exception: {exc_type, exc_val}'
                    )

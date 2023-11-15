@@ -145,7 +145,6 @@ Client Interface
 """
 
 
-
 class JmDetailClient:
 
     def get_album_detail(self, album_id) -> JmAlbumDetail:
