@@ -5,7 +5,6 @@ theme:
 plugins:
   - search
   - mkdocstrings:
-      custom_templates: templates
       handlers:
         # See: https://mkdocstrings.github.io/python/usage/
         python:
