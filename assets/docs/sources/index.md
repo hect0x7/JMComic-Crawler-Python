@@ -29,9 +29,9 @@ Python API for JMComic（禁漫天堂）
 
     - Supports Plugin for easy functionality extension and use of other plugins.
     - Currently built-in
-      plugins: `login plugin`, `hardware usage monitoring plugin`, `only download new chapters plugin`, `zip compression plugin`, `image suffix filter plugin` `send qq email plugin` `debug logging topic filter plugin` `auto set browser cookies plugin`.
+      plugins: `login plugin`, `hardware usage monitoring plugin`, `only download new chapters plugin`, `zip compression plugin`, `image suffix filter plugin` `send qq email plugin` `logging topic filter plugin` `auto set browser cookies plugin`.
     - Supports custom callback functions before and after downloading album/chapter/images.
-    - Supports custom debug logging.
+    - Supports custom logging.
     - Supports custom core
       classes: `Downloader (responsible for scheduling)`, `Option (responsible for configuration)`, `Client (responsible for requests)`, `entity classes`,
       and more.

@@ -18,7 +18,7 @@ def ts():
     return time_stamp(False)
 
 
-skip_time_cost_debug = file_exists('./.idea')
+skip_time_cost_log = file_exists('./.idea')
 
 cost_time_dict = {}
 
@@ -29,14 +29,14 @@ class JmTestConfigurable(unittest.TestCase):
     project_dir: str = project_dir
 
     def setUp(self) -> None:
-        if skip_time_cost_debug:
+        if skip_time_cost_log:
             return
         method_name = self._testMethodName
         cost_time_dict[method_name] = ts()
         print_eye_catching(f' [{format_ts()} | {method_name}] '.center(70, '🚀'))
 
     def tearDown(self) -> None:
-        if skip_time_cost_debug:
+        if skip_time_cost_log:
             return
         method_name = self._testMethodName
         begin = cost_time_dict[method_name]
@@ -53,7 +53,7 @@ class JmTestConfigurable(unittest.TestCase):
         # 跨平台设置
         cls.adapt_os()
 
-        if skip_time_cost_debug:
+        if skip_time_cost_log:
             return
         cost_time_dict[cls.__name__] = ts()
 
@@ -66,7 +66,7 @@ class JmTestConfigurable(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        if skip_time_cost_debug:
+        if skip_time_cost_log:
             return
         begin = cost_time_dict[cls.__name__]
         end = ts()

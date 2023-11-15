@@ -89,7 +89,7 @@ class DirRule:
                 ret = self.apply_rule_solver(album, photo, solver)
             except BaseException as e:
                 # noinspection PyUnboundLocalVariable
-                jm_debug('dir_rule', f'路径规则"{solver[2]}"的解析出错: {e}, album={album}, photo={photo}')
+                jm_log('dir_rule', f'路径规则"{solver[2]}"的解析出错: {e}, album={album}, photo={photo}')
                 raise e
 
             path_ls.append(str(ret))
@@ -289,10 +289,10 @@ class JmOption:
     def construct(cls, origdic: Dict, cover_default=True) -> 'JmOption':
         dic = cls.merge_default_dict(origdic) if cover_default else origdic
 
-        # debug
-        debug = dic.pop('debug', True)
-        if debug is False:
-            disable_jm_debug()
+        # log
+        log = dic.pop('log', True)
+        if log is False:
+            disable_jm_log()
 
         # version
         version = dic.pop('version', None)
@@ -323,7 +323,7 @@ class JmOption:
     def deconstruct(self) -> Dict:
         return {
             'version': self.version,
-            'debug': JmModuleConfig.enable_jm_debug,
+            'log': JmModuleConfig.enable_jm_log,
             'dir_rule': {
                 'rule': self.dir_rule.rule_dsl,
                 'base_dir': self.dir_rule.base_dir,
@@ -372,9 +372,15 @@ class JmOption:
         # 所有需要用到的 self.client 配置项如下
         postman_conf: dict = deepcopy(self.client.postman.src_dict)  # postman dsl 配置
         meta_data: dict = postman_conf['meta_data']  # 元数据
-        impl: str = impl or self.client.impl  # client_key
         retry_times: int = self.client.retry_times  # 重试次数
         cache: str = cache if cache is not None else self.client.cache  # 启用缓存
+        impl: str = impl or self.client.impl  # client_key
+        if isinstance(impl, type):
+            # eg: impl = JmHtmlClient
+            # noinspection PyUnresolvedReferences
+            impl = impl.client_key
+
+        # start construct client
 
         # domain
         def decide_domain():
@@ -530,7 +536,7 @@ class JmOption:
             # 构建插件对象
             plugin: JmOptionPlugin = plugin_class.build(self)
 
-            jm_debug('plugin.invoke', f'调用插件: [{plugin_class.plugin_key}]')
+            jm_log('plugin.invoke', f'调用插件: [{plugin_class.plugin_key}]')
             # 调用插件功能
             plugin.invoke(**kwargs)
 
@@ -557,11 +563,11 @@ class JmOption:
             # ignore
             return
 
-        if mode == 'debug':
-            # debug
-            jm_debug('plugin.validation',
+        if mode == 'log':
+            # log
+            jm_log('plugin.validation',
                      f'插件 [{e.plugin.plugin_key}] 参数校验异常：{e.msg}'
-                     )
+                   )
             return
 
         if mode == 'raise':
@@ -573,13 +579,13 @@ class JmOption:
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
     def handle_plugin_unexpected_error(self, e, pinfo: dict, kwargs: dict, plugin):
         msg = str(e)
-        jm_debug('plugin.error', f'插件 [{plugin.plugin_key}]，运行遇到未捕获异常，异常信息: {msg}')
+        jm_log('plugin.error', f'插件 [{plugin.plugin_key}]，运行遇到未捕获异常，异常信息: {msg}')
         raise e
 
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
     def handle_plugin_exception(self, e, pinfo: dict, kwargs: dict, plugin):
         msg = str(e)
-        jm_debug('plugin.exception', f'插件 [{plugin.plugin_key}]，调用失败，异常信息: {msg}')
+        jm_log('plugin.exception', f'插件 [{plugin.plugin_key}] 调用失败，异常信息: [{msg}]')
         raise e
 
     # noinspection PyMethodMayBeStatic
@@ -607,7 +613,7 @@ class JmOption:
 
             if isinstance(k, (int, float)):
                 newk = str(k)
-                jm_debug('plugin.kwargs', f'插件参数类型转换: {k} ({type(k)}) -> {newk} ({type(newk)})')
+                jm_log('plugin.kwargs', f'插件参数类型转换: {k} ({type(k)}) -> {newk} ({type(newk)})')
                 new_kwargs[newk] = v
                 continue
 

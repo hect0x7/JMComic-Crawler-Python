@@ -3,7 +3,7 @@ def field_cache(*args, **kwargs):
     return field_cache(*args, **kwargs)
 
 
-def default_jm_debug_logging(topic: str, msg: str):
+def default_jm_logging(topic: str, msg: str):
     from common import format_ts
     print(f'{format_ts()}:【{topic}】{msg}')
 
@@ -35,6 +35,29 @@ class JmcomicException(Exception):
     pass
 
 
+class JmMagicConstants:
+    ORDER_BY_LATEST = 'mr'
+    ORDER_BY_VIEW = 'mv'
+    ORDER_BY_PICTURE = 'mp'
+    ORDER_BY_LIKE = 'tf'
+
+    TIME_TODAY = 't'
+    TIME_WEEK = 'w'
+    TIME_MONTH = 'm'
+    TIME_ALL = 'a'
+
+    # 分页大小
+    PAGE_SIZE_SEARCH = 80
+    PAGE_SIZE_FAVORITE = 20
+
+    SCRAMBLE_220980 = 220980
+    SCRAMBLE_268850 = 268850
+    SCRAMBLE_421926 = 421926  # 2023-02-08后改了图片切割算法
+
+    # 移动端API密钥
+    APP_SECRET = '18comicAPPContent'
+
+
 class JmModuleConfig:
     # 网站相关
     PROT = "https://"
@@ -57,13 +80,7 @@ class JmModuleConfig:
     }
 
     # 图片分隔相关
-    SCRAMBLE_220980 = 220980
-    SCRAMBLE_268850 = 268850
-    SCRAMBLE_421926 = 421926  # 2023-02-08后改了图片切割算法
     SCRAMBLE_CACHE = {}
-
-    # 移动端API密钥
-    APP_SECRET = '18comicAPPContent'
 
     # cookies，目前只在移动端使用，因为移动端请求接口须携带，但不会校验cookies的内容。
     APP_COOKIES = None
@@ -109,17 +126,17 @@ class JmModuleConfig:
     # 插件注册表
     REGISTRY_PLUGIN = {}
 
-    # 执行debug的函数
-    debug_executor = default_jm_debug_logging
+    # 执行log的函数
+    log_executor = default_jm_logging
     # postman构造函数
     postman_constructor = default_postman_constructor
-    # 网页正则表达式解析失败时，执行抛出异常的函数，可以替换掉用于debug
+    # 网页正则表达式解析失败时，执行抛出异常的函数，可以替换掉用于log
     raise_exception_executor = default_raise_exception_executor
 
-    # debug开关标记
-    enable_jm_debug = True
-    # debug时解码url
-    decode_url_when_debug = True
+    # log开关标记
+    enable_jm_log = True
+    # log时解码url
+    decode_url_when_logging = True
     # 下载时的一些默认值配置
     DEFAULT_AUTHOR = 'default-author'
 
@@ -194,7 +211,7 @@ class JmModuleConfig:
         postman = postman or cls.new_postman(session=True)
 
         url = postman.with_redirect_catching().get(cls.JM_REDIRECT_URL)
-        cls.jm_debug('module.html_url', f'获取禁漫网页URL: [{cls.JM_REDIRECT_URL}] → [{url}]')
+        cls.jm_log('module.html_url', f'获取禁漫网页URL: [{cls.JM_REDIRECT_URL}] → [{url}]')
         return url
 
     @classmethod
@@ -215,7 +232,7 @@ class JmModuleConfig:
         from .jm_toolkit import JmcomicText
         domain_list = JmcomicText.analyse_jm_pub_html(resp.text)
 
-        cls.jm_debug('module.html_domain_all', f'获取禁漫网页全部域名: [{resp.url}] → {domain_list}')
+        cls.jm_log('module.html_domain_all', f'获取禁漫网页全部域名: [{resp.url}] → {domain_list}')
         return domain_list
 
     @classmethod
@@ -228,7 +245,7 @@ class JmModuleConfig:
         resp = postman.get(url)
         cookies = dict(resp.cookies)
 
-        cls.jm_debug('module.cookies', f'获取cookies: [{url}] → {cookies}')
+        cls.jm_log('module.cookies', f'获取cookies: [{url}] → {cookies}')
         return cookies
 
     @classmethod
@@ -249,7 +266,6 @@ class JmModuleConfig:
             'sec-fetch-mode': 'navigate',
             'sec-fetch-site': 'none',
             'sec-fetch-user': '?1',
-            'upgrade-insecure-requests': '1',
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 '
                           'Safari/537.36',
         }
@@ -264,7 +280,7 @@ class JmModuleConfig:
             key_ts = time_stamp()
 
         import hashlib
-        token = hashlib.md5(f"{key_ts}{cls.APP_SECRET}".encode("utf-8")).hexdigest()
+        token = hashlib.md5(f"{key_ts}{JmMagicConstants.APP_SECRET}".encode("utf-8")).hexdigest()
 
         return {
             'token': token,
@@ -283,13 +299,13 @@ class JmModuleConfig:
 
     # noinspection PyUnusedLocal
     @classmethod
-    def jm_debug(cls, topic: str, msg: str):
-        if cls.enable_jm_debug is True:
-            cls.debug_executor(topic, msg)
+    def jm_log(cls, topic: str, msg: str):
+        if cls.enable_jm_log is True:
+            cls.log_executor(topic, msg)
 
     @classmethod
-    def disable_jm_debug(cls):
-        cls.enable_jm_debug = False
+    def disable_jm_log(cls):
+        cls.enable_jm_log = False
 
     @classmethod
     def new_postman(cls, session=False, **kwargs):
@@ -324,7 +340,7 @@ class JmModuleConfig:
     DEFAULT_PROXIES = system_proxy()  # use system proxy by default
 
     default_option_dict: dict = {
-        'debug': None,
+        'log': None,
         'dir_rule': {'rule': 'Bd_Pname', 'base_dir': None},
         'download': {
             'cache': True,
@@ -349,9 +365,9 @@ class JmModuleConfig:
             'retry_times': 5
         },
         'plugins': {
-            # 如果插件抛出参数校验异常，只debug。（全局配置，可以被插件的局部配置覆盖）
-            # 可选值：ignore（忽略），debug（打印日志），raise（抛异常）。
-            'valid': 'debug',
+            # 如果插件抛出参数校验异常，只log。（全局配置，可以被插件的局部配置覆盖）
+            # 可选值：ignore（忽略），log（打印日志），raise（抛异常）。
+            'valid': 'log',
         },
     }
 
@@ -365,9 +381,9 @@ class JmModuleConfig:
 
         option_dict = deepcopy(cls.default_option_dict)
 
-        # debug
-        if option_dict['debug'] is None:
-            option_dict['debug'] = cls.enable_jm_debug
+        # log
+        if option_dict['log'] is None:
+            option_dict['log'] = cls.enable_jm_log
 
         # dir_rule.base_dir
         dir_rule = option_dict['dir_rule']
@@ -413,5 +429,5 @@ class JmModuleConfig:
         cls.REGISTRY_CLIENT[client_class.client_key] = client_class
 
 
-jm_debug = JmModuleConfig.jm_debug
-disable_jm_debug = JmModuleConfig.disable_jm_debug
+jm_log = JmModuleConfig.jm_log
+disable_jm_log = JmModuleConfig.disable_jm_log

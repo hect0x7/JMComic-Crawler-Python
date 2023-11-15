@@ -9,6 +9,18 @@ class JmBaseEntity:
         from common import PackerUtil
         PackerUtil.pack(self, filepath)
 
+    @classmethod
+    def is_image(cls):
+        return False
+
+    @classmethod
+    def is_photo(cls):
+        return False
+
+    @classmethod
+    def is_album(cls):
+        return False
+
 
 class IndexedEntity:
     def getindex(self, index: int):
@@ -153,9 +165,13 @@ class JmImageDetail(JmBaseEntity):
     @property
     def tag(self) -> str:
         """
-        this tag is used to print pretty info when debug
+        this tag is used to print pretty info when logging
         """
         return f'{self.aid}/{self.img_file_name}{self.img_file_suffix} [{self.index + 1}/{len(self.from_photo)}]'
+
+    @classmethod
+    def is_image(cls):
+        return True
 
 
 class JmPhotoDetail(DetailEntity):
@@ -312,6 +328,10 @@ class JmPhotoDetail(DetailEntity):
     def __iter__(self) -> Generator[JmImageDetail, None, None]:
         return super().__iter__()
 
+    @classmethod
+    def is_photo(cls):
+        return True
+
 
 class JmAlbumDetail(DetailEntity):
 
@@ -421,21 +441,36 @@ class JmAlbumDetail(DetailEntity):
     def __iter__(self) -> Generator[JmPhotoDetail, None, None]:
         return super().__iter__()
 
+    @classmethod
+    def is_album(cls):
+        return True
 
-class JmSearchPage(JmBaseEntity, IndexedEntity):
+
+class JmPageContent(JmBaseEntity, IndexedEntity):
     ContentItem = Tuple[str, Dict[str, Any]]
 
-    def __init__(self, content: List[ContentItem], page_count):
+    def __init__(self, content: List[ContentItem], total: int):
 
         """
+        content:
         [
           album_id, {title, tag_list, ...}
         ]
-        :param content: 搜索结果，移动端和网页端都一次返回80个
-        :param page_count: 总页数，登录和不登录能看到的总页数不一样
+        :param content: 分页数据
+        :param total: 一共多少页
         """
         self.content = content
-        self.page_count = page_count
+        self.total = total
+
+    @property
+    def page_count(self) -> int:
+        page_size = self.page_size
+        import math
+        return math.ceil(int(self.total) / page_size)
+
+    @property
+    def page_size(self) -> int:
+        raise NotImplementedError
 
     def iter_id(self) -> Generator[str, None, None]:
         """
@@ -456,7 +491,30 @@ class JmSearchPage(JmBaseEntity, IndexedEntity):
         返回 album_id, album_title, album_tag_list 的迭代器
         """
         for aid, ainfo in self.content:
+            ainfo.setdefault('tag_list', [])
             yield aid, ainfo['name'], ainfo['tag_list']
+
+    # 下面的方法实现方便的元素访问
+
+    def __len__(self):
+        return len(self.content)
+
+    def __iter__(self):
+        return self.iter_id_title()
+
+    def __getitem__(self, item) -> Union[ContentItem, List[ContentItem]]:
+        return super().__getitem__(item)
+
+    def getindex(self, index: int):
+        return self.content[index]
+
+
+class JmSearchPage(JmPageContent):
+
+    @property
+    def page_size(self) -> int:
+        from .jm_client_interface import JmMagicConstants
+        return JmMagicConstants.PAGE_SIZE_SEARCH
 
     # 下面的方法是对单个album的包装
 
@@ -479,16 +537,19 @@ class JmSearchPage(JmBaseEntity, IndexedEntity):
         setattr(page, 'album', album)
         return page
 
-    # 下面的方法实现方便的元素访问
 
-    def __len__(self):
-        return len(self.content)
+class JmFavoritePage(JmPageContent):
 
-    def __iter__(self):
-        return self.iter_id_title()
+    def __init__(self, content, folder_list, total):
+        """
 
-    def __getitem__(self, item) -> Union[ContentItem, List[ContentItem]]:
-        return super().__getitem__(item)
+        :param content: 收藏夹一页数据
+        :param folder_list: 所有的收藏夹的信息
+        :param total: 收藏夹的收藏总数
+        """
+        super().__init__(content, total)
+        self.folder_list = folder_list
 
-    def getindex(self, index: int):
-        return self.content[index]
+    @property
+    def page_size(self) -> int:
+        return JmMagicConstants.PAGE_SIZE_FAVORITE

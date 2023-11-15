@@ -145,6 +145,7 @@ Client Interface
 """
 
 
+
 class JmDetailClient:
 
     def get_album_detail(self, album_id) -> JmAlbumDetail:
@@ -194,9 +195,6 @@ class JmUserClient:
     def login(self,
               username,
               password,
-              refresh_client_cookies=True,
-              id_remember='on',
-              login_remember='on',
               ):
         raise NotImplementedError
 
@@ -219,6 +217,21 @@ class JmUserClient:
         """
         raise NotImplementedError
 
+    def favorite_folder(self,
+                        page=1,
+                        order_by=JmMagicConstants.ORDER_BY_LATEST,
+                        folder_id='0',
+                        username='',
+                        ) -> JmFavoritePage:
+        """
+        获取收藏了的漫画，文件夹默认是全部
+        :param folder_id: 文件夹id
+        :param page: 分页
+        :param order_by: 排序
+        :param username: 用户名
+        """
+        raise NotImplementedError
+
 
 class JmImageClient:
 
@@ -238,7 +251,7 @@ class JmImageClient:
         :param decode_image: 要保存的是解密后的图还是原图
         """
         if scramble_id is None:
-            scramble_id = JmModuleConfig.SCRAMBLE_220980
+            scramble_id = JmMagicConstants.SCRAMBLE_220980
 
         # 请求图片
         resp = self.get_jm_image(img_url)
@@ -294,16 +307,6 @@ class JmSearchAlbumClient:
     範例:全彩 人妻
     """
 
-    ORDER_BY_LATEST = 'mr'
-    ORDER_BY_VIEW = 'mv'
-    ORDER_BY_PICTURE = 'mp'
-    ORDER_BY_LIKE = 'tf'
-
-    TIME_TODAY = 't'
-    TIME_WEEK = 'w'
-    TIME_MONTH = 'm'
-    TIME_ALL = 'a'
-
     def search(self,
                search_query: str,
                page: int,
@@ -319,8 +322,8 @@ class JmSearchAlbumClient:
     def search_site(self,
                     search_query: str,
                     page: int = 1,
-                    order_by: str = ORDER_BY_LATEST,
-                    time: str = TIME_ALL,
+                    order_by: str = JmMagicConstants.ORDER_BY_LATEST,
+                    time: str = JmMagicConstants.TIME_ALL,
                     ):
         """
         对应禁漫的站内搜索
@@ -330,8 +333,8 @@ class JmSearchAlbumClient:
     def search_work(self,
                     search_query: str,
                     page: int = 1,
-                    order_by: str = ORDER_BY_LATEST,
-                    time: str = TIME_ALL,
+                    order_by: str = JmMagicConstants.ORDER_BY_LATEST,
+                    time: str = JmMagicConstants.TIME_ALL,
                     ):
         """
         搜索album的作品 work
@@ -341,8 +344,8 @@ class JmSearchAlbumClient:
     def search_author(self,
                       search_query: str,
                       page: int = 1,
-                      order_by: str = ORDER_BY_LATEST,
-                      time: str = TIME_ALL,
+                      order_by: str = JmMagicConstants.ORDER_BY_LATEST,
+                      time: str = JmMagicConstants.TIME_ALL,
                       ):
         """
         搜索album的作者 author
@@ -352,8 +355,8 @@ class JmSearchAlbumClient:
     def search_tag(self,
                    search_query: str,
                    page: int = 1,
-                   order_by: str = ORDER_BY_LATEST,
-                   time: str = TIME_ALL,
+                   order_by: str = JmMagicConstants.ORDER_BY_LATEST,
+                   time: str = JmMagicConstants.TIME_ALL,
                    ):
         """
         搜索album的标签 tag
@@ -363,21 +366,89 @@ class JmSearchAlbumClient:
     def search_actor(self,
                      search_query: str,
                      page: int = 1,
-                     order_by: str = ORDER_BY_LATEST,
-                     time: str = TIME_ALL,
+                     order_by: str = JmMagicConstants.ORDER_BY_LATEST,
+                     time: str = JmMagicConstants.TIME_ALL,
                      ):
         """
         搜索album的登场角色 actor
         """
         return self.search(search_query, page, 4, order_by, time)
 
+
+# noinspection PyAbstractClass
+class JmcomicClient(
+    JmImageClient,
+    JmDetailClient,
+    JmUserClient,
+    JmSearchAlbumClient,
+    Postman,
+):
+    client_key: None
+
+    def get_domain_list(self) -> List[str]:
+        """
+        获取当前client的域名配置
+        """
+        raise NotImplementedError
+
+    def set_domain_list(self, domain_list: List[str]):
+        """
+        设置当前client的域名配置
+        """
+        raise NotImplementedError
+
+    def get_html_domain(self, postman=None):
+        return JmModuleConfig.get_html_domain(postman or self.get_root_postman())
+
+    def get_html_domain_all(self, postman=None):
+        return JmModuleConfig.get_html_domain_all(postman or self.get_root_postman())
+
+    # noinspection PyMethodMayBeStatic
+    def do_page_iter(self, params: dict, page: int, get_page_method):
+        from math import inf
+        def update(value: Union[Dict], page: int, page_content: JmPageContent):
+            if value is None:
+                return page + 1, page_content.page_count
+
+            ExceptionTool.require_true(isinstance(value, dict), 'require dict params')
+
+            # 根据外界传递的参数，更新params和page
+            page = value.get('page', page)
+            params.update(value)
+
+            return page, inf
+
+        total = inf
+        while page <= total:
+            params['page'] = page
+            page_content = get_page_method(**params)
+            value = yield page_content
+            page, total = update(value, page, page_content)
+
+    def favorite_folder_gen(self,
+                            page=1,
+                            order_by=JmMagicConstants.ORDER_BY_LATEST,
+                            folder_id='0',
+                            username='',
+                            ) -> Generator[JmFavoritePage, Dict, None]:
+        """
+        见 search_gen
+        """
+        params = {
+            'order_by': order_by,
+            'folder_id': folder_id,
+            'username': username,
+        }
+
+        yield from self.do_page_iter(params, page, self.favorite_folder)
+
     def search_gen(self,
                    search_query: str,
                    main_tag=0,
                    page: int = 1,
-                   order_by: str = ORDER_BY_LATEST,
-                   time: str = TIME_ALL,
-                   ):
+                   order_by: str = JmMagicConstants.ORDER_BY_LATEST,
+                   time: str = JmMagicConstants.TIME_ALL,
+                   ) -> Generator[JmSearchPage, Dict, None]:
         """
         搜索结果的生成器，支持下面这种调用方式：
 
@@ -409,56 +480,4 @@ class JmSearchAlbumClient:
             'time': time,
         }
 
-        def search(page):
-            params['page'] = page
-            return self.search(**params)
-
-        from math import inf
-
-        def update(value: Union[Dict], page: int, search_page: JmSearchPage):
-            if value is None:
-                return page + 1, search_page.page_count
-
-            ExceptionTool.require_true(isinstance(value, dict), 'require dict params')
-
-            # 根据外界传递的参数，更新params和page
-            page = value.get('page', page)
-            params.update(value)
-
-            return page, inf
-
-        total = inf
-
-        while page <= total:
-            search_page = search(page)
-            value = yield search_page
-            page, total = update(value, page, search_page)
-
-
-# noinspection PyAbstractClass
-class JmcomicClient(
-    JmImageClient,
-    JmDetailClient,
-    JmUserClient,
-    JmSearchAlbumClient,
-    Postman,
-):
-    client_key: None
-
-    def get_domain_list(self) -> List[str]:
-        """
-        获取当前client的域名配置
-        """
-        raise NotImplementedError
-
-    def set_domain_list(self, domain_list: List[str]):
-        """
-        设置当前client的域名配置
-        """
-        raise NotImplementedError
-
-    def get_html_domain(self, postman=None):
-        return JmModuleConfig.get_html_domain(postman or self.get_root_postman())
-
-    def get_html_domain_all(self, postman=None):
-        return JmModuleConfig.get_html_domain_all(postman or self.get_root_postman())
+        yield from self.do_page_iter(params, page, self.search)

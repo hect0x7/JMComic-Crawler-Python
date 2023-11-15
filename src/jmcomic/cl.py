@@ -77,8 +77,8 @@ class JmcomicUI:
 
     def main(self):
         self.parse_arg()
-        from .api import jm_debug
-        jm_debug('command_line',
+        from .api import jm_log
+        jm_log('command_line',
                  f'start downloading...\n'
                  f'- using option: [{self.option_path or "default"}]\n'
                  f'to be downloaded: \n'

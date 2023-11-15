@@ -140,27 +140,27 @@ def custom_album_photo_image_detail_class():
 
 
 
-## 自定义debug
+## 自定义log
 
 ```python
-def custom_jm_debug():
+def custom_jm_log():
     """
-    该函数演示自定义debug
+    该函数演示自定义log
     """
 
-    # jmcomic模块在运行过程中会使用 jm_debug() 这个函数进行打印信息
-    # jm_debug() 这个函数 最后会调用 JmModuleConfig.debug_executor 函数
-    # 你可以写一个自己的函数，替换 JmModuleConfig.debug_executor，实现自定义debug
+    # jmcomic模块在运行过程中会使用 jm_log() 这个函数进行打印信息
+    # jm_log() 这个函数 最后会调用 JmModuleConfig.log_executor 函数
+    # 你可以写一个自己的函数，替换 JmModuleConfig.log_executor，实现自定义log
     
-    # 1. 自定义debug函数
-    def my_debug(topic: str, msg: str):
+    # 1. 自定义log函数
+    def my_log(topic: str, msg: str):
         """
-        这个debug函数的参数列表必须包含两个参数，topic和msg
-        @param topic: debug主题，例如 'album.before', 'req.error', 'plugin.error'
-        @param msg: 具体debug的信息
+        这个log函数的参数列表必须包含两个参数，topic和msg
+        @param topic: log主题，例如 'album.before', 'req.error', 'plugin.error'
+        @param msg: 具体log的信息
         """
         pass
     
-    # 2. 让my_debug生效
-    JmModuleConfig.debug_executor = my_debug
+    # 2. 让my_log生效
+    JmModuleConfig.log_executor = my_log
 ```
