@@ -115,7 +115,7 @@ class JmcomicText:
 
     @classmethod
     def analyse_jm_search_html(cls, html: str) -> JmSearchPage:
-        return JmSearchTool.parse_html_to_page(html)
+        return JmPageTool.parse_html_to_search_page(html)
 
     @classmethod
     def reflect_new_instance(cls, html: str, cls_field_prefix: str, clazz: type):
@@ -252,7 +252,7 @@ class PatternTool:
         )
 
 
-class JmSearchTool:
+class JmPageTool:
     # 用来缩减html的长度
     pattern_html_search_shorten_for = compile(r'<div class="well well-sm">([\s\S]*)<div class="row">')
 
@@ -273,10 +273,21 @@ class JmSearchTool:
     # 查找错误，例如 [错误，關鍵字過短，請至少輸入兩個字以上。]
     pattern_html_search_error = compile(r'<fieldset>\n<legend>(.*?)</legend>\n<div class=.*?>\n(.*?)\n</div>\n</fieldset>')
 
-    pattern_html_search_total_count = compile(r'<span class="text-white">(\d+)</span> A漫.'), 0
+    pattern_html_search_total = compile(r'<span class="text-white">(\d+)</span> A漫.'), 0
+
+    # 收藏页面的本子结果
+    pattern_html_favorite_content = compile(
+        r'<div id="favorites_album_[^>]*?>[\s\S]*?'
+        r'<a href="/album/(\d+)/">[\s\S]*?'
+        r'<div class="video-title title-truncate">([^<]*?)'
+        r'</div>'
+    )
+
+    # 收藏页面的文件夹收藏总数
+    pattern_html_favorite_total = compile(r' : (\d+)[^/]*/\D*(\d+)')
 
     @classmethod
-    def parse_html_to_page(cls, html: str) -> JmSearchPage:
+    def parse_html_to_search_page(cls, html: str) -> JmSearchPage:
         # 1. 检查是否失败
         PatternTool.require_not_match(
             html,
@@ -292,11 +303,8 @@ class JmSearchTool:
         )
 
         # 3. 提取结果
-        import math
-
         content = []  # content这个名字来源于api版搜索返回值
-        total_count = PatternTool.match_or_default(html, *cls.pattern_html_search_total_count)  # 总结果数
-        page_count = math.ceil(int(total_count) / 80)
+        total = int(PatternTool.match_or_default(html, *cls.pattern_html_search_total))  # 总结果数
 
         album_info_list = cls.pattern_html_search_album_info_list.findall(html)
 
@@ -309,10 +317,30 @@ class JmSearchTool:
                 }
             ))
 
-        return JmSearchPage(content, page_count)
+        return JmSearchPage(content, total)
 
     @classmethod
-    def parse_api_resp_to_page(cls, data: DictModel) -> JmSearchPage:
+    def parse_html_to_favorite_page(cls, html: str) -> JmFavoritePage:
+        total = int(PatternTool.require_match(
+            html,
+            cls.pattern_html_favorite_total,
+            '未匹配到收藏夹的本子总数',
+        ))
+
+        # 收藏页面的本子结果
+        content = cls.pattern_html_favorite_content.findall(html)
+        content = [
+            (aid, {'name': atitle})
+            for aid, atitle in content
+        ]
+
+        # 暂不实现匹配文件夹列表，感觉没什么意义..
+        folder_list = []
+
+        return JmFavoritePage(content, folder_list, total)
+
+    @classmethod
+    def parse_api_to_search_page(cls, data: DictModel) -> JmSearchPage:
         """
         model_data: {
           "search_query": "MANA",
@@ -337,18 +365,64 @@ class JmSearchTool:
         }
         """
         total: int = int(data.total)
+        content = cls.adapt_content(data.content)
+        return JmSearchPage(content, total)
 
+    @classmethod
+    def parse_api_to_favorite_page(cls, data: DictModel) -> JmFavoritePage:
+        """
+        {
+          "list": [
+            {
+              "id": "363859",
+              "author": "紺菓",
+              "description": "",
+              "name": "[無邪氣漢化組] (C99) [紺色果實 (紺菓)] サレンの樂しい夢 (プリンセスコネクト!Re:Dive) [中國翻譯]",
+              "latest_ep": null,
+              "latest_ep_aid": null,
+              "image": "",
+              "category": {
+                "id": "1",
+                "title": "同人"
+              },
+              "category_sub": {
+                "id": "1",
+                "title": "同人"
+              }
+            }
+          ],
+          "folder_list": [
+            {
+              "0": "123",
+              "FID": "123",
+              "1": "456",
+              "UID": "456",
+              "2": "文件夹名",
+              "name": "文件夹名"
+            }
+          ],
+          "total": "87",
+          "count": 20
+        }
+        """
+        total: int = int(data.total)
+        # count: int = int(data.count)
+        content = cls.adapt_content(data.list)
+        folder_list = data.folder_list
+
+        return JmFavoritePage(content, folder_list, total)
+
+    @classmethod
+    def adapt_content(cls, content):
         def adapt_item(item: DictModel):
             item: dict = item.src_dict
             item.setdefault('tag_list', [])
             return item
 
         content = [
-            (item.id, adapt_item(item))
-            for item in data.content
+            (item.id, adapt_item(item)) for item in content
         ]
-
-        return JmSearchPage(content, total)
+        return content
 
 
 class JmApiAdaptTool:
@@ -585,11 +659,11 @@ class JmImageTool:
 
         if aid < scramble_id:
             return 0
-        elif aid < JmModuleConfig.SCRAMBLE_268850:
+        elif aid < JmMagicConstants.SCRAMBLE_268850:
             return 10
         else:
             import hashlib
-            x = 10 if aid < JmModuleConfig.SCRAMBLE_421926 else 8
+            x = 10 if aid < JmMagicConstants.SCRAMBLE_421926 else 8
             s = f"{aid}{filename}"  # 拼接
             s = s.encode()
             s = hashlib.md5(s).hexdigest()

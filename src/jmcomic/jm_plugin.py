@@ -34,8 +34,8 @@ class JmOptionPlugin:
         return cls(option)
 
     @classmethod
-    def debug(cls, msg, topic=None):
-        jm_debug(
+    def log(cls, msg, topic=None):
+        jm_log(
             topic=f'plugin.{cls.plugin_key}' + (f'.{topic}' if topic is not None else ''),
             msg=msg
         )
@@ -49,7 +49,7 @@ class JmOptionPlugin:
 
         raise PluginValidationException(self, msg)
 
-    def warning_lib_not_install(self, lib='psutil'):
+    def warning_lib_not_install(self, lib: str):
         msg = (f'插件`{self.plugin_key}`依赖库: {lib}，请先安装{lib}再使用。'
                f'安装命令: [pip install {lib}]')
         import warnings
@@ -71,13 +71,12 @@ class JmLoginPlugin(JmOptionPlugin):
 
         client = self.option.new_jm_client()
         client.login(username, password)
-        cookies = client['cookies']
 
-        postman: dict = self.option.client.postman.src_dict
-        meta_data = postman.get('meta_data', {})
-        meta_data['cookies'] = cookies
-        postman['meta_data'] = meta_data
-        self.debug('登录成功')
+        cookies = dict(client['cookies'])
+        self.option.update_cookies(cookies)
+        JmModuleConfig.APP_COOKIES = cookies
+
+        self.log('登录成功')
 
 
 class UsageLogPlugin(JmOptionPlugin):
@@ -146,7 +145,7 @@ class UsageLogPlugin(JmOptionPlugin):
             if len(warning_msg_list) != 0:
                 warning_msg_list.insert(0, '硬件占用告警，占用过高可能导致系统卡死！')
                 warning_msg_list.append('')
-                self.debug('\n'.join(warning_msg_list), topic='warning')
+                self.log('\n'.join(warning_msg_list), topic='warning')
 
         while True:
             # 获取CPU占用率（0~100）
@@ -167,7 +166,7 @@ class UsageLogPlugin(JmOptionPlugin):
                 # f"发送的字节数: {network_bytes_sent}",
                 # f"接收的字节数: {network_bytes_received}",
             ])
-            self.debug(msg, topic='log')
+            self.log(msg, topic='log')
 
             if enable_warning is True:
                 # 警告
@@ -211,11 +210,12 @@ class FindUpdatePlugin(JmOptionPlugin):
             return photo_ls
 
         class FindUpdateDownloader(JmDownloader):
-            def filter_iter_objs(self, iter_objs):
-                if not isinstance(iter_objs, JmAlbumDetail):
-                    return iter_objs
+            def filter_iter_objs(self, detail):
+                if not detail.is_album():
+                    return detail
 
-                return find_update(iter_objs)
+                detail: JmAlbumDetail
+                return find_update(detail)
 
         # 调用下载api，指定option和downloader
         download_album(
@@ -318,7 +318,7 @@ class ZipPlugin(JmOptionPlugin):
 
     def do_zip(self, source_dir, zip_path, all_filepath, msg):
         if len(all_filepath) == 0:
-            self.debug('无下载文件，无需压缩', 'skip')
+            self.log('无下载文件，无需压缩', 'skip')
             return None
 
         from common import backup_dir_to_zip
@@ -328,7 +328,7 @@ class ZipPlugin(JmOptionPlugin):
             acceptor=lambda f: os.path.isdir(f) or self.unified_path(f) in all_filepath
         ).close()
 
-        self.debug(msg, 'finish')
+        self.log(msg, 'finish')
         return self.unified_path(source_dir)
 
     def after_zip(self, dir_zip_dict: Dict[str, Optional[str]]):
@@ -365,13 +365,13 @@ class ZipPlugin(JmOptionPlugin):
                         continue
 
                     os.remove(f)
-                    self.debug(f'删除原文件: {f}', 'remove')
+                    self.log(f'删除原文件: {f}', 'remove')
 
         for d in sorted(dir_list, reverse=True):
             # check exist
             if file_exists(d):
                 os.rmdir(d)
-                self.debug(f'删除文件夹: {d}', 'remove')
+                self.log(f'删除文件夹: {d}', 'remove')
 
 
 class ClientProxyPlugin(JmOptionPlugin):
@@ -394,7 +394,7 @@ class ClientProxyPlugin(JmOptionPlugin):
             if whitelist is not None and client.client_key not in whitelist:
                 return client
 
-            self.debug(f'proxy client {client} with {proxy_clazz}')
+            self.log(f'proxy client {client} with {proxy_clazz}')
             return proxy_clazz(client, **clazz_init_kwargs)
 
         self.option.new_jm_client = hook_new_jm_client
@@ -415,8 +415,8 @@ class ImageSuffixFilterPlugin(JmOptionPlugin):
 
         def apply_filter_then_decide_cache(image: JmImageDetail):
             if image.img_file_suffix not in allowed_suffix_set:
-                self.debug(f'跳过下载图片: {image.tag}，'
-                           f'因为其后缀\'{image.img_file_suffix}\'不在允许的后缀集合{allowed_suffix_set}内')
+                self.log(f'跳过下载图片: {image.tag}，'
+                         f'因为其后缀\'{image.img_file_suffix}\'不在允许的后缀集合{allowed_suffix_set}内')
                 # hook is_exists True to skip download
                 image.is_exists = True
                 return True
@@ -446,25 +446,25 @@ class SendQQEmailPlugin(JmOptionPlugin):
         epostman = econfig.create_email_postman()
         epostman.send(content, title)
 
-        self.debug('Email sent successfully')
+        self.log('Email sent successfully')
 
 
-class DebugTopicFilterPlugin(JmOptionPlugin):
-    plugin_key = 'debug_topic_filter'
+class LogTopicFilterPlugin(JmOptionPlugin):
+    plugin_key = 'log_topic_filter'
 
     def invoke(self, whitelist) -> None:
         if whitelist is not None:
             whitelist = set(whitelist)
 
-        old_jm_debug = JmModuleConfig.debug_executor
+        old_jm_log = JmModuleConfig.log_executor
 
-        def new_jm_debug(topic, msg):
+        def new_jm_log(topic, msg):
             if whitelist is not None and topic not in whitelist:
                 return
 
-            old_jm_debug(topic, msg)
+            old_jm_log(topic, msg)
 
-        JmModuleConfig.debug_executor = new_jm_debug
+        JmModuleConfig.log_executor = new_jm_log
 
 
 class AutoSetBrowserCookiesPlugin(JmOptionPlugin):
@@ -510,10 +510,10 @@ class AutoSetBrowserCookiesPlugin(JmOptionPlugin):
             if isinstance(e, ImportError):
                 self.warning_lib_not_install('browser_cookie3')
             else:
-                self.debug('获取浏览器cookies失败，请关闭浏览器重试')
+                self.log('获取浏览器cookies失败，请关闭浏览器重试')
             return
 
         self.option.update_cookies(
             {k: v for k, v in cookies.items() if k in self.accepted_cookies_keys}
         )
-        self.debug('获取浏览器cookies成功')
+        self.log('获取浏览器cookies成功')

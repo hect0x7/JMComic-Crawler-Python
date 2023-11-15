@@ -13,7 +13,7 @@ meta_data = {
     # 'proxies': ProxyBuilder.clash_proxy()
 }
 
-disable_jm_debug()
+disable_jm_log()
 
 
 def get_domain_ls():

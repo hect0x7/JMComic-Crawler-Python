@@ -27,7 +27,7 @@ class Test_Custom(JmTestConfigurable):
         base_dir: str = workspace()
         dir_rule = DirRule('Bd_Aaname_Ppname', base_dir)
         # noinspection PyTypeChecker
-        save_dir = dir_rule.deside_image_save_dir(
+        save_dir = dir_rule.decide_image_save_dir(
             MyAlbum('1', '0', '0', [], *['0'] * 10),
             MyPhoto('2', *['0'] * 7)
         )

@@ -189,13 +189,13 @@ class Test_Client(JmTestConfigurable):
         cases = {
             152637: {
                 'search_query': '无修正',
-                'order_by': JmSearchAlbumClient.ORDER_BY_LIKE,
-                'time': JmSearchAlbumClient.TIME_ALL,
+                'order_by': JmMagicConstants.ORDER_BY_LIKE,
+                'time': JmMagicConstants.TIME_ALL,
             },
             147643: {
                 'search_query': '无修正',
-                'order_by': JmSearchAlbumClient.ORDER_BY_PICTURE,
-                'time': JmSearchAlbumClient.TIME_ALL,
+                'order_by': JmMagicConstants.ORDER_BY_PICTURE,
+                'time': JmMagicConstants.TIME_ALL,
             },
         }
 
@@ -253,16 +253,16 @@ class Test_Client(JmTestConfigurable):
                 self.assertEqual(ans, id(photo))
 
     def test_search_generator(self):
-        JmModuleConfig.decode_url_when_debug = False
+        JmModuleConfig.decode_url_when_logging = False
 
         gen = self.client.search_gen('MANA')
         for i, page in enumerate(gen):
-            print(page.page_count)
+            print(page.total)
             page = gen.send({
                 'search_query': 'MANA +无修正',
                 'page': 1
             })
-            print(page.page_count)
+            print(page.total)
             break
 
     def test_cache_level(self):

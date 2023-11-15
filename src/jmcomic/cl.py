@@ -77,13 +77,13 @@ class JmcomicUI:
 
     def main(self):
         self.parse_arg()
-        from .api import jm_debug
-        jm_debug('command_line',
-                 f'start downloading...\n'
-                 f'- using option: [{self.option_path or "default"}]\n'
-                 f'to be downloaded: \n'
-                 f'- album: {self.album_id_list}\n'
-                 f'- photo: {self.photo_id_list}')
+        from .api import jm_log
+        jm_log('command_line',
+               f'start downloading...\n'
+               f'- using option: [{self.option_path or "default"}]\n'
+               f'to be downloaded: \n'
+               f'- album: {self.album_id_list}\n'
+               f'- photo: {self.photo_id_list}')
 
         from .api import create_option, JmOption
         if self.option_path is not None:

@@ -1,7 +1,7 @@
 from .jm_client_interface import *
 
 
-# 抽象基类，实现了域名管理，发请求，重试机制，debug，缓存等功能
+# 抽象基类，实现了域名管理，发请求，重试机制，log，缓存等功能
 class AbstractJmClient(
     JmcomicClient,
     PostmanProxy,
@@ -79,20 +79,20 @@ class AbstractJmClient(
                 api_path=url,
                 domain=self.domain_list[domain_index],
             )
-            jm_debug(self.debug_topic_request(), self.decode(url))
+            jm_log(self.log_topic(), self.decode(url))
         else:
             # 图片url
             pass
 
         if domain_index != 0 or retry_count != 0:
-            jm_debug(f'req.retry',
-                     ', '.join([
-                         f'次数: [{retry_count}/{self.retry_times}]',
-                         f'域名: [{domain_index} of {self.domain_list}]',
-                         f'路径: [{url}]',
-                         f'参数: [{kwargs if "login" not in url else "#login_form#"}]'
-                     ])
-                     )
+            jm_log(f'req.retry',
+                   ', '.join([
+                       f'次数: [{retry_count}/{self.retry_times}]',
+                       f'域名: [{domain_index} of {self.domain_list}]',
+                       f'路径: [{url}]',
+                       f'参数: [{kwargs if "login" not in url else "#login_form#"}]'
+                   ])
+                   )
 
         try:
             resp = request(url, **kwargs)
@@ -106,12 +106,12 @@ class AbstractJmClient(
             return self.request_with_retry(request, url, domain_index + 1, 0, judge, **kwargs)
 
     # noinspection PyMethodMayBeStatic
-    def debug_topic_request(self):
+    def log_topic(self):
         return self.client_key
 
     # noinspection PyMethodMayBeStatic, PyUnusedLocal
     def before_retry(self, e, kwargs, retry_count, url):
-        jm_debug('req.error', str(e))
+        jm_log('req.error', str(e))
 
     def enable_cache(self):
         # noinspection PyDefaultArgument,PyShadowingBuiltins
@@ -176,7 +176,7 @@ class AbstractJmClient(
     # noinspection PyUnusedLocal
     def fallback(self, request, url, domain_index, retry_count, **kwargs):
         msg = f"请求重试全部失败: [{url}], {self.domain_list}"
-        jm_debug('req.fallback', msg)
+        jm_log('req.fallback', msg)
         ExceptionTool.raises(msg)
 
     # noinspection PyMethodMayBeStatic
@@ -190,7 +190,7 @@ class AbstractJmClient(
 
     # noinspection PyMethodMayBeStatic
     def decode(self, url: str):
-        if not JmModuleConfig.decode_url_when_debug or '/search/' not in url:
+        if not JmModuleConfig.decode_url_when_logging or '/search/' not in url:
             return url
 
         from urllib.parse import unquote
@@ -268,10 +268,12 @@ class JmHtmlClient(AbstractJmClient):
     def login(self,
               username,
               password,
-              refresh_client_cookies=True,
               id_remember='on',
               login_remember='on',
               ):
+        """
+        返回response响应对象
+        """
 
         data = {
             'username': username,
@@ -289,10 +291,44 @@ class JmHtmlClient(AbstractJmClient):
         if resp.status_code != 301:
             ExceptionTool.raises_resp(f'登录失败，状态码为{resp.status_code}', resp)
 
-        if refresh_client_cookies is True:
-            self['cookies'] = resp.cookies
+        orig_cookies = self.get_meta_data('cookies') or {}
+        new_cookies = dict(resp.cookies)
+        # 重复登录下存在bug，AVS会丢失
+        if 'AVS' in orig_cookies and 'AVS' not in new_cookies:
+            return resp
+
+        self['cookies'] = new_cookies
 
         return resp
+
+    def favorite_folder(self,
+                        page=1,
+                        order_by=JmMagicConstants.ORDER_BY_LATEST,
+                        folder_id='0',
+                        username='',
+                        ) -> JmFavoritePage:
+        if username == '':
+            username = self.get_username_or_raise()
+
+        resp = self.get_jm_html(
+            f'/user/{username}/favorite/albums',
+            params={
+                'page': page,
+                'o': order_by,
+                'folder_id': folder_id,
+            }
+        )
+
+        return JmPageTool.parse_html_to_favorite_page(resp.text)
+
+    # noinspection PyTypeChecker
+    def get_username_or_raise(self) -> str:
+        cookies = self.get_meta_data('cookies', None)
+        if not cookies:
+            ExceptionTool.raises('未登录，无法获取到对应的用户名，需要传username参数')
+
+        # 解析cookies，可能需要用到 phpserialize，比较麻烦，暂不实现
+        ExceptionTool.raises('需要传username参数')
 
     def get_jm_html(self, url, require_200=True, **kwargs):
         """
@@ -349,10 +385,10 @@ class JmHtmlClient(AbstractJmClient):
             data['is_reply'] = 1
             data['forum_subject'] = 1
 
-        jm_debug('album.comment',
-                 f'{video_id}: [{comment}]' +
-                 (f' to ({comment_id})' if comment_id is not None else '')
-                 )
+        jm_log('album.comment',
+               f'{video_id}: [{comment}]' +
+               (f' to ({comment_id})' if comment_id is not None else '')
+               )
 
         resp = self.post('/ajax/album_comment',
                          headers=JmModuleConfig.album_comment_headers,
@@ -360,7 +396,7 @@ class JmHtmlClient(AbstractJmClient):
                          )
 
         ret = JmAcResp(resp)
-        jm_debug('album.comment', f'{video_id}: [{comment}] ← ({ret.model().cid})')
+        jm_log('album.comment', f'{video_id}: [{comment}] ← ({ret.model().cid})')
 
         return ret
 
@@ -370,13 +406,30 @@ class JmHtmlClient(AbstractJmClient):
         :param resp: 响应对象
         :param orig_req_url: /photo/12412312
         """
-        # 1. 检查是否 album_missing
-        error_album_missing = '/error/album_missing'
-        if resp.url.endswith(error_album_missing) and not orig_req_url.endswith(error_album_missing):
+        resp_url: str = resp.url
+
+        # 1. 是否是特殊的内容
+        cls.check_special_text(resp)
+
+        # 2. 检查响应发送重定向，重定向url是否表示错误网页，即 /error/xxx
+        if resp.redirect_count == 0 or '/error/' not in resp_url:
+            return
+
+        # 3. 检查错误类型
+        def match_case(error_path):
+            return resp_url.endswith(error_path) and not orig_req_url.endswith(error_path)
+
+        # 3.1 album_missing
+        if match_case('/error/album_missing'):
             ExceptionTool.raise_missing(resp, orig_req_url)
 
-        # 2. 是否是特殊的内容
-        cls.check_special_text(resp)
+        # 3.2 user_missing
+        if match_case('/error/user_missing'):
+            ExceptionTool.raises_resp('此用戶名稱不存在，或者你没有登录，請再次確認使用名稱', resp)
+
+        # 3.3 invalid_module
+        if match_case('/error/invalid_module'):
+            ExceptionTool.raises_resp('發生了無法預期的錯誤。若問題持續發生，請聯繫客服支援', resp)
 
     @classmethod
     def check_special_text(cls, resp):
@@ -423,6 +476,7 @@ class JmApiClient(AbstractJmClient):
     API_ALBUM = '/album'
     API_CHAPTER = '/chapter'
     API_SCRAMBLE = '/chapter_view_template'
+    API_FAVORITE = '/favorite'
 
     def search(self,
                search_query: str,
@@ -439,7 +493,7 @@ class JmApiClient(AbstractJmClient):
             't': time,
         }
 
-        resp = self.get_decode(self.append_params_to_url(self.API_SEARCH, params))
+        resp = self.req_api(self.append_params_to_url(self.API_SEARCH, params))
 
         # 直接搜索禁漫车号，发生重定向的响应数据 resp.model_data
         # {
@@ -453,7 +507,7 @@ class JmApiClient(AbstractJmClient):
             aid = data.redirect_aid
             return JmSearchPage.wrap_single_album(self.get_album_detail(aid))
 
-        return JmSearchTool.parse_api_resp_to_page(data)
+        return JmPageTool.parse_api_to_search_page(data)
 
     def get_album_detail(self, album_id) -> JmAlbumDetail:
         return self.fetch_detail_entity(album_id,
@@ -475,7 +529,7 @@ class JmApiClient(AbstractJmClient):
 
     def get_scramble_id(self, photo_id, album_id=None):
         """
-        带有缓存的fetch_scramble_id，缓存位于JmModuleConfig.SCRAMBLE_CACHE
+        带有缓存的fetch_scramble_id，缓存位于 JmModuleConfig.SCRAMBLE_CACHE
         """
         cache = JmModuleConfig.SCRAMBLE_CACHE
         if photo_id in cache:
@@ -497,7 +551,7 @@ class JmApiClient(AbstractJmClient):
         """
         apid = JmcomicText.parse_to_jm_id(apid)
         url = self.API_ALBUM if issubclass(clazz, JmAlbumDetail) else self.API_CHAPTER
-        resp = self.get_decode(
+        resp = self.req_api(
             url,
             params={
                 'id': apid,
@@ -513,7 +567,7 @@ class JmApiClient(AbstractJmClient):
         请求scramble_id
         """
         photo_id: str = JmcomicText.parse_to_jm_id(photo_id)
-        resp = self.get_decode(
+        resp = self.req_api(
             self.API_SCRAMBLE,
             params={
                 "id": photo_id,
@@ -528,8 +582,8 @@ class JmApiClient(AbstractJmClient):
                                                    None,
                                                    )
         if scramble_id is None:
-            jm_debug('api.scramble', f'未匹配到scramble_id，响应文本：{resp.text}')
-            scramble_id = str(JmModuleConfig.SCRAMBLE_220980)
+            jm_log('api.scramble', f'未匹配到scramble_id，响应文本：{resp.text}')
+            scramble_id = str(JmMagicConstants.SCRAMBLE_220980)
 
         return scramble_id
 
@@ -598,7 +652,7 @@ class JmApiClient(AbstractJmClient):
           "float_ad": true
         }
         """
-        resp = self.get_decode('/setting')
+        resp = self.req_api('/setting')
         return resp
 
     def login(self,
@@ -607,25 +661,75 @@ class JmApiClient(AbstractJmClient):
               refresh_client_cookies=True,
               id_remember='on',
               login_remember='on',
-              ):
-        jm_debug('api.login', '禁漫移动端无需登录，调用login不会做任何操作')
-        pass
+              ) -> JmApiResp:
+        """
+        {
+          "uid": "123",
+          "username": "x",
+          "email": "x",
+          "emailverified": "yes",
+          "photo": "x",
+          "fname": "",
+          "gender": "x",
+          "message": "Welcome x!",
+          "coin": 123,
+          "album_favorites": 123,
+          "s": "x",
+          "level_name": "x",
+          "level": 1,
+          "nextLevelExp": 123,
+          "exp": "123",
+          "expPercent": 123,
+          "badges": [],
+          "album_favorites_max": 123
+        }
 
-    def get_decode(self, url, **kwargs) -> JmApiResp:
+        """
+        resp = self.req_api('/login', False, data={
+            'username': username,
+            'password': password,
+        })
+
+        resp.require_success()
+        cookies = dict(resp.resp.cookies)
+        cookies.update({'AVS': resp.res_data['s']})
+        self['cookies'] = cookies
+
+        return resp
+
+    def favorite_folder(self,
+                        page=1,
+                        order_by=JmMagicConstants.ORDER_BY_LATEST,
+                        folder_id='0',
+                        username='',
+                        ) -> JmFavoritePage:
+        resp = self.req_api(
+            self.API_FAVORITE,
+            params={
+                'page': page,
+                'folder_id': folder_id,
+                'o': order_by,
+            }
+        )
+
+        return JmPageTool.parse_api_to_favorite_page(resp.model_data)
+
+    def req_api(self, url, get=True, **kwargs) -> JmApiResp:
         # set headers
         headers, key_ts = self.headers_key_ts
         kwargs['headers'] = headers
 
-        resp = self.get(url, **kwargs)
+        if get:
+            resp = self.get(url, **kwargs)
+        else:
+            resp = self.post(url, **kwargs)
+
         return JmApiResp.wrap(resp, key_ts)
 
     @property
     def headers_key_ts(self):
         key_ts = time_stamp()
         return JmModuleConfig.new_api_headers(key_ts), key_ts
-
-    def debug_topic_request(self):
-        return 'api'
 
     @classmethod
     def require_resp_success(cls, resp: JmApiResp, orig_req_url: str):
