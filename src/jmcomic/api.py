@@ -19,7 +19,7 @@ def download_batch(download_api,
     from common import multi_thread_launcher
 
     if option is None:
-        option = JmOption.default()
+        option = JmModuleConfig.option_class().default()
 
     return multi_thread_launcher(
         iter_objs=set(

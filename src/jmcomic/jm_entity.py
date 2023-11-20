@@ -457,7 +457,7 @@ class JmPageContent(JmBaseEntity, IndexedEntity):
           album_id, {title, tag_list, ...}
         ]
         :param content: 分页数据
-        :param total: 一共多少页
+        :param total: 总结果数
         """
         self.content = content
         self.total = total
@@ -513,7 +513,6 @@ class JmSearchPage(JmPageContent):
 
     @property
     def page_size(self) -> int:
-        from .jm_client_interface import JmMagicConstants
         return JmMagicConstants.PAGE_SIZE_SEARCH
 
     # 下面的方法是对单个album的包装
@@ -533,7 +532,7 @@ class JmSearchPage(JmPageContent):
                 'name': album.name,
                 'tag_list': album.tags,
             }
-        )], -1)
+        )], 1)
         setattr(page, 'album', album)
         return page
 
@@ -553,3 +552,11 @@ class JmFavoritePage(JmPageContent):
     @property
     def page_size(self) -> int:
         return JmMagicConstants.PAGE_SIZE_FAVORITE
+
+    def folder_id_name_iter(self) -> Generator[Tuple[str, str], None, None]:
+        """
+        用户文件夹的迭代器
+        """
+        for folder_info in self.folder_list:
+            fid, fname = folder_info['FID'], folder_info['name']
+            yield fid, fname

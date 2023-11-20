@@ -216,6 +216,7 @@ class JmHtmlClient(AbstractJmClient):
         # 一并获取该章节的所处本子
         # todo: 可优化，获取章节所在本子，其实不需要等待章节获取完毕后。
         #  可以直接调用 self.get_album_detail(photo_id)，会重定向返回本子的HTML
+        # (had polished by FutureClientProxy)
         if fetch_album is True:
             photo.from_album = self.get_album_detail(photo.album_id)
 
@@ -594,7 +595,7 @@ class JmApiClient(AbstractJmClient):
         2. album
         如果都需要获取，会排队，效率低
 
-        todo: 改进实现
+        todo: 改进实现 (had polished by FutureClientProxy)
         1. 直接开两个线程跑
         2. 开两个线程，但是开之前检查重复性
         3. 线程池，也要检查重复性
@@ -658,9 +659,6 @@ class JmApiClient(AbstractJmClient):
     def login(self,
               username,
               password,
-              refresh_client_cookies=True,
-              id_remember='on',
-              login_remember='on',
               ) -> JmApiResp:
         """
         {

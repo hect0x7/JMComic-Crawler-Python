@@ -120,7 +120,7 @@ class JmcomicText:
     @classmethod
     def reflect_new_instance(cls, html: str, cls_field_prefix: str, clazz: type):
 
-        def match_field(field_key: str, pattern: Union[Pattern, List[Pattern]], text):
+        def match_field(field_name: str, pattern: Union[Pattern, List[Pattern]], text):
 
             if isinstance(pattern, list):
                 # 如果是 pattern 是 List[re.Pattern]，
@@ -136,7 +136,7 @@ class JmcomicText:
 
                 return last_pattern.findall(text)
 
-            if field_key.endswith("_list"):
+            if field_name.endswith("_list"):
                 return pattern.findall(text)
             else:
                 match = pattern.search(text)
@@ -283,8 +283,14 @@ class JmPageTool:
         r'</div>'
     )
 
-    # 收藏页面的文件夹收藏总数
+    # 收藏夹的收藏总数
     pattern_html_favorite_total = compile(r' : (\d+)[^/]*/\D*(\d+)')
+
+    # 所有的收藏夹
+    pattern_html_favorite_folder_list = [
+        compile(r'<select class="user-select" name="movefolder-fid">([\s\S]*)</select>'),
+        compile(r'<option value="(\d+)">([^<]*?)</option>')
+    ]
 
     @classmethod
     def parse_html_to_search_page(cls, html: str) -> JmSearchPage:
@@ -327,15 +333,18 @@ class JmPageTool:
             '未匹配到收藏夹的本子总数',
         ))
 
-        # 收藏页面的本子结果
+        # 收藏夹的本子结果
         content = cls.pattern_html_favorite_content.findall(html)
         content = [
             (aid, {'name': atitle})
             for aid, atitle in content
         ]
 
-        # 暂不实现匹配文件夹列表，感觉没什么意义..
-        folder_list = []
+        # 匹配收藏夹列表
+        p1, p2 = cls.pattern_html_favorite_folder_list
+        folder_list_text = PatternTool.require_match(html, p1, '未匹配到收藏夹列表')
+        folder_list_raw = p2.findall(folder_list_text)
+        folder_list = [{'name': fname, 'FID': fid} for fid, fname in folder_list_raw]
 
         return JmFavoritePage(content, folder_list, total)
 
@@ -397,8 +406,8 @@ class JmPageTool:
               "FID": "123",
               "1": "456",
               "UID": "456",
-              "2": "文件夹名",
-              "name": "文件夹名"
+              "2": "收藏夹名",
+              "name": "收藏夹名"
             }
           ],
           "total": "87",
@@ -408,7 +417,7 @@ class JmPageTool:
         total: int = int(data.total)
         # count: int = int(data.count)
         content = cls.adapt_content(data.list)
-        folder_list = data.folder_list
+        folder_list = data.get('folder_list', [])
 
         return JmFavoritePage(content, folder_list, total)
 
