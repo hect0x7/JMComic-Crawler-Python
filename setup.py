@@ -27,10 +27,11 @@ setup(
     package_dir={"": "src"},
     python_requires=">=3.7",
     install_requires=[
-        'commonX>=0.6.2',
+        'commonX>=0.6.3',
         'curl_cffi',
         'PyYAML',
         'Pillow',
+        'pycryptodome',
     ],
     keywords=['python', 'jmcomic', '18comic', '禁漫天堂', 'NSFW'],
     classifiers=[

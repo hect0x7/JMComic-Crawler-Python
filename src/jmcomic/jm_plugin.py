@@ -185,11 +185,9 @@ class FindUpdatePlugin(JmOptionPlugin):
     def invoke(self, **kwargs) -> None:
         self.download_album_with_find_update(kwargs or {})
 
-    def download_album_with_find_update(self, dic):
+    def download_album_with_find_update(self, dic: Dict[str, int]):
         from .api import download_album
         from .jm_downloader import JmDownloader
-
-        dic: Dict[str, int]
 
         # 带入漫画id, 章节id(第x章)，寻找该漫画下第x章节後的所有章节Id
         def find_update(album: JmAlbumDetail):

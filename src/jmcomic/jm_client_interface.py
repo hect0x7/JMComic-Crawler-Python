@@ -192,9 +192,13 @@ class JmDetailClient:
 class JmUserClient:
 
     def login(self,
-              username,
-              password,
+              username: str,
+              password: str,
               ):
+        """
+        1. 返回response响应对象
+        2. 保证当前client拥有登录cookies
+        """
         raise NotImplementedError
 
     def album_comment(self,
