@@ -283,7 +283,7 @@ class JmPageTool:
         r'</div>'
     )
 
-    # 收藏页面的文件夹收藏总数
+    # 收藏夹的收藏总数
     pattern_html_favorite_total = compile(r' : (\d+)[^/]*/\D*(\d+)')
 
     # 所有的收藏夹
@@ -333,16 +333,16 @@ class JmPageTool:
             '未匹配到收藏夹的本子总数',
         ))
 
-        # 收藏页面的本子结果
+        # 收藏夹的本子结果
         content = cls.pattern_html_favorite_content.findall(html)
         content = [
             (aid, {'name': atitle})
             for aid, atitle in content
         ]
 
-        # 匹配文件夹列表
+        # 匹配收藏夹列表
         p1, p2 = cls.pattern_html_favorite_folder_list
-        folder_list_text = PatternTool.require_match(html, p1, '未匹配到文件夹列表')
+        folder_list_text = PatternTool.require_match(html, p1, '未匹配到收藏夹列表')
         folder_list_raw = p2.findall(folder_list_text)
         folder_list = [{'name': fname, 'FID': fid} for fid, fname in folder_list_raw]
 
@@ -406,8 +406,8 @@ class JmPageTool:
               "FID": "123",
               "1": "456",
               "UID": "456",
-              "2": "文件夹名",
-              "name": "文件夹名"
+              "2": "收藏夹名",
+              "name": "收藏夹名"
             }
           ],
           "total": "87",
