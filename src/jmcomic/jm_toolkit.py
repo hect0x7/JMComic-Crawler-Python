@@ -177,7 +177,7 @@ class JmcomicText:
 
     @classmethod
     def format_url(cls, path, domain):
-        assert isinstance(domain, str) and len(domain) != 0
+        ExceptionTool.require_true(isinstance(domain, str) and len(domain) != 0, '域名为空')
 
         if domain.startswith(JmModuleConfig.PROT):
             return f'{domain}{path}'
@@ -202,7 +202,7 @@ class JmcomicText:
     def match_os_env(cls, match: Match) -> str:
         name = match[1]
         value = os.getenv(name, None)
-        assert value is not None, f"未配置环境变量: {name}"
+        ExceptionTool.require_true(value is not None, f'未配置环境变量: {name}')
         return value
 
     dsl_replacer = DSLReplacer()
@@ -841,7 +841,7 @@ class JmCryptoTool:
 
     @classmethod
     def md5hex(cls, key: str):
-        assert isinstance(key, str)
+        ExceptionTool.require_true(isinstance(key, str), 'key参数需为字符串')
 
         from hashlib import md5
         return md5(key.encode("utf-8")).hexdigest()
