@@ -47,6 +47,7 @@ $ jmcomic 422866
 ## 项目特点
 
 - **绕过Cloudflare的反爬虫**
+- **实现禁漫APP接口最新的加解密算法 (1.6.3)**
 - 用法多样：
 
   - GitHub Actions：网页上直接输入本子id就能下载（[教程：使用GitHub Actions下载禁漫本子](./assets/docs/sources/tutorial/1_github_actions.md)）
