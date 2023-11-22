@@ -177,7 +177,7 @@ class JmcomicText:
 
     @classmethod
     def format_url(cls, path, domain):
-        assert isinstance(domain, str) and len(domain) != 0
+        ExceptionTool.require_true(isinstance(domain, str) and len(domain) != 0, '域名为空')
 
         if domain.startswith(JmModuleConfig.PROT):
             return f'{domain}{path}'
@@ -202,7 +202,7 @@ class JmcomicText:
     def match_os_env(cls, match: Match) -> str:
         name = match[1]
         value = os.getenv(name, None)
-        assert value is not None, f"未配置环境变量: {name}"
+        ExceptionTool.require_true(value is not None, f'未配置环境变量: {name}')
         return value
 
     dsl_replacer = DSLReplacer()
@@ -778,3 +778,70 @@ class ExceptionTool:
             raises(old, msg, extra)
 
         JmModuleConfig.raise_exception_executor = new
+
+
+class JmCryptoTool:
+    """
+    禁漫加解密相关逻辑
+    """
+
+    @classmethod
+    def token_and_tokenparam(cls,
+                             ts,
+                             ver=JmMagicConstants.APP_VERSION,
+                             secret=JmMagicConstants.APP_TOKEN_SECRET,
+                             ):
+        """
+        计算禁漫接口的请求headers的token和tokenparam
+
+        :param ts: 时间戳
+        :param ver: app版本
+        :param secret: 密钥
+        :return (token, tokenparam)
+        """
+
+        # tokenparam: 1700566805,1.6.3
+        tokenparam = '{},{}'.format(ts, ver)
+
+        # token: 81498a20feea7fbb7149c637e49702e3
+        token = cls.md5hex(f'{ts}{secret}')
+
+        return token, tokenparam
+
+    @classmethod
+    def decode_resp_data(cls,
+                         data: str,
+                         ts,
+                         secret=JmMagicConstants.APP_DATA_SECRET,
+                         ) -> str:
+        """
+        解密接口返回值
+
+        :param data: data = resp.json()['data]
+        :param ts: 时间戳
+        :param secret: 密钥
+        :return: json格式的字符串
+        """
+        # 1. base64解码
+        import base64
+        data_b64 = base64.b64decode(data)
+
+        # 2. AES-ECB解密
+        key = cls.md5hex(f'{ts}{secret}').encode('utf-8')
+        from Crypto.Cipher import AES
+        data_aes = AES.new(key, AES.MODE_ECB).decrypt(data_b64)
+
+        # 3. 移除末尾的一些特殊字符
+        data = data_aes[:-data_aes[-1]]
+
+        # 4. 解码为字符串 (json)
+        res = data.decode('utf-8')
+
+        return res
+
+    @classmethod
+    def md5hex(cls, key: str):
+        ExceptionTool.require_true(isinstance(key, str), 'key参数需为字符串')
+
+        from hashlib import md5
+        return md5(key.encode("utf-8")).hexdigest()

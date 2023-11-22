@@ -46,7 +46,7 @@ class CacheRegistry:
 
         elif isinstance(cache, str):
             func = getattr(cls, cache, None)
-            assert func is not None, f'未实现的cache配置名: {cache}'
+            ExceptionTool.require_true(func is not None, f'未实现的cache配置名: {cache}')
             cache = func
 
         cache: Callable

@@ -68,45 +68,21 @@ class JmImageResp(JmResp):
 
 class JmApiResp(JmResp):
 
-    @classmethod
-    def wrap(cls, resp, key_ts):
+    def __init__(self, resp, ts: str):
         ExceptionTool.require_true(not isinstance(resp, JmApiResp), f'重复包装: {resp}')
 
-        return cls(resp, key_ts)
-
-    def __init__(self, resp, key_ts):
         super().__init__(resp)
-        self.key_ts = key_ts
+        self.ts = ts
         self.cache_decode_data = None
 
     @property
     def is_success(self) -> bool:
         return super().is_success and self.json()['code'] == 200
 
-    @staticmethod
-    def parse_data(text, time) -> str:
-        # 1. base64解码
-        import base64
-        data = base64.b64decode(text)
-
-        # 2. AES-ECB解密
-        # key = 时间戳拼接 '18comicAPPContent' 的md5
-        import hashlib
-        key = hashlib.md5(f"{time}18comicAPPContent".encode("utf-8")).hexdigest().encode("utf-8")
-        from Crypto.Cipher import AES
-        data = AES.new(key, AES.MODE_ECB).decrypt(data)
-
-        # 3. 移除末尾的一些特殊字符
-        data = data[:-data[-1]]
-
-        # 4. 解码为字符串 (json)
-        res = data.decode('utf-8')
-        return res
-
     @property
     @field_cache('__cache_decoded_data__')
     def decoded_data(self) -> str:
-        return self.parse_data(self.encoded_data, self.key_ts)
+        return JmCryptoTool.decode_resp_data(self.encoded_data, self.ts)
 
     @property
     def encoded_data(self) -> str:

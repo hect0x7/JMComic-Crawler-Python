@@ -1,20 +1,9 @@
-def field_cache(*args, **kwargs):
-    from common import field_cache
-    return field_cache(*args, **kwargs)
+from common import time_stamp, field_cache, str_to_list
 
 
 def default_jm_logging(topic: str, msg: str):
     from common import format_ts
     print(f'{format_ts()}:【{topic}】{msg}')
-
-
-def default_postman_constructor(session, **kwargs):
-    from common import Postmans
-
-    if session is True:
-        return Postmans.new_session(**kwargs)
-
-    return Postmans.new_postman(**kwargs)
 
 
 def default_raise_exception_executor(msg, _extra):
@@ -26,15 +15,11 @@ def system_proxy():
     return ProxyBuilder.system_proxy()
 
 
-def str_to_list(text):
-    from common import str_to_list
-    return str_to_list(text)
-
-
 class JmcomicException(Exception):
     pass
 
 
+# 禁漫常量
 class JmMagicConstants:
     ORDER_BY_LATEST = 'mr'
     ORDER_BY_VIEW = 'mv'
@@ -55,9 +40,34 @@ class JmMagicConstants:
     SCRAMBLE_421926 = 421926  # 2023-02-08后改了图片切割算法
 
     # 移动端API密钥
-    APP_SECRET = '18comicAPPContent'
+    APP_TOKEN_SECRET = '18comicAPP'
+    APP_TOKEN_SECRET_2 = '18comicAPPContent'
+    APP_DATA_SECRET = '185Hcomic3PAPP7R'
+    APP_VERSION = '1.6.3'
+    APP_HEADERS_TEMPLATE = {
+        'Accept-Encoding': 'gzip',
+        'user-agent': 'Mozilla/5.0 (Linux; Android 9; V1938CT Build/PQ3A.190705.09211555; wv) AppleWebKit/537.36 (KHTML, '
+                      'like Gecko) Version/4.0 Chrome/91.0.4472.114 Safari/537.36',
+    }
+
+    # 网页端headers
+    HTML_HEADERS_TEMPLATE = {
+        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,'
+                  'application/signed-exchange;v=b3;q=0.7',
+        'accept-language': 'zh-CN,zh;q=0.9',
+        'sec-ch-ua': '"Not.A/Brand";v="8", "Chromium";v="114", "Google Chrome";v="114"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-fetch-dest': 'document',
+        'sec-fetch-mode': 'navigate',
+        'sec-fetch-site': 'none',
+        'sec-fetch-user': '?1',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 '
+                      'Safari/537.36',
+    }
 
 
+# 模块级别共用配置
 class JmModuleConfig:
     # 网站相关
     PROT = "https://"
@@ -128,11 +138,14 @@ class JmModuleConfig:
 
     # 执行log的函数
     log_executor = default_jm_logging
-    # postman构造函数
-    postman_constructor = default_postman_constructor
     # 网页正则表达式解析失败时，执行抛出异常的函数，可以替换掉用于log
     raise_exception_executor = default_raise_exception_executor
 
+    # 使用固定时间戳
+    use_fix_timestamp = True
+
+    # 移动端Client初始化cookies
+    api_client_require_cookies = True
     # log开关标记
     enable_jm_log = True
     # log时解码url
@@ -236,66 +249,31 @@ class JmModuleConfig:
         return domain_list
 
     @classmethod
-    @field_cache("APP_COOKIES")
-    def get_cookies(cls, postman=None):
-        from .jm_toolkit import JmcomicText
-        url = JmcomicText.format_url('/setting', cls.DOMAIN_API_LIST[0])
-        postman = postman or cls.new_postman()
-
-        resp = postman.get(url)
-        cookies = dict(resp.cookies)
-
-        cls.jm_log('module.cookies', f'获取cookies: [{url}] → {cookies}')
-        return cookies
-
-    @classmethod
     def new_html_headers(cls, domain='18comic.vip'):
         """
         网页端的headers
         """
-        return {
+        headers = JmMagicConstants.HTML_HEADERS_TEMPLATE.copy()
+        headers.update({
             'authority': domain,
-            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,'
-                      'application/signed-exchange;v=b3;q=0.7',
-            'accept-language': 'zh-CN,zh;q=0.9',
             'referer': f'https://{domain}',
-            'sec-ch-ua': '"Not.A/Brand";v="8", "Chromium";v="114", "Google Chrome";v="114"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"Windows"',
-            'sec-fetch-dest': 'document',
-            'sec-fetch-mode': 'navigate',
-            'sec-fetch-site': 'none',
-            'sec-fetch-user': '?1',
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 '
-                          'Safari/537.36',
-        }
+        })
+        return headers
 
     @classmethod
-    def new_api_headers(cls, key_ts):
-        """
-        根据key_ts生成移动端的headers
-        """
-        if key_ts is None:
-            from common import time_stamp
-            key_ts = time_stamp()
+    @field_cache("APP_COOKIES")
+    def get_cookies(cls, client):
+        resp = client.setting()
+        cookies = dict(resp.resp.cookies)
+        return cookies
 
-        import hashlib
-        token = hashlib.md5(f"{key_ts}{JmMagicConstants.APP_SECRET}".encode("utf-8")).hexdigest()
-
-        return {
-            'token': token,
-            'tokenparam': f"{key_ts},1.6.0",
-            'User-Agent': 'Mozilla/5.0 (Linux; Android 9; V1938CT Build/PQ3A.190705.09211555; wv) AppleWebKit/537.36 (KHTML, '
-                          'like Gecko) Version/4.0 Chrome/91.0.4472.114 Safari/537.36',
-            'X-Requested-With': 'com.jiaohua_browser',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,'
-                      'application/signed-exchange;v=b3;q=0.9',
-            'Sec-Fetch-Site': 'none',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-User': '?1',
-            'Sec-Fetch-Dest': 'document',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
-        }
+    @classmethod
+    @field_cache("__fix_ts_token_tokenparam__")
+    def get_fix_ts_token_tokenparam(cls):
+        ts = time_stamp()
+        from .jm_toolkit import JmCryptoTool
+        token, tokenparam = JmCryptoTool.token_and_tokenparam(ts)
+        return ts, token, tokenparam
 
     # noinspection PyUnusedLocal
     @classmethod
@@ -312,27 +290,13 @@ class JmModuleConfig:
         kwargs.setdefault('impersonate', 'chrome110')
         kwargs.setdefault('headers', JmModuleConfig.new_html_headers())
         kwargs.setdefault('proxies', JmModuleConfig.DEFAULT_PROXIES)
-        return cls.postman_constructor(session, **kwargs)
 
-    album_comment_headers = {
-        'authority': '18comic.vip',
-        'accept': 'application/json, text/javascript, */*; q=0.01',
-        'accept-language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
-        'cache-control': 'no-cache',
-        'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        'origin': 'https://18comic.vip',
-        'pragma': 'no-cache',
-        'referer': 'https://18comic.vip/album/248965/',
-        'sec-ch-ua': '"Not.A/Brand";v="8", "Chromium";v="114", "Google Chrome";v="114"',
-        'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': '"Windows"',
-        'sec-fetch-dest': 'empty',
-        'sec-fetch-mode': 'cors',
-        'sec-fetch-site': 'same-origin',
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
-                      'Chrome/114.0.0.0 Safari/537.36',
-        'x-requested-with': 'XMLHttpRequest',
-    }
+        from common import Postmans
+
+        if session is True:
+            return Postmans.new_session(**kwargs)
+
+        return Postmans.new_postman(**kwargs)
 
     # option 相关的默认配置
     JM_OPTION_VER = '2.1'

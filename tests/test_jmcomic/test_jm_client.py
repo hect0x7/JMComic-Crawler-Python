@@ -181,7 +181,7 @@ class Test_Client(JmTestConfigurable):
             try:
                 page = self.client.search_site(**params)
                 print(page)
-                assert int(page[0][0]) == expected_result
+                self.assertEqual(int(page[0][0]), expected_result)
             except Exception as e:
                 elist.append(e)
 
