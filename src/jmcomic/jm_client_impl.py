@@ -392,7 +392,7 @@ class JmHtmlClient(AbstractJmClient):
                )
 
         resp = self.post('/ajax/album_comment',
-                         headers=JmModuleConfig.album_comment_headers,
+                         headers=self.album_comment_headers,
                          data=data,
                          )
 
@@ -466,6 +466,26 @@ class JmHtmlClient(AbstractJmClient):
             f'原因为: [{error_msg}], '
             + (f'URL=[{url}]' if url is not None else '')
         )
+
+    album_comment_headers = {
+        'authority': '18comic.vip',
+        'accept': 'application/json, text/javascript, */*; q=0.01',
+        'accept-language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+        'cache-control': 'no-cache',
+        'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'origin': 'https://18comic.vip',
+        'pragma': 'no-cache',
+        'referer': 'https://18comic.vip/album/248965/',
+        'sec-ch-ua': '"Not.A/Brand";v="8", "Chromium";v="114", "Google Chrome";v="114"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-origin',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                      'Chrome/114.0.0.0 Safari/537.36',
+        'x-requested-with': 'XMLHttpRequest',
+    }
 
 
 # 基于禁漫移动端（APP）实现的JmClient
@@ -556,7 +576,7 @@ class JmApiClient(AbstractJmClient):
             url,
             params={
                 'id': apid,
-            }
+            },
         )
 
         self.require_resp_success(resp, url)
@@ -571,11 +591,13 @@ class JmApiClient(AbstractJmClient):
         resp = self.req_api(
             self.API_SCRAMBLE,
             params={
-                "id": photo_id,
-                "mode": "vertical",
-                "page": "0",
-                "app_img_shunt": "1",
-            }
+                'id': photo_id,
+                'mode': 'vertical',
+                'page': '0',
+                'app_img_shunt': '1',
+                'express': 'off',
+                'v': time_stamp(),
+            },
         )
 
         scramble_id = PatternTool.match_or_default(resp.text,
@@ -713,21 +735,41 @@ class JmApiClient(AbstractJmClient):
         return JmPageTool.parse_api_to_favorite_page(resp.model_data)
 
     def req_api(self, url, get=True, **kwargs) -> JmApiResp:
-        # set headers
-        headers, key_ts = self.headers_key_ts
-        kwargs['headers'] = headers
+        ts = self.decide_headers_and_ts(kwargs, url)
 
         if get:
             resp = self.get(url, **kwargs)
         else:
             resp = self.post(url, **kwargs)
 
-        return JmApiResp.wrap(resp, key_ts)
+        return JmApiResp(resp, ts)
 
-    @property
-    def headers_key_ts(self):
-        key_ts = time_stamp()
-        return JmModuleConfig.new_api_headers(key_ts), key_ts
+    # noinspection PyMethodMayBeStatic
+    def decide_headers_and_ts(self, kwargs, url):
+        # 获取时间戳
+        if url == self.API_SCRAMBLE:
+            # /chapter_view_template
+            # 这个接口很特殊，用的密钥 18comicAPPContent 而不是 18comicAPP
+            # 如果用后者，则会返回403信息
+            ts = time_stamp()
+            token, tokenparam = JmCryptoTool.token_and_tokenparam(ts, secret=JmMagicConstants.APP_TOKEN_SECRET_2)
+
+        elif JmModuleConfig.use_fix_timestamp:
+            ts, token, tokenparam = JmModuleConfig.get_fix_ts_token_tokenparam()
+
+        else:
+            ts = time_stamp()
+            token, tokenparam = JmCryptoTool.token_and_tokenparam(ts)
+
+        # 计算token，tokenparam
+        headers = kwargs.get('headers', JmMagicConstants.APP_HEADERS_TEMPLATE.copy())
+        headers.update({
+            'token': token,
+            'tokenparam': tokenparam,
+        })
+        kwargs['headers'] = headers
+
+        return ts
 
     @classmethod
     def require_resp_success(cls, resp: JmApiResp, orig_req_url: str):
@@ -743,11 +785,22 @@ class JmApiClient(AbstractJmClient):
         # 暂无
 
     def after_init(self):
-        # cookies = self.__class__.fetch_init_cookies(self)
-        # self.get_root_postman().get_meta_data()['cookies'] = cookies
+        # 保证拥有cookies，因为移动端要求必须携带cookies，否则会直接跳转同一本子【禁漫娘】
+        if JmModuleConfig.api_client_require_cookies:
+            self.ensure_have_cookies()
 
-        self.get_root_postman().get_meta_data()['cookies'] = JmModuleConfig.get_cookies(self)
-        pass
+    from threading import Lock
+    client_init_cookies_lock = Lock()
+
+    def ensure_have_cookies(self):
+        if self.get_meta_data('cookies'):
+            return
+
+        with self.client_init_cookies_lock:
+            if self.get_meta_data('cookies'):
+                return
+
+            self['cookies'] = JmModuleConfig.get_cookies(self)
 
 
 class FutureClientProxy(JmcomicClient):
