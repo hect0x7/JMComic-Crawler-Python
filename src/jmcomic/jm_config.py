@@ -1,11 +1,4 @@
-def time_stamp():
-    from common import time_stamp
-    return time_stamp()
-
-
-def field_cache(*args, **kwargs):
-    from common import field_cache
-    return field_cache(*args, **kwargs)
+from common import time_stamp, field_cache, str_to_list
 
 
 def default_jm_logging(topic: str, msg: str):
@@ -20,11 +13,6 @@ def default_raise_exception_executor(msg, _extra):
 def system_proxy():
     from common import ProxyBuilder
     return ProxyBuilder.system_proxy()
-
-
-def str_to_list(text):
-    from common import str_to_list
-    return str_to_list(text)
 
 
 class JmcomicException(Exception):
