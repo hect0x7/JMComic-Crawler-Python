@@ -4,6 +4,7 @@ dir_rule:
   rule: Bd_Aauthor_Atitle_Pindex
 
 client:
+  impl: api # 使用api可免登录下载本子
   domain:
     html: [ jmcomic1.me, jmcomic.me ]
 
