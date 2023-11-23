@@ -9,30 +9,46 @@ Response Entity
 DictModel = AdvancedEasyAccessDict
 
 
-class JmResp(CommonResp):
+class JmResp:
+
+    def __init__(self, resp):
+        ExceptionTool.require_true(not isinstance(resp, JmResp), f'重复包装: {resp}')
+        self.resp = resp
 
     @property
     def is_success(self) -> bool:
         return self.http_code == 200 and len(self.content) != 0
 
-    def json(self, **kwargs) -> Dict:
-        raise NotImplementedError
+    @property
+    def is_not_success(self) -> bool:
+        return not self.is_success
 
-    def model(self) -> DictModel:
-        return DictModel(self.json())
+    @property
+    def content(self):
+        return self.resp.content
+
+    @property
+    def http_code(self):
+        return self.resp.status_code
+
+    @property
+    def text(self) -> str:
+        return self.resp.text
+
+    @property
+    def url(self) -> str:
+        return self.resp.url
 
     def require_success(self):
         if self.is_not_success:
-            ExceptionTool.raises_resp(self.text, self.resp)
+            ExceptionTool.raises_resp(self.text, self)
 
 
 class JmImageResp(JmResp):
 
-    def json(self, **kwargs) -> Dict:
-        raise NotImplementedError
-
     def require_success(self):
-        ExceptionTool.require_true(self.is_success, self.get_error_msg())
+        if self.is_not_success:
+            ExceptionTool.raises_resp(self.get_error_msg(), self)
 
     def get_error_msg(self):
         msg = f'禁漫图片获取失败: [{self.url}]'
@@ -66,21 +82,27 @@ class JmImageResp(JmResp):
             )
 
 
-class JmApiResp(JmResp):
+class JmJsonResp(JmResp):
+
+    def json(self) -> Dict:
+        return self.resp.json()
+
+    def model(self) -> DictModel:
+        return DictModel(self.json())
+
+
+class JmApiResp(JmJsonResp):
 
     def __init__(self, resp, ts: str):
-        ExceptionTool.require_true(not isinstance(resp, JmApiResp), f'重复包装: {resp}')
-
         super().__init__(resp)
         self.ts = ts
-        self.cache_decode_data = None
 
     @property
     def is_success(self) -> bool:
         return super().is_success and self.json()['code'] == 200
 
     @property
-    @field_cache('__cache_decoded_data__')
+    @field_cache()
     def decoded_data(self) -> str:
         return JmCryptoTool.decode_resp_data(self.encoded_data, self.ts)
 
@@ -94,10 +116,6 @@ class JmApiResp(JmResp):
         from json import loads
         return loads(self.decoded_data)
 
-    @field_cache('__cache_json__')
-    def json(self, **kwargs) -> Dict:
-        return self.resp.json()
-
     @property
     def model_data(self) -> DictModel:
         self.require_success()
@@ -105,12 +123,12 @@ class JmApiResp(JmResp):
 
 
 # album-comment
-class JmAcResp(JmResp):
+class JmAlbumCommentResp(JmJsonResp):
 
     def is_success(self) -> bool:
         return super().is_success and self.json()['err'] is False
 
-    def json(self, **kwargs) -> Dict:
+    def json(self) -> Dict:
         return self.resp.json()
 
 
@@ -184,7 +202,7 @@ class JmUserClient:
                       status='true',
                       comment_id=None,
                       **kwargs,
-                      ) -> JmAcResp:
+                      ) -> JmAlbumCommentResp:
         """
         评论漫画/评论回复
         :param video_id: album_id/photo_id

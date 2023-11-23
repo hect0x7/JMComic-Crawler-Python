@@ -454,7 +454,7 @@ class LogTopicFilterPlugin(JmOptionPlugin):
         if whitelist is not None:
             whitelist = set(whitelist)
 
-        old_jm_log = JmModuleConfig.log_executor
+        old_jm_log = JmModuleConfig.executor_log
 
         def new_jm_log(topic, msg):
             if whitelist is not None and topic not in whitelist:
@@ -462,7 +462,7 @@ class LogTopicFilterPlugin(JmOptionPlugin):
 
             old_jm_log(topic, msg)
 
-        JmModuleConfig.log_executor = new_jm_log
+        JmModuleConfig.executor_log = new_jm_log
 
 
 class AutoSetBrowserCookiesPlugin(JmOptionPlugin):
