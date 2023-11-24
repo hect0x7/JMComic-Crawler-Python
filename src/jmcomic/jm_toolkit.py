@@ -834,7 +834,7 @@ class JmCryptoTool:
         from Crypto.Cipher import AES
         data_aes = AES.new(key, AES.MODE_ECB).decrypt(data_b64)
 
-        # 3. 移除末尾的一些特殊字符
+        # 3. 移除末尾的padding
         data = data_aes[:-data_aes[-1]]
 
         # 4. 解码为字符串 (json)

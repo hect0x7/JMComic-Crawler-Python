@@ -82,3 +82,36 @@ for aid, atitle, tag_list in page.iter_id_title_tag():  # 使用page的iter_id_t
 
 download_album(aid_list, option)
 ```
+
+## 手动创建Client
+
+```python
+# 默认的使用方式是先创建option，option封装了所有配置，然后由option.new_jm_client() 创建客户端client，使用client可以访问禁漫接口
+
+# 下面演示直接构造client的方式
+from jmcomic import *
+
+"""
+创建JM客户端
+
+:param postman: 负责实现HTTP请求的对象，持有cookies、headers、proxies等信息
+:param domain_list: 禁漫域名
+:param retry_times: 重试次数
+"""
+
+# 网页端
+cl = JmHtmlClient(
+    postman=JmModuleConfig.new_postman(),
+    domain_list=['18comic.vip'],
+    retry_times=1
+)
+
+# API端（APP）
+cl = JmApiClient(
+    postman=JmModuleConfig.new_postman(),
+    domain_list=JmModuleConfig.DOMAIN_API_LIST,
+    retry_times=1
+)
+
+
+```

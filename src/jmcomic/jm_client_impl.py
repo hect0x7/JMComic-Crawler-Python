@@ -17,7 +17,7 @@ class AbstractJmClient(
         """
         创建JM客户端
 
-        :param postman: 负责实现HTTP请求的对象
+        :param postman: 负责实现HTTP请求的对象，持有cookies、headers、proxies等信息
         :param domain_list: 禁漫域名
         :param retry_times: 重试次数
         """

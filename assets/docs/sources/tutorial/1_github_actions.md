@@ -22,11 +22,15 @@
 
 ## 2. 填写你需要下载的本子id
 
+在开始下面的步骤之前，你需要先启用你的repo的Actions，开启方式如下：
+![6](../images/6.png)
+
+
 ### 2.1. 方式一（最新、简单、推荐）
 
 访问下面这个网址：
 
-`https://github.com/你的用户名/JMComic-Crawler-Python/master/workflows/download_dispatch.yml`
+`https://github.com/你的用户名/JMComic-Crawler-Python/actions/workflows/download_dispatch.yml`
 
 按下图步骤进行操作：
 
