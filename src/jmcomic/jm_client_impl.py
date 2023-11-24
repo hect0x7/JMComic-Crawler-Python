@@ -11,20 +11,19 @@ class AbstractJmClient(
 
     def __init__(self,
                  postman: Postman,
-                 retry_times: int,
-                 domain=None,
-                 fallback_domain_list=None,
+                 domain_list: List[str],
+                 retry_times=0,
                  ):
+        """
+        创建JM客户端
+
+        :param postman: 负责实现HTTP请求的对象，持有cookies、headers、proxies等信息
+        :param domain_list: 禁漫域名
+        :param retry_times: 重试次数
+        """
         super().__init__(postman)
         self.retry_times = retry_times
-
-        if fallback_domain_list is None:
-            fallback_domain_list = []
-
-        if domain is not None:
-            fallback_domain_list.insert(0, domain)
-
-        self.domain_list = fallback_domain_list
+        self.domain_list = domain_list
         self.CLIENT_CACHE = None
         self.enable_cache()
         self.after_init()
@@ -98,6 +97,9 @@ class AbstractJmClient(
             resp = request(url, **kwargs)
             return judge(resp)
         except Exception as e:
+            if self.retry_times == 0:
+                raise e
+
             self.before_retry(e, kwargs, retry_count, url)
 
         if retry_count < self.retry_times:
@@ -190,7 +192,7 @@ class AbstractJmClient(
 
     # noinspection PyMethodMayBeStatic
     def decode(self, url: str):
-        if not JmModuleConfig.decode_url_when_logging or '/search/' not in url:
+        if not JmModuleConfig.flag_decode_url_when_logging or '/search/' not in url:
             return url
 
         from urllib.parse import unquote
@@ -371,7 +373,7 @@ class JmHtmlClient(AbstractJmClient):
                       status='true',
                       comment_id=None,
                       **kwargs,
-                      ) -> JmAcResp:
+                      ) -> JmAlbumCommentResp:
         data = {
             'video_id': video_id,
             'comment': comment,
@@ -396,7 +398,7 @@ class JmHtmlClient(AbstractJmClient):
                          data=data,
                          )
 
-        ret = JmAcResp(resp)
+        ret = JmAlbumCommentResp(resp)
         jm_log('album.comment', f'{video_id}: [{comment}] ← ({ret.model().cid})')
 
         return ret
@@ -754,15 +756,15 @@ class JmApiClient(AbstractJmClient):
             ts = time_stamp()
             token, tokenparam = JmCryptoTool.token_and_tokenparam(ts, secret=JmMagicConstants.APP_TOKEN_SECRET_2)
 
-        elif JmModuleConfig.use_fix_timestamp:
+        elif JmModuleConfig.flag_use_fix_timestamp:
             ts, token, tokenparam = JmModuleConfig.get_fix_ts_token_tokenparam()
 
         else:
             ts = time_stamp()
             token, tokenparam = JmCryptoTool.token_and_tokenparam(ts)
 
-        # 计算token，tokenparam
-        headers = kwargs.get('headers', JmMagicConstants.APP_HEADERS_TEMPLATE.copy())
+        # 设置headers
+        headers = kwargs.get('headers', None) or JmMagicConstants.APP_HEADERS_TEMPLATE.copy()
         headers.update({
             'token': token,
             'tokenparam': tokenparam,
@@ -786,7 +788,7 @@ class JmApiClient(AbstractJmClient):
 
     def after_init(self):
         # 保证拥有cookies，因为移动端要求必须携带cookies，否则会直接跳转同一本子【禁漫娘】
-        if JmModuleConfig.api_client_require_cookies:
+        if JmModuleConfig.flag_api_client_require_cookies:
             self.ensure_have_cookies()
 
     from threading import Lock
@@ -800,7 +802,13 @@ class JmApiClient(AbstractJmClient):
             if self.get_meta_data('cookies'):
                 return
 
-            self['cookies'] = JmModuleConfig.get_cookies(self)
+            self['cookies'] = self.get_cookies()
+
+    @field_cache("APP_COOKIES", obj=JmModuleConfig)
+    def get_cookies(self):
+        resp = self.setting()
+        cookies = dict(resp.resp.cookies)
+        return cookies
 
 
 class FutureClientProxy(JmcomicClient):
@@ -823,12 +831,13 @@ class FutureClientProxy(JmcomicClient):
                      'set_cache_dict', 'get_cache_dict', 'set_domain_list', ]
 
     class FutureWrapper:
-        def __init__(self, future):
+        def __init__(self, future, after_done_callback):
             from concurrent.futures import Future
             future: Future
             self.future = future
             self.done = False
             self._result = None
+            self.after_done_callback = after_done_callback
 
         def result(self):
             if not self.done:
@@ -836,6 +845,7 @@ class FutureClientProxy(JmcomicClient):
                 self._result = result
                 self.done = True
                 self.future = None  # help gc
+                self.after_done_callback()
 
             return self._result
 
@@ -871,7 +881,9 @@ class FutureClientProxy(JmcomicClient):
             if cache_key in self.future_dict:
                 return self.future_dict[cache_key]
 
-            future = self.FutureWrapper(self.executors.submit(task))
+            future = self.FutureWrapper(self.executors.submit(task),
+                                        after_done_callback=lambda: self.future_dict.pop(cache_key, None)
+                                        )
             self.future_dict[cache_key] = future
             return future
 

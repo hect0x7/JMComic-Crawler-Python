@@ -163,7 +163,10 @@ class JmcomicText:
             if field_value is None:
                 if default is None:
                     ExceptionTool.raises_regex(
-                        f"文本没有匹配上字段：字段名为'{field_name}'，pattern: [{pattern}]",
+                        f"文本没有匹配上字段：字段名为'{field_name}'，pattern: [{pattern}]" \
+                        + (f"\n响应文本=[{html}]" if len(html) < 200 else
+                           f'响应文本过长(len={len(html)})，不打印'
+                           ),
                         html=html,
                         pattern=pattern,
                     )
@@ -716,7 +719,7 @@ class ExceptionTool:
         if extra is None:
             extra = {}
 
-        JmModuleConfig.raise_exception_executor(msg, extra)
+        JmModuleConfig.executor_raise_exception(msg, extra)
 
     @classmethod
     def raises_regex(cls,
@@ -772,12 +775,12 @@ class ExceptionTool:
 
     @classmethod
     def replace_old_exception_executor(cls, raises: Callable[[Callable, str, dict], None]):
-        old = JmModuleConfig.raise_exception_executor
+        old = JmModuleConfig.executor_raise_exception
 
         def new(msg, extra):
             raises(old, msg, extra)
 
-        JmModuleConfig.raise_exception_executor = new
+        JmModuleConfig.executor_raise_exception = new
 
 
 class JmCryptoTool:
@@ -831,7 +834,7 @@ class JmCryptoTool:
         from Crypto.Cipher import AES
         data_aes = AES.new(key, AES.MODE_ECB).decrypt(data_b64)
 
-        # 3. 移除末尾的一些特殊字符
+        # 3. 移除末尾的padding
         data = data_aes[:-data_aes[-1]]
 
         # 4. 解码为字符串 (json)

@@ -11,7 +11,7 @@ class DownloadCallback:
                f'章节数: [{len(album)}], '
                f'总页数: [{album.page_count}], '
                f'标题: [{album.name}], '
-               f'关键词: [{album.tags}]'
+               f'关键词: {album.tags}'
                )
 
     def after_album(self, album: JmAlbumDetail):

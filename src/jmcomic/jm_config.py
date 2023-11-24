@@ -1,4 +1,4 @@
-from common import time_stamp, field_cache, str_to_list
+from common import time_stamp, str_to_list, field_cache, ProxyBuilder
 
 
 def default_jm_logging(topic: str, msg: str):
@@ -10,22 +10,19 @@ def default_raise_exception_executor(msg, _extra):
     raise JmModuleConfig.CLASS_EXCEPTION(msg)
 
 
-def system_proxy():
-    from common import ProxyBuilder
-    return ProxyBuilder.system_proxy()
-
-
 class JmcomicException(Exception):
     pass
 
 
 # 禁漫常量
 class JmMagicConstants:
+    # 搜索参数-排序
     ORDER_BY_LATEST = 'mr'
     ORDER_BY_VIEW = 'mv'
     ORDER_BY_PICTURE = 'mp'
     ORDER_BY_LIKE = 'tf'
 
+    # 搜索参数-时间段
     TIME_TODAY = 't'
     TIME_WEEK = 'w'
     TIME_MONTH = 'm'
@@ -35,9 +32,13 @@ class JmMagicConstants:
     PAGE_SIZE_SEARCH = 80
     PAGE_SIZE_FAVORITE = 20
 
+    # 图片分割参数
     SCRAMBLE_220980 = 220980
     SCRAMBLE_268850 = 268850
     SCRAMBLE_421926 = 421926  # 2023-02-08后改了图片切割算法
+
+    # 当本子没有作者名字时，顶替作者名字
+    DEFAULT_AUTHOR = 'default_author'
 
     # 移动端API密钥
     APP_TOKEN_SECRET = '18comicAPP'
@@ -137,21 +138,18 @@ class JmModuleConfig:
     REGISTRY_PLUGIN = {}
 
     # 执行log的函数
-    log_executor = default_jm_logging
+    executor_log = default_jm_logging
     # 网页正则表达式解析失败时，执行抛出异常的函数，可以替换掉用于log
-    raise_exception_executor = default_raise_exception_executor
+    executor_raise_exception = default_raise_exception_executor
 
     # 使用固定时间戳
-    use_fix_timestamp = True
-
+    flag_use_fix_timestamp = True
     # 移动端Client初始化cookies
-    api_client_require_cookies = True
+    flag_api_client_require_cookies = True
     # log开关标记
-    enable_jm_log = True
+    flag_enable_jm_log = True
     # log时解码url
-    decode_url_when_logging = True
-    # 下载时的一些默认值配置
-    DEFAULT_AUTHOR = 'default-author'
+    flag_decode_url_when_logging = True
 
     @classmethod
     def downloader_class(cls):
@@ -261,13 +259,6 @@ class JmModuleConfig:
         return headers
 
     @classmethod
-    @field_cache("APP_COOKIES")
-    def get_cookies(cls, client):
-        resp = client.setting()
-        cookies = dict(resp.resp.cookies)
-        return cookies
-
-    @classmethod
     @field_cache("__fix_ts_token_tokenparam__")
     def get_fix_ts_token_tokenparam(cls):
         ts = time_stamp()
@@ -278,12 +269,12 @@ class JmModuleConfig:
     # noinspection PyUnusedLocal
     @classmethod
     def jm_log(cls, topic: str, msg: str):
-        if cls.enable_jm_log is True:
-            cls.log_executor(topic, msg)
+        if cls.flag_enable_jm_log is True:
+            cls.executor_log(topic, msg)
 
     @classmethod
     def disable_jm_log(cls):
-        cls.enable_jm_log = False
+        cls.flag_enable_jm_log = False
 
     @classmethod
     def new_postman(cls, session=False, **kwargs):
@@ -301,7 +292,7 @@ class JmModuleConfig:
     # option 相关的默认配置
     JM_OPTION_VER = '2.1'
     DEFAULT_CLIENT_IMPL = 'html'
-    DEFAULT_PROXIES = system_proxy()  # use system proxy by default
+    DEFAULT_PROXIES = ProxyBuilder.system_proxy()  # use system proxy by default
 
     default_option_dict: dict = {
         'log': None,
@@ -347,7 +338,7 @@ class JmModuleConfig:
 
         # log
         if option_dict['log'] is None:
-            option_dict['log'] = cls.enable_jm_log
+            option_dict['log'] = cls.flag_enable_jm_log
 
         # dir_rule.base_dir
         dir_rule = option_dict['dir_rule']

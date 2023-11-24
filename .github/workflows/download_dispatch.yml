@@ -15,8 +15,8 @@ on:
 
       CLIENT_IMPL:
         type: string
-        description: 客户端类型（client.impl），[api]=移动端，[html]=网页端。
-        default: 'api'
+        description: 客户端类型（client.impl），[api]=移动端，[html]=网页端。下载失败时，你可以尝试填入此项重试。
+        default: ''
         required: false
 
       IMAGE_SUFFIX:

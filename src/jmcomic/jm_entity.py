@@ -269,7 +269,7 @@ class JmPhotoDetail(DetailEntity):
             return self._author.strip()
 
         # 使用默认
-        return JmModuleConfig.DEFAULT_AUTHOR
+        return JmMagicConstants.DEFAULT_AUTHOR
 
     def create_image_detail(self, index) -> JmImageDetail:
         # 校验参数
@@ -387,7 +387,7 @@ class JmAlbumDetail(DetailEntity):
         if len(self.authors) >= 1:
             return self.authors[0]
 
-        return JmModuleConfig.DEFAULT_AUTHOR
+        return JmMagicConstants.DEFAULT_AUTHOR
 
     @property
     def id(self):

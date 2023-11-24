@@ -323,7 +323,7 @@ class JmOption:
     def deconstruct(self) -> Dict:
         return {
             'version': self.version,
-            'log': JmModuleConfig.enable_jm_log,
+            'log': JmModuleConfig.flag_enable_jm_log,
             'dir_rule': {
                 'rule': self.dir_rule.rule_dsl,
                 'base_dir': self.dir_rule.base_dir,
@@ -354,11 +354,11 @@ class JmOption:
     下面是创建客户端的相关方法
     """
 
-    @field_cache("__jm_client_cache__")
+    @field_cache()
     def build_jm_client(self, **kwargs):
         """
         该方法会首次调用会创建JmcomicClient对象，
-        然后保存在self.__jm_client_cache__中，
+        然后保存在self中，
         多次调用`不会`创建新的JmcomicClient对象
         """
         return self.new_jm_client(**kwargs)
@@ -414,9 +414,9 @@ class JmOption:
             raise NotImplementedError(clazz)
 
         client: AbstractJmClient = clazz(
-            postman,
-            retry_times,
-            fallback_domain_list=decide_domain(),
+            postman=postman,
+            domain_list=decide_domain(),
+            retry_times=retry_times,
         )
 
         # enable cache
