@@ -187,6 +187,13 @@ class JmcomicText:
 
         return f'{JmModuleConfig.PROT}{domain}{path}'
 
+    @classmethod
+    def format_album_url(cls, aid, domain='18comic.vip'):
+        """
+        把album_id变为可访问的URL，方便print打印后用浏览器访问
+        """
+        return cls.format_url(f'/album/{aid}/', domain)
+
     class DSLReplacer:
 
         def __init__(self):
@@ -271,7 +278,7 @@ class JmPageTool:
     )
 
     # 用来查找tag列表
-    pattern_html_search_tag_list = compile(r'<a href=".*?">(.*?)</a>')
+    pattern_html_search_tag_list = compile(r'<a class="tag"[^>]*>(.*?)</a>')
 
     # 查找错误，例如 [错误，關鍵字過短，請至少輸入兩個字以上。]
     pattern_html_search_error = compile(r'<fieldset>\n<legend>(.*?)</legend>\n<div class=.*?>\n(.*?)\n</div>\n</fieldset>')
