@@ -176,8 +176,6 @@ class JmOption:
                  plugins: Dict,
                  filepath=None,
                  ):
-        # 版本号
-        self.version = JmModuleConfig.JM_OPTION_VER
         # 路径规则配置
         self.dir_rule = DirRule(**dir_rule)
         # 客户端配置
@@ -203,16 +201,6 @@ class JmOption:
     def decide_photo_batch_count(self, album: JmAlbumDetail):
         return self.download.threading.photo
 
-    def decide_image_save_dir(self, photo) -> str:
-        # 使用 self.dir_rule 决定 save_dir
-        save_dir = self.dir_rule.decide_image_save_dir(
-            photo.from_album,
-            photo
-        )
-
-        mkdir_if_not_exists(save_dir)
-        return save_dir
-
     def decide_album_dir(self, album: JmAlbumDetail) -> str:
         """
         该方法目前仅在 plugin-zip 中使用，不建议外部调用
@@ -234,7 +222,18 @@ class JmOption:
         from os.path import join
         return join(*dir_layer)
 
-    def decide_image_suffix(self, image: JmImageDetail):
+    # noinspection PyMethodMayBeStatic
+    def decide_image_filename(self, image: JmImageDetail) -> str:
+        """
+        返回图片的文件名，不包含后缀
+        默认返回禁漫的图片文件名，例如：00001 (.jpg)
+        """
+        return image.filename_without_suffix
+
+    def decide_image_suffix(self, image: JmImageDetail) -> str:
+        """
+        返回图片的后缀，如果返回的后缀和原后缀不一致，则会进行图片格式转换
+        """
         # 动图则使用原后缀
         if image.is_gif:
             return image.img_file_suffix
@@ -242,11 +241,21 @@ class JmOption:
         # 非动图，以配置为先
         return self.download.image.suffix or image.img_file_suffix
 
+    def decide_image_save_dir(self, photo) -> str:
+        # 使用 self.dir_rule 决定 save_dir
+        save_dir = self.dir_rule.decide_image_save_dir(
+            photo.from_album,
+            photo
+        )
+
+        mkdir_if_not_exists(save_dir)
+        return save_dir
+
     def decide_image_filepath(self, image: JmImageDetail, consider_custom_suffix=True) -> str:
         # 通过拼接生成绝对路径
         save_dir = self.decide_image_save_dir(image.from_photo)
         suffix = self.decide_image_suffix(image) if consider_custom_suffix else image.img_file_suffix
-        return os.path.join(save_dir, image.filename_without_suffix + suffix)
+        return os.path.join(save_dir, self.decide_image_filename(image) + suffix)
 
     def decide_download_cache(self, _image: JmImageDetail) -> bool:
         return self.download.cache
@@ -322,7 +331,7 @@ class JmOption:
 
     def deconstruct(self) -> Dict:
         return {
-            'version': self.version,
+            'version': JmModuleConfig.JM_OPTION_VER,
             'log': JmModuleConfig.flag_enable_jm_log,
             'dir_rule': {
                 'rule': self.dir_rule.rule_dsl,
@@ -415,7 +424,7 @@ class JmOption:
 
         client: AbstractJmClient = clazz(
             postman=postman,
-            domain_list=decide_domain(),
+            domain_list=domain,
             retry_times=retry_times,
         )
 

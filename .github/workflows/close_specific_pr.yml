@@ -1,0 +1,30 @@
+name: Close specific PR
+
+on:
+  pull_request:
+    paths:
+      - 'usage/workflow_download.py'
+    types: [opened, ]
+      
+jobs:
+  close_pr:
+    env:
+      comment: |
+          To prevent beginners from mistakenly submitting PRs, 
+          if your PR only modifies the usage/workflow_download.py file, 
+          it will be automatically closed. 
+          If you really want to submit a PR, please reopen it yourself. 
+          Make sure you know what you are doing!
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Close PR
+        run: |
+          PR_TITLE=$(jq -r ".pull_request.title" $GITHUB_EVENT_PATH)
+          echo "PR_TITLE: $PR_TITLE"
+          gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body '${{ env.comment }}'
+          gh pr close ${{ github.event.pull_request.number }} --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

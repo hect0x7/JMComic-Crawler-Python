@@ -5,7 +5,7 @@ from .jm_config import *
 
 class JmBaseEntity:
 
-    def save_to_file(self, filepath):
+    def to_file(self, filepath):
         from common import PackerUtil
         PackerUtil.pack(self, filepath)
 
@@ -19,6 +19,10 @@ class JmBaseEntity:
 
     @classmethod
     def is_album(cls):
+        return False
+
+    @classmethod
+    def is_page(cls):
         return False
 
 
@@ -507,6 +511,10 @@ class JmPageContent(JmBaseEntity, IndexedEntity):
 
     def getindex(self, index: int):
         return self.content[index]
+
+    @classmethod
+    def is_page(cls):
+        return True
 
 
 class JmSearchPage(JmPageContent):

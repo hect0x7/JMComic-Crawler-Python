@@ -93,11 +93,13 @@ $ jmcomic 422866
 
   * config：存放配置文件
   * docs：项目文档
+
 * src：存放源代码
 
   * jmcomic：`jmcomic`模块
-  * tests：测试目录，存放测试代码，使用unittest
-  * usage：用法目录，存放示例/使用代码
+
+* tests：测试目录，存放测试代码，使用unittest
+* usage：用法目录，存放示例/使用代码
 
 ## 感谢以下项目
 
