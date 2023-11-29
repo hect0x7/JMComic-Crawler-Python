@@ -278,7 +278,7 @@ class JmPageTool:
     )
 
     # 用来查找tag列表
-    pattern_html_search_tag_list = compile(r'<a class="tag"[^>]*>(.*?)</a>')
+    pattern_html_search_tag_list = compile(r'<a[^>]*?>(.*?)</a>')
 
     # 查找错误，例如 [错误，關鍵字過短，請至少輸入兩個字以上。]
     pattern_html_search_error = compile(r'<fieldset>\n<legend>(.*?)</legend>\n<div class=.*?>\n(.*?)\n</div>\n</fieldset>')
