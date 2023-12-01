@@ -225,6 +225,73 @@ class JmcomicText:
     def parse_dsl_text(cls, dsl_text: str) -> str:
         return cls.dsl_replacer.parse_dsl_text(dsl_text)
 
+    bracket_map = {'(': ')',
+                   '[': ']',
+                   '【': '】',
+                   '（': '）',
+                   }
+
+    @classmethod
+    def parse_orig_album_name(cls, name: str, default=None):
+        word_list = cls.tokenize(name)
+
+        for word in word_list:
+            if word[0] in cls.bracket_map:
+                continue
+
+            return word
+
+        return default
+
+    @classmethod
+    def tokenize(cls, title: str) -> List[str]:
+        """
+        繞道#2 [暴碧漢化組] [えーすけ（123）] よりみち#2 (COMIC 快樂天 2024年1月號) [中國翻譯] [DL版]
+        :return: ['繞道#2', '[暴碧漢化組]', '[えーすけ（123）]', 'よりみち#2', '(COMIC 快樂天 2024年1月號)', '[中國翻譯]', '[DL版]']
+        """
+        title = title.strip()
+        ret = []
+        bracket_map = cls.bracket_map
+
+        char_list = []
+        i = 0
+        length = len(title)
+
+        def add(w=None):
+            if w is None:
+                w = ''.join(char_list).strip()
+
+            if w == '':
+                return
+
+            ret.append(w)
+            char_list.clear()
+
+        while i < length:
+            c = title[i]
+
+            if c in bracket_map:
+                # 上一个单词结束
+                add()
+                # 定位右括号
+                j = title.find(bracket_map[c], i)
+                ExceptionTool.require_true(j != -1, f'未闭合的 {c}{bracket_map[c]}: {title[i:]}')
+                # 整个括号的单词结束
+                add(title[i:j + 1])
+                # 移动指针
+                i = j + 1
+            else:
+                char_list.append(c)
+                i += 1
+
+        add()
+        return ret
+
+    @classmethod
+    def to_zh_cn(cls, s):
+        import zhconv
+        return zhconv.convert(s, 'zh_cn')
+
 
 # 支持dsl: #{???} -> os.getenv(???)
 JmcomicText.dsl_replacer.add_dsl_and_replacer(r'\$\{(.*?)\}', JmcomicText.match_os_env)

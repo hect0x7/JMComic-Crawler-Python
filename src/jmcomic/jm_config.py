@@ -151,6 +151,12 @@ class JmModuleConfig:
     # log时解码url
     flag_decode_url_when_logging = True
 
+    # 关联dir_rule的自定义字段与对应的处理函数
+    # 例如:
+    # Amyname -> JmModuleConfig.AFIELD_ADVICE['myname'] = lambda album: "自定义名称"
+    AFIELD_ADVICE = dict()
+    PFIELD_ADVICE = dict()
+
     @classmethod
     def downloader_class(cls):
         if cls.CLASS_DOWNLOADER is not None:

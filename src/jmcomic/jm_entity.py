@@ -61,6 +61,58 @@ class DetailEntity(JmBaseEntity, IndexedEntity):
     def title(self) -> str:
         return getattr(self, 'name')
 
+    @property
+    def author(self):
+        raise NotImplementedError
+
+    @property
+    def oname(self) -> str:
+        """
+        oname = original name
+
+        示例:
+
+        title："喂我吃吧 老師! [欶瀾漢化組] [BLVEFO9] たべさせて、せんせい! (ブルーアーカイブ) [中國翻譯] [無修正]"
+
+        oname："喂我吃吧 老師!"
+
+        :return: 返回本子的原始名称
+        """
+        from .jm_toolkit import JmcomicText
+        oname = JmcomicText.parse_orig_album_name(self.title)
+        if oname is not None:
+            return oname
+
+        jm_log('entity', f'无法提取出原album名字: {self.title}')
+        return self.title
+
+    @property
+    def authoroname(self):
+        """
+        authoroname = author + oname
+
+        比较好识别的一种本子名称方式
+
+        具体格式: f'【author】{oname}'
+
+        示例:
+
+        原本子名：喂我吃吧 老師! [欶瀾漢化組] [BLVEFO9] たべさせて、せんせい! (ブルーアーカイブ) [中國翻譯] [無修正]
+
+        authoroname：【BLVEFO9】喂我吃吧 老師!
+
+        :return: 返回作者名+作品原名，格式为: '【author】{oname}'
+        """
+        return f'【{self.author}】{self.oname}'
+
+    @property
+    def idoname(self):
+        """
+        类似 authoroname
+        :return: '[id] {oname}'
+        """
+        return f'[{self.id}] {self.oname}'
+
     def __str__(self):
         return f'{self.__class__.__name__}({self.id}-{self.title})'
 
@@ -71,19 +123,33 @@ class DetailEntity(JmBaseEntity, IndexedEntity):
         cls_name = cls.__name__
         return cls_name[cls_name.index("m") + 1: cls_name.rfind("Detail")].lower()
 
-    def get_dirname(self, ref: str) -> str:
+    @classmethod
+    def get_dirname(cls, detail: 'DetailEntity', ref: str) -> str:
         """
         该方法被 DirDule 调用，用于生成特定层次的文件夹
+
         通常调用方式如下:
-        Atitle -> ref = 'title' -> album.get_dirname(ref)
-        该方法需要返回 ref 对应的文件夹名，默认实现直接返回 getattr(self, ref)
+        Atitle -> ref = 'title' -> DetailEntity.get_dirname(album, 'title')
+        该方法需要返回 ref 对应的文件夹名，默认实现直接返回 getattr(detail, 'title')
 
         用户可重写此方法，来实现自定义文件夹名
 
+        v2.4.5: 此方法支持优先从 JmModuleConfig.XFIELD_ADVICE 中获取自定义函数并调用返回结果
+
+        :param detail: 本子/章节 实例
         :param ref: 字段名
         :returns: 文件夹名
         """
-        return getattr(self, ref)
+
+        advice_func = (JmModuleConfig.AFIELD_ADVICE
+                       if isinstance(detail, JmAlbumDetail)
+                       else JmModuleConfig.PFIELD_ADVICE
+                       ).get(ref, None)
+
+        if advice_func is not None:
+            return advice_func(detail)
+
+        return getattr(detail, ref)
 
 
 class JmImageDetail(JmBaseEntity):
@@ -110,7 +176,7 @@ class JmImageDetail(JmBaseEntity):
 
         self.from_photo: Optional[JmPhotoDetail] = from_photo
         self.query_params: StrNone = query_params
-        self.index = index
+        self.index = index # 从1开始
 
         # temp fields, in order to simplify passing parameter
         self.save_path: str = ''
@@ -171,7 +237,7 @@ class JmImageDetail(JmBaseEntity):
         """
         this tag is used to print pretty info when logging
         """
-        return f'{self.aid}/{self.img_file_name}{self.img_file_suffix} [{self.index + 1}/{len(self.from_photo)}]'
+        return f'{self.aid}/{self.img_file_name}{self.img_file_suffix} [{self.index}/{len(self.from_photo)}]'
 
     @classmethod
     def is_image(cls):
@@ -289,7 +355,7 @@ class JmPhotoDetail(DetailEntity):
             data_original,
             from_photo=self,
             query_params=self.data_original_query_params,
-            index=index,
+            index=index + 1,
         )
 
     def get_img_data_original(self, img_name: str) -> str:
