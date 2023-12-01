@@ -132,7 +132,7 @@ class DirRule:
 
         # Axxx or Pyyy
         key = 1 if rule[0] == 'A' else 2
-        solve_func = lambda detail, ref=rule[1:]: fix_windir_name(str(detail.get_dirname(ref)))
+        solve_func = lambda detail, ref=rule[1:]: fix_windir_name(str(DetailEntity.get_dirname(detail, ref)))
 
         # 保存缓存
         rule_solver = (key, solve_func, rule)
