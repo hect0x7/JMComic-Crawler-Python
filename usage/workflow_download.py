@@ -1,5 +1,5 @@
 from jmcomic import *
-from jmcomic.cl import get_env, JmcomicUI
+from jmcomic.cl import JmcomicUI
 
 # 下方填入你要下载的本子的id，一行一个，每行的首尾可以有空白字符
 jm_albums = '''
@@ -16,11 +16,24 @@ jm_photos = '''
 '''
 
 
+def env(name, default, trim=('[]', '""', "''")):
+    import os
+    value = os.getenv(name, None)
+    if value is None or value == '':
+        return default
+
+    for pair in trim:
+        if value.startswith(pair[0]) and value.endswith(pair[1]):
+            value = value[1:-1]
+
+    return value
+
+
 def get_id_set(env_name):
     aid_set = set()
     for text in [
         jm_albums,
-        (get_env(env_name, '')).replace('-', '\n'),
+        (env(env_name, '')).replace('-', '\n'),
     ]:
         aid_set.update(str_to_set(text))
 
@@ -39,6 +52,7 @@ def main():
     helper.run(option)
     option.call_all_plugin('after_download')
 
+
 def get_option():
     # 读取 option 配置文件
     option = create_option('../assets/option/option_workflow_download.yml')
@@ -53,23 +67,23 @@ def get_option():
 
 
 def cover_option_config(option: JmOption):
-    dir_rule = get_env('DIR_RULE', None)
+    dir_rule = env('DIR_RULE', None)
     if dir_rule is not None:
         the_old = option.dir_rule
         the_new = DirRule(dir_rule, base_dir=the_old.base_dir)
         option.dir_rule = the_new
 
-    impl = get_env('CLIENT_IMPL', None)
+    impl = env('CLIENT_IMPL', None)
     if impl is not None:
         option.client.impl = impl
 
-    suffix = get_env('IMAGE_SUFFIX', None)
+    suffix = env('IMAGE_SUFFIX', None)
     if suffix is not None:
         option.download.image.suffix = fix_suffix(suffix)
 
 
 def log_before_raise():
-    jm_download_dir = get_env('JM_DOWNLOAD_DIR', workspace())
+    jm_download_dir = env('JM_DOWNLOAD_DIR', workspace())
     mkdir_if_not_exists(jm_download_dir)
 
     # 自定义异常抛出函数，在抛出前把HTML响应数据写到下载文件夹（日志留痕）

@@ -208,7 +208,7 @@ class FindUpdatePlugin(JmOptionPlugin):
             return photo_ls
 
         class FindUpdateDownloader(JmDownloader):
-            def filter_iter_objs(self, detail):
+            def do_filter(self, detail):
                 if not detail.is_album():
                     return detail
 

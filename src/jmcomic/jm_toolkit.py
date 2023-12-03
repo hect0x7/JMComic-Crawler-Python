@@ -55,6 +55,9 @@ class JmcomicText:
     # 評論(div)
     pattern_html_album_comment_count = compile(r'<div class="badge"[^>]*?id="total_video_comments">(\d+)</div>'), 0
 
+    # 提取接口返回值信息
+    pattern_ajax_favorite_msg = compile(r'</button>(.*?)</div>')
+
     @classmethod
     def parse_to_jm_domain(cls, text: str):
         if text.startswith(JmModuleConfig.PROT):
@@ -308,7 +311,7 @@ class PatternTool:
     def require_match(cls, html: str, pattern: Pattern, msg, rindex=1):
         match = pattern.search(html)
         if match is not None:
-            return match[rindex]
+            return match[rindex] if rindex is not None else match
 
         ExceptionTool.raises_regex(
             msg,
