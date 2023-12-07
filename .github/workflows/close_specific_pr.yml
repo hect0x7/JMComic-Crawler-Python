@@ -2,11 +2,10 @@ name: Close specific PR
 
 on:
   pull_request:
+    types: [opened, ]
     paths:
       - 'usage/workflow_download.py'
-    branches-ignore: [dev, ]
-    types: [opened, ]
-      
+      - '!usage/**'
 jobs:
   close_pr:
     env:
