@@ -627,6 +627,7 @@ class JmApiClient(AbstractJmClient):
                 'express': 'off',
                 'v': time_stamp(),
             },
+            require_success=False,
         )
 
         scramble_id = PatternTool.match_or_default(resp.text,
@@ -789,7 +790,7 @@ class JmApiClient(AbstractJmClient):
         if data.status == 'ok':
             ExceptionTool.raises_resp(data.msg, resp)
 
-    def req_api(self, url, get=True, **kwargs) -> JmApiResp:
+    def req_api(self, url, get=True, require_success=True, **kwargs) -> JmApiResp:
         ts = self.decide_headers_and_ts(kwargs, url)
 
         if get:
@@ -799,7 +800,8 @@ class JmApiClient(AbstractJmClient):
 
         resp = JmApiResp(resp, ts)
 
-        self.require_resp_success(resp, url)
+        if require_success:
+            self.require_resp_success(resp, url)
 
         return resp
 
