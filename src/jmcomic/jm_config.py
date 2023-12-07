@@ -260,6 +260,7 @@ class JmModuleConfig:
         headers = JmMagicConstants.HTML_HEADERS_TEMPLATE.copy()
         headers.update({
             'authority': domain,
+            'origin': f'https://{domain}',
             'referer': f'https://{domain}',
         })
         return headers
@@ -296,9 +297,12 @@ class JmModuleConfig:
         return Postmans.new_postman(**kwargs)
 
     # option 相关的默认配置
+    # 一般情况下，建议使用option配置文件来定制配置
+    # 而如果只想修改几个简单常用的配置，也可以下方的DEFAULT_XXX属性
     JM_OPTION_VER = '2.1'
-    DEFAULT_CLIENT_IMPL = 'html'
-    DEFAULT_PROXIES = ProxyBuilder.system_proxy()  # use system proxy by default
+    DEFAULT_CLIENT_IMPL = 'html'  # 默认Client实现类型为网页端
+    DEFAULT_CLIENT_CACHE = True  # 默认开启Client缓存，缓存级别是level_option，详见CacheRegistry
+    DEFAULT_PROXIES = ProxyBuilder.system_proxy()  # 默认使用系统代理
 
     default_option_dict: dict = {
         'log': None,
@@ -355,7 +359,7 @@ class JmModuleConfig:
         # client cache
         client = option_dict['client']
         if client['cache'] is None:
-            client['cache'] = True
+            client['cache'] = cls.DEFAULT_CLIENT_CACHE
 
         # client impl
         if client['impl'] is None:

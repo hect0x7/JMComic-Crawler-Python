@@ -229,6 +229,15 @@ class JmUserClient:
         """
         raise NotImplementedError
 
+    def add_favorite_album(self,
+                           album_id,
+                           folder_id='0',
+                           ):
+        """
+        把漫画加入收藏夹
+        """
+        raise NotImplementedError
+
 
 class JmImageClient:
 

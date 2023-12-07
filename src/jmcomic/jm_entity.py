@@ -175,8 +175,8 @@ class JmImageDetail(JmBaseEntity):
         self.img_file_suffix: str = img_file_suffix
 
         self.from_photo: Optional[JmPhotoDetail] = from_photo
-        self.query_params: StrNone = query_params
-        self.index = index # 从1开始
+        self.query_params: Optional[str] = query_params
+        self.index = index  # 从1开始
 
         # temp fields, in order to simplify passing parameter
         self.save_path: str = ''
@@ -266,7 +266,7 @@ class JmPhotoDetail(DetailEntity):
         self._tags: str = tags
         self._series_id: int = int(series_id)
 
-        self._author: StrNone = author
+        self._author: Optional[str] = author
         self.from_album: Optional[JmAlbumDetail] = from_album
         self.index = self.album_index
 
@@ -278,7 +278,7 @@ class JmPhotoDetail(DetailEntity):
         # page_arr存放了该photo的所有图片文件名 img_name
         self.page_arr: List[str] = page_arr
         # 图片的cdn域名
-        self.data_original_domain: StrNone = data_original_domain
+        self.data_original_domain: Optional[str] = data_original_domain
         # 第一张图的URL
         self.data_original_0 = data_original_0
 
@@ -372,7 +372,7 @@ class JmPhotoDetail(DetailEntity):
         return f'{JmModuleConfig.PROT}{domain}/media/photos/{self.photo_id}/{img_name}'
 
     # noinspection PyMethodMayBeStatic
-    def get_data_original_query_params(self, data_original_0: StrNone) -> str:
+    def get_data_original_query_params(self, data_original_0: Optional[str]) -> str:
         if data_original_0 is None:
             return f'v={time_stamp()}'
 
@@ -534,12 +534,18 @@ class JmPageContent(JmBaseEntity, IndexedEntity):
 
     @property
     def page_count(self) -> int:
+        """
+        页数
+        """
         page_size = self.page_size
         import math
         return math.ceil(int(self.total) / page_size)
 
     @property
     def page_size(self) -> int:
+        """
+        页大小
+        """
         raise NotImplementedError
 
     def iter_id(self) -> Generator[str, None, None]:

@@ -276,22 +276,10 @@ class JmOption:
         return JmModuleConfig.option_default_dict()
 
     @classmethod
-    def default(cls, proxies=None, domain=None) -> 'JmOption':
+    def default(cls) -> 'JmOption':
         """
         使用默认的 JmOption
-        proxies, domain 为常用配置项，为了方便起见直接支持参数配置。
-        其他配置项建议还是使用配置文件
-        :param proxies: clash; 127.0.0.1:7890; v2ray
-        :param domain: 18comic.vip; ["18comic.vip"]
         """
-        if proxies is not None or domain is not None:
-            return cls.construct({
-                'client': {
-                    'domain': [domain] if isinstance(domain, str) else domain,
-                    'postman': {'meta_data': {'proxies': ProxyBuilder.build_by_str(proxies)}},
-                },
-            })
-
         return cls.construct({})
 
     @classmethod
@@ -372,7 +360,7 @@ class JmOption:
         """
         return self.new_jm_client(**kwargs)
 
-    def new_jm_client(self, domain=None, impl=None, cache=None, **kwargs) -> JmcomicClient:
+    def new_jm_client(self, domain_list=None, impl=None, cache=None, **kwargs) -> JmcomicClient:
         """
         创建新的Client（客户端），不同Client之间的元数据不共享
         """
@@ -380,10 +368,15 @@ class JmOption:
 
         # 所有需要用到的 self.client 配置项如下
         postman_conf: dict = deepcopy(self.client.postman.src_dict)  # postman dsl 配置
+
         meta_data: dict = postman_conf['meta_data']  # 元数据
+
         retry_times: int = self.client.retry_times  # 重试次数
+
         cache: str = cache if cache is not None else self.client.cache  # 启用缓存
+
         impl: str = impl or self.client.impl  # client_key
+
         if isinstance(impl, type):
             # eg: impl = JmHtmlClient
             # noinspection PyUnresolvedReferences
@@ -392,27 +385,29 @@ class JmOption:
         # start construct client
 
         # domain
-        def decide_domain():
-            domain_list: Union[List[str], DictModel, dict] = domain if domain is not None \
-                else self.client.domain  # 域名
+        def decide_domain_list():
+            nonlocal domain_list
 
-            if not isinstance(domain_list, list):
+            if domain_list is None:
+                domain_list = self.client.domain
+
+            if not isinstance(domain_list, (list, str)):
+                # dict
                 domain_list = domain_list.get(impl, [])
 
+            if isinstance(domain_list, str):
+                # multi-lines text
+                domain_list = str_to_list(domain_list)
+
+            # list or str
             if len(domain_list) == 0:
                 domain_list = self.decide_client_domain(impl)
 
             return domain_list
 
-        domain: List[str] = decide_domain()
-
         # support kwargs overwrite meta_data
         if len(kwargs) != 0:
             meta_data.update(kwargs)
-
-        # headers
-        if meta_data['headers'] is None:
-            meta_data['headers'] = self.decide_postman_headers(impl, domain[0])
 
         # postman
         postman = Postmans.create(data=postman_conf)
@@ -424,7 +419,7 @@ class JmOption:
 
         client: AbstractJmClient = clazz(
             postman=postman,
-            domain_list=domain,
+            domain_list=decide_domain_list(),
             retry_times=retry_times,
         )
 
@@ -456,20 +451,6 @@ class JmOption:
             if domain_list is not None:
                 return domain_list
             return [JmModuleConfig.get_html_domain()]
-
-        ExceptionTool.raises(f'没有配置域名，且是无法识别的client类型: {client_key}')
-
-    def decide_postman_headers(self, client_key, domain):
-        is_client_type = lambda ctype: self.client_key_is_given_type(client_key, ctype)
-
-        if is_client_type(JmApiClient):
-            # 移动端
-            # 不配置headers，由client每次请求前创建headers
-            return None
-
-        if is_client_type(JmHtmlClient):
-            # 网页端
-            return JmModuleConfig.new_html_headers(domain)
 
         ExceptionTool.raises(f'没有配置域名，且是无法识别的client类型: {client_key}')
 

@@ -6,10 +6,10 @@ filter(过滤器)是v2.1.12新引入的机制，
 使用filter的步骤如下：
 
 ```
-1. 自定义class，继承JmDownloader，重写filter_iter_objs方法，即:
+1. 自定义class，继承JmDownloader，重写do_filter方法，即:
    class MyDownloader(JmDownloader):
-       def filter_iter_objs(self, iter_objs: DownloadIterObjs):
-           # 如何重写？参考JmDownloader.filter_iter_objs和下面的示例
+       def do_filter(self, detail):
+           # 如何重写？参考JmDownloader.do_filter和下面的示例
            ...
 
 2. 让你的class生效，使用如下代码：
@@ -30,8 +30,8 @@ from jmcomic import *
 
 class First3ImageDownloader(JmDownloader):
 
-    def filter_iter_objs(self, iter_objs: DownloadIterObjs):
-        if isinstance(iter_objs, JmPhotoDetail):
+    def do_filter(self, detail):
+        if detail.is_photo():
             photo: JmPhotoDetail = iter_objs
             # 支持[start,end,step]
             return photo[:3]
@@ -52,8 +52,8 @@ class FindUpdateDownloader(JmDownloader):
         'xxx': 'yyy'
     }
 
-    def filter_iter_objs(self, iter_objs: DownloadIterObjs):
-        if not isinstance(iter_objs, JmAlbumDetail):
+    def do_filter(self, detail):
+        if not detail.is_album():
             return iter_objs
 
         return self.find_update(iter_objs)
