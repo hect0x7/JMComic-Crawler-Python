@@ -8,7 +8,7 @@ filter(过滤器)是v2.1.12新引入的机制，
 ```
 1. 自定义class，继承JmDownloader，重写do_filter方法，即:
    class MyDownloader(JmDownloader):
-       def do_filter(self, iter_objs: DownloadIterObjs):
+       def do_filter(self, detail):
            # 如何重写？参考JmDownloader.do_filter和下面的示例
            ...
 
