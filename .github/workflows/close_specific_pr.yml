@@ -3,9 +3,11 @@ name: Close specific PR
 on:
   pull_request:
     types: [opened, ]
+    # Note: If you use both the branches filter and the paths filter, the workflow will only run when both filters are satisfied.
+    branches:
+      - master
     paths:
       - 'usage/workflow_download.py'
-      - '!usage/**'
 jobs:
   close_pr:
     env:
