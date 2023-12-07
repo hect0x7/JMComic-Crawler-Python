@@ -74,7 +74,7 @@ class Test_Custom(JmTestConfigurable):
         )
 
     def test_custom_client_empty_domain(self):
-        class MyClient(JmcomicClient):
+        class MyClient(AbstractJmClient):
             client_key = 'myclient'
             pass
 
