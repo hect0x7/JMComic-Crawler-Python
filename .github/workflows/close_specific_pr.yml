@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'usage/workflow_download.py'
+    branches-ignore: [dev, ]
     types: [opened, ]
       
 jobs:
