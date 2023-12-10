@@ -29,10 +29,10 @@ def env(name, default, trim=('[]', '""', "''")):
     return value
 
 
-def get_id_set(env_name):
+def get_id_set(env_name, given):
     aid_set = set()
     for text in [
-        jm_albums,
+        given,
         (env(env_name, '')).replace('-', '\n'),
     ]:
         aid_set.update(str_to_set(text))
@@ -41,8 +41,8 @@ def get_id_set(env_name):
 
 
 def main():
-    album_id_set = get_id_set('JM_ALBUM_IDS')
-    photo_id_set = get_id_set('JM_PHOTO_IDS')
+    album_id_set = get_id_set('JM_ALBUM_IDS', jm_albums)
+    photo_id_set = get_id_set('JM_PHOTO_IDS', jm_photos)
 
     helper = JmcomicUI()
     helper.album_id_list = list(album_id_set)
