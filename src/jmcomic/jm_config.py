@@ -22,11 +22,27 @@ class JmMagicConstants:
     ORDER_BY_PICTURE = 'mp'
     ORDER_BY_LIKE = 'tf'
 
+    # ORDER_BY_MONTH_RANKING = 'mv_m'
+    # ORDER_BY_WEEK_RANKING = 'mv_w'
+    # ORDER_BY_DAY_RANKING = 'mv_t'
+
     # 搜索参数-时间段
     TIME_TODAY = 't'
     TIME_WEEK = 'w'
     TIME_MONTH = 'm'
     TIME_ALL = 'a'
+
+    # 全部, 同人, 单本, 短篇, 其他, 韩漫, 美漫, cosplay, 3D
+    # category = ["0", "doujin", "single", "short", "another", "hanman", "meiman", "doujin_cosplay", "3D"]
+    CATEGORY_ALL = '0'
+    CATEGORY_DOUJIN = 'doujin'
+    CATEGORY_SINGLE = 'single'
+    CATEGORY_SHORT = 'short'
+    CATEGORY_ANOTHER = 'another'
+    CATEGORY_HANMAN = 'hanman'
+    CATEGORY_MEIMAN = 'meiman'
+    CATEGORY_DOUJIN_COSPLAY = 'doujin_cosplay'
+    CATEGORY_3D = '3D'
 
     # 分页大小
     PAGE_SIZE_SEARCH = 80
