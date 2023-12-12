@@ -22,9 +22,9 @@ class JmMagicConstants:
     ORDER_BY_PICTURE = 'mp'
     ORDER_BY_LIKE = 'tf'
 
-    # ORDER_BY_MONTH_RANKING = 'mv_m'
-    # ORDER_BY_WEEK_RANKING = 'mv_w'
-    # ORDER_BY_DAY_RANKING = 'mv_t'
+    ORDER_MONTH_RANKING = 'mv_m'
+    ORDER_WEEK_RANKING = 'mv_w'
+    ORDER_DAY_RANKING = 'mv_t'
 
     # 搜索参数-时间段
     TIME_TODAY = 't'

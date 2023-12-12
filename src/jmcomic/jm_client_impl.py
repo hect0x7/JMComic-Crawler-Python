@@ -309,7 +309,28 @@ class JmHtmlClient(AbstractJmClient):
             album = JmcomicText.analyse_jm_album_html(resp.text)
             return JmSearchPage.wrap_single_album(album)
         else:
-            return JmcomicText.analyse_jm_search_html(resp.text)
+            return JmPageTool.parse_html_to_search_page(resp.text)
+
+    def categories_filter(self,
+                          page: int,
+                          time: str,
+                          category: str,
+                          order_by: str,
+                          ) -> JmCategoryPage:
+        params = {
+            'page': page,
+            'o': order_by,
+            't': time,
+        }
+
+        url = f'/albums/' + category if category != JmMagicConstants.CATEGORY_ALL else ''
+
+        resp = self.get_jm_html(
+            self.append_params_to_url(url, params),
+            allow_redirects=True,
+        )
+
+        return JmPageTool.parse_html_to_category_page(resp.text)
 
     # -- 帐号管理 --
 

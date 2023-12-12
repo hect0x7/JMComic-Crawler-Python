@@ -393,7 +393,7 @@ class JmCategoryClient:
         :param category: 类别，默认是最新，即显示最新的禁漫本子
         :param order_by: 排序方式，默认是观看数
         """
-        pass
+        raise NotImplementedError
 
     def month_ranking(self,
                       page: int,
@@ -426,7 +426,7 @@ class JmCategoryClient:
                     category: str = JmMagicConstants.CATEGORY_ALL,
                     ):
         """
-        日排行 = 分类【时间=周，排序=观看】
+        日排行 = 分类【时间=日，排序=观看】
         """
         return self.categories_filter(page,
                                       JmMagicConstants.TIME_TODAY,
