@@ -117,10 +117,6 @@ class JmcomicText:
         )
 
     @classmethod
-    def analyse_jm_search_html(cls, html: str) -> JmSearchPage:
-        return JmPageTool.parse_html_to_search_page(html)
-
-    @classmethod
     def reflect_new_instance(cls, html: str, cls_field_prefix: str, clazz: type):
 
         def match_field(field_name: str, pattern: Union[Pattern, List[Pattern]], text):
@@ -347,6 +343,15 @@ class JmPageTool:
         r'(<a[\s\S]*?) </div>'
     )
 
+    # 用来提取分类页面的的album的信息
+    pattern_html_category_album_info_list = compile(
+        r'<a href="/album/(\d+)/[^>]*>[\s\S]*?title="(.*?)"[^>]*>'
+        r'\n</a>\n'
+        r'<div class="label-loveicon">'
+        r'([\s\S]*?)'
+        r'<div class="clearfix">'
+    )
+
     # 用来查找tag列表
     pattern_html_search_tag_list = compile(r'<a[^>]*?>(.*?)</a>')
 
@@ -404,6 +409,26 @@ class JmPageTool:
             ))
 
         return JmSearchPage(content, total)
+
+    @classmethod
+    def parse_html_to_category_page(cls, html: str) -> JmSearchPage:
+        # 3. 提取结果
+        content = []
+        total = int(PatternTool.match_or_default(html, *cls.pattern_html_search_total))
+
+        album_info_list = cls.pattern_html_category_album_info_list.findall(html)
+
+        for (album_id, title, tag_text) in album_info_list:
+            tag_list = cls.pattern_html_search_tag_list.findall(tag_text)
+            content.append((
+                album_id, {
+                    'name': title,  # 改成name是为了兼容 parse_api_resp_to_page
+                    'tag_list': tag_list
+                }
+            ))
+
+        return JmSearchPage(content, total)
+
 
     @classmethod
     def parse_html_to_favorite_page(cls, html: str) -> JmFavoritePage:

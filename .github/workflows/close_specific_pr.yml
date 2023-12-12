@@ -1,4 +1,4 @@
-name: Close specific PR
+name: Close Specific PR
 
 on:
   pull_request:

@@ -220,6 +220,7 @@ class JmOption:
                 break
 
         from os.path import join
+        # noinspection PyTypeChecker
         return join(*dir_layer)
 
     # noinspection PyMethodMayBeStatic
@@ -293,6 +294,7 @@ class JmOption:
 
         # version
         version = dic.pop('version', None)
+        # noinspection PyTypeChecker
         if version is not None and float(version) >= float(JmModuleConfig.JM_OPTION_VER):
             # 版本号更高，跳过兼容代码
             return cls(**dic)

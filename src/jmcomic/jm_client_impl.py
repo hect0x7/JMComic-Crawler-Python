@@ -309,7 +309,28 @@ class JmHtmlClient(AbstractJmClient):
             album = JmcomicText.analyse_jm_album_html(resp.text)
             return JmSearchPage.wrap_single_album(album)
         else:
-            return JmcomicText.analyse_jm_search_html(resp.text)
+            return JmPageTool.parse_html_to_search_page(resp.text)
+
+    def categories_filter(self,
+                          page: int,
+                          time: str,
+                          category: str,
+                          order_by: str,
+                          ) -> JmCategoryPage:
+        params = {
+            'page': page,
+            'o': order_by,
+            't': time,
+        }
+
+        url = f'/albums/' + (category if category != JmMagicConstants.CATEGORY_ALL else '')
+
+        resp = self.get_jm_html(
+            self.append_params_to_url(url, params),
+            allow_redirects=True,
+        )
+
+        return JmPageTool.parse_html_to_category_page(resp.text)
 
     # -- 帐号管理 --
 
@@ -525,6 +546,7 @@ class JmApiClient(AbstractJmClient):
     func_to_cache = ['search', 'fetch_detail_entity']
 
     API_SEARCH = '/search'
+    API_CATEGORIES_FILTER = '/categories/filter'
     API_ALBUM = '/album'
     API_CHAPTER = '/chapter'
     API_SCRAMBLE = '/chapter_view_template'
@@ -560,6 +582,26 @@ class JmApiClient(AbstractJmClient):
             return JmSearchPage.wrap_single_album(self.get_album_detail(aid))
 
         return JmPageTool.parse_api_to_search_page(data)
+
+    def categories_filter(self,
+                          page: int,
+                          time: str,
+                          category: str,
+                          order_by: str,
+                          ):
+        # o: mv, mv_m, mv_w, mv_t
+        o = f'{order_by}_{time}' if time != JmMagicConstants.TIME_ALL else order_by
+
+        params = {
+            'page': page,
+            'order': '',  # 该参数为空
+            'c': category,
+            'o': o,
+        }
+
+        resp = self.req_api(self.append_params_to_url(self.API_CATEGORIES_FILTER, params))
+
+        return JmPageTool.parse_api_to_search_page(resp.model_data)
 
     def get_album_detail(self, album_id) -> JmAlbumDetail:
         return self.fetch_detail_entity(album_id,

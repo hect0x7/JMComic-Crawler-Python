@@ -617,6 +617,9 @@ class JmSearchPage(JmPageContent):
         return page
 
 
+JmCategoryPage = JmSearchPage
+
+
 class JmFavoritePage(JmPageContent):
 
     def __init__(self, content, folder_list, total):
