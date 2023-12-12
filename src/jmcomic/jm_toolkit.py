@@ -334,12 +334,11 @@ class JmPageTool:
 
     # 用来提取搜索页面的的album的信息
     pattern_html_search_album_info_list = compile(
-        r'<a href="/album/(\d+)/[\s\S]*?<img src=".*?" title="(.*?)"'
-        r'('
-        r'<div class="label-category" style="">'
+        r'<a href="/album/(\d+)/.+"[\s\S]*?'
+        r'title="(.*?)"[\s\S]*?'
+        r'(<div class="label-category" style="">'
         r'\n(.*)\n</div>\n<div class="label-sub" style=" ">'
-        r'(.*?)\n<[\s\S]*?'
-        r')?'
+        r'(.*?)\n<[\s\S]*?)?'
         r'<div class="title-truncate tags .*>\n'
         r'(<a[\s\S]*?) </div>'
     )
