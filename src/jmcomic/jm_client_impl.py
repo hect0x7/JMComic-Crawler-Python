@@ -905,12 +905,23 @@ class JmApiClient(AbstractJmClient):
             if self.get_meta_data('cookies'):
                 return
 
-            self['cookies'] = self.get_cookies()
+            self.get_cookies()
 
     @field_cache("APP_COOKIES", obj=JmModuleConfig)
     def get_cookies(self):
         resp = self.setting()
         cookies = dict(resp.resp.cookies)
+
+        # 1. 设置cookies
+        self['cookies'] = cookies
+
+        # 2. 检查禁漫最新的版本号
+        setting_ver = str(resp.model_data.version)
+        # 禁漫接口的版本 > jmcomic库内置版本
+        if setting_ver > JmMagicConstants.APP_VERSION and JmModuleConfig.flag_use_version_newer_if_behind:
+            jm_log('api.setting', f'change APP_VERSION from [{JmMagicConstants.APP_VERSION}] to [{setting_ver}]')
+            JmMagicConstants.APP_VERSION = setting_ver
+
         return cookies
 
 
