@@ -902,8 +902,6 @@ class JmApiClient(AbstractJmClient):
         # 保证拥有cookies，因为移动端要求必须携带cookies，否则会直接跳转同一本子【禁漫娘】
         if JmModuleConfig.flag_api_client_require_cookies:
             self.ensure_have_cookies()
-        if self['cookies']:
-            ExceptionTool.raises('123', None)
 
     client_init_cookies_lock = Lock()
 
