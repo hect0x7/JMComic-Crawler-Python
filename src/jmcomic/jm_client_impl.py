@@ -748,6 +748,14 @@ class JmApiClient(AbstractJmClient):
         }
         """
         resp = self.req_api('/setting')
+
+        # 检查禁漫最新的版本号
+        setting_ver = str(resp.model_data.version)
+        # 禁漫接口的版本 > jmcomic库内置版本
+        if setting_ver > JmMagicConstants.APP_VERSION and JmModuleConfig.flag_use_version_newer_if_behind:
+            jm_log('api.setting', f'change APP_VERSION from [{JmMagicConstants.APP_VERSION}] to [{setting_ver}]')
+            JmMagicConstants.APP_VERSION = setting_ver
+
         return resp
 
     def login(self,

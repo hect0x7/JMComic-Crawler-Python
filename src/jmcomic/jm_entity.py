@@ -636,7 +636,7 @@ class JmFavoritePage(JmPageContent):
     def page_size(self) -> int:
         return JmMagicConstants.PAGE_SIZE_FAVORITE
 
-    def folder_id_name_iter(self) -> Generator[Tuple[str, str], None, None]:
+    def iter_folder_id_name(self) -> Generator[Tuple[str, str], None, None]:
         """
         用户文件夹的迭代器
         """

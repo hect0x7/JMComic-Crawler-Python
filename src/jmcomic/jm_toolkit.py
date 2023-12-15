@@ -412,7 +412,6 @@ class JmPageTool:
 
     @classmethod
     def parse_html_to_category_page(cls, html: str) -> JmSearchPage:
-        # 3. 提取结果
         content = []
         total = int(PatternTool.match_or_default(html, *cls.pattern_html_search_total))
 
@@ -428,7 +427,6 @@ class JmPageTool:
             ))
 
         return JmSearchPage(content, total)
-
 
     @classmethod
     def parse_html_to_favorite_page(cls, html: str) -> JmFavoritePage:
@@ -893,8 +891,8 @@ class JmCryptoTool:
     @classmethod
     def token_and_tokenparam(cls,
                              ts,
-                             ver=JmMagicConstants.APP_VERSION,
-                             secret=JmMagicConstants.APP_TOKEN_SECRET,
+                             ver=None,
+                             secret=None,
                              ):
         """
         计算禁漫接口的请求headers的token和tokenparam
@@ -904,6 +902,12 @@ class JmCryptoTool:
         :param secret: 密钥
         :return (token, tokenparam)
         """
+
+        if ver is None:
+            ver = JmMagicConstants.APP_VERSION
+
+        if secret is None:
+            secret = JmMagicConstants.APP_TOKEN_SECRET
 
         # tokenparam: 1700566805,1.6.3
         tokenparam = '{},{}'.format(ts, ver)
@@ -917,7 +921,7 @@ class JmCryptoTool:
     def decode_resp_data(cls,
                          data: str,
                          ts,
-                         secret=JmMagicConstants.APP_DATA_SECRET,
+                         secret=None,
                          ) -> str:
         """
         解密接口返回值
@@ -927,6 +931,9 @@ class JmCryptoTool:
         :param secret: 密钥
         :return: json格式的字符串
         """
+        if secret is None:
+            secret = JmMagicConstants.APP_DATA_SECRET
+
         # 1. base64解码
         import base64
         data_b64 = base64.b64decode(data)

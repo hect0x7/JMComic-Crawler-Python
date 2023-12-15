@@ -253,10 +253,10 @@ class JmOption:
         return save_dir
 
     def decide_image_filepath(self, image: JmImageDetail, consider_custom_suffix=True) -> str:
-        # 通过拼接生成绝对路径
+        # 以此决定保存文件夹、后缀、不包含后缀的文件名
         save_dir = self.decide_image_save_dir(image.from_photo)
         suffix = self.decide_image_suffix(image) if consider_custom_suffix else image.img_file_suffix
-        return os.path.join(save_dir, self.decide_image_filename(image) + suffix)
+        return os.path.join(save_dir, fix_windir_name(self.decide_image_filename(image)) + suffix)
 
     def decide_download_cache(self, _image: JmImageDetail) -> bool:
         return self.download.cache

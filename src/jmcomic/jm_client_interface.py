@@ -476,7 +476,8 @@ class JmcomicClient(
     # noinspection PyMethodMayBeStatic
     def do_page_iter(self, params: dict, page: int, get_page_method):
         from math import inf
-        def update(value: Union[Dict], page: int, page_content: JmPageContent):
+
+        def update(value: Optional[Dict], page: int, page_content: JmPageContent):
             if value is None:
                 return page + 1, page_content.page_count
 
