@@ -637,3 +637,35 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
             # 获取文件夹中的文件列表并将其添加到 ZIP 文件中
             for file in files:
                 zipf.write(file, arcname=of_file_name(file))
+
+
+class ConvertJpgToPdfPlugin(JmOptionPlugin):
+    plugin_key = 'j2p'
+
+    def invoke(self,
+               photo: JmPhotoDetail,
+               pdf_dir=None,
+               filename_rule='Pid',
+               quality=100,
+               **kwargs,
+               ):
+        filename = DirRule.apply_rule_directly(None, photo, filename_rule)
+        photo_dir = self.option.decide_image_save_dir(photo)
+
+        if pdf_dir is None:
+            pdf_dir = photo_dir
+
+        def get_cmd(suffix='.jpg'):
+            return f'magick convert -quality {quality} "{photo_dir}*{suffix}" "{pdf_dir}{filename}.pdf"'
+
+        cmd = get_cmd()
+        self.log(f'cmd: {cmd}')
+
+        self.require_true(
+            self.execute_cmd(cmd) == 0,
+            'jpg图片合并为pdf失败！'
+        )
+
+    # noinspection PyMethodMayBeStatic
+    def execute_cmd(self, cmd):
+        return os.system(cmd)

@@ -181,6 +181,14 @@ class JmDownloader(DownloadCallback):
             downloader=self,
         )
 
+    def after_photo(self, photo: JmPhotoDetail):
+        super().after_photo(photo)
+        self.option.call_all_plugin(
+            'after_photo',
+            photo=photo,
+            downloader=self,
+        )
+
     def after_image(self, image: JmImageDetail, img_save_path):
         super().after_image(image, img_save_path)
         photo = image.from_photo
