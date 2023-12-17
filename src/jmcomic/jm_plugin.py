@@ -539,6 +539,10 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
         self.zip_password = zip_password
         self.delete_original_file = delete_original_file
         self.files = []
+
+        mkdir_if_not_exists(self.save_dir)
+        mkdir_if_not_exists(of_dir_path(self.zip_filepath))
+
         self.main()
 
     def main(self):
