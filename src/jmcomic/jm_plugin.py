@@ -17,6 +17,7 @@ class JmOptionPlugin:
 
     def __init__(self, option: JmOption):
         self.option = option
+        self.log_enable = True
 
     def invoke(self, **kwargs) -> None:
         """
@@ -33,10 +34,12 @@ class JmOptionPlugin:
         """
         return cls(option)
 
-    @classmethod
-    def log(cls, msg, topic=None):
+    def log(self, msg, topic=None):
+        if self.log_enable is not True:
+            return
+
         jm_log(
-            topic=f'plugin.{cls.plugin_key}' + (f'.{topic}' if topic is not None else ''),
+            topic=f'plugin.{self.plugin_key}' + (f'.{topic}' if topic is not None else ''),
             msg=msg
         )
 
@@ -65,11 +68,12 @@ class JmLoginPlugin(JmOptionPlugin):
     def invoke(self,
                username: str,
                password: str,
+               impl=None,
                ) -> None:
         self.require_true(username, '用户名不能为空')
         self.require_true(password, '密码不能为空')
 
-        client = self.option.new_jm_client()
+        client = self.option.new_jm_client(impl=impl)
         client.login(username, password)
 
         cookies = dict(client['cookies'])
@@ -515,3 +519,117 @@ class AutoSetBrowserCookiesPlugin(JmOptionPlugin):
             {k: v for k, v in cookies.items() if k in self.accepted_cookies_keys}
         )
         self.log('获取浏览器cookies成功')
+
+
+# noinspection PyMethodMayBeStatic
+class FavoriteFolderExportPlugin(JmOptionPlugin):
+    plugin_key = 'favorite_folder_export'
+
+    # noinspection PyAttributeOutsideInit
+    def invoke(self,
+               save_dir=None,
+               zip_enable=False,
+               zip_filepath=None,
+               zip_password=None,
+               delete_original_file=False,
+               ):
+        self.save_dir = save_dir if save_dir is not None else os.getcwd()
+        self.zip_enable = zip_enable
+        self.zip_filepath = zip_filepath
+        self.zip_password = zip_password
+        self.delete_original_file = delete_original_file
+        self.files = []
+        self.main()
+
+    def main(self):
+        cl = self.option.new_jm_client(impl=JmApiClient)
+        # noinspection PyAttributeOutsideInit
+        self.cl = cl
+        page = cl.favorite_folder()
+
+        # 获取所有的收藏夹
+        folders = {fid: fname for fid, fname in page.iter_folder_id_name()}
+        # 加上特殊收藏栏【全部】
+        folders.setdefault('0', '全部')
+
+        # 一个收藏夹一个线程，导出收藏夹数据到文件
+        multi_thread_launcher(
+            iter_objs=folders.items(),
+            apply_each_obj_func=self.handle_folder,
+        )
+
+        if not self.zip_enable:
+            return
+
+        # 压缩导出的文件
+        self.require_true(self.zip_filepath, '如果开启zip，请指定zip_filepath参数（压缩文件保存路径）')
+        self.zip_folder_with_password(
+            self.files,
+            self.zip_filepath,
+            self.zip_password,
+        )
+
+        # 删除导出的原文件
+        if self.delete_original_file is True:
+            for f in self.files:
+                os.remove(f)
+
+    def handle_folder(self, fid: str, fname: str):
+        self.log(f'【收藏夹: {fname}, fid: {fid}】开始获取数据')
+
+        # 获取收藏夹数据
+        page_data = self.fetch_folder_page_data(fid)
+
+        # 序列化到文件
+        filepath = self.save_folder_page_data_to_file(page_data, fid, fname)
+
+        if filepath is None:
+            self.log(f'【收藏夹: {fname}, fid: {fid}】收藏夹无数据')
+            return
+
+        self.log(f'【收藏夹: {fname}, fid: {fid}】保存文件成功 → [{filepath}]')
+        self.files.append(filepath)
+
+    def fetch_folder_page_data(self, fid):
+        # 一页一页获取，不使用并行
+        page_data = list(self.cl.favorite_folder_gen(folder_id=fid))
+        return page_data
+
+    def save_folder_page_data_to_file(self, page_data: List[JmFavoritePage], fid: str, fname: str):
+        from os import path
+        filepath = path.abspath(path.join(self.save_dir, fix_windir_name(f'【{fid}】{fname}.csv')))
+
+        data = []
+        for page in page_data:
+            for aid, extra in page.content:
+                data.append(
+                    (aid, extra.get('author', '') or JmMagicConstants.DEFAULT_AUTHOR, extra['name'])
+                )
+
+        if len(data) == 0:
+            return
+
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write('id,author,name\n')
+            for item in data:
+                f.write(','.join(item) + '\n')
+
+        return filepath
+
+    def zip_folder_with_password(self, files, zip_path, password):
+        """
+        压缩文件夹中的文件并设置密码
+
+        :param files: 要压缩的文件的绝对路径的列表
+        :param zip_path: 压缩文件的保存路径
+        :param password: 压缩文件的密码
+        """
+        import zipfile
+
+        with zipfile.ZipFile(zip_path, 'w') as zipf:
+            if password is not None:
+                zipf.setpassword(password.encode('utf-8'))
+
+            # 获取文件夹中的文件列表并将其添加到 ZIP 文件中
+            for file in files:
+                zipf.write(file, arcname=of_file_name(file))

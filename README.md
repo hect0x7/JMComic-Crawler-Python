@@ -4,6 +4,10 @@
 
 你可以通过简单的几行Python代码，实现下载JM上的本子到本地，并且是处理好的图片。
 
+[【指路】教程：使用GitHub Actions下载禁漫本子](./assets/docs/sources/tutorial/1_github_actions.md)
+
+[【指路】教程：导出并下载你的禁漫收藏夹数据](./assets/docs/sources/tutorial/10_export_favorites.md)
+
 **友情提示：珍爱JM，为了减轻JM的服务器压力，请不要一次性爬取太多本子，西门🙏🙏🙏**.
 
 ## 项目介绍
