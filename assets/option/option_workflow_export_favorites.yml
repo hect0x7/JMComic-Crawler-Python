@@ -1,0 +1,19 @@
+client:
+  impl: api
+  domain:
+    html: [ jmcomic1.me, jmcomic.me ]
+
+# 插件配置
+plugins:
+  main:
+    - plugin: login # 登录插件
+      kwargs:
+        username: ${JM_USERNAME}
+        password: ${JM_PASSWORD}
+
+    - plugin: favorite_folder_export
+      log: false
+      kwargs:
+        zip_enable: true
+        zip_filepath: ${JM_DOWNLOAD_DIR}/export.zip
+        zip_password: ${ZIP_PASSWORD}
