@@ -533,9 +533,9 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
                zip_password=None,
                delete_original_file=False,
                ):
-        self.save_dir = save_dir if save_dir is not None else os.getcwd() + '/export/'
+        self.save_dir = os.path.abspath(save_dir if save_dir is not None else os.getcwd() + '/export/')
         self.zip_enable = zip_enable
-        self.zip_filepath = zip_filepath
+        self.zip_filepath = os.path.abspath(zip_filepath)
         self.zip_password = zip_password
         self.delete_original_file = delete_original_file
         self.files = []
