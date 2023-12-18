@@ -1,0 +1,27 @@
+client:
+  impl: api
+  domain:
+    html: [ jmcomic1.me, jmcomic.me ]
+
+# 插件配置
+plugins:
+  main:
+    - plugin: login # 登录插件
+      kwargs:
+        username: ${JM_USERNAME}
+        password: ${JM_PASSWORD}
+
+    - plugin: favorite_folder_export
+      log: false
+      kwargs:
+        zip_enable: true
+        zip_filepath: ${ZIP_FP}
+        zip_password: ${ZIP_PASSWORD}
+
+    - plugin: send_qq_email # 发送邮件，如果未配置下面的前3个环境变量则不会发送。
+      kwargs:
+        msg_from: ${EMAIL_FROM}
+        msg_to: ${EMAIL_TO}
+        password: ${EMAIL_PASS}
+        title: ${EMAIL_TITLE}
+        content: ${EMAIL_CONTENT}

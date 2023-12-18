@@ -141,4 +141,19 @@ plugins:
         title: jmcomic # 标题
         content: jmcomic finished !!! # 内容
 
+  main:
+    - plugin: favorite_folder_export # 导出收藏夹插件
+      log: false
+      kwargs:
+        zip_enable: true # 对收藏夹进行压缩
+        zip_filepath: ${JM_DOWNLOAD_DIR}/export.zip # 压缩文件路径
+        zip_password: ${ZIP_PASSWORD} # 压缩密码
+
+  after_photo:
+    - plugin: j2p # jpg图片合成为一个pdf插件
+      kwargs:
+        pdf_dir: D:/pdf # pdf存放文件夹
+        filename_rule: Pid # pdf命名规则
+        quality: 100 # pdf质量，0 - 100
+
 ```

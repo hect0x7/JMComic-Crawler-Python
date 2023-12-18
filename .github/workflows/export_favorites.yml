@@ -1,0 +1,80 @@
+name: 导出收藏夹数据
+
+on:
+#  schedule:
+#    - cron: "0 0 * * *"
+  push:
+  workflow_dispatch:
+    inputs:
+      IN_JM_USERNAME:
+        type: string
+        default: ''
+        description: '禁漫帐号（不建议使用，会泄露在日志中。最好用secrets）'
+        required: false
+
+      IN_JM_PASSWORD:
+        type: string
+        default: ''
+        description: '禁漫密码（不建议使用，会泄露在日志中。最好用secrets）'
+        required: false
+
+      IN_ZIP_PASSWORD:
+        type: string
+        default: ''
+        description: '压缩文件密码（不建议使用，会泄露在日志中。最好用secrets）'
+        required: false
+
+jobs:
+  crawler:
+    runs-on: ubuntu-latest
+    env:
+      # 工作流输入
+      IN_JM_USERNAME: ${{ github.event.inputs.IN_JM_USERNAME }}
+      IN_JM_PASSWORD: ${{ github.event.inputs.IN_JM_PASSWORD }}
+      IN_ZIP_PASSWORD: ${{ github.event.inputs.IN_ZIP_PASSWORD }}
+
+      # 登录相关secrets
+      JM_USERNAME: ${{ secrets.JM_USERNAME }}
+      JM_PASSWORD: ${{ secrets.JM_PASSWORD }}
+      ZIP_PASSWORD: ${{ secrets.ZIP_PASSWORD }}
+
+      # 邮件相关secrets
+      EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+      EMAIL_TO: ${{ secrets.EMAIL_TO }}
+      EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+      EMAIL_TITLE: ${{ secrets.EMAIL_TITLE }}
+      EMAIL_CONTENT: ${{ secrets.EMAIL_CONTENT }}
+
+      # 固定值
+      ZIP_FP: /home/runner/work/jmcomic/download/export.7z
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependency
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          sudo apt update
+          sudo apt install p7zip-full
+
+      - name: 安装jmcomic（local）
+        run: |
+          pip install -e ./
+
+      - name: 执行代码
+        run: |
+          cd ./usage/
+          python workflow_export_favorites.py
+
+      - name: 上传结果
+        uses: actions/upload-artifact@v3
+        with:
+          name: '收藏夹导出zip'
+          path: ${{ env.ZIP_FP }}
+          if-no-files-found: error
+          retention-days: 90

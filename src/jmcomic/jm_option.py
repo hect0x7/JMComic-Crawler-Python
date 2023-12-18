@@ -528,6 +528,10 @@ class JmOption:
             # 构建插件对象
             plugin: JmOptionPlugin = plugin_class.build(self)
 
+            # 设置日志开关
+            if pinfo.get('log', True) is not True:
+                plugin.log_enable = False
+
             jm_log('plugin.invoke', f'调用插件: [{plugin_class.plugin_key}]')
             # 调用插件功能
             plugin.invoke(**kwargs)
