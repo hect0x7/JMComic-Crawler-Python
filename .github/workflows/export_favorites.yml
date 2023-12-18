@@ -75,6 +75,6 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: '收藏夹导出zip'
-          path: ${{ env.JM_DOWNLOAD_DIR }}/export.zip
+          path: ${{ env.JM_DOWNLOAD_DIR }}/export.7z
           if-no-files-found: error
           retention-days: 90
