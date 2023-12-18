@@ -47,16 +47,25 @@
 同样的方式再配置如下内容：
 
 `JM_PASSWORD`: 你的禁漫帐号密码
+
 `ZIP_PASSWORD`: 压缩文件密码，防止别人下载使用你的文件
 
 
 
 ## 3. 运行工作流，下载结果。
 
-TODO:  
+访问如下网址：
 
-来到Actions页面，选择最新的一次记录，等待它完成。
+`https://github.com/你的用户名/JMComic-Crawler-Python/actions/workflows/export_favorites.yml`
 
-![3](../images/3.png)
+按照下图步骤点击，即可运行工作流。
 
-完成以后，在页面最底部，点击下载你的成品即可。
+* 如果你在步骤2已经配置了secrets，无需在意输入框。
+
+* 如果你没有配置secrets，你可以在输入框中输入账号 密码 压缩密码，但要记得及时删除工作流来避免信息泄漏。
+
+![9](../images/9.png)
+
+待工作流变绿，表示已完成，点击去拉到页面底部，即可下载文件。
+
+![10](../images/10.png)
