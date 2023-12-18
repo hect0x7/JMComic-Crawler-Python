@@ -533,7 +533,7 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
                zip_password=None,
                delete_original_file=False,
                ):
-        self.save_dir = save_dir if save_dir is not None else os.getcwd()
+        self.save_dir = save_dir if save_dir is not None else os.getcwd() + '/export/'
         self.zip_enable = zip_enable
         self.zip_filepath = zip_filepath
         self.zip_password = zip_password
@@ -567,11 +567,11 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
 
         # 压缩导出的文件
         self.require_true(self.zip_filepath, '如果开启zip，请指定zip_filepath参数（压缩文件保存路径）')
-        self.zip_folder_with_password(
-            self.files,
-            self.zip_filepath,
-            self.zip_password,
-        )
+
+        if self.zip_password is None:
+            self.zip_folder_without_password(self.files, self.zip_filepath)
+        else:
+            self.zip_with_password()
 
         # 删除导出的原文件
         if self.delete_original_file is True:
@@ -620,23 +620,25 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
 
         return filepath
 
-    def zip_folder_with_password(self, files, zip_path, password):
+    def zip_folder_without_password(self, files, zip_path):
         """
         压缩文件夹中的文件并设置密码
 
         :param files: 要压缩的文件的绝对路径的列表
         :param zip_path: 压缩文件的保存路径
-        :param password: 压缩文件的密码
         """
         import zipfile
 
         with zipfile.ZipFile(zip_path, 'w') as zipf:
-            if password is not None:
-                zipf.setpassword(password.encode('utf-8'))
-
             # 获取文件夹中的文件列表并将其添加到 ZIP 文件中
             for file in files:
                 zipf.write(file, arcname=of_file_name(file))
+
+    def zip_with_password(self):
+        self.require_true(
+            0 == os.system(f'zip -erP "{self.zip_password}" "{self.zip_filepath}" "{self.save_dir}"'),
+            '加密压缩文件失败'
+        )
 
 
 class ConvertJpgToPdfPlugin(JmOptionPlugin):
@@ -653,6 +655,10 @@ class ConvertJpgToPdfPlugin(JmOptionPlugin):
         photo_dir = self.option.decide_image_save_dir(photo)
         if pdf_dir is None:
             pdf_dir = photo_dir
+        else:
+            pdf_dir = fix_windir_name(pdf_dir)
+            mkdir_if_not_exists(pdf_dir)
+
         pdf_filepath = f'{pdf_dir}{filename}.pdf'
 
         def get_cmd(suffix='.jpg'):
