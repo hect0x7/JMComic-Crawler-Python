@@ -651,20 +651,24 @@ class ConvertJpgToPdfPlugin(JmOptionPlugin):
                ):
         filename = DirRule.apply_rule_directly(None, photo, filename_rule)
         photo_dir = self.option.decide_image_save_dir(photo)
-
         if pdf_dir is None:
             pdf_dir = photo_dir
+        pdf_filepath = f'{pdf_dir}{filename}.pdf'
 
         def get_cmd(suffix='.jpg'):
-            return f'magick convert -quality {quality} "{photo_dir}*{suffix}" "{pdf_dir}{filename}.pdf"'
+            return f'magick convert -quality {quality} "{photo_dir}*{suffix}" "{pdf_filepath}"'
 
         cmd = get_cmd()
-        self.log(f'cmd: {cmd}')
+        self.log(f'execute command: {cmd}')
+        code = self.execute_cmd(cmd)
 
         self.require_true(
-            self.execute_cmd(cmd) == 0,
+            code == 0,
             'jpg图片合并为pdf失败！'
+            '请确认你是否安装了magick，安装网站: [http://www.imagemagick.org/]'
         )
+
+        self.log(f'Convert Successfully: JM{photo.id} → {pdf_filepath}')
 
     # noinspection PyMethodMayBeStatic
     def execute_cmd(self, cmd):
