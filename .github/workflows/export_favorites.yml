@@ -46,7 +46,7 @@ jobs:
       EMAIL_CONTENT: ${{ secrets.EMAIL_CONTENT }}
 
       # 固定值
-      JM_DOWNLOAD_DIR: /home/runner/work/jmcomic/download/
+      ZIP_FP: /home/runner/work/jmcomic/download/export.7z
 
     steps:
       - uses: actions/checkout@v3
@@ -75,6 +75,6 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: '收藏夹导出zip'
-          path: ${{ env.JM_DOWNLOAD_DIR }}/export.7z
+          path: ZIP_FP
           if-no-files-found: error
           retention-days: 90
