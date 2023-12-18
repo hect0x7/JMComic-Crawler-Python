@@ -635,8 +635,10 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
                 zipf.write(file, arcname=of_file_name(file))
 
     def zip_with_password(self):
+        os.chdir(self.save_dir)
+        cmd = f'7z a "{self.zip_filepath}" "{self.save_dir}" -p "{self.zip_password}" -mhe=on'
         self.require_true(
-            0 == os.system(f'zip -erP "{self.zip_password}" "{self.zip_filepath}" "{self.save_dir}"'),
+            0 == os.system(cmd),
             '加密压缩文件失败'
         )
 
