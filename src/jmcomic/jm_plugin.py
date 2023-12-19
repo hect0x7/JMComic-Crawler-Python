@@ -43,14 +43,22 @@ class JmOptionPlugin:
             msg=msg
         )
 
-    def require_true(self, case: Any, msg: str):
+    def require_true(self, case: Any, msg: str, is_param_validation=True):
         """
         独立于ExceptionTool的一套异常抛出体系
+
+
+        :param case: 条件
+        :param msg: 报错信息
+        :param is_param_validation: True 表示 调用本方法是用于校验参数，则会抛出特定异常（PluginValidationException）
         """
         if case:
             return
 
-        raise PluginValidationException(self, msg)
+        if is_param_validation:
+            raise PluginValidationException(self, msg)
+        else:
+            ExceptionTool.raises(msg)
 
     def warning_lib_not_install(self, lib: str):
         msg = (f'插件`{self.plugin_key}`依赖库: {lib}，请先安装{lib}再使用。'
@@ -658,7 +666,6 @@ class ConvertJpgToPdfPlugin(JmOptionPlugin):
         if pdf_dir is None:
             pdf_dir = photo_dir
         else:
-            pdf_dir = fix_windir_name(pdf_dir)
             mkdir_if_not_exists(pdf_dir)
 
         pdf_filepath = f'{pdf_dir}{filename}.pdf'
@@ -673,7 +680,8 @@ class ConvertJpgToPdfPlugin(JmOptionPlugin):
         self.require_true(
             code == 0,
             'jpg图片合并为pdf失败！'
-            '请确认你是否安装了magick，安装网站: [http://www.imagemagick.org/]'
+            '请确认你是否安装了magick，安装网站: [http://www.imagemagick.org/]',
+            False,
         )
 
         self.log(f'Convert Successfully: JM{photo.id} → {pdf_filepath}')

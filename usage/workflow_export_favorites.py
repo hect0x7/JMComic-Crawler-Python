@@ -28,7 +28,7 @@ def prepare_actions_input_and_secrets():
 def main():
     prepare_actions_input_and_secrets()
     option = create_option('../assets/option/option_workflow_export_favorites.yml')
-    option.call_all_plugin('main')
+    option.call_all_plugin('main', safe=False)
 
 
 if __name__ == '__main__':
