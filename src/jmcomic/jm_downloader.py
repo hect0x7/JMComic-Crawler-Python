@@ -207,6 +207,13 @@ class JmDownloader(DownloadCallback):
                    f'{self.__class__.__name__} Exit with exception: {exc_type, exc_val}'
                    )
 
+    @classmethod
+    def use(cls, *args, **kwargs):
+        """
+        让本类替换JmModuleConfig.CLASS_DOWNLOADER
+        """
+        JmModuleConfig.CLASS_DOWNLOADER = cls
+
 
 class DoNotDownloadImage(JmDownloader):
     """
@@ -254,4 +261,4 @@ class JustDownloadSpecificCountImage(JmDownloader):
     @classmethod
     def use(cls, count):
         cls.count = count
-        JmModuleConfig.CLASS_DOWNLOADER = cls
+        super().use()
