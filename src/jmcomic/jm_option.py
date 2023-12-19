@@ -187,7 +187,7 @@ class JmOption:
         # 其他配置
         self.filepath = filepath
 
-        self.call_all_plugin('after_init')
+        self.call_all_plugin('after_init', safe=True)
 
     """
     下面是decide系列方法，为了支持重写和增加程序动态性。
@@ -494,7 +494,7 @@ class JmOption:
 
     # 下面的方法为调用插件提供支持
 
-    def call_all_plugin(self, group: str, **extra):
+    def call_all_plugin(self, group: str, safe=True, **extra):
         plugin_list: List[dict] = self.plugins.get(group, [])
         if plugin_list is None or len(plugin_list) == 0:
             return
@@ -509,7 +509,13 @@ class JmOption:
 
             ExceptionTool.require_true(plugin_class is not None, f'[{group}] 未注册的plugin: {key}')
 
-            self.invoke_plugin(plugin_class, kwargs, extra, pinfo)
+            try:
+                self.invoke_plugin(plugin_class, kwargs, extra, pinfo)
+            except BaseException as e:
+                if safe is True:
+                    traceback_print_exec()
+                else:
+                    raise e
 
     def invoke_plugin(self, plugin_class, kwargs: Any, extra: dict, pinfo: dict):
         # 检查插件的参数类型
@@ -542,7 +548,7 @@ class JmOption:
 
         except JmcomicException as e:
             # 模块内部异常，通过不是插件抛出的，而是插件调用了例如Client，Client请求失败抛出的
-            self.handle_plugin_exception(e, pinfo, kwargs, plugin)
+            self.handle_plugin_jmcomic_exception(e, pinfo, kwargs, plugin)
 
         except BaseException as e:
             # 为插件兜底，捕获其他所有异常
@@ -575,11 +581,11 @@ class JmOption:
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
     def handle_plugin_unexpected_error(self, e, pinfo: dict, kwargs: dict, plugin):
         msg = str(e)
-        jm_log('plugin.error', f'插件 [{plugin.plugin_key}]，运行遇到未捕获异常，异常信息: {msg}')
+        jm_log('plugin.error', f'插件 [{plugin.plugin_key}]，运行遇到未捕获异常，异常信息: [{msg}]')
         raise e
 
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
-    def handle_plugin_exception(self, e, pinfo: dict, kwargs: dict, plugin):
+    def handle_plugin_jmcomic_exception(self, e, pinfo: dict, kwargs: dict, plugin):
         msg = str(e)
         jm_log('plugin.exception', f'插件 [{plugin.plugin_key}] 调用失败，异常信息: [{msg}]')
         raise e
