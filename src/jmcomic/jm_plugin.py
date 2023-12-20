@@ -654,27 +654,66 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
 class ConvertJpgToPdfPlugin(JmOptionPlugin):
     plugin_key = 'j2p'
 
+    def check_image_suffix_is_valid(self, std_suffix):
+        """
+        检查option配置的图片后缀转换，目前限制使用Magick时只能搭配jpg
+        暂不探究Magick是否支持更多图片格式
+        """
+        cur_suffix: Optional[str] = self.option.download.image.suffix
+
+        ExceptionTool.require_true(
+            cur_suffix is not None and cur_suffix.endswith(std_suffix),
+            '请把图片的后缀转换配置为jpg，不然无法使用Magick！'
+            f'（当前配置是[{cur_suffix}]）\n'
+            f'配置模板如下: \n'
+            f'```\n'
+            f'download:\n'
+            f'  image:\n'
+            f'    suffix: {std_suffix} # 当前配置是{cur_suffix}\n'
+            f'```'
+        )
+
     def invoke(self,
                photo: JmPhotoDetail,
                pdf_dir=None,
                filename_rule='Pid',
                quality=100,
+               overwrite_cmd=None,
+               overwrite_jpg=None,
                **kwargs,
                ):
+
+        # 检查图片后缀配置
+        suffix = overwrite_jpg or '.jpg'
+        self.check_image_suffix_is_valid(suffix)
+
+        # 处理文件夹配置
         filename = DirRule.apply_rule_directly(None, photo, filename_rule)
         photo_dir = self.option.decide_image_save_dir(photo)
+
+        # 处理生成的pdf文件的路径
         if pdf_dir is None:
             pdf_dir = photo_dir
         else:
+            pdf_dir = fix_filepath(pdf_dir, True)
             mkdir_if_not_exists(pdf_dir)
 
-        pdf_filepath = f'{pdf_dir}{filename}.pdf'
+        pdf_filepath = os.path.join(pdf_dir, f'{filename}.pdf')
 
-        def get_cmd(suffix='.jpg'):
-            return f'magick convert -quality {quality} "{photo_dir}*{suffix}" "{pdf_filepath}"'
+        # 生成命令
+        def generate_cmd():
+            return (
+                    overwrite_cmd or
+                    'magick convert -quality {quality} "{photo_dir}*{suffix}" "{pdf_filepath}"'
+            ).format(
+                quality=quality,
+                photo_dir=photo_dir,
+                suffix=suffix,
+                pdf_filepath=pdf_filepath,
+            )
 
-        cmd = get_cmd()
-        self.log(f'execute command: {cmd}')
+        cmd = generate_cmd()
+        self.log(f'Execute Command: [{cmd}]')
         code = self.execute_cmd(cmd)
 
         self.require_true(

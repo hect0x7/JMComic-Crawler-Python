@@ -71,7 +71,7 @@ class JmImageResp(JmResp):
             JmImageTool.save_resp_img(
                 self,
                 path,
-                need_convert=suffix_not_equal(img_url, path),
+                need_convert=suffix_not_equal(img_url[:img_url.find("?")], path),
             )
         else:
             # 解密图片并保存文件

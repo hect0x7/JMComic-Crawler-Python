@@ -242,14 +242,16 @@ class JmOption:
         # 非动图，以配置为先
         return self.download.image.suffix or image.img_file_suffix
 
-    def decide_image_save_dir(self, photo) -> str:
+    def decide_image_save_dir(self, photo, ensure_exists=True) -> str:
         # 使用 self.dir_rule 决定 save_dir
         save_dir = self.dir_rule.decide_image_save_dir(
             photo.from_album,
             photo
         )
 
-        mkdir_if_not_exists(save_dir)
+        if ensure_exists:
+            mkdir_if_not_exists(save_dir)
+
         return save_dir
 
     def decide_image_filepath(self, image: JmImageDetail, consider_custom_suffix=True) -> str:
