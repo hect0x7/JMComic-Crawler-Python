@@ -506,7 +506,7 @@ class JmOption:
 
         plugin_registry = JmModuleConfig.REGISTRY_PLUGIN
         for pinfo in plugin_list:
-            key, kwargs = pinfo['plugin'], pinfo['kwargs']
+            key, kwargs = pinfo['plugin'], pinfo.get('kwargs', None)  # kwargs为None
             plugin_class: Optional[Type[JmOptionPlugin]] = plugin_registry.get(key, None)
 
             ExceptionTool.require_true(plugin_class is not None, f'[{group}] 未注册的plugin: {key}')
@@ -519,7 +519,7 @@ class JmOption:
                 else:
                     raise e
 
-    def invoke_plugin(self, plugin_class, kwargs: Any, extra: dict, pinfo: dict):
+    def invoke_plugin(self, plugin_class, kwargs: Optional[Dict], extra: dict, pinfo: dict):
         # 检查插件的参数类型
         kwargs = self.fix_kwargs(kwargs)
         # 把插件的配置数据kwargs和附加数据extra合并，extra会覆盖kwargs
@@ -593,15 +593,18 @@ class JmOption:
         raise e
 
     # noinspection PyMethodMayBeStatic
-    def fix_kwargs(self, kwargs) -> Dict[str, Any]:
+    def fix_kwargs(self, kwargs: Optional[Dict]) -> Dict[str, Any]:
         """
         kwargs将来要传给方法参数，这要求kwargs的key是str类型，
         该方法检查kwargs的key的类型，如果不是str，尝试转为str，不行则抛异常。
         """
-        ExceptionTool.require_true(
-            isinstance(kwargs, dict),
-            f'插件的kwargs参数必须为dict类型，而不能是类型: {type(kwargs)}'
-        )
+        if kwargs is None:
+            kwargs = {}
+        else:
+            ExceptionTool.require_true(
+                isinstance(kwargs, dict),
+                f'插件的kwargs参数必须为dict类型，而不能是类型: {type(kwargs)}'
+            )
 
         kwargs: dict
         new_kwargs: Dict[str, Any] = {}

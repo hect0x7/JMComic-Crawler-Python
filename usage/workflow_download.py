@@ -55,7 +55,7 @@ def main():
 
 def get_option():
     # 读取 option 配置文件
-    option = create_option('../assets/option/option_workflow_download.yml')
+    option = create_option(os.path.join(__file__, '../../assets/option/option_workflow_download.yml'))
 
     # 支持工作流覆盖配置文件的配置
     cover_option_config(option)
