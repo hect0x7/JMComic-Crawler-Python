@@ -2,6 +2,11 @@ from jmcomic import *
 
 
 def prepare_actions_input_and_secrets():
+    """
+    本函数替代对配置文件中的 ${} 的解析函数
+    目的是为了支持：当没有配置环境变量时，可以找另一个环境变量来用
+    """
+
     def env(match: Match) -> str:
         name = match[1]
         value = os.getenv(name, '')
