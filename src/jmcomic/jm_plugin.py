@@ -18,6 +18,7 @@ class JmOptionPlugin:
     def __init__(self, option: JmOption):
         self.option = option
         self.log_enable = True
+        self.delete_original_file = None
 
     def invoke(self, **kwargs) -> None:
         """
@@ -65,6 +66,21 @@ class JmOptionPlugin:
                f'安装命令: [pip install {lib}]')
         import warnings
         warnings.warn(msg)
+
+    def execute_deletion(self, paths: List[str]):
+        if self.delete_original_file is not True:
+            return
+
+        for p in paths:
+            if file_not_exists(p):
+                continue
+
+            if os.path.isdir(p):
+                os.remove(p)
+                self.log(f'删除文件夹: {p}', 'remove')
+            else:
+                os.rmdir(p)
+                self.log(f'删除原文件: {p}', 'remove')
 
 
 class JmLoginPlugin(JmOptionPlugin):
@@ -342,12 +358,16 @@ class ZipPlugin(JmOptionPlugin):
         return self.unified_path(source_dir)
 
     def after_zip(self, dir_zip_dict: Dict[str, Optional[str]]):
-        # 是否要删除所有原文件
-        if self.delete_original_file is True:
-            self.delete_all_files_and_empty_dir(
-                all_downloaded=self.downloader.all_downloaded,
-                dir_list=list(dir_zip_dict.keys())
-            )
+        # 删除所有原文件
+        dirs = sorted(dir_zip_dict.keys(), reverse=True)
+        image_paths = [
+            path
+            for photo_dict in self.downloader.all_downloaded.values()
+            for image_list in photo_dict.values()
+            for path, image in image_list
+        ]
+        self.execute_deletion(image_paths)
+        self.execute_deletion(dirs)
 
     # noinspection PyMethodMayBeStatic
     def get_zip_path(self, album, photo, filename_rule, suffix, zip_dir):
@@ -360,28 +380,6 @@ class ZipPlugin(JmOptionPlugin):
             zip_dir,
             filename + fix_suffix(suffix),
         )
-
-    # noinspection PyMethodMayBeStatic
-    def delete_all_files_and_empty_dir(self, all_downloaded: dict, dir_list: List[str]):
-        """
-        删除所有文件和文件夹
-        """
-        import os
-        for photo_dict in all_downloaded.values():
-            for image_list in photo_dict.values():
-                for f, _ in image_list:
-                    # check not exist
-                    if file_not_exists(f):
-                        continue
-
-                    os.remove(f)
-                    self.log(f'删除原文件: {f}', 'remove')
-
-        for d in sorted(dir_list, reverse=True):
-            # check exist
-            if file_exists(d):
-                os.rmdir(d)
-                self.log(f'删除文件夹: {d}', 'remove')
 
 
 class ClientProxyPlugin(JmOptionPlugin):
@@ -581,10 +579,7 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
         else:
             self.zip_with_password()
 
-        # 删除导出的原文件
-        if self.delete_original_file is True:
-            for f in self.files:
-                os.remove(f)
+        self.execute_deletion(self.files)
 
     def handle_folder(self, fid: str, fname: str):
         self.log(f'【收藏夹: {fname}, fid: {fid}】开始获取数据')
@@ -675,13 +670,16 @@ class ConvertJpgToPdfPlugin(JmOptionPlugin):
 
     def invoke(self,
                photo: JmPhotoDetail,
+               downloader=None,
                pdf_dir=None,
                filename_rule='Pid',
                quality=100,
+               delete_original_file=False,
                overwrite_cmd=None,
                overwrite_jpg=None,
                **kwargs,
                ):
+        self.delete_original_file = delete_original_file
 
         # 检查图片后缀配置
         suffix = overwrite_jpg or '.jpg'
@@ -724,6 +722,18 @@ class ConvertJpgToPdfPlugin(JmOptionPlugin):
         )
 
         self.log(f'Convert Successfully: JM{photo.id} → {pdf_filepath}')
+
+        if downloader is not None:
+            from .jm_downloader import JmDownloader
+            downloader: JmDownloader
+
+            paths = [
+                path
+                for path, image in downloader.all_downloaded[photo.from_album][photo]
+            ]
+
+            paths.append(self.option.decide_image_save_dir(photo, ensure_exists=False))
+            self.execute_deletion(paths)
 
     # noinspection PyMethodMayBeStatic
     def execute_cmd(self, cmd):
