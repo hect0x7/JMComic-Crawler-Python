@@ -51,7 +51,7 @@ class JmcomicText:
     # 點擊喜歡
     pattern_html_album_likes = compile(r'<span id="albim_likes_\d+">(.*?)</span>')
     # 觀看
-    pattern_html_album_views = compile(r'<span>(.*?)</span> (次觀看|观看次数)')
+    pattern_html_album_views = compile(r'<span>(.*?)</span>\n<span>(次觀看|观看次数)</span>')
     # 評論(div)
     pattern_html_album_comment_count = compile(r'<div class="badge"[^>]*?id="total_video_comments">(\d+)</div>'), 0
 
@@ -266,6 +266,24 @@ class JmcomicText:
             ret.append(w)
             char_list.clear()
 
+        def find_right_pair(left_pair, i):
+            stack = [left_pair]
+            j = i + 1
+
+            while j < length and len(stack) != 0:
+                c = title[j]
+                if c in bracket_map:
+                    stack.append(c)
+                elif c == bracket_map[stack[-1]]:
+                    stack.pop()
+
+                j += 1
+
+            if len(stack) == 0:
+                return j
+            else:
+                return -1
+
         while i < length:
             c = title[i]
 
@@ -273,12 +291,12 @@ class JmcomicText:
                 # 上一个单词结束
                 add()
                 # 定位右括号
-                j = title.find(bracket_map[c], i)
+                j = find_right_pair(c, i)
                 ExceptionTool.require_true(j != -1, f'未闭合的 {c}{bracket_map[c]}: {title[i:]}')
                 # 整个括号的单词结束
-                add(title[i:j + 1])
+                add(title[i:j])
                 # 移动指针
-                i = j + 1
+                i = j
             else:
                 char_list.append(c)
                 i += 1

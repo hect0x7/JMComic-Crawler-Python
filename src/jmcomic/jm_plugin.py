@@ -18,6 +18,7 @@ class JmOptionPlugin:
     def __init__(self, option: JmOption):
         self.option = option
         self.log_enable = True
+        self.delete_original_file = False
 
     def invoke(self, **kwargs) -> None:
         """
@@ -65,6 +66,33 @@ class JmOptionPlugin:
                f'安装命令: [pip install {lib}]')
         import warnings
         warnings.warn(msg)
+
+    def execute_deletion(self, paths: List[str]):
+        """
+        删除文件和文件夹
+        :param paths: 路径列表
+        """
+        if self.delete_original_file is not True:
+            return
+
+        for p in paths:
+            if file_not_exists(p):
+                continue
+
+            if os.path.isdir(p):
+                os.rmdir(p)
+                self.log(f'删除文件夹: {p}', 'remove')
+            else:
+                os.remove(p)
+                self.log(f'删除原文件: {p}', 'remove')
+
+    # noinspection PyMethodMayBeStatic
+    def execute_cmd(self, cmd):
+        """
+        执行shell命令，这里采用简单的实现
+        :param cmd: shell命令
+        """
+        return os.system(cmd)
 
 
 class JmLoginPlugin(JmOptionPlugin):
@@ -342,12 +370,16 @@ class ZipPlugin(JmOptionPlugin):
         return self.unified_path(source_dir)
 
     def after_zip(self, dir_zip_dict: Dict[str, Optional[str]]):
-        # 是否要删除所有原文件
-        if self.delete_original_file is True:
-            self.delete_all_files_and_empty_dir(
-                all_downloaded=self.downloader.all_downloaded,
-                dir_list=list(dir_zip_dict.keys())
-            )
+        # 删除所有原文件
+        dirs = sorted(dir_zip_dict.keys(), reverse=True)
+        image_paths = [
+            path
+            for photo_dict in self.downloader.all_downloaded.values()
+            for image_list in photo_dict.values()
+            for path, image in image_list
+        ]
+        self.execute_deletion(image_paths)
+        self.execute_deletion(dirs)
 
     # noinspection PyMethodMayBeStatic
     def get_zip_path(self, album, photo, filename_rule, suffix, zip_dir):
@@ -360,28 +392,6 @@ class ZipPlugin(JmOptionPlugin):
             zip_dir,
             filename + fix_suffix(suffix),
         )
-
-    # noinspection PyMethodMayBeStatic
-    def delete_all_files_and_empty_dir(self, all_downloaded: dict, dir_list: List[str]):
-        """
-        删除所有文件和文件夹
-        """
-        import os
-        for photo_dict in all_downloaded.values():
-            for image_list in photo_dict.values():
-                for f, _ in image_list:
-                    # check not exist
-                    if file_not_exists(f):
-                        continue
-
-                    os.remove(f)
-                    self.log(f'删除原文件: {f}', 'remove')
-
-        for d in sorted(dir_list, reverse=True):
-            # check exist
-            if file_exists(d):
-                os.rmdir(d)
-                self.log(f'删除文件夹: {d}', 'remove')
 
 
 class ClientProxyPlugin(JmOptionPlugin):
@@ -581,10 +591,7 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
         else:
             self.zip_with_password()
 
-        # 删除导出的原文件
-        if self.delete_original_file is True:
-            for f in self.files:
-                os.remove(f)
+        self.execute_deletion(self.files)
 
     def handle_folder(self, fid: str, fname: str):
         self.log(f'【收藏夹: {fname}, fid: {fid}】开始获取数据')
@@ -646,7 +653,7 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
         os.chdir(self.save_dir)
         cmd = f'7z a "{self.zip_filepath}" "{self.save_dir}" -p{self.zip_password} -mhe=on'
         self.require_true(
-            0 == os.system(cmd),
+            0 == self.execute_cmd(cmd),
             '加密压缩文件失败'
         )
 
@@ -654,27 +661,69 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
 class ConvertJpgToPdfPlugin(JmOptionPlugin):
     plugin_key = 'j2p'
 
+    def check_image_suffix_is_valid(self, std_suffix):
+        """
+        检查option配置的图片后缀转换，目前限制使用Magick时只能搭配jpg
+        暂不探究Magick是否支持更多图片格式
+        """
+        cur_suffix: Optional[str] = self.option.download.image.suffix
+
+        ExceptionTool.require_true(
+            cur_suffix is not None and cur_suffix.endswith(std_suffix),
+            '请把图片的后缀转换配置为jpg，不然无法使用Magick！'
+            f'（当前配置是[{cur_suffix}]）\n'
+            f'配置模板如下: \n'
+            f'```\n'
+            f'download:\n'
+            f'  image:\n'
+            f'    suffix: {std_suffix} # 当前配置是{cur_suffix}\n'
+            f'```'
+        )
+
     def invoke(self,
                photo: JmPhotoDetail,
+               downloader=None,
                pdf_dir=None,
                filename_rule='Pid',
                quality=100,
+               delete_original_file=False,
+               overwrite_cmd=None,
+               overwrite_jpg=None,
                **kwargs,
                ):
+        self.delete_original_file = delete_original_file
+
+        # 检查图片后缀配置
+        suffix = overwrite_jpg or '.jpg'
+        self.check_image_suffix_is_valid(suffix)
+
+        # 处理文件夹配置
         filename = DirRule.apply_rule_directly(None, photo, filename_rule)
         photo_dir = self.option.decide_image_save_dir(photo)
+
+        # 处理生成的pdf文件的路径
         if pdf_dir is None:
             pdf_dir = photo_dir
         else:
+            pdf_dir = fix_filepath(pdf_dir, True)
             mkdir_if_not_exists(pdf_dir)
 
-        pdf_filepath = f'{pdf_dir}{filename}.pdf'
+        pdf_filepath = os.path.join(pdf_dir, f'{filename}.pdf')
 
-        def get_cmd(suffix='.jpg'):
-            return f'magick convert -quality {quality} "{photo_dir}*{suffix}" "{pdf_filepath}"'
+        # 生成命令
+        def generate_cmd():
+            return (
+                    overwrite_cmd or
+                    'magick convert -quality {quality} "{photo_dir}*{suffix}" "{pdf_filepath}"'
+            ).format(
+                quality=quality,
+                photo_dir=photo_dir,
+                suffix=suffix,
+                pdf_filepath=pdf_filepath,
+            )
 
-        cmd = get_cmd()
-        self.log(f'execute command: {cmd}')
+        cmd = generate_cmd()
+        self.log(f'Execute Command: [{cmd}]')
         code = self.execute_cmd(cmd)
 
         self.require_true(
@@ -686,6 +735,14 @@ class ConvertJpgToPdfPlugin(JmOptionPlugin):
 
         self.log(f'Convert Successfully: JM{photo.id} → {pdf_filepath}')
 
-    # noinspection PyMethodMayBeStatic
-    def execute_cmd(self, cmd):
-        return os.system(cmd)
+        if downloader is not None:
+            from .jm_downloader import JmDownloader
+            downloader: JmDownloader
+
+            paths = [
+                path
+                for path, image in downloader.all_downloaded[photo.from_album][photo]
+            ]
+
+            paths.append(self.option.decide_image_save_dir(photo, ensure_exists=False))
+            self.execute_deletion(paths)
