@@ -18,7 +18,7 @@ class JmOptionPlugin:
     def __init__(self, option: JmOption):
         self.option = option
         self.log_enable = True
-        self.delete_original_file = None
+        self.delete_original_file = False
 
     def invoke(self, **kwargs) -> None:
         """
@@ -68,6 +68,10 @@ class JmOptionPlugin:
         warnings.warn(msg)
 
     def execute_deletion(self, paths: List[str]):
+        """
+        删除文件和文件夹
+        :param paths: 路径列表
+        """
         if self.delete_original_file is not True:
             return
 
@@ -76,11 +80,19 @@ class JmOptionPlugin:
                 continue
 
             if os.path.isdir(p):
-                os.remove(p)
+                os.rmdir(p)
                 self.log(f'删除文件夹: {p}', 'remove')
             else:
-                os.rmdir(p)
+                os.remove(p)
                 self.log(f'删除原文件: {p}', 'remove')
+
+    # noinspection PyMethodMayBeStatic
+    def execute_cmd(self, cmd):
+        """
+        执行shell命令，这里采用简单的实现
+        :param cmd: shell命令
+        """
+        return os.system(cmd)
 
 
 class JmLoginPlugin(JmOptionPlugin):
@@ -639,9 +651,9 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
 
     def zip_with_password(self):
         os.chdir(self.save_dir)
-        cmd = f'7z a "{self.zip_filepath}" "{self.save_dir}" -p{self.zip_password} -mhe=on > output_7z.txt'
+        cmd = f'7z a "{self.zip_filepath}" "{self.save_dir}" -p{self.zip_password} -mhe=on'
         self.require_true(
-            0 == os.system(cmd),
+            0 == self.execute_cmd(cmd),
             '加密压缩文件失败'
         )
 
@@ -734,7 +746,3 @@ class ConvertJpgToPdfPlugin(JmOptionPlugin):
 
             paths.append(self.option.decide_image_save_dir(photo, ensure_exists=False))
             self.execute_deletion(paths)
-
-    # noinspection PyMethodMayBeStatic
-    def execute_cmd(self, cmd):
-        return os.system(cmd)
