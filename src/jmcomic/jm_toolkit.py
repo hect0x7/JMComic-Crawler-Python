@@ -371,7 +371,7 @@ class JmPageTool:
     )
 
     # 用来查找tag列表
-    pattern_html_search_tag_list = compile(r'<a[^>]*?>(.*?)</a>')
+    pattern_html_search_tags = compile(r'<a[^>]*?>(.*?)</a>')
 
     # 查找错误，例如 [错误，關鍵字過短，請至少輸入兩個字以上。]
     pattern_html_search_error = compile(r'<fieldset>\n<legend>(.*?)</legend>\n<div class=.*?>\n(.*?)\n</div>\n</fieldset>')
@@ -418,11 +418,11 @@ class JmPageTool:
         album_info_list = cls.pattern_html_search_album_info_list.findall(html)
 
         for (album_id, title, _, label_category, label_sub, tag_text) in album_info_list:
-            tag_list = cls.pattern_html_search_tag_list.findall(tag_text)
+            tags = cls.pattern_html_search_tags.findall(tag_text)
             content.append((
                 album_id, {
                     'name': title,  # 改成name是为了兼容 parse_api_resp_to_page
-                    'tag_list': tag_list
+                    'tags': tags
                 }
             ))
 
@@ -436,11 +436,11 @@ class JmPageTool:
         album_info_list = cls.pattern_html_category_album_info_list.findall(html)
 
         for (album_id, title, tag_text) in album_info_list:
-            tag_list = cls.pattern_html_search_tag_list.findall(tag_text)
+            tags = cls.pattern_html_search_tags.findall(tag_text)
             content.append((
                 album_id, {
                     'name': title,  # 改成name是为了兼容 parse_api_resp_to_page
-                    'tag_list': tag_list
+                    'tags': tags
                 }
             ))
 
@@ -546,7 +546,7 @@ class JmPageTool:
     def adapt_content(cls, content):
         def adapt_item(item: DictModel):
             item: dict = item.src_dict
-            item.setdefault('tag_list', [])
+            item.setdefault('tags', [])
             return item
 
         content = [
