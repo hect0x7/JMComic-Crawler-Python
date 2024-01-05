@@ -494,7 +494,7 @@ class JmPageTool:
           ]
         }
         """
-        total: int = int(data.total)
+        total: int = int(data.total or 0)  # 2024.1.5 data.total可能为None
         content = cls.adapt_content(data.content)
         return JmSearchPage(content, total)
 
