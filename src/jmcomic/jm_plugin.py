@@ -44,22 +44,17 @@ class JmOptionPlugin:
             msg=msg
         )
 
-    def require_true(self, case: Any, msg: str, is_param_validation=True):
+    def require_param(self, case: Any, msg: str):
         """
-        独立于ExceptionTool的一套异常抛出体系
-
+        专门用于校验参数的方法，会抛出特定异常，由option拦截根据策略进行处理
 
         :param case: 条件
         :param msg: 报错信息
-        :param is_param_validation: True 表示 调用本方法是用于校验参数，则会抛出特定异常（PluginValidationException）
         """
         if case:
             return
 
-        if is_param_validation:
-            raise PluginValidationException(self, msg)
-        else:
-            ExceptionTool.raises(msg)
+        raise PluginValidationException(self, msg)
 
     def warning_lib_not_install(self, lib: str):
         msg = (f'插件`{self.plugin_key}`依赖库: {lib}，请先安装{lib}再使用。'
@@ -94,6 +89,11 @@ class JmOptionPlugin:
         """
         return os.system(cmd)
 
+    # noinspection PyMethodMayBeStatic
+    def execute_multi_line_cmd(self, cmd: str):
+        import subprocess
+        subprocess.run(cmd, shell=True, check=True)
+
 
 class JmLoginPlugin(JmOptionPlugin):
     """
@@ -106,10 +106,10 @@ class JmLoginPlugin(JmOptionPlugin):
                password: str,
                impl=None,
                ) -> None:
-        self.require_true(username, '用户名不能为空')
-        self.require_true(password, '密码不能为空')
+        self.require_param(username, '用户名不能为空')
+        self.require_param(password, '密码不能为空')
 
-        client = self.option.new_jm_client(impl=impl)
+        client = self.option.build_jm_client(impl=impl)
         client.login(username, password)
 
         cookies = dict(client['cookies'])
@@ -459,7 +459,7 @@ class SendQQEmailPlugin(JmOptionPlugin):
                album=None,
                downloader=None,
                ) -> None:
-        self.require_true(msg_from and msg_to and password, '发件人、收件人、授权码都不能为空')
+        self.require_param(msg_from and msg_to and password, '发件人、收件人、授权码都不能为空')
 
         from common import EmailConfig
         econfig = EmailConfig(msg_from, msg_to, password)
@@ -551,7 +551,7 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
                zip_password=None,
                delete_original_file=False,
                ):
-        self.save_dir = os.path.abspath(save_dir if save_dir is not None else os.getcwd() + '/export/')
+        self.save_dir = os.path.abspath(save_dir if save_dir is not None else (os.getcwd() + '/export/'))
         self.zip_enable = zip_enable
         self.zip_filepath = os.path.abspath(zip_filepath)
         self.zip_password = zip_password
@@ -564,7 +564,7 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
         self.main()
 
     def main(self):
-        cl = self.option.new_jm_client(impl=JmApiClient)
+        cl = self.option.build_jm_client()
         # noinspection PyAttributeOutsideInit
         self.cl = cl
         page = cl.favorite_folder()
@@ -584,7 +584,7 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
             return
 
         # 压缩导出的文件
-        self.require_true(self.zip_filepath, '如果开启zip，请指定zip_filepath参数（压缩文件保存路径）')
+        self.require_param(self.zip_filepath, '如果开启zip，请指定zip_filepath参数（压缩文件保存路径）')
 
         if self.zip_password is None:
             self.zip_folder_without_password(self.files, self.zip_filepath)
@@ -650,12 +650,16 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
                 zipf.write(file, arcname=of_file_name(file))
 
     def zip_with_password(self):
-        os.chdir(self.save_dir)
-        cmd = f'7z a "{self.zip_filepath}" "{self.save_dir}" -p{self.zip_password} -mhe=on'
-        self.require_true(
-            0 == self.execute_cmd(cmd),
-            '加密压缩文件失败'
-        )
+        # 构造shell命令
+        cmd_list = f'''
+        cd {self.save_dir}
+        7z a "{self.zip_filepath}" "./" -p{self.zip_password} -mhe=on > "../7z_output.txt"
+        
+        '''
+        self.log(f'运行命令: {cmd_list}')
+
+        # 执行
+        self.execute_multi_line_cmd(cmd_list)
 
 
 class ConvertJpgToPdfPlugin(JmOptionPlugin):
@@ -726,11 +730,10 @@ class ConvertJpgToPdfPlugin(JmOptionPlugin):
         self.log(f'Execute Command: [{cmd}]')
         code = self.execute_cmd(cmd)
 
-        self.require_true(
+        ExceptionTool.require_true(
             code == 0,
             'jpg图片合并为pdf失败！'
             '请确认你是否安装了magick，安装网站: [http://www.imagemagick.org/]',
-            False,
         )
 
         self.log(f'Convert Successfully: JM{photo.id} → {pdf_filepath}')

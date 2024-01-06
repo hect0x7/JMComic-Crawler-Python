@@ -73,7 +73,7 @@ jobs:
       - name: 上传结果
         uses: actions/upload-artifact@v3
         with:
-          name: '收藏夹导出zip'
+          name: '导出的收藏夹'
           path: ${{ env.ZIP_FP }}
           if-no-files-found: error
           retention-days: 90

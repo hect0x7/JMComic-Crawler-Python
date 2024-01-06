@@ -22,8 +22,8 @@ class Test_Client(JmTestConfigurable):
             for aid, ainfo in page[0:1:1]:
                 print(aid, ainfo)
 
-        for aid, atitle, tag_list in page.iter_id_title_tag():
-            print(aid, atitle, tag_list)
+        for aid, atitle, tags in page.iter_id_title_tag():
+            print(aid, atitle, tags)
 
         aid = '438516'
         page = self.client.search_site(aid)

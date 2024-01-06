@@ -32,6 +32,8 @@ def prepare_actions_input_and_secrets():
 
 def main():
     prepare_actions_input_and_secrets()
+    # 关闭logging，保证安全
+    disable_jm_log()
     option = create_option('../assets/option/option_workflow_export_favorites.yml')
     option.call_all_plugin('main', safe=False)
 

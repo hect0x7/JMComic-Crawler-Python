@@ -524,7 +524,7 @@ class JmPageContent(JmBaseEntity, IndexedEntity):
         """
         content:
         [
-          album_id, {title, tag_list, ...}
+          album_id, {title, tags, ...}
         ]
         :param content: 分页数据
         :param total: 总结果数
@@ -564,11 +564,11 @@ class JmPageContent(JmBaseEntity, IndexedEntity):
 
     def iter_id_title_tag(self) -> Generator[Tuple[str, str, List[str]], None, None]:
         """
-        返回 album_id, album_title, album_tag_list 的迭代器
+        返回 album_id, album_title, album_tags 的迭代器
         """
         for aid, ainfo in self.content:
-            ainfo.setdefault('tag_list', [])
-            yield aid, ainfo['name'], ainfo['tag_list']
+            ainfo.setdefault('tags', [])
+            yield aid, ainfo['name'], ainfo['tags']
 
     # 下面的方法实现方便的元素访问
 
@@ -610,7 +610,7 @@ class JmSearchPage(JmPageContent):
         page = JmSearchPage([(
             album.album_id, {
                 'name': album.name,
-                'tag_list': album.tags,
+                'tags': album.tags,
             }
         )], 1)
         setattr(page, 'album', album)
