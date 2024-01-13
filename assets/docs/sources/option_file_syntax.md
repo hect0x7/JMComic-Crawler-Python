@@ -18,7 +18,10 @@ JmOption.default().to_file('./option.yml') # 创建默认option，导出为optio
 ```yml
 # 配置客户端相关
 client:
-  # impl: 客户端实现类，不配默认是html，表示网页端
+  # impl: 客户端实现类，不配置默认会使用JmModuleConfig.DEFAULT_CLIENT_IMPL
+  # 可配置:
+  #  html - 表示网页端
+  #  api - 表示使用APP端
   impl: html
 
   # domain: 域名配置，默认是 []，表示运行时自动获取域名。
