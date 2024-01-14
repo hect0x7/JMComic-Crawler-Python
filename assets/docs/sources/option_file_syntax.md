@@ -5,7 +5,6 @@
 * option有`默认值`，当你使用配置文件来创建option时，你配置文件中的值会覆盖`默认值`。
 
   因此，在配置option时，不需要配置全部的值，只需要配置特定部分即可。
-
 * 你可以使用下面的代码来得到option的默认值，你可以删除其中的大部分配置项，只保留你要覆盖的配置项
 
 ```python
@@ -13,12 +12,15 @@ from jmcomic import JmOption
 JmOption.default().to_file('./option.yml') # 创建默认option，导出为option.yml文件
 ```
 
-## 2. option常用配置项
+## 2. option常规配置项
 
 ```yml
 # 配置客户端相关
 client:
-  # impl: 客户端实现类，不配默认是html，表示网页端
+  # impl: 客户端实现类，不配置默认会使用JmModuleConfig.DEFAULT_CLIENT_IMPL
+  # 可配置:
+  #  html - 表示网页端
+  #  api - 表示使用APP端
   impl: html
 
   # domain: 域名配置，默认是 []，表示运行时自动获取域名。
@@ -89,8 +91,8 @@ dir_rule:
   rule: Bd_Ptitle
 ```
 
-
 ## 3. option插件配置项
+
 ```yml
 # 插件的配置示例
 # 当kwargs的值为字符串类型时，支持使用环境变量，语法为 ${环境变量名}
@@ -109,11 +111,11 @@ plugins:
     - plugin: find_update # 只下载新章插件
       kwargs:
         145504: 290266 # 下载本子145504的章节290266以后的新章
-        
+
     - plugin: image_suffix_filter # 图片后缀过滤器插件，可以控制只下载哪些后缀的图片
       kwargs:
         allowed_orig_suffix: # 后缀列表，表示只想下载以.gif结尾的图片
-          - .gif 
+          - .gif
 
     - plugin: client_proxy # 客户端实现类代理插件，不建议非开发人员使用
       kwargs:
@@ -124,6 +126,28 @@ plugins:
       kwargs:
         browser: chrome
         domain: 18comic.vip
+    
+    # v2.5.0 引入的插件
+    # 可以启动一个服务器，可以在浏览器上查看本子
+    # 基于flask框架，需要安装额外库: pip install plugin_jm_server
+    # 源码：https://github.com/hect0x7/plugin-jm-server
+    - plugin: jm_server 
+      kwargs:
+        password: '3333' # 服务器访问密码
+        base_dir: D:/a/b/c/ # 根目录，默认使用dir_rule.base_dir
+        
+        # 下面是高级配置，不配置也可以
+        
+        # run下的参数是flask框架的app对象的run方法参数，详见flask文档
+        run:
+          host: 0.0.0.0 # 默认接收所有ip的请求
+          port: 80 # 服务器端口，默认为80
+          debug: false # 是否开启debug模式，默认为false
+          
+        # 支持重写背景图片，可以使用你喜欢的背景图片作为背景
+        img_overwrite:
+          bg.jpg: D:/浏览器的背景图
+          m_bg.jpeg: D:/移动设备浏览器的背景图
 
   after_album:
     - plugin: zip # 压缩文件插件

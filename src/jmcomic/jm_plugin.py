@@ -94,6 +94,15 @@ class JmOptionPlugin:
         import subprocess
         subprocess.run(cmd, shell=True, check=True)
 
+    def enter_wait_list(self):
+        self.option.need_wait_plugins.append(self)
+
+    def leave_wait_list(self):
+        self.option.need_wait_plugins.remove(self)
+
+    def wait_until_finish(self):
+        pass
+
 
 class JmLoginPlugin(JmOptionPlugin):
     """
@@ -407,7 +416,7 @@ class ClientProxyPlugin(JmOptionPlugin):
 
         proxy_clazz = JmModuleConfig.client_impl_class(proxy_client_key)
         clazz_init_kwargs = kwargs
-        new_jm_client = self.option.new_jm_client
+        new_jm_client: Callable = self.option.new_jm_client
 
         def hook_new_jm_client(*args, **kwargs):
             client = new_jm_client(*args, **kwargs)
@@ -749,3 +758,149 @@ class ConvertJpgToPdfPlugin(JmOptionPlugin):
 
             paths.append(self.option.decide_image_save_dir(photo, ensure_exists=False))
             self.execute_deletion(paths)
+
+
+class JmServerPlugin(JmOptionPlugin):
+    plugin_key = 'jm_server'
+
+    default_run_kwargs = {
+        'host': '0.0.0.0',
+        'port': '80',
+        'debug': False,
+    }
+
+    from threading import Lock
+    single_instance_lock = Lock()
+
+    def __init__(self, option: JmOption):
+        super().__init__(option)
+        self.run_server_lock = Lock()
+        self.running = False
+        self.server_thread: Optional[Thread] = None
+
+    def invoke(self,
+               password='',
+               base_dir=None,
+               album=None,
+               photo=None,
+               downloader=None,
+               run=None,
+               **kwargs
+               ):
+        """
+
+        :param password: 密码
+        :param base_dir: 初始访问服务器的根路径
+        :param album: 为了支持 after_album 这种调用时机
+        :param photo: 为了支持 after_album 这种调用时机
+        :param downloader: 为了支持 after_album 这种调用时机
+        :param run: 用于启动服务器: app.run(**run_kwargs)
+        :param kwargs: 用于JmServer构造函数: JmServer(base_dir, password, **kwargs)
+        """
+
+        if base_dir is None:
+            base_dir = self.option.dir_rule.base_dir
+
+        if run is None:
+            run = self.default_run_kwargs
+        else:
+            base_run_kwargs = self.default_run_kwargs.copy()
+            base_run_kwargs.update(run)
+            run = base_run_kwargs
+
+        if self.running is True:
+            return
+
+        with self.run_server_lock:
+            if self.running is True:
+                return
+
+            self.running = True
+
+            # 服务器的代码位于一个独立库：plugin_jm_server，需要独立安装
+            # 源代码仓库：https://github.com/hect0x7/plugin-jm-server
+            try:
+                import plugin_jm_server
+                self.log(f'当前使用plugin_jm_server版本: {plugin_jm_server.__version__}')
+            except ImportError:
+                self.warning_lib_not_install('plugin_jm_server')
+                return
+
+            # 核心函数，启动服务器，会阻塞当前线程
+            def blocking_run_server():
+                self.server_thread = current_thread()
+                self.enter_wait_list()
+                server = plugin_jm_server.JmServer(base_dir, password, **kwargs)
+                # run方法会阻塞当前线程直到flask退出
+                server.run(**run)
+
+            # 对于debug模式，特殊处理
+            if run['debug'] is True:
+                run.setdefault('use_reloader', False)
+
+                # debug模式只能在主线程启动，判断当前线程是不是主线程
+                if current_thread() is not threading.main_thread():
+                    # 不是主线程，return
+                    return self.warning_wrong_usage_of_debug()
+                else:
+                    # 是主线程，启动服务器
+                    blocking_run_server()
+
+            else:
+                # 非debug模式，开新线程启动
+                threading.Thread(target=blocking_run_server, daemon=True).start()
+                atexit_register(self.wait_server_stop)
+
+    def warning_wrong_usage_of_debug(self):
+        self.log('注意！当配置debug=True时，请确保当前插件是在主线程中被调用。\n'
+                 '因为如果本插件配置在 [after_album/after_photo] 这种时机调用，\n'
+                 '会使得flask框架不在主线程debug运行，\n'
+                 '导致报错（ValueError: signal only works in main thread of the main interpreter）。\n',
+                 '【基于上述原因，当前线程非主线程，不启动服务器】'
+                 'warning'
+                 )
+
+    def wait_server_stop(self, proactive=False):
+        st = self.server_thread
+        if (
+                st is None
+                or st == current_thread()
+                or not st.is_alive()
+        ):
+            return
+
+        if proactive:
+            msg = f'[{self.plugin_key}]的服务器线程仍运行中，可按下ctrl+c结束程序'
+        else:
+            msg = f'主线程执行完毕，但插件[{self.plugin_key}]的服务器线程仍运行中，可按下ctrl+c结束程序'
+
+        self.log(msg, 'wait')
+
+        while st.is_alive():
+            try:
+                st.join(timeout=0.5)
+            except KeyboardInterrupt:
+                self.log('收到ctrl+c，结束程序', 'wait')
+                return
+
+    def wait_until_finish(self):
+        self.wait_server_stop(proactive=True)
+
+    @classmethod
+    def build(cls, option: JmOption) -> 'JmOptionPlugin':
+        """
+        单例模式
+        """
+        field_name = 'single_instance'
+
+        instance = getattr(cls, field_name, None)
+        if instance is not None:
+            return instance
+
+        with cls.single_instance_lock:
+            instance = getattr(cls, field_name, None)
+            if instance is not None:
+                return instance
+            instance = JmServerPlugin(option)
+            setattr(cls, field_name, instance)
+            return instance

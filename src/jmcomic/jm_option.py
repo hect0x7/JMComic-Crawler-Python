@@ -187,6 +187,9 @@ class JmOption:
         # 其他配置
         self.filepath = filepath
 
+        # 需要主线程等待完成的插件
+        self.need_wait_plugins = []
+
         self.call_all_plugin('after_init', safe=True)
 
     """
@@ -630,3 +633,9 @@ class JmOption:
             )
 
         return new_kwargs
+
+    def wait_all_plugins_finish(self):
+        from .jm_plugin import JmOptionPlugin
+        for plugin in self.need_wait_plugins:
+            plugin: JmOptionPlugin
+            plugin.wait_until_finish()
