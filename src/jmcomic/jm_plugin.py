@@ -94,6 +94,15 @@ class JmOptionPlugin:
         import subprocess
         subprocess.run(cmd, shell=True, check=True)
 
+    def enter_wait_list(self):
+        self.option.need_wait_plugins.append(self)
+
+    def leave_wait_list(self):
+        self.option.need_wait_plugins.remove(self)
+
+    def wait_until_finish(self):
+        pass
+
 
 class JmLoginPlugin(JmOptionPlugin):
     """
@@ -806,6 +815,8 @@ class JmServerPlugin(JmOptionPlugin):
             if self.running is True:
                 return
 
+            self.running = True
+
             # 服务器的代码位于一个独立库：plugin_jm_server，需要独立安装
             # 源代码仓库：https://github.com/hect0x7/plugin-jm-server
             try:
@@ -815,51 +826,65 @@ class JmServerPlugin(JmOptionPlugin):
                 self.warning_lib_not_install('plugin_jm_server')
                 return
 
-            # 核心函数，启动服务器
-            def run_server():
+            # 核心函数，启动服务器，会阻塞当前线程
+            def blocking_run_server():
+                self.server_thread = current_thread()
+                self.enter_wait_list()
                 server = plugin_jm_server.JmServer(base_dir, password, **kwargs)
+                # run方法会阻塞当前线程直到flask退出
                 server.run(**run)
 
+            # 对于debug模式，特殊处理
             if run['debug'] is True:
                 run.setdefault('use_reloader', False)
-                # debug模式只能在主线程启动
+
+                # debug模式只能在主线程启动，判断当前线程是不是主线程
                 if current_thread() is not threading.main_thread():
-                    # 当前线程不是主线程，return
-                    self.log('注意！当配置debug=True时，请确保当前插件是在主线程中被调用。\n'
-                             '因为如果本插件配置在 [after_album/after_photo] 这种时机调用，\n'
-                             '会使得flask框架不在主线程debug运行，\n'
-                             '导致报错（ValueError: signal only works in main thread of the main interpreter）。\n',
-                             '【基于上述原因，当前线程非主线程，不启动服务器】'
-                             'warning'
-                             )
-                    return
+                    # 不是主线程，return
+                    return self.warning_wrong_usage_of_debug()
                 else:
-                    # 如果是主线程，启动服务器
-                    self.running = True
-                    self.server_thread = current_thread()
-                    run_server()
+                    # 是主线程，启动服务器
+                    blocking_run_server()
 
             else:
                 # 非debug模式，开新线程启动
-                t = threading.Thread(target=run_server, daemon=True)
-                self.server_thread = t
-                t.start()
-                self.running = True
+                threading.Thread(target=blocking_run_server, daemon=True).start()
                 atexit_register(self.wait_server_stop)
 
-    def wait_server_stop(self):
+    def warning_wrong_usage_of_debug(self):
+        self.log('注意！当配置debug=True时，请确保当前插件是在主线程中被调用。\n'
+                 '因为如果本插件配置在 [after_album/after_photo] 这种时机调用，\n'
+                 '会使得flask框架不在主线程debug运行，\n'
+                 '导致报错（ValueError: signal only works in main thread of the main interpreter）。\n',
+                 '【基于上述原因，当前线程非主线程，不启动服务器】'
+                 'warning'
+                 )
+
+    def wait_server_stop(self, proactive=False):
         st = self.server_thread
-        if st is None or st == current_thread():
+        if (
+                st is None
+                or st == current_thread()
+                or not st.is_alive()
+        ):
             return
 
-        self.log('主线程执行完毕，但服务器线程仍运行中，可按下ctrl+c结束程序')
+        if proactive:
+            msg = f'[{self.plugin_key}]的服务器线程仍运行中，可按下ctrl+c结束程序'
+        else:
+            msg = f'主线程执行完毕，但插件[{self.plugin_key}]的服务器线程仍运行中，可按下ctrl+c结束程序'
+
+        self.log(msg, 'wait')
 
         while st.is_alive():
             try:
                 st.join(timeout=0.5)
             except KeyboardInterrupt:
-                self.log('收到ctrl+c，结束程序')
+                self.log('收到ctrl+c，结束程序', 'wait')
                 return
+
+    def wait_until_finish(self):
+        self.wait_server_stop(proactive=True)
 
     @classmethod
     def build(cls, option: JmOption) -> 'JmOptionPlugin':

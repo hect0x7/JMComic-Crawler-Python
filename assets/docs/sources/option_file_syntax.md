@@ -135,10 +135,19 @@ plugins:
       kwargs:
         password: '3333' # 服务器访问密码
         base_dir: D:/a/b/c/ # 根目录，默认使用dir_rule.base_dir
+        
+        # 下面是高级配置，不配置也可以
+        
         # run下的参数是flask框架的app对象的run方法参数，详见flask文档
         run:
           host: 0.0.0.0 # 默认接收所有ip的请求
           port: 80 # 服务器端口，默认为80
+          debug: false # 是否开启debug模式，默认为false
+          
+        # 支持重写背景图片，可以使用你喜欢的背景图片作为背景
+        img_overwrite:
+          bg.jpg: D:/浏览器的背景图
+          m_bg.jpeg: D:/移动设备浏览器的背景图
 
   after_album:
     - plugin: zip # 压缩文件插件
