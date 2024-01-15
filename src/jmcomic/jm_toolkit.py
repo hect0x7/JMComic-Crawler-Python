@@ -7,7 +7,7 @@ class JmcomicText:
     pattern_jm_domain = compile(r'https://([\w.-]+)')
     pattern_jm_pa_id = [
         (compile(r'(photos?|album)/(\d+)'), 2),
-        (compile(r'id={\d+}'), 1),
+        (compile(r'id=(\d+)'), 1),
     ]
     pattern_html_jm_pub_domain = compile(r'[\w-]+\.\w+/?\w+')
 

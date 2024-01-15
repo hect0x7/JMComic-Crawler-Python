@@ -41,16 +41,15 @@ class JmResp:
 
     def require_success(self):
         if self.is_not_success:
-            ExceptionTool.raises_resp(self.text, self)
+            ExceptionTool.raises_resp(self.error_msg(), self)
+
+    def error_msg(self):
+        return self.text
 
 
 class JmImageResp(JmResp):
 
-    def require_success(self):
-        if self.is_not_success:
-            ExceptionTool.raises_resp(self.get_error_msg(), self)
-
-    def get_error_msg(self):
+    def error_msg(self):
         msg = f'禁漫图片获取失败: [{self.url}]'
         if self.http_code != 200:
             msg += f'，http状态码={self.http_code}'
