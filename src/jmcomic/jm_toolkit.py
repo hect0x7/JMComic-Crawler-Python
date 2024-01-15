@@ -5,7 +5,10 @@ from .jm_exception import *
 
 class JmcomicText:
     pattern_jm_domain = compile(r'https://([\w.-]+)')
-    pattern_jm_pa_id = compile(r'(photos?|album)/(\d+)')
+    pattern_jm_pa_id = [
+        (compile(r'(photos?|album)/(\d+)'), 2),
+        (compile(r'id={\d+}'), 1),
+    ]
     pattern_html_jm_pub_domain = compile(r'[\w-]+\.\w+/?\w+')
 
     pattern_html_photo_photo_id = compile(r'<meta property="og:url" content=".*?/photo/(\d+)/?.*?">')
@@ -87,9 +90,13 @@ class JmcomicText:
             return text[2:]
         else:
             # https://xxx/photo/412038
-            match = cls.pattern_jm_pa_id.search(text)
-            ExceptionTool.require_true(match is not None, f"无法解析jm车号, 文本为: {text}")
-            return match[2]
+            # https://xxx/album/?id=412038
+            for p, i in cls.pattern_jm_pa_id:
+                match = p.search(text)
+                if match is not None:
+                    return match[i]
+
+            ExceptionTool.raises(f"无法解析jm车号, 文本为: {text}")
 
     @classmethod
     def analyse_jm_pub_html(cls, html: str, domain_keyword=('jm', 'comic')) -> List[str]:

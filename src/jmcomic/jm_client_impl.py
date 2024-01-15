@@ -658,11 +658,11 @@ class JmApiClient(AbstractJmClient):
         """
         jmid = JmcomicText.parse_to_jm_id(jmid)
         url = self.API_ALBUM if issubclass(clazz, JmAlbumDetail) else self.API_CHAPTER
-        resp = self.req_api(
+        resp = self.req_api(self.append_params_to_url(
             url,
-            params={
-                'id': jmid,
-            },
+            {
+                'id': jmid
+            })
         )
 
         return JmApiAdaptTool.parse_entity(resp.res_data, clazz)
@@ -899,7 +899,12 @@ class JmApiClient(AbstractJmClient):
         return ts
 
     @classmethod
-    def require_resp_success(cls, resp: JmApiResp, url: str):
+    def require_resp_success(cls, resp: JmApiResp, url: Optional[str] = None):
+        """
+
+        :param resp: 响应对象
+        :param url: 请求路径，例如 /setting
+        """
         resp.require_success()
 
         # 1. 检查是否 album_missing
