@@ -15,19 +15,9 @@ class JmcomicException(Exception):
         return self.context[key]
 
 
-class RequestFailException(JmcomicException):
-    """
-    请求失败异常
-    """
-
-    @property
-    def resp(self):
-        return self.from_context(ExceptionTool.CONTEXT_KEY_RESP)
-
-
 class ResponseUnexpectedException(JmcomicException):
     """
-    响应不符合预期异常，基类
+    响应不符合预期异常
     """
 
     @property
