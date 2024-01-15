@@ -45,7 +45,7 @@ class AbstractJmClient(
 
     def get_jm_image(self, img_url) -> JmImageResp:
 
-        def judge(resp):
+        def callback(resp):
             """
             使用此方法包装 self.get，使得图片数据为空时，判定为请求失败时，走重试逻辑
             """
@@ -53,14 +53,14 @@ class AbstractJmClient(
             resp.require_success()
             return resp
 
-        return self.get(img_url, judge=judge, headers=JmModuleConfig.new_html_headers())
+        return self.get(img_url, callback=callback, headers=JmModuleConfig.new_html_headers())
 
     def request_with_retry(self,
                            request,
                            url,
                            domain_index=0,
                            retry_count=0,
-                           judge=lambda resp: resp,
+                           callback=None,
                            **kwargs,
                            ):
         """
@@ -74,7 +74,7 @@ class AbstractJmClient(
         :param url: 图片url / path (/album/xxx)
         :param domain_index: 域名下标
         :param retry_count: 重试次数
-        :param judge: 判定响应是否成功
+        :param callback: 回调，可以接收resp返回新的resp，也可以抛出异常强制重试
         :param kwargs: 请求方法的kwargs
         """
         if domain_index >= len(self.domain_list):
@@ -104,9 +104,15 @@ class AbstractJmClient(
 
         try:
             resp = request(url, **kwargs)
-            return judge(resp)
-        except KeyboardInterrupt as e:
-            raise e
+
+            # 回调，可以接收resp返回新的resp，也可以抛出异常强制重试
+            if callback is not None:
+                resp = callback(resp)
+
+            # 依然是回调，在最后返回之前，还可以判断resp是否重试
+            resp = self.raise_if_resp_should_retry(resp)
+
+            return resp
         except Exception as e:
             if self.retry_times == 0:
                 raise e
@@ -114,9 +120,16 @@ class AbstractJmClient(
             self.before_retry(e, kwargs, retry_count, url)
 
         if retry_count < self.retry_times:
-            return self.request_with_retry(request, url, domain_index, retry_count + 1, judge, **kwargs)
+            return self.request_with_retry(request, url, domain_index, retry_count + 1, **kwargs)
         else:
-            return self.request_with_retry(request, url, domain_index + 1, 0, judge, **kwargs)
+            return self.request_with_retry(request, url, domain_index + 1, 0, **kwargs)
+
+    # noinspection PyMethodMayBeStatic
+    def raise_if_resp_should_retry(self, resp):
+        """
+        依然是回调，在最后返回之前，还可以判断resp是否重试
+        """
+        return resp
 
     def update_request_with_specify_domain(self, kwargs: dict, domain: str):
         """
@@ -269,12 +282,12 @@ class JmHtmlClient(AbstractJmClient):
 
         return photo
 
-    def fetch_detail_entity(self, apid, prefix):
+    def fetch_detail_entity(self, jmid, prefix):
         # 参数校验
-        apid = JmcomicText.parse_to_jm_id(apid)
+        jmid = JmcomicText.parse_to_jm_id(jmid)
 
         # 请求
-        resp = self.get_jm_html(f"/{prefix}/{apid}")
+        resp = self.get_jm_html(f"/{prefix}/{jmid}")
 
         # 用 JmcomicText 解析 html，返回实体类
         if prefix == 'album':
@@ -474,10 +487,10 @@ class JmHtmlClient(AbstractJmClient):
         return ret
 
     @classmethod
-    def require_resp_success_else_raise(cls, resp, orig_req_url: str):
+    def require_resp_success_else_raise(cls, resp, url: str):
         """
         :param resp: 响应对象
-        :param orig_req_url: /photo/12412312
+        :param url: /photo/12412312
         """
         resp_url: str = resp.url
 
@@ -490,11 +503,11 @@ class JmHtmlClient(AbstractJmClient):
 
         # 3. 检查错误类型
         def match_case(error_path):
-            return resp_url.endswith(error_path) and not orig_req_url.endswith(error_path)
+            return resp_url.endswith(error_path) and not url.endswith(error_path)
 
         # 3.1 album_missing
         if match_case('/error/album_missing'):
-            ExceptionTool.raise_missing(resp, orig_req_url)
+            ExceptionTool.raise_missing(resp, JmcomicText.parse_to_jm_id(url))
 
         # 3.2 user_missing
         if match_case('/error/user_missing'):
@@ -639,16 +652,16 @@ class JmApiClient(AbstractJmClient):
 
         return scramble_id
 
-    def fetch_detail_entity(self, apid, clazz):
+    def fetch_detail_entity(self, jmid, clazz):
         """
         请求实体类
         """
-        apid = JmcomicText.parse_to_jm_id(apid)
+        jmid = JmcomicText.parse_to_jm_id(jmid)
         url = self.API_ALBUM if issubclass(clazz, JmAlbumDetail) else self.API_CHAPTER
         resp = self.req_api(
             url,
             params={
-                'id': apid,
+                'id': jmid,
             },
         )
 
@@ -886,14 +899,14 @@ class JmApiClient(AbstractJmClient):
         return ts
 
     @classmethod
-    def require_resp_success(cls, resp: JmApiResp, orig_req_url: str):
+    def require_resp_success(cls, resp: JmApiResp, url: str):
         resp.require_success()
 
         # 1. 检查是否 album_missing
         # json: {'code': 200, 'data': []}
         data = resp.model().data
         if isinstance(data, list) and len(data) == 0:
-            ExceptionTool.raise_missing(resp, orig_req_url)
+            ExceptionTool.raise_missing(resp, JmcomicText.parse_to_jm_id(url))
 
         # 2. 是否是特殊的内容
         # 暂无

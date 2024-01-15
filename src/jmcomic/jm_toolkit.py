@@ -1,6 +1,6 @@
 from PIL import Image
 
-from .jm_entity import *
+from .jm_exception import *
 
 
 class JmcomicText:
@@ -819,86 +819,6 @@ class JmImageTool:
         获得图片分割数
         """
         return cls.get_num(detail.scramble_id, detail.aid, detail.img_file_name)
-
-
-class ExceptionTool:
-    """
-    抛异常的工具
-    1: 能简化 if-raise 语句的编写
-    2: 有更好的上下文信息传递方式
-    """
-
-    EXTRA_KEY_RESP = 'resp'
-    EXTRA_KEY_HTML = 'html'
-    EXTRA_KEY_RE_PATTERN = 'pattern'
-
-    @classmethod
-    def raises(cls, msg: str, extra: dict = None):
-        if extra is None:
-            extra = {}
-
-        JmModuleConfig.executor_raise_exception(msg, extra)
-
-    @classmethod
-    def raises_regex(cls,
-                     msg: str,
-                     html: str,
-                     pattern: Pattern,
-                     ):
-        cls.raises(
-            msg, {
-                cls.EXTRA_KEY_HTML: html,
-                cls.EXTRA_KEY_RE_PATTERN: pattern,
-            }
-        )
-
-    @classmethod
-    def raises_resp(cls,
-                    msg: str,
-                    resp,
-                    ):
-        cls.raises(
-            msg, {
-                cls.EXTRA_KEY_RESP: resp
-            }
-        )
-
-    @classmethod
-    def raise_missing(cls,
-                      resp,
-                      orig_req_url=None,
-                      ):
-        """
-        抛出本子/章节的异常
-        :param resp: 响应对象
-        :param orig_req_url: 原始请求url，可不传
-        """
-        if orig_req_url is None:
-            orig_req_url = resp.url
-
-        req_type = "本子" if "album" in orig_req_url else "章节"
-        cls.raises_resp((
-            f'请求的{req_type}不存在！({orig_req_url})\n'
-            '原因可能为:\n'
-            f'1. id有误，检查你的{req_type}id\n'
-            '2. 该漫画只对登录用户可见，请配置你的cookies，或者使用移动端Client（api）\n'
-        ), resp)
-
-    @classmethod
-    def require_true(cls, case: bool, msg: str):
-        if case:
-            return
-
-        cls.raises(msg)
-
-    @classmethod
-    def replace_old_exception_executor(cls, raises: Callable[[Callable, str, dict], None]):
-        old = JmModuleConfig.executor_raise_exception
-
-        def new(msg, extra):
-            raises(old, msg, extra)
-
-        JmModuleConfig.executor_raise_exception = new
 
 
 class JmCryptoTool:
