@@ -57,6 +57,7 @@ class JmDownloader(DownloadCallback):
         client = self.client_for_album(album_id)
         album = client.get_album_detail(album_id)
         self.download_by_album_detail(album, client)
+        return album
 
     def download_by_album_detail(self, album: JmAlbumDetail, client: JmcomicClient):
         self.before_album(album)
@@ -71,6 +72,7 @@ class JmDownloader(DownloadCallback):
         client = self.client_for_photo(photo_id)
         photo = client.get_photo_detail(photo_id)
         self.download_by_photo_detail(photo, client)
+        return photo
 
     def download_by_photo_detail(self, photo: JmPhotoDetail, client: JmcomicClient):
         client.check_photo(photo)

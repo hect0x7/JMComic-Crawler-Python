@@ -15,6 +15,10 @@ JmOption.default().to_file('./option.yml') # 创建默认option，导出为optio
 ## 2. option常规配置项
 
 ```yml
+# 开启jmcomic的日志输入，默认为true
+# 对日志有需求的可进一步参考文档
+log: true
+
 # 配置客户端相关
 client:
   # impl: 客户端实现类，不配置默认会使用JmModuleConfig.DEFAULT_CLIENT_IMPL
@@ -32,6 +36,10 @@ client:
     - 18comic.vip
     - 18comic.org
 
+  # retry_times: 请求失败重试次数，默认为5
+  retry_times: 5
+
+  # postman: 请求配置
   postman:
     meta_data:
       # proxies: 代理配置，默认是 system，表示使用系统代理。

@@ -102,7 +102,7 @@ JmModuleConfig.PFIELD_ADVICE['myname'] = lambda photo: f'【{photo.id}】{photo.
 
 ### 文件夹名=第x话+标题
 
-```python
+```yml
 # 直接使用内置字段 indextitle 即可
 dir_rule:
   rule: Bd_Pindextitle

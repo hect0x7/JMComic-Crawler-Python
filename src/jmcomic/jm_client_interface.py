@@ -77,7 +77,7 @@ class JmImageResp(JmResp):
             # 解密图片并保存文件
             JmImageTool.decode_and_save(
                 JmImageTool.get_num_by_url(scramble_id, img_url),
-                JmImageTool.open_Image(self.content),
+                JmImageTool.open_image(self.content),
                 path,
             )
 

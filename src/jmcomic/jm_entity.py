@@ -478,7 +478,7 @@ class JmAlbumDetail(DetailEntity):
 
         return ret
 
-    def create_photo_detail(self, index) -> Tuple[JmPhotoDetail, Tuple]:
+    def create_photo_detail(self, index) -> JmPhotoDetail:
         # 校验参数
         length = len(self.episode_list)
 
@@ -497,10 +497,10 @@ class JmAlbumDetail(DetailEntity):
             from_album=self,
         )
 
-        return photo, (self.episode_list[index])
+        return photo
 
     def getindex(self, item) -> JmPhotoDetail:
-        return self.create_photo_detail(item)[0]
+        return self.create_photo_detail(item)
 
     def __getitem__(self, item) -> Union[JmPhotoDetail, List[JmPhotoDetail]]:
         return super().__getitem__(item)

@@ -162,7 +162,7 @@ class JmcomicText:
             if field_value is None:
                 if default is None:
                     ExceptionTool.raises_regex(
-                        f"文本没有匹配上字段：字段名为'{field_name}'，pattern: [{pattern}]" \
+                        f"文本没有匹配上字段：字段名为'{field_name}'，pattern: [{pattern}]"
                         + (f"\n响应文本=[{html}]" if len(html) < 200 else
                            f'响应文本过长(len={len(html)})，不打印'
                            ),
@@ -712,7 +712,7 @@ class JmImageTool:
         if need_convert is False:
             cls.save_directly(resp, filepath)
         else:
-            cls.save_image(cls.open_Image(resp.content), filepath)
+            cls.save_image(cls.open_image(resp.content), filepath)
 
     @classmethod
     def save_image(cls, image: Image, filepath: str):
@@ -773,7 +773,7 @@ class JmImageTool:
         cls.save_image(img_decode, decoded_save_path)
 
     @classmethod
-    def open_Image(cls, fp: Union[str, bytes]):
+    def open_image(cls, fp: Union[str, bytes]):
         from io import BytesIO
         fp = fp if isinstance(fp, str) else BytesIO(fp)
         return Image.open(fp)

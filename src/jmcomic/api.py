@@ -5,7 +5,7 @@ def download_batch(download_api,
                    jm_id_iter: Union[Iterable, Generator],
                    option=None,
                    downloader=None,
-                   ):
+                   ) -> Set[Tuple[JmAlbumDetail, JmDownloader]]:
     """
     批量下载 album / photo
 
@@ -21,34 +21,60 @@ def download_batch(download_api,
     if option is None:
         option = JmModuleConfig.option_class().default()
 
-    return multi_thread_launcher(
+    result = set()
+
+    def callback(*ret):
+        result.add(ret)
+
+    multi_thread_launcher(
         iter_objs=set(
             JmcomicText.parse_to_jm_id(jmid)
             for jmid in jm_id_iter
         ),
-        apply_each_obj_func=lambda aid: download_api(aid, option, downloader),
+        apply_each_obj_func=lambda aid: download_api(aid,
+                                                     option,
+                                                     downloader,
+                                                     callback=callback,
+                                                     ),
+        wait_finish=True
     )
 
+    return result
 
-def download_album(jm_album_id, option=None, downloader=None):
+
+def download_album(jm_album_id,
+                   option=None,
+                   downloader=None,
+                   callback=None,
+                   ):
     """
     下载一个本子（album），包含其所有的章节（photo）
 
-    当jm_album_id不是str或int时，相当于调用 download_batch(download_album, jm_album_id, option, downloader)
+    当jm_album_id不是str或int时，视为批量下载，相当于调用 download_batch(download_album, jm_album_id, option, downloader)
 
     :param jm_album_id: 本子的禁漫车号
     :param option: 下载选项
     :param downloader: 下载器类
+    :param callback: 返回值回调函数，可以拿到 album 和 downloader
+    :return: 对于的本子实体类，下载器（如果是上述的批量情况，返回值为download_batch的返回值）
     """
 
     if not isinstance(jm_album_id, (str, int)):
         return download_batch(download_album, jm_album_id, option, downloader)
 
     with new_downloader(option, downloader) as dler:
-        dler.download_album(jm_album_id)
+        album = dler.download_album(jm_album_id)
+
+        if callback is not None:
+            callback(album, dler)
+
+        return album, dler
 
 
-def download_photo(jm_photo_id, option=None, downloader=None):
+def download_photo(jm_photo_id,
+                   option=None,
+                   downloader=None,
+                   callback=None):
     """
     下载一个章节（photo），参数同 download_album
     """
@@ -56,7 +82,12 @@ def download_photo(jm_photo_id, option=None, downloader=None):
         return download_batch(download_photo, jm_photo_id, option)
 
     with new_downloader(option, downloader) as dler:
-        dler.download_photo(jm_photo_id)
+        photo = dler.download_photo(jm_photo_id)
+
+        if callback is not None:
+            callback(photo, dler)
+
+        return photo, dler
 
 
 def new_downloader(option=None, downloader=None) -> JmDownloader:
