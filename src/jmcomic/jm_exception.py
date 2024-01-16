@@ -169,6 +169,8 @@ class ExceptionTool:
         old = cls.raises
 
         def new(msg, context=None, _etype=None):
+            if context is None:
+                context = {}
             raises(old, msg, context)
 
         cls.raises = new
