@@ -1,11 +1,14 @@
 from PIL import Image
 
-from .jm_entity import *
+from .jm_exception import *
 
 
 class JmcomicText:
     pattern_jm_domain = compile(r'https://([\w.-]+)')
-    pattern_jm_pa_id = compile(r'(photos?|album)/(\d+)')
+    pattern_jm_pa_id = [
+        (compile(r'(photos?|album)/(\d+)'), 2),
+        (compile(r'id=(\d+)'), 1),
+    ]
     pattern_html_jm_pub_domain = compile(r'[\w-]+\.\w+/?\w+')
 
     pattern_html_photo_photo_id = compile(r'<meta property="og:url" content=".*?/photo/(\d+)/?.*?">')
@@ -87,9 +90,13 @@ class JmcomicText:
             return text[2:]
         else:
             # https://xxx/photo/412038
-            match = cls.pattern_jm_pa_id.search(text)
-            ExceptionTool.require_true(match is not None, f"无法解析jm车号, 文本为: {text}")
-            return match[2]
+            # https://xxx/album/?id=412038
+            for p, i in cls.pattern_jm_pa_id:
+                match = p.search(text)
+                if match is not None:
+                    return match[i]
+
+            ExceptionTool.raises(f"无法解析jm车号, 文本为: {text}")
 
     @classmethod
     def analyse_jm_pub_html(cls, html: str, domain_keyword=('jm', 'comic')) -> List[str]:
@@ -162,7 +169,7 @@ class JmcomicText:
             if field_value is None:
                 if default is None:
                     ExceptionTool.raises_regex(
-                        f"文本没有匹配上字段：字段名为'{field_name}'，pattern: [{pattern}]" \
+                        f"文本没有匹配上字段：字段名为'{field_name}'，pattern: [{pattern}]"
                         + (f"\n响应文本=[{html}]" if len(html) < 200 else
                            f'响应文本过长(len={len(html)})，不打印'
                            ),
@@ -712,7 +719,7 @@ class JmImageTool:
         if need_convert is False:
             cls.save_directly(resp, filepath)
         else:
-            cls.save_image(cls.open_Image(resp.content), filepath)
+            cls.save_image(cls.open_image(resp.content), filepath)
 
     @classmethod
     def save_image(cls, image: Image, filepath: str):
@@ -773,7 +780,7 @@ class JmImageTool:
         cls.save_image(img_decode, decoded_save_path)
 
     @classmethod
-    def open_Image(cls, fp: Union[str, bytes]):
+    def open_image(cls, fp: Union[str, bytes]):
         from io import BytesIO
         fp = fp if isinstance(fp, str) else BytesIO(fp)
         return Image.open(fp)
@@ -819,86 +826,6 @@ class JmImageTool:
         获得图片分割数
         """
         return cls.get_num(detail.scramble_id, detail.aid, detail.img_file_name)
-
-
-class ExceptionTool:
-    """
-    抛异常的工具
-    1: 能简化 if-raise 语句的编写
-    2: 有更好的上下文信息传递方式
-    """
-
-    EXTRA_KEY_RESP = 'resp'
-    EXTRA_KEY_HTML = 'html'
-    EXTRA_KEY_RE_PATTERN = 'pattern'
-
-    @classmethod
-    def raises(cls, msg: str, extra: dict = None):
-        if extra is None:
-            extra = {}
-
-        JmModuleConfig.executor_raise_exception(msg, extra)
-
-    @classmethod
-    def raises_regex(cls,
-                     msg: str,
-                     html: str,
-                     pattern: Pattern,
-                     ):
-        cls.raises(
-            msg, {
-                cls.EXTRA_KEY_HTML: html,
-                cls.EXTRA_KEY_RE_PATTERN: pattern,
-            }
-        )
-
-    @classmethod
-    def raises_resp(cls,
-                    msg: str,
-                    resp,
-                    ):
-        cls.raises(
-            msg, {
-                cls.EXTRA_KEY_RESP: resp
-            }
-        )
-
-    @classmethod
-    def raise_missing(cls,
-                      resp,
-                      orig_req_url=None,
-                      ):
-        """
-        抛出本子/章节的异常
-        :param resp: 响应对象
-        :param orig_req_url: 原始请求url，可不传
-        """
-        if orig_req_url is None:
-            orig_req_url = resp.url
-
-        req_type = "本子" if "album" in orig_req_url else "章节"
-        cls.raises_resp((
-            f'请求的{req_type}不存在！({orig_req_url})\n'
-            '原因可能为:\n'
-            f'1. id有误，检查你的{req_type}id\n'
-            '2. 该漫画只对登录用户可见，请配置你的cookies，或者使用移动端Client（api）\n'
-        ), resp)
-
-    @classmethod
-    def require_true(cls, case: bool, msg: str):
-        if case:
-            return
-
-        cls.raises(msg)
-
-    @classmethod
-    def replace_old_exception_executor(cls, raises: Callable[[Callable, str, dict], None]):
-        old = JmModuleConfig.executor_raise_exception
-
-        def new(msg, extra):
-            raises(old, msg, extra)
-
-        JmModuleConfig.executor_raise_exception = new
 
 
 class JmCryptoTool:

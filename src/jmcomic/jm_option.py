@@ -17,7 +17,8 @@ class CacheRegistry:
         return registry[client]
 
     @classmethod
-    def enable_client_cache_on_condition(cls, option: 'JmOption', client: JmcomicClient, cache: Union[None, bool, str, Callable]):
+    def enable_client_cache_on_condition(cls, option: 'JmOption', client: JmcomicClient,
+                                         cache: Union[None, bool, str, Callable]):
         """
         cache parameter
 
@@ -132,7 +133,9 @@ class DirRule:
 
         # Axxx or Pyyy
         key = 1 if rule[0] == 'A' else 2
-        solve_func = lambda detail, ref=rule[1:]: fix_windir_name(str(DetailEntity.get_dirname(detail, ref)))
+
+        def solve_func(detail):
+            return fix_windir_name(str(DetailEntity.get_dirname(detail, rule[1:])))
 
         # 保存缓存
         rule_solver = (key, solve_func, rule)
@@ -367,7 +370,7 @@ class JmOption:
         """
         return self.new_jm_client(**kwargs)
 
-    def new_jm_client(self, domain_list=None, impl=None, cache=None, **kwargs) -> JmcomicClient:
+    def new_jm_client(self, domain_list=None, impl=None, cache=None, **kwargs) -> Union[JmHtmlClient, JmApiClient]:
         """
         创建新的Client（客户端），不同Client之间的元数据不共享
         """
@@ -433,6 +436,7 @@ class JmOption:
         # enable cache
         CacheRegistry.enable_client_cache_on_condition(self, client, cache)
 
+        # noinspection PyTypeChecker
         return client
 
     def update_cookies(self, cookies: dict):
@@ -446,7 +450,8 @@ class JmOption:
 
     # noinspection PyMethodMayBeStatic
     def decide_client_domain(self, client_key: str) -> List[str]:
-        is_client_type = lambda ctype: self.client_key_is_given_type(client_key, ctype)
+        def is_client_type(ctype) -> bool:
+            return self.client_key_is_given_type(client_key, ctype)
 
         if is_client_type(JmApiClient):
             # 移动端
@@ -510,19 +515,19 @@ class JmOption:
         plugin_registry = JmModuleConfig.REGISTRY_PLUGIN
         for pinfo in plugin_list:
             key, kwargs = pinfo['plugin'], pinfo.get('kwargs', None)  # kwargs为None
-            plugin_class: Optional[Type[JmOptionPlugin]] = plugin_registry.get(key, None)
+            pclass: Optional[Type[JmOptionPlugin]] = plugin_registry.get(key, None)
 
-            ExceptionTool.require_true(plugin_class is not None, f'[{group}] 未注册的plugin: {key}')
+            ExceptionTool.require_true(pclass is not None, f'[{group}] 未注册的plugin: {key}')
 
             try:
-                self.invoke_plugin(plugin_class, kwargs, extra, pinfo)
+                self.invoke_plugin(pclass, kwargs, extra, pinfo)
             except BaseException as e:
                 if safe is True:
                     traceback_print_exec()
                 else:
                     raise e
 
-    def invoke_plugin(self, plugin_class, kwargs: Optional[Dict], extra: dict, pinfo: dict):
+    def invoke_plugin(self, pclass, kwargs: Optional[Dict], extra: dict, pinfo: dict):
         # 检查插件的参数类型
         kwargs = self.fix_kwargs(kwargs)
         # 把插件的配置数据kwargs和附加数据extra合并，extra会覆盖kwargs
@@ -532,35 +537,36 @@ class JmOption:
         # 保证 jm_plugin.py 被加载
         from .jm_plugin import JmOptionPlugin, PluginValidationException
 
-        plugin = plugin_class
-        plugin_class: Type[JmOptionPlugin]
-
+        pclass: Type[JmOptionPlugin]
+        plugin: Optional[JmOptionPlugin] = None
+        
         try:
             # 构建插件对象
-            plugin: JmOptionPlugin = plugin_class.build(self)
+            plugin: JmOptionPlugin = pclass.build(self)
 
             # 设置日志开关
             if pinfo.get('log', True) is not True:
                 plugin.log_enable = False
 
-            jm_log('plugin.invoke', f'调用插件: [{plugin_class.plugin_key}]')
+            jm_log('plugin.invoke', f'调用插件: [{pclass.plugin_key}]')
+
             # 调用插件功能
             plugin.invoke(**kwargs)
 
         except PluginValidationException as e:
             # 插件抛出的参数校验异常
-            self.handle_plugin_valid_exception(e, pinfo, kwargs, plugin)
+            self.handle_plugin_valid_exception(e, pinfo, kwargs, plugin, pclass)
 
         except JmcomicException as e:
             # 模块内部异常，通过不是插件抛出的，而是插件调用了例如Client，Client请求失败抛出的
-            self.handle_plugin_jmcomic_exception(e, pinfo, kwargs, plugin)
+            self.handle_plugin_jmcomic_exception(e, pinfo, kwargs, plugin, pclass)
 
         except BaseException as e:
             # 为插件兜底，捕获其他所有异常
-            self.handle_plugin_unexpected_error(e, pinfo, kwargs, plugin)
+            self.handle_plugin_unexpected_error(e, pinfo, kwargs, plugin, pclass)
 
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
-    def handle_plugin_valid_exception(self, e, pinfo: dict, kwargs: dict, plugin):
+    def handle_plugin_valid_exception(self, e, pinfo: dict, kwargs: dict, _plugin, _pclass):
         from .jm_plugin import PluginValidationException
         e: PluginValidationException
 
@@ -584,15 +590,15 @@ class JmOption:
         # 其他的mode可以通过继承+方法重写来扩展
 
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
-    def handle_plugin_unexpected_error(self, e, pinfo: dict, kwargs: dict, plugin):
+    def handle_plugin_unexpected_error(self, e, pinfo: dict, kwargs: dict, _plugin, pclass):
         msg = str(e)
-        jm_log('plugin.error', f'插件 [{plugin.plugin_key}]，运行遇到未捕获异常，异常信息: [{msg}]')
+        jm_log('plugin.error', f'插件 [{pclass.plugin_key}]，运行遇到未捕获异常，异常信息: [{msg}]')
         raise e
 
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
-    def handle_plugin_jmcomic_exception(self, e, pinfo: dict, kwargs: dict, plugin):
+    def handle_plugin_jmcomic_exception(self, e, pinfo: dict, kwargs: dict, _plugin, pclass):
         msg = str(e)
-        jm_log('plugin.exception', f'插件 [{plugin.plugin_key}] 调用失败，异常信息: [{msg}]')
+        jm_log('plugin.exception', f'插件 [{pclass.plugin_key}] 调用失败，异常信息: [{msg}]')
         raise e
 
     # noinspection PyMethodMayBeStatic

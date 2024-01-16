@@ -409,13 +409,12 @@ class ClientProxyPlugin(JmOptionPlugin):
     def invoke(self,
                proxy_client_key,
                whitelist=None,
-               **kwargs,
+               **clazz_init_kwargs,
                ) -> None:
         if whitelist is not None:
             whitelist = set(whitelist)
 
         proxy_clazz = JmModuleConfig.client_impl_class(proxy_client_key)
-        clazz_init_kwargs = kwargs
         new_jm_client: Callable = self.option.new_jm_client
 
         def hook_new_jm_client(*args, **kwargs):
@@ -700,14 +699,14 @@ class ConvertJpgToPdfPlugin(JmOptionPlugin):
                filename_rule='Pid',
                quality=100,
                delete_original_file=False,
-               overwrite_cmd=None,
-               overwrite_jpg=None,
+               override_cmd=None,
+               override_jpg=None,
                **kwargs,
                ):
         self.delete_original_file = delete_original_file
 
         # 检查图片后缀配置
-        suffix = overwrite_jpg or '.jpg'
+        suffix = override_jpg or '.jpg'
         self.check_image_suffix_is_valid(suffix)
 
         # 处理文件夹配置
@@ -726,7 +725,7 @@ class ConvertJpgToPdfPlugin(JmOptionPlugin):
         # 生成命令
         def generate_cmd():
             return (
-                    overwrite_cmd or
+                    override_cmd or
                     'magick convert -quality {quality} "{photo_dir}*{suffix}" "{pdf_filepath}"'
             ).format(
                 quality=quality,
@@ -742,7 +741,7 @@ class ConvertJpgToPdfPlugin(JmOptionPlugin):
         ExceptionTool.require_true(
             code == 0,
             'jpg图片合并为pdf失败！'
-            '请确认你是否安装了magick，安装网站: [http://www.imagemagick.org/]',
+            '请确认你是否安装了magick，安装网站: [https://www.imagemagick.org/]',
         )
 
         self.log(f'Convert Successfully: JM{photo.id} → {pdf_filepath}')
