@@ -370,7 +370,7 @@ class JmOption:
         """
         return self.new_jm_client(**kwargs)
 
-    def new_jm_client(self, domain_list=None, impl=None, cache=None, **kwargs) -> JmcomicClient:
+    def new_jm_client(self, domain_list=None, impl=None, cache=None, **kwargs) -> Union[JmHtmlClient, JmApiClient]:
         """
         创建新的Client（客户端），不同Client之间的元数据不共享
         """

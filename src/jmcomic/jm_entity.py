@@ -187,6 +187,10 @@ class JmImageDetail(JmBaseEntity):
         return self.img_file_name
 
     @property
+    def filename(self):
+        return self.img_file_name + self.img_file_suffix
+
+    @property
     def is_gif(self):
         return self.img_file_suffix == '.gif'
 

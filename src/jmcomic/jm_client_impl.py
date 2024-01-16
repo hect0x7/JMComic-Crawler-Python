@@ -120,9 +120,9 @@ class AbstractJmClient(
             self.before_retry(e, kwargs, retry_count, url)
 
         if retry_count < self.retry_times:
-            return self.request_with_retry(request, url, domain_index, retry_count + 1, **kwargs)
+            return self.request_with_retry(request, url, domain_index, retry_count + 1, callback, **kwargs)
         else:
-            return self.request_with_retry(request, url, domain_index + 1, 0, **kwargs)
+            return self.request_with_retry(request, url, domain_index + 1, 0, callback, **kwargs)
 
     # noinspection PyMethodMayBeStatic
     def raise_if_resp_should_retry(self, resp):
