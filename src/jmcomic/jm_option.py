@@ -436,6 +436,7 @@ class JmOption:
         # enable cache
         CacheRegistry.enable_client_cache_on_condition(self, client, cache)
 
+        # noinspection PyTypeChecker
         return client
 
     def update_cookies(self, cookies: dict):
