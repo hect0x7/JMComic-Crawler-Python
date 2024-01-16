@@ -78,7 +78,7 @@ class AbstractJmClient(
         :param kwargs: 请求方法的kwargs
         """
         if domain_index >= len(self.domain_list):
-            self.fallback(request, url, domain_index, retry_count, **kwargs)
+            return self.fallback(request, url, domain_index, retry_count, **kwargs)
 
         if url.startswith('/'):
             # path → url
@@ -209,7 +209,7 @@ class AbstractJmClient(
     def fallback(self, request, url, domain_index, retry_count, **kwargs):
         msg = f"请求重试全部失败: [{url}], {self.domain_list}"
         jm_log('req.fallback', msg)
-        ExceptionTool.raises(msg)
+        ExceptionTool.raises(msg, {}, RequestRetryAllFailException)
 
     # noinspection PyMethodMayBeStatic
     def append_params_to_url(self, url, params):

@@ -144,8 +144,11 @@ class JmModuleConfig:
     REGISTRY_CLIENT = {}
     # 插件注册表
     REGISTRY_PLUGIN = {}
-    # 异常处理器
-    REGISTRY_EXCEPTION_ADVICE = {}
+    # 异常监听器
+    # key: 异常类
+    # value: 函数，参数只有异常对象，无需返回值
+    # 这个异常类（或者这个异常的子类）的实例将要被raise前，你的listener方法会被调用
+    REGISTRY_EXCEPTION_LISTENER = {}
 
     # 执行log的函数
     executor_log = default_jm_logging
@@ -404,8 +407,8 @@ class JmModuleConfig:
         cls.REGISTRY_CLIENT[client_class.client_key] = client_class
 
     @classmethod
-    def register_exception_advice(cls, etype, eadvice):
-        cls.REGISTRY_EXCEPTION_ADVICE[etype] = eadvice
+    def register_exception_listener(cls, etype, listener):
+        cls.REGISTRY_EXCEPTION_LISTENER[etype] = listener
 
 
 jm_log = JmModuleConfig.jm_log
