@@ -65,6 +65,13 @@ class ExceptionTool:
     CONTEXT_KEY_RE_PATTERN = 'pattern'
     CONTEXT_KEY_MISSING_JM_ID = 'missing_jm_id'
 
+    # 兼容旧版本
+
+    EXTRA_KEY_RESP = 'resp'
+    EXTRA_KEY_HTML = 'html'
+    EXTRA_KEY_RE_PATTERN = 'pattern'
+    EXTRA_KEY_MISSING_JM_ID = 'missing_jm_id'
+
     @classmethod
     def raises(cls,
                msg: str,
@@ -156,3 +163,12 @@ class ExceptionTool:
             return
 
         cls.raises(msg)
+
+    @classmethod
+    def replace_old_exception_executor(cls, raises: Callable[[Callable, str, dict], None]):
+        old = cls.raises
+
+        def new(msg, context, _etype=None):
+            raises(old, msg, context)
+
+        cls.raises = new
