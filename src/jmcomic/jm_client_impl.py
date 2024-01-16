@@ -916,6 +916,40 @@ class JmApiClient(AbstractJmClient):
         # 2. 是否是特殊的内容
         # 暂无
 
+    def raise_if_resp_should_retry(self, resp):
+        """
+        该方法会判断resp返回值是否是json格式，
+        如果不是，大概率是禁漫内部异常，需要进行重试
+
+        由于完整的json格式校验会有性能开销，所以只做简单的检查，
+        只校验第一个有效字符是不是 '{'，如果不是，就认为异常数据，需要重试
+
+        :param resp: 响应对象
+        :return: resp
+        """
+        if isinstance(resp, JmResp):
+            # 不对包装过的resp对象做校验，包装者自行校验
+            # 例如图片请求
+            return resp
+
+        url = resp.request.url
+
+        if self.API_SCRAMBLE in url:
+            # /chapter_view_template 这个接口不是返回json数据，不做检查
+            return resp
+
+        text = resp.text
+        for char in text:
+            if char not in (' ', '\n', '\t'):
+                # 找到第一个有效字符
+                ExceptionTool.require_true(
+                    char == '{',
+                    f'请求不是json格式，强制重试！响应文本: [{resp.text}]'
+                )
+                return resp
+
+        ExceptionTool.raises_resp(f'响应无数据！request_url=[{url}]', resp)
+
     def after_init(self):
         # 保证拥有cookies，因为移动端要求必须携带cookies，否则会直接跳转同一本子【禁漫娘】
         if JmModuleConfig.flag_api_client_require_cookies:
