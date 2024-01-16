@@ -168,7 +168,7 @@ class ExceptionTool:
     def replace_old_exception_executor(cls, raises: Callable[[Callable, str, dict], None]):
         old = cls.raises
 
-        def new(msg, context, _etype=None):
+        def new(msg, context=None, _etype=None):
             raises(old, msg, context)
 
         cls.raises = new
