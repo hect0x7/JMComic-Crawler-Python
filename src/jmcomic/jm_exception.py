@@ -183,6 +183,6 @@ class ExceptionTool:
         if not registry:
             return None
 
-        for accpet_type, listener in registry.items():
-            if isinstance(e, accpet_type):
+        for accept_type, listener in registry.items():
+            if isinstance(e, accept_type):
                 listener(e)
