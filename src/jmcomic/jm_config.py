@@ -314,7 +314,7 @@ class JmModuleConfig:
     # 而如果只想修改几个简单常用的配置，也可以下方的DEFAULT_XXX属性
     JM_OPTION_VER = '2.1'
     DEFAULT_CLIENT_IMPL = 'api'  # 默认Client实现类型为网页端
-    DEFAULT_CLIENT_CACHE = True  # 默认开启Client缓存，缓存级别是level_option，详见CacheRegistry
+    DEFAULT_CLIENT_CACHE = None  # 默认关闭Client缓存。缓存的配置详见 CacheRegistry
     DEFAULT_PROXIES = ProxyBuilder.system_proxy()  # 默认使用系统代理
 
     default_option_dict: dict = {
