@@ -45,7 +45,7 @@ print(f'获取到{len(domain_set)}个域名，开始测试')
 
 
 def test_domain(domain: str):
-    client = option.new_jm_client(domain_list=[domain], **meta_data)
+    client = option.new_jm_client(impl='html', domain_list=[domain], **meta_data)
     status = 'ok'
 
     try:
