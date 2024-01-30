@@ -79,7 +79,9 @@ class AbstractJmClient(
         """
         if domain_index >= len(self.domain_list):
             return self.fallback(request, url, domain_index, retry_count, **kwargs)
-
+        
+        url_backup = url
+        
         if url.startswith('/'):
             # path → url
             domain = self.domain_list[domain_index]
@@ -120,9 +122,9 @@ class AbstractJmClient(
             self.before_retry(e, kwargs, retry_count, url)
 
         if retry_count < self.retry_times:
-            return self.request_with_retry(request, url, domain_index, retry_count + 1, callback, **kwargs)
+            return self.request_with_retry(request, url_backup, domain_index, retry_count + 1, callback, **kwargs)
         else:
-            return self.request_with_retry(request, url, domain_index + 1, 0, callback, **kwargs)
+            return self.request_with_retry(request, url_backup, domain_index + 1, 0, callback, **kwargs)
 
     # noinspection PyMethodMayBeStatic
     def raise_if_resp_should_retry(self, resp):

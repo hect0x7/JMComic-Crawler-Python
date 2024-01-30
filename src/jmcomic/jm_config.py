@@ -117,10 +117,10 @@ class JmModuleConfig:
 
     # 移动端API域名
     DOMAIN_API_LIST = str_to_list('''
+    www.jmapinode.biz
     www.jmapinode1.top
     www.jmapinode2.top
     www.jmapinode3.top
-    www.jmapinode.biz
     www.jmapinode.top
     
     ''')
