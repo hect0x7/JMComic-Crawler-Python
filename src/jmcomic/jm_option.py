@@ -17,8 +17,11 @@ class CacheRegistry:
         return registry[client]
 
     @classmethod
-    def enable_client_cache_on_condition(cls, option: 'JmOption', client: JmcomicClient,
-                                         cache: Union[None, bool, str, Callable]):
+    def enable_client_cache_on_condition(cls,
+                                         option: 'JmOption',
+                                         client: JmcomicClient,
+                                         cache: Union[None, bool, str, Callable],
+                                         ):
         """
         cache parameter
 
@@ -539,7 +542,7 @@ class JmOption:
 
         pclass: Type[JmOptionPlugin]
         plugin: Optional[JmOptionPlugin] = None
-        
+
         try:
             # 构建插件对象
             plugin: JmOptionPlugin = pclass.build(self)

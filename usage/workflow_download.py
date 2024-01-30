@@ -86,20 +86,50 @@ def log_before_raise():
     jm_download_dir = env('JM_DOWNLOAD_DIR', workspace())
     mkdir_if_not_exists(jm_download_dir)
 
-    # 自定义异常抛出函数，在抛出前把HTML响应数据写到下载文件夹（日志留痕）
-    def raises(old, msg, extra: dict):
-        if ExceptionTool.EXTRA_KEY_RESP not in extra:
-            return old(msg, extra)
+    def decide_filepath(e):
+        resp = e.context.get(ExceptionTool.CONTEXT_KEY_RESP, None)
 
-        resp = extra[ExceptionTool.EXTRA_KEY_RESP]
+        if resp is None:
+            suffix = str(time_stamp())
+        else:
+            suffix = resp.url
+
+        name = '-'.join(
+            fix_windir_name(it)
+            for it in [
+                e.description,
+                current_thread().name,
+                suffix
+            ]
+        )
+
+        path = f'{jm_download_dir}/【出错了】{name}.log'
+        return path
+
+    def exception_listener(e: JmcomicException):
+        """
+        异常监听器，实现了在 GitHub Actions 下，把请求错误的信息下载到文件，方便调试和通知使用者
+        """
+        # 决定要写入的文件路径
+        path = decide_filepath(e)
+
+        # 准备内容
+        content = [
+            str(type(e)),
+            e.msg,
+        ]
+        for k, v in e.context.items():
+            content.append(f'{k}: {v}')
+
+        # resp.text
+        resp = e.context.get(ExceptionTool.CONTEXT_KEY_RESP, None)
+        if resp:
+            content.append(f'响应文本: {resp.text}')
+
         # 写文件
-        from common import write_text, fix_windir_name
-        write_text(f'{jm_download_dir}/{fix_windir_name(resp.url)}', resp.text)
+        write_text(path, '\n'.join(content))
 
-        return old(msg, extra)
-
-    # 应用函数
-    ExceptionTool.replace_old_exception_executor(raises)
+    JmModuleConfig.register_exception_listener(JmcomicException, exception_listener)
 
 
 if __name__ == '__main__':

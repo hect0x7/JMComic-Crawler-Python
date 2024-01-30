@@ -11,6 +11,7 @@ client:
       timeout: 7
   domain:
     html:
+      - 18comic.org
       - jmcomic1.me
       - jmcomic.me
 

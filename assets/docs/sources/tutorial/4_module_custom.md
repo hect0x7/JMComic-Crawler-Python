@@ -164,3 +164,31 @@ def custom_jm_log():
     # 2. 让my_log生效
     JmModuleConfig.log_executor = my_log
 ```
+
+
+
+## 自定义异常监听器/回调
+
+```python
+def custom_exception_listener():
+    """
+    该函数演示jmcomic的异常监听器机制
+    """
+    
+    # 1. 选一个可能会发生的、你感兴趣的异常
+    etype = ResponseUnexpectedException
+    
+    
+    def listener(e):
+        """
+        你的监听器方法
+        该方法无需返回值
+        :param e: 异常实例
+        """
+        print(f'my exception listener invoke !!! exception happened: {e}')
+    
+    
+    # 注册监听器/回调
+    # 这个异常类（或者这个异常的子类）的实例将要被raise前，你的listener方法会被调用
+    JmModuleConfig.register_exception_listener(etype, listener)
+```

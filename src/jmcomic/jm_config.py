@@ -117,10 +117,10 @@ class JmModuleConfig:
 
     # 移动端API域名
     DOMAIN_API_LIST = str_to_list('''
+    www.jmapinode.biz
     www.jmapinode1.top
     www.jmapinode2.top
     www.jmapinode3.top
-    www.jmapinode.biz
     www.jmapinode.top
     
     ''')
@@ -144,8 +144,11 @@ class JmModuleConfig:
     REGISTRY_CLIENT = {}
     # 插件注册表
     REGISTRY_PLUGIN = {}
-    # 异常处理器
-    REGISTRY_EXCEPTION_ADVICE = {}
+    # 异常监听器
+    # key: 异常类
+    # value: 函数，参数只有异常对象，无需返回值
+    # 这个异常类（或者这个异常的子类）的实例将要被raise前，你的listener方法会被调用
+    REGISTRY_EXCEPTION_LISTENER = {}
 
     # 执行log的函数
     executor_log = default_jm_logging
@@ -311,7 +314,7 @@ class JmModuleConfig:
     # 而如果只想修改几个简单常用的配置，也可以下方的DEFAULT_XXX属性
     JM_OPTION_VER = '2.1'
     DEFAULT_CLIENT_IMPL = 'api'  # 默认Client实现类型为网页端
-    DEFAULT_CLIENT_CACHE = True  # 默认开启Client缓存，缓存级别是level_option，详见CacheRegistry
+    DEFAULT_CLIENT_CACHE = None  # 默认关闭Client缓存。缓存的配置详见 CacheRegistry
     DEFAULT_PROXIES = ProxyBuilder.system_proxy()  # 默认使用系统代理
 
     default_option_dict: dict = {
@@ -404,8 +407,8 @@ class JmModuleConfig:
         cls.REGISTRY_CLIENT[client_class.client_key] = client_class
 
     @classmethod
-    def register_exception_advice(cls, etype, eadvice):
-        cls.REGISTRY_EXCEPTION_ADVICE[etype] = eadvice
+    def register_exception_listener(cls, etype, listener):
+        cls.REGISTRY_EXCEPTION_LISTENER[etype] = listener
 
 
 jm_log = JmModuleConfig.jm_log

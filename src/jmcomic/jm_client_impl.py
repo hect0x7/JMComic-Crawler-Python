@@ -78,8 +78,10 @@ class AbstractJmClient(
         :param kwargs: 请求方法的kwargs
         """
         if domain_index >= len(self.domain_list):
-            self.fallback(request, url, domain_index, retry_count, **kwargs)
-
+            return self.fallback(request, url, domain_index, retry_count, **kwargs)
+        
+        url_backup = url
+        
         if url.startswith('/'):
             # path → url
             domain = self.domain_list[domain_index]
@@ -120,9 +122,9 @@ class AbstractJmClient(
             self.before_retry(e, kwargs, retry_count, url)
 
         if retry_count < self.retry_times:
-            return self.request_with_retry(request, url, domain_index, retry_count + 1, callback, **kwargs)
+            return self.request_with_retry(request, url_backup, domain_index, retry_count + 1, callback, **kwargs)
         else:
-            return self.request_with_retry(request, url, domain_index + 1, 0, callback, **kwargs)
+            return self.request_with_retry(request, url_backup, domain_index + 1, 0, callback, **kwargs)
 
     # noinspection PyMethodMayBeStatic
     def raise_if_resp_should_retry(self, resp):
@@ -209,7 +211,7 @@ class AbstractJmClient(
     def fallback(self, request, url, domain_index, retry_count, **kwargs):
         msg = f"请求重试全部失败: [{url}], {self.domain_list}"
         jm_log('req.fallback', msg)
-        ExceptionTool.raises(msg)
+        ExceptionTool.raises(msg, {}, RequestRetryAllFailException)
 
     # noinspection PyMethodMayBeStatic
     def append_params_to_url(self, url, params):

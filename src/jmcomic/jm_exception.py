@@ -3,9 +3,7 @@ from .jm_entity import *
 
 
 class JmcomicException(Exception):
-    """
-    jmcomic 模块异常
-    """
+    description = 'jmcomic 模块异常'
 
     def __init__(self, msg: str, context: dict):
         self.msg = msg
@@ -16,19 +14,22 @@ class JmcomicException(Exception):
 
 
 class ResponseUnexpectedException(JmcomicException):
-    """
-    响应不符合预期异常
-    """
+    description = '响应不符合预期异常'
 
     @property
     def resp(self):
         return self.from_context(ExceptionTool.CONTEXT_KEY_RESP)
 
 
-class RegularNotMatchException(ResponseUnexpectedException):
-    """
-    正则表达式不匹配异常
-    """
+class RegularNotMatchException(JmcomicException):
+    description = '正则表达式不匹配异常'
+
+    @property
+    def resp(self):
+        """
+        可能为None
+        """
+        return self.context.get(ExceptionTool.CONTEXT_KEY_RESP, None)
 
     @property
     def error_text(self):
@@ -40,17 +41,21 @@ class RegularNotMatchException(ResponseUnexpectedException):
 
 
 class JsonResolveFailException(ResponseUnexpectedException):
+    description = 'Json解析异常'
     pass
 
 
 class MissingAlbumPhotoException(ResponseUnexpectedException):
-    """
-    缺少本子/章节异常
-    """
+    description = '不存在本子或章节异常'
 
     @property
     def error_jmid(self) -> str:
         return self.from_context(ExceptionTool.CONTEXT_KEY_MISSING_JM_ID)
+
+
+class RequestRetryAllFailException(JmcomicException):
+    description = '请求重试全部失败异常'
+    pass
 
 
 class ExceptionTool:
@@ -95,10 +100,7 @@ class ExceptionTool:
         e = etype(msg, context)
 
         # 异常处理建议
-        advice = JmModuleConfig.REGISTRY_EXCEPTION_ADVICE.get(etype, None)
-
-        if advice is not None:
-            advice(e)
+        cls.notify_all_listeners(e)
 
         raise e
 
@@ -174,3 +176,13 @@ class ExceptionTool:
             raises(old, msg, context)
 
         cls.raises = new
+
+    @classmethod
+    def notify_all_listeners(cls, e):
+        registry: Dict[Type, Callable[Type]] = JmModuleConfig.REGISTRY_EXCEPTION_LISTENER
+        if not registry:
+            return None
+
+        for accept_type, listener in registry.items():
+            if isinstance(e, accept_type):
+                listener(e)

@@ -48,7 +48,8 @@ class JmTestConfigurable(unittest.TestCase):
         # 设置 JmOption，JmcomicClient
         option = cls.new_option()
         cls.option = option
-        cls.client = option.build_jm_client()
+        # 设置缓存级别为option，可以减少请求次数
+        cls.client = option.build_jm_client(cache='level_option')
 
         # 跨平台设置
         cls.adapt_os()
