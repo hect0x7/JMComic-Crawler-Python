@@ -106,23 +106,17 @@ class JmModuleConfig:
 
     # 移动端图片域名
     DOMAIN_IMAGE_LIST = str_to_list('''
-    cdn-msp.jmapiproxy1.monster
-    cdn-msp2.jmapiproxy1.monster
-    cdn-msp.jmapiproxy1.cc
-    cdn-msp.jmapiproxy2.cc
-    cdn-msp.jmapiproxy3.cc
-    cdn-msp.jmapiproxy4.cc
+    cdn-msp.jmapinodeudzn.net
+    cdn-msp2.jmapinodeudzn.net
 
     ''')
 
     # 移动端API域名
     DOMAIN_API_LIST = str_to_list('''
+    www.jmapinodeudzn.xyz
+    www.jmapinode.vip
     www.jmapinode.biz
-    www.jmapinode1.top
-    www.jmapinode2.top
-    www.jmapinode3.top
-    www.jmapinode.top
-    
+    www.jmapinode.xyz
     ''')
 
     # 网页端域名配置
