@@ -32,11 +32,11 @@ class First3ImageDownloader(JmDownloader):
 
     def do_filter(self, detail):
         if detail.is_photo():
-            photo: JmPhotoDetail = iter_objs
+            photo: JmPhotoDetail = detail
             # 支持[start,end,step]
             return photo[:3]
 
-        return iter_objs
+        return detail
 ```
 
 
@@ -54,9 +54,9 @@ class FindUpdateDownloader(JmDownloader):
 
     def do_filter(self, detail):
         if not detail.is_album():
-            return iter_objs
+            return detail
 
-        return self.find_update(iter_objs)
+        return self.find_update(detail)
 
     # 带入漫画id, 章节id(第x章)，寻找该漫画下第x章节後的所有章节Id
     def find_update(self, album: JmAlbumDetail):
