@@ -52,7 +52,7 @@ class JmMagicConstants:
     APP_TOKEN_SECRET = '18comicAPP'
     APP_TOKEN_SECRET_2 = '18comicAPPContent'
     APP_DATA_SECRET = '185Hcomic3PAPP7R'
-    APP_VERSION = '1.6.4'
+    APP_VERSION = '1.6.6'
     APP_HEADERS_TEMPLATE = {
         'Accept-Encoding': 'gzip',
         'user-agent': 'Mozilla/5.0 (Linux; Android 9; V1938CT Build/PQ3A.190705.09211555; wv) AppleWebKit/537.36 (KHTML, '
@@ -156,7 +156,7 @@ class JmModuleConfig:
     # log时解码url
     flag_decode_url_when_logging = True
     # 当内置的版本号落后时，使用最新的禁漫app版本号
-    flag_use_version_newer_if_behind = False
+    flag_use_version_newer_if_behind = True
 
     # 关联dir_rule的自定义字段与对应的处理函数
     # 例如:

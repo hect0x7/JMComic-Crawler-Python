@@ -359,13 +359,7 @@ class JmPageTool:
 
     # 用来提取搜索页面的的album的信息
     pattern_html_search_album_info_list = compile(
-        r'<a href="/album/(\d+)/.+"[\s\S]*?'
-        r'title="(.*?)"[\s\S]*?'
-        r'(<div class="label-category" style="">'
-        r'\n(.*)\n</div>\n<div class="label-sub" style=" ">'
-        r'(.*?)\n<[\s\S]*?)?'
-        r'<div class="title-truncate tags .*>\n'
-        r'(<a[\s\S]*?) </div>'
+        r'<a href="/album/(\d+)/[\s\S]*?title="(.*?)"([\s\S]*?)<div class="title-truncate tags .*>([\s\S]*?)</div>'
     )
 
     # 用来提取分类页面的的album的信息
@@ -383,7 +377,7 @@ class JmPageTool:
     # 查找错误，例如 [错误，關鍵字過短，請至少輸入兩個字以上。]
     pattern_html_search_error = compile(r'<fieldset>\n<legend>(.*?)</legend>\n<div class=.*?>\n(.*?)\n</div>\n</fieldset>')
 
-    pattern_html_search_total = compile(r'<span class="text-white">(\d+)</span> A漫.'), 0
+    pattern_html_search_total = compile(r'class="text-white">(\d+)</span> A漫.'), 0
 
     # 收藏页面的本子结果
     pattern_html_favorite_content = compile(
@@ -424,7 +418,9 @@ class JmPageTool:
 
         album_info_list = cls.pattern_html_search_album_info_list.findall(html)
 
-        for (album_id, title, _, label_category, label_sub, tag_text) in album_info_list:
+        for (album_id, title, _label_category_text, tag_text) in album_info_list:
+            # 从label_category_text中可以解析出label-category和label-sub
+            # 这里不作解析，因为没什么用...
             tags = cls.pattern_html_search_tags.findall(tag_text)
             content.append((
                 album_id, {
