@@ -364,10 +364,9 @@ class JmPageTool:
 
     # 用来提取分类页面的的album的信息
     pattern_html_category_album_info_list = compile(
-        r'<a href="/album/(\d+)/[^>]*>[\s\S]*?title="(.*?)"[^>]*>'
-        r'\n</a>\n'
-        r'<div class="label-loveicon">'
-        r'([\s\S]*?)'
+        r'<a href="/album/(\d+)/[^>]*>[^>]*?'
+        r'title="(.*?)"[^>]*>[ \n]*</a>[ \n]*'
+        r'<div class="label-loveicon">([\s\S]*?)'
         r'<div class="clearfix">'
     )
 
