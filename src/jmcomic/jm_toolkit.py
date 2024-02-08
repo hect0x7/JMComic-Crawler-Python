@@ -357,12 +357,12 @@ class JmPageTool:
     # 用来缩减html的长度
     pattern_html_search_shorten_for = compile(r'<div class="well well-sm">([\s\S]*)<div class="row">')
 
-    # 用来提取搜索页面的的album的信息
+    # 用来提取搜索页面的album的信息
     pattern_html_search_album_info_list = compile(
         r'<a href="/album/(\d+)/[\s\S]*?title="(.*?)"([\s\S]*?)<div class="title-truncate tags .*>([\s\S]*?)</div>'
     )
 
-    # 用来提取分类页面的的album的信息
+    # 用来提取分类页面的album的信息
     pattern_html_category_album_info_list = compile(
         r'<a href="/album/(\d+)/[^>]*>[^>]*?'
         r'title="(.*?)"[^>]*>[ \n]*</a>[ \n]*'
