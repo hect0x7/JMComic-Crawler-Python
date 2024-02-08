@@ -814,8 +814,6 @@ class JmServerPlugin(JmOptionPlugin):
             if self.running is True:
                 return
 
-            self.running = True
-
             # 服务器的代码位于一个独立库：plugin_jm_server，需要独立安装
             # 源代码仓库：https://github.com/hect0x7/plugin-jm-server
             try:
@@ -842,6 +840,7 @@ class JmServerPlugin(JmOptionPlugin):
                     # 不是主线程，return
                     return self.warning_wrong_usage_of_debug()
                 else:
+                    self.running = True
                     # 是主线程，启动服务器
                     blocking_run_server()
 
@@ -849,6 +848,7 @@ class JmServerPlugin(JmOptionPlugin):
                 # 非debug模式，开新线程启动
                 threading.Thread(target=blocking_run_server, daemon=True).start()
                 atexit_register(self.wait_server_stop)
+                self.running = True
 
     def warning_wrong_usage_of_debug(self):
         self.log('注意！当配置debug=True时，请确保当前插件是在主线程中被调用。\n'
