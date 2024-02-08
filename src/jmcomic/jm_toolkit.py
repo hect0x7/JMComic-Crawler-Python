@@ -754,22 +754,33 @@ class JmImageTool:
 
         # 创建新的解密图片
         img_decode = Image.new("RGB", (w, h))
-        remainder = h % num
-        copyW = w
+        over = h % num
         for i in range(num):
-            copyH = math.floor(h / num)
-            py = copyH * i
-            y = h - (copyH * (i + 1)) - remainder
+            move = math.floor(h / num)
+            y_src = h - (move * (i + 1)) - over
+            y_dst = move * i
 
             if i == 0:
-                copyH += remainder
+                move += over
             else:
-                py += remainder
+                y_dst += over
 
             img_decode.paste(
-                img_src.crop((0, y, copyW, y + copyH)),
-                (0, py, copyW, py + copyH)
+                img_src.crop((
+                    0, y_src,
+                    w, y_src + move
+                )),
+                (
+                    0, y_dst,
+                    w, y_dst + move
+                )
             )
+
+            # save every step result
+            # cls.save_image(img_decode, change_file_name(
+            #     decoded_save_path,
+            #     f'{of_file_name(decoded_save_path, trim_suffix=True)}_{i}{of_file_suffix(decoded_save_path)}'
+            # ))
 
         # 保存到新的解密文件
         cls.save_image(img_decode, decoded_save_path)
