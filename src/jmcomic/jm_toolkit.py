@@ -866,7 +866,7 @@ class JmCryptoTool:
         """
         解密接口返回值
 
-        :param data: data = resp.json()['data]
+        :param data: resp.json()['data']
         :param ts: 时间戳
         :param secret: 密钥
         :return: json格式的字符串
