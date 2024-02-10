@@ -115,7 +115,10 @@ class DetailEntity(JmBaseEntity, IndexedEntity):
         return f'[{self.id}] {self.oname}'
 
     def __str__(self):
-        return f'{self.__class__.__name__}' '{'f' {self.id}: {self.title}' '}'
+        return f'{self.__class__.__name__}' \
+               '{' \
+               f'{self.id}: {self.title}'\
+               '}'
 
     @classmethod
     def __alias__(cls):

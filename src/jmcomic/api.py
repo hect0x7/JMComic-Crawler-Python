@@ -100,7 +100,7 @@ def new_downloader(option=None, downloader=None) -> JmDownloader:
     return downloader(option)
 
 
-def create_option(filepath):
+def create_option_by_file(filepath):
     return JmModuleConfig.option_class().from_file(filepath)
 
 
@@ -110,4 +110,14 @@ def create_option_by_env(env_name='JM_OPTION_PATH'):
     filepath = get_env(env_name, None)
     ExceptionTool.require_true(filepath is not None,
                                f'未配置环境变量: {env_name}，请配置为option的文件路径')
-    return create_option(filepath)
+    return create_option_by_file(filepath)
+
+
+def create_option_by_str(text: str, mode=None):
+    if mode is None:
+        mode = PackerUtil.mode_yml
+    data = PackerUtil.unpack_by_str(text, mode)[0]
+    return JmModuleConfig.option_class().construct(data)
+
+
+create_option = create_option_by_file
