@@ -469,11 +469,14 @@ class JmcomicClient(
     def of_api_url(self, api_path, domain):
         raise NotImplementedError
 
-    def get_html_domain(self, postman=None):
-        return JmModuleConfig.get_html_domain(postman or self.get_root_postman())
+    def get_html_domain(self):
+        return JmModuleConfig.get_html_domain(self.get_root_postman())
 
-    def get_html_domain_all(self, postman=None):
-        return JmModuleConfig.get_html_domain_all(postman or self.get_root_postman())
+    def get_html_domain_all(self):
+        return JmModuleConfig.get_html_domain_all(self.get_root_postman())
+
+    def get_html_domain_all_via_github(self):
+        return JmModuleConfig.get_html_domain_all_via_github(self.get_root_postman())
 
     # noinspection PyMethodMayBeStatic
     def do_page_iter(self, params: dict, page: int, get_page_method):

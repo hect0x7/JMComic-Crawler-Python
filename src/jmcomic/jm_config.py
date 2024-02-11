@@ -260,6 +260,41 @@ class JmModuleConfig:
         return domain_list
 
     @classmethod
+    def get_html_domain_all_via_github(cls,
+                                       postman=None,
+                                       template='https://jmcmomic.github.io/go/{}.html',
+                                       index_range=(300, 309)
+                                       ):
+        """
+        通过禁漫官方的github号的repo获取最新的禁漫域名
+        https://github.com/jmcmomic/jmcmomic.github.io
+        """
+        postman = postman or cls.new_postman(headers={
+            'authority': 'github.com',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 '
+                          'Safari/537.36'
+        })
+        domain_set = set()
+
+        def fetch_domain(url):
+            resp = postman.get(url, allow_redirects=False)
+            text = resp.text
+            from .jm_toolkit import JmcomicText
+            for domain in JmcomicText.analyse_jm_pub_html(text):
+                if domain.startswith('jm365'):
+                    continue
+                domain_set.add(domain)
+
+        from common import multi_thread_launcher
+
+        multi_thread_launcher(
+            iter_objs=[template.format(i) for i in range(*index_range)],
+            apply_each_obj_func=fetch_domain,
+        )
+
+        return domain_set
+
+    @classmethod
     def new_html_headers(cls, domain='18comic.vip'):
         """
         网页端的headers
