@@ -189,7 +189,7 @@ class JmDownloader(DownloadCallback):
         self.all_downloaded[photo.from_album].setdefault(photo, [])
         self.option.call_all_plugin(
             'before_photo',
-            album=album,
+            photo=photo,
             downloader=self,
         )
 
