@@ -127,7 +127,7 @@ plugins:
 
     - plugin: client_proxy # 客户端实现类代理插件，不建议非开发人员使用
       kwargs:
-        proxy_client_key: cl_proxy_future # 代理类的client_key
+        proxy_client_key: photo_concurrent_fetcher_proxy # 代理类的client_key
         whitelist: [ api, ] # 白名单，当client.impl匹配白名单时才代理
 
     - plugin: auto_set_browser_cookies # 自动获取浏览器cookies，详见插件类
