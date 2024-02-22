@@ -91,17 +91,17 @@ class DetailEntity(JmBaseEntity, IndexedEntity):
         """
         authoroname = author + oname
 
-        比较好识别的一种本子名称方式
+        个人认为识别度比较高的本子名称，一眼看去就能获取到本子的关键信息
 
-        具体格式: f'【author】{oname}'
+        具体格式: '【author】oname'
 
         示例:
 
-        原本子名：喂我吃吧 老師! [欶瀾漢化組] [BLVEFO9] たべさせて、せんせい! (ブルーアーカイブ) [中國翻譯] [無修正]
+        Pname：喂我吃吧 老師! [欶瀾漢化組] [BLVEFO9] たべさせて、せんせい! (ブルーアーカイブ) [中國翻譯] [無修正]
 
-        authoroname：【BLVEFO9】喂我吃吧 老師!
+        Pauthoroname：【BLVEFO9】喂我吃吧 老師!
 
-        :return: 返回作者名+作品原名，格式为: '【author】{oname}'
+        :return: 返回作者名+本子原始名称，格式为: '【author】oname'
         """
         return f'【{self.author}】{self.oname}'
 
@@ -109,12 +109,16 @@ class DetailEntity(JmBaseEntity, IndexedEntity):
     def idoname(self):
         """
         类似 authoroname
-        :return: '[id] {oname}'
+        
+        :return: '[id] oname'
         """
         return f'[{self.id}] {self.oname}'
 
     def __str__(self):
-        return f'{self.__class__.__name__}({self.id}-{self.title})'
+        return f'{self.__class__.__name__}' \
+               '{' \
+               f'{self.id}: {self.title}'\
+               '}'
 
     @classmethod
     def __alias__(cls):

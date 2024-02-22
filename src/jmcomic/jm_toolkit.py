@@ -357,17 +357,16 @@ class JmPageTool:
     # 用来缩减html的长度
     pattern_html_search_shorten_for = compile(r'<div class="well well-sm">([\s\S]*)<div class="row">')
 
-    # 用来提取搜索页面的的album的信息
+    # 用来提取搜索页面的album的信息
     pattern_html_search_album_info_list = compile(
         r'<a href="/album/(\d+)/[\s\S]*?title="(.*?)"([\s\S]*?)<div class="title-truncate tags .*>([\s\S]*?)</div>'
     )
 
-    # 用来提取分类页面的的album的信息
+    # 用来提取分类页面的album的信息
     pattern_html_category_album_info_list = compile(
-        r'<a href="/album/(\d+)/[^>]*>[\s\S]*?title="(.*?)"[^>]*>'
-        r'\n</a>\n'
-        r'<div class="label-loveicon">'
-        r'([\s\S]*?)'
+        r'<a href="/album/(\d+)/[^>]*>[^>]*?'
+        r'title="(.*?)"[^>]*>[ \n]*</a>[ \n]*'
+        r'<div class="label-loveicon">([\s\S]*?)'
         r'<div class="clearfix">'
     )
 
@@ -755,22 +754,33 @@ class JmImageTool:
 
         # 创建新的解密图片
         img_decode = Image.new("RGB", (w, h))
-        remainder = h % num
-        copyW = w
+        over = h % num
         for i in range(num):
-            copyH = math.floor(h / num)
-            py = copyH * i
-            y = h - (copyH * (i + 1)) - remainder
+            move = math.floor(h / num)
+            y_src = h - (move * (i + 1)) - over
+            y_dst = move * i
 
             if i == 0:
-                copyH += remainder
+                move += over
             else:
-                py += remainder
+                y_dst += over
 
             img_decode.paste(
-                img_src.crop((0, y, copyW, y + copyH)),
-                (0, py, copyW, py + copyH)
+                img_src.crop((
+                    0, y_src,
+                    w, y_src + move
+                )),
+                (
+                    0, y_dst,
+                    w, y_dst + move
+                )
             )
+
+            # save every step result
+            # cls.save_image(img_decode, change_file_name(
+            #     decoded_save_path,
+            #     f'{of_file_name(decoded_save_path, trim_suffix=True)}_{i}{of_file_suffix(decoded_save_path)}'
+            # ))
 
         # 保存到新的解密文件
         cls.save_image(img_decode, decoded_save_path)
@@ -867,7 +877,7 @@ class JmCryptoTool:
         """
         解密接口返回值
 
-        :param data: data = resp.json()['data]
+        :param data: resp.json()['data']
         :param ts: 时间戳
         :param secret: 密钥
         :return: json格式的字符串

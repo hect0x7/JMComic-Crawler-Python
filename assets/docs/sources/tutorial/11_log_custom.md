@@ -46,7 +46,7 @@ plugins:
     - plugin: client_proxy # 提高移动端的请求效率的插件
       log: false # 插件自身不打印日志
       kwargs:
-        proxy_client_key: cl_proxy_future
+        proxy_client_key: photo_concurrent_fetcher_proxy
         whitelist: [ api, ]
 ```
 

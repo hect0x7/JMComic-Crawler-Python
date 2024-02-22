@@ -43,10 +43,11 @@ class Test_Api(JmTestConfigurable):
         ret2 = jmcomic.download_album((e for e in album_ls), self.option)
         self.assertEqual(len(ret2), len(album_ls), 'Generator')
 
-    def test_get_jmcomic_url(self):
+    def test_get_jmcomic_domain(self):
         func_list = {
             self.client.get_html_domain,
             self.client.get_html_domain_all,
+            self.client.get_html_domain_all_via_github,
             # JmModuleConfig.get_jmcomic_url,
             # JmModuleConfig.get_jmcomic_domain_all,
         }
@@ -55,7 +56,7 @@ class Test_Api(JmTestConfigurable):
 
         def run_func_async(func):
             try:
-                func()
+                print(func())
             except BaseException as e:
                 exception_list.append(e)
                 traceback_print_exec()

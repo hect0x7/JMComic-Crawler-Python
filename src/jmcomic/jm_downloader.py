@@ -169,17 +169,27 @@ class JmDownloader(DownloadCallback):
     def before_album(self, album: JmAlbumDetail):
         super().before_album(album)
         self.all_downloaded.setdefault(album, {})
-
-    def before_photo(self, photo: JmPhotoDetail):
-        super().before_photo(photo)
-        self.all_downloaded.setdefault(photo.from_album, {})
-        self.all_downloaded[photo.from_album].setdefault(photo, [])
+        self.option.call_all_plugin(
+            'before_album',
+            album=album,
+            downloader=self,
+        )
 
     def after_album(self, album: JmAlbumDetail):
         super().after_album(album)
         self.option.call_all_plugin(
             'after_album',
             album=album,
+            downloader=self,
+        )
+
+    def before_photo(self, photo: JmPhotoDetail):
+        super().before_photo(photo)
+        self.all_downloaded.setdefault(photo.from_album, {})
+        self.all_downloaded[photo.from_album].setdefault(photo, [])
+        self.option.call_all_plugin(
+            'before_photo',
+            photo=photo,
             downloader=self,
         )
 
@@ -191,12 +201,25 @@ class JmDownloader(DownloadCallback):
             downloader=self,
         )
 
+    def before_image(self, image: JmImageDetail, img_save_path):
+        super().before_image(image, img_save_path)
+        self.option.call_all_plugin(
+            'before_image',
+            image=image,
+            downloader=self,
+        )
+
     def after_image(self, image: JmImageDetail, img_save_path):
         super().after_image(image, img_save_path)
         photo = image.from_photo
         album = photo.from_album
 
         self.all_downloaded.get(album).get(photo).append((img_save_path, image))
+        self.option.call_all_plugin(
+            'after_image',
+            image=image,
+            downloader=self,
+        )
 
     # 下面是对with语法的支持
 
@@ -219,27 +242,22 @@ class JmDownloader(DownloadCallback):
 
 class DoNotDownloadImage(JmDownloader):
     """
-    本类仅用于测试
-
-    用法：
-
-    JmModuleConfig.CLASS_DOWNLOADER = DoNotDownloadImage
+    不会下载任何图片的Downloader，用作测试
     """
 
     def download_by_image_detail(self, image: JmImageDetail, client: JmcomicClient):
         # ensure make dir
         self.option.decide_image_filepath(image)
-        pass
 
 
 class JustDownloadSpecificCountImage(JmDownloader):
+    """
+    只下载特定数量图片的Downloader，用作测试
+    """
     from threading import Lock
 
     count_lock = Lock()
     count = 0
-
-    def __init__(self, option: JmOption) -> None:
-        super().__init__(option)
 
     def download_by_image_detail(self, image: JmImageDetail, client: JmcomicClient):
         # ensure make dir

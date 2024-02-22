@@ -79,9 +79,9 @@ class AbstractJmClient(
         """
         if domain_index >= len(self.domain_list):
             return self.fallback(request, url, domain_index, retry_count, **kwargs)
-        
+
         url_backup = url
-        
+
         if url.startswith('/'):
             # path → url
             domain = self.domain_list[domain_index]
@@ -976,10 +976,14 @@ class JmApiClient(AbstractJmClient):
         return cookies
 
 
-class FutureClientProxy(JmcomicClient):
+class PhotoConcurrentFetcherProxy(JmcomicClient):
     """
-    在Client上做了一层线程池封装来实现异步，对外仍然暴露JmcomicClient的接口，可以看作Client的代理。
-    除了使用线程池做异步，还通过加锁和缓存结果，实现同一个请求不会被多个线程发出，减少开销
+    为了解决 JmApiClient.get_photo_detail 方法的排队调用问题，
+    即在访问完photo的接口后，需要另外排队访问获取album和scramble_id的接口。
+
+    这三个接口可以并发请求，这样可以提高效率。
+
+    此Proxy代理了get_photo_detail，实现了并发请求这三个接口，然后组装返回值返回photo。
 
     可通过插件 ClientProxyPlugin 启用本类，配置如下:
     ```yml
@@ -987,10 +991,10 @@ class FutureClientProxy(JmcomicClient):
       after_init:
         - plugin: client_proxy
           kwargs:
-            proxy_client_key: cl_proxy_future
+            proxy_client_key: photo_concurrent_fetcher_proxy
     ```
     """
-    client_key = 'cl_proxy_future'
+    client_key = 'photo_concurrent_fetcher_proxy'
 
     class FutureWrapper:
         def __init__(self, future, after_done_callback):
@@ -1024,16 +1028,15 @@ class FutureClientProxy(JmcomicClient):
             executors = ThreadPoolExecutor(max_workers)
 
         self.executors = executors
-        self.future_dict: Dict[str, FutureClientProxy.FutureWrapper] = {}
+        self.future_dict: Dict[str, PhotoConcurrentFetcherProxy.FutureWrapper] = {}
         from threading import Lock
         self.lock = Lock()
 
     def route_notimpl_method_to_internal_client(self, client):
 
-        impl_methods = str_to_set('''
+        proxy_methods = str_to_set('''
         get_album_detail
         get_photo_detail
-        search
         ''')
 
         # 获取对象的所有属性和方法的名称列表
@@ -1043,7 +1046,7 @@ class FutureClientProxy(JmcomicClient):
             # 判断是否为方法（可调用对象）
             if (not method.startswith('_')
                     and callable(getattr(client, method))
-                    and method not in impl_methods
+                    and method not in proxy_methods
             ):
                 setattr(self, method, getattr(client, method))
 
@@ -1055,15 +1058,19 @@ class FutureClientProxy(JmcomicClient):
 
     def get_future(self, cache_key, task):
         if cache_key in self.future_dict:
+            # cache hit, means that a same task is running
             return self.future_dict[cache_key]
 
         with self.lock:
             if cache_key in self.future_dict:
                 return self.future_dict[cache_key]
 
+            # after future done, remove it from future_dict.
+            # cache depends on self.client instead of self.future_dict
             future = self.FutureWrapper(self.executors.submit(task),
                                         after_done_callback=lambda: self.future_dict.pop(cache_key, None)
                                         )
+
             self.future_dict[cache_key] = future
             return future
 
@@ -1115,8 +1122,3 @@ class FutureClientProxy(JmcomicClient):
             photo.scramble_id = scramble_id
 
         return photo
-
-    def search(self, search_query: str, page: int, main_tag: int, order_by: str, time: str) -> JmSearchPage:
-        cache_key = f'search_query_{search_query}_page_{page}_main_tag_{main_tag}_order_by_{order_by}_time_{time}'
-        future = self.get_future(cache_key, task=lambda: self.client.search(search_query, page, main_tag, order_by, time))
-        return future.result()
