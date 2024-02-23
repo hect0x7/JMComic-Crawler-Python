@@ -2,8 +2,9 @@ from common import time_stamp, str_to_list, field_cache, ProxyBuilder
 
 
 def default_jm_logging(topic: str, msg: str):
-    from common import format_ts
-    print(f'{format_ts()}:【{topic}】{msg}')
+    from common import format_ts, current_thread
+    print('[{}] [{}]:【{}】{}'.format(format_ts(), current_thread().name, topic, msg))
+ 
 
 
 # 禁漫常量
