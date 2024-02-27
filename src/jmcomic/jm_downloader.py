@@ -52,6 +52,8 @@ class JmDownloader(DownloadCallback):
         self.option = option
         # 收集所有下载的image，为plugin提供数据
         self.all_downloaded: Dict[JmAlbumDetail, Dict[JmPhotoDetail, List[Tuple[str, JmImageDetail]]]] = {}
+        # 下载失败的图片集合
+        self.failed_downloaded: List[Tuple[JmImageDetail, BaseException]] = []
 
     def download_album(self, album_id):
         client = self.client_for_album(album_id)
@@ -101,11 +103,21 @@ class JmDownloader(DownloadCallback):
         if use_cache is True and image.is_exists:
             return
 
-        client.download_by_image_detail(
-            image,
-            img_save_path,
-            decode_image=decode_image,
-        )
+        e = None
+        try:
+            client.download_by_image_detail(
+                image,
+                img_save_path,
+                decode_image=decode_image,
+            )
+        except BaseException as e:
+            jm_log('download_image_failed', f'图片下载失败: [{image.download_url}], 异常: {e}')
+            # 保存失败记录
+            self.failed_downloaded.append((image, e))
+
+        if e is not None:
+            raise e
+
         self.after_image(image, img_save_path)
 
     # noinspection PyMethodMayBeStatic
@@ -163,6 +175,13 @@ class JmDownloader(DownloadCallback):
         默认情况下，所有的JmDownloader共用一个JmcomicClient
         """
         return self.option.build_jm_client()
+
+    @property
+    def all_success(self) -> bool:
+        """
+        是否全部下载成功，该属性需要等到downloader全部下载完后才有意义
+        """
+        return len(self.failed_downloaded) == 0
 
     # 下面是回调方法
 
