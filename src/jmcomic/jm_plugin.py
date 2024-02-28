@@ -298,7 +298,7 @@ class ZipPlugin(JmOptionPlugin):
 
         # 原文件夹 -> zip文件
         dir_zip_dict: Dict[str, Optional[str]] = {}
-        photo_dict = downloader.all_downloaded[album]
+        photo_dict = downloader.download_success_dict[album]
 
         if level == 'album':
             zip_path = self.get_zip_path(album, None, filename_rule, suffix, zip_dir)
@@ -383,7 +383,7 @@ class ZipPlugin(JmOptionPlugin):
         dirs = sorted(dir_zip_dict.keys(), reverse=True)
         image_paths = [
             path
-            for photo_dict in self.downloader.all_downloaded.values()
+            for photo_dict in self.downloader.download_success_dict.values()
             for image_list in photo_dict.values()
             for path, image in image_list
         ]
@@ -752,7 +752,7 @@ class ConvertJpgToPdfPlugin(JmOptionPlugin):
 
             paths = [
                 path
-                for path, image in downloader.all_downloaded[photo.from_album][photo]
+                for path, image in downloader.download_success_dict[photo.from_album][photo]
             ]
 
             paths.append(self.option.decide_image_save_dir(photo, ensure_exists=False))

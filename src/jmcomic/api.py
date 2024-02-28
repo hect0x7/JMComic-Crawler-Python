@@ -46,7 +46,7 @@ def download_album(jm_album_id,
                    option=None,
                    downloader=None,
                    callback=None,
-                   ):
+                   ) -> Tuple[JmAlbumDetail, JmDownloader]:
     """
     下载一个本子（album），包含其所有的章节（photo）
 

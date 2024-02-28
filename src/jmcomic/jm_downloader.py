@@ -50,10 +50,10 @@ class JmDownloader(DownloadCallback):
 
     def __init__(self, option: JmOption) -> None:
         self.option = option
-        # 收集所有下载的image，为plugin提供数据
-        self.all_downloaded: Dict[JmAlbumDetail, Dict[JmPhotoDetail, List[Tuple[str, JmImageDetail]]]] = {}
-        # 下载失败的图片集合
-        self.failed_downloaded: List[Tuple[JmImageDetail, BaseException]] = []
+        # 下载成功的记录dict
+        self.download_success_dict: Dict[JmAlbumDetail, Dict[JmPhotoDetail, List[Tuple[str, JmImageDetail]]]] = {}
+        # 下载失败的记录list
+        self.download_failed_list: List[Tuple[JmImageDetail, BaseException]] = []
 
     def download_album(self, album_id):
         client = self.client_for_album(album_id)
@@ -111,9 +111,9 @@ class JmDownloader(DownloadCallback):
                 decode_image=decode_image,
             )
         except BaseException as e:
-            jm_log('download_image_failed', f'图片下载失败: [{image.download_url}], 异常: {e}')
+            jm_log('image.failed', f'图片下载失败: [{image.download_url}], 异常: {e}')
             # 保存失败记录
-            self.failed_downloaded.append((image, e))
+            self.download_failed_list.append((image, e))
 
         if e is not None:
             raise e
@@ -181,13 +181,13 @@ class JmDownloader(DownloadCallback):
         """
         是否全部下载成功，该属性需要等到downloader全部下载完后才有意义
         """
-        return len(self.failed_downloaded) == 0
+        return len(self.download_failed_list) == 0
 
     # 下面是回调方法
 
     def before_album(self, album: JmAlbumDetail):
         super().before_album(album)
-        self.all_downloaded.setdefault(album, {})
+        self.download_success_dict.setdefault(album, {})
         self.option.call_all_plugin(
             'before_album',
             album=album,
@@ -204,8 +204,8 @@ class JmDownloader(DownloadCallback):
 
     def before_photo(self, photo: JmPhotoDetail):
         super().before_photo(photo)
-        self.all_downloaded.setdefault(photo.from_album, {})
-        self.all_downloaded[photo.from_album].setdefault(photo, [])
+        self.download_success_dict.setdefault(photo.from_album, {})
+        self.download_success_dict[photo.from_album].setdefault(photo, [])
         self.option.call_all_plugin(
             'before_photo',
             photo=photo,
@@ -233,7 +233,7 @@ class JmDownloader(DownloadCallback):
         photo = image.from_photo
         album = photo.from_album
 
-        self.all_downloaded.get(album).get(photo).append((img_save_path, image))
+        self.download_success_dict.get(album).get(photo).append((img_save_path, image))
         self.option.call_all_plugin(
             'after_image',
             image=image,
