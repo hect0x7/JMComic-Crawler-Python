@@ -87,8 +87,8 @@ class JmJsonResp(JmResp):
     def json(self) -> Dict:
         try:
             return self.resp.json()
-        except Exception:
-            ExceptionTool.raises_resp('json解析失败', self, JsonResolveFailException)
+        except Exception as e:
+            ExceptionTool.raises_resp(f'json解析失败: {e}', self, JsonResolveFailException)
 
     def model(self) -> DictModel:
         return DictModel(self.json())
