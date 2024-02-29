@@ -179,9 +179,24 @@ class JmDownloader(DownloadCallback):
     @property
     def all_success(self) -> bool:
         """
-        是否全部下载成功，该属性需要等到downloader全部下载完后才有意义
+        是否成功下载了全部图片
+
+        该属性需要等到downloader的全部download_xxx方法完成后才有意义。
+
+        注意！如果使用了filter机制，例如通过filter只下载3张图片，那么all_success也会为False
         """
-        return len(self.download_failed_list) == 0
+        if len(self.download_failed_list) != 0:
+            return False
+
+        for album, photo_dict in self.download_success_dict.items():
+            if len(album) != len(photo_dict):
+                return False
+
+            for photo, image_list in photo_dict.items():
+                if len(photo) != len(image_list):
+                    return False
+
+        return True
 
     # 下面是回调方法
 
