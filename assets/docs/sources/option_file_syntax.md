@@ -90,10 +90,13 @@ dir_rule:
   # 本项只建议了解编程的朋友定制，实现在这个类: jmcomic.jm_option.DirRule
   # 写法:
   # 1. 以'Bd'开头，表示根目录
-  # 2. 文件夹每增加一层，使用'_'区隔
-  # 3. 文件夹名字表示为 Pxxx/Ayyy，意思是 JmPhotoDetail.xxx / JmAlbumDetail的.yyy。xxx和yyy可以写什么需要看源码。
-  # 下面是示例，表示使用禁漫网站的默认下载方式 [根目录 / 本子id / 章节序号 / 图片文件]
-  # rule: Bd_Aid_Pindex
+  # 2. 文件夹每增加一层，使用 '_' 或者 '/' 区隔
+  # 3. 用Pxxx或者Ayyy指代文件夹名，意思是 JmPhotoDetail.xxx / JmAlbumDetail的.yyy。xxx和yyy可以写什么需要看源码。
+  # 
+  # 下面演示如果要使用禁漫网站的默认下载方式，该怎么写:
+  # 规则: 根目录 / 本子id / 章节序号 / 图片文件
+  # rule: 'Bd  / Aid   / Pindex'
+  # rule: 'Bd_Aid_Pindex'
 
   # 默认规则是: 根目录 / 章节标题 / 图片文件
   rule: Bd_Ptitle

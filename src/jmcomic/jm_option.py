@@ -105,13 +105,11 @@ class DirRule:
         解析下载路径dsl，得到一个路径规则解析列表
         """
 
-        if '_' not in rule_dsl and rule_dsl != 'Bd':
-            ExceptionTool.raises(f'不支持的dsl: "{rule_dsl}"')
-
-        rule_list = rule_dsl.split('_')
+        rule_list = self.split_rule_dsl(rule_dsl)
         solver_ls: List[DirRule.RuleSolver] = []
 
         for rule in rule_list:
+            rule = rule.strip()
             if rule == 'Bd':
                 solver_ls.append((0, lambda _: base_dir, 'Bd'))
                 continue
@@ -123,6 +121,19 @@ class DirRule:
             solver_ls.append(rule_solver)
 
         return solver_ls
+
+    # noinspection PyMethodMayBeStatic
+    def split_rule_dsl(self, rule_dsl: str) -> List[str]:
+        if rule_dsl == 'Bd':
+            return [rule_dsl]
+
+        if '/' in rule_dsl:
+            return rule_dsl.split('/')
+
+        if '_' in rule_dsl:
+            return rule_dsl.split('_')
+
+        ExceptionTool.raises(f'不支持的rule配置: "{rule_dsl}"')
 
     @classmethod
     def get_rule_solver(cls, rule: str) -> Optional[RuleSolver]:
