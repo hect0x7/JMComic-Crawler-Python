@@ -6,8 +6,6 @@ Response Entity
 
 """
 
-DictModel = AdvancedEasyAccessDict
-
 
 class JmResp:
 
@@ -90,8 +88,8 @@ class JmJsonResp(JmResp):
         except Exception as e:
             ExceptionTool.raises_resp(f'json解析失败: {e}', self, JsonResolveFailException)
 
-    def model(self) -> DictModel:
-        return DictModel(self.json())
+    def model(self) -> AdvancedEasyAccessDict:
+        return AdvancedEasyAccessDict(self.json())
 
 
 class JmApiResp(JmJsonResp):
@@ -120,9 +118,9 @@ class JmApiResp(JmJsonResp):
         return loads(self.decoded_data)
 
     @property
-    def model_data(self) -> DictModel:
+    def model_data(self) -> AdvancedEasyAccessDict:
         self.require_success()
-        return DictModel(self.res_data)
+        return AdvancedEasyAccessDict(self.res_data)
 
 
 # album-comment

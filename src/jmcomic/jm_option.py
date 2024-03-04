@@ -192,6 +192,7 @@ class JmOption:
                  client: Dict,
                  plugins: Dict,
                  filepath=None,
+                 call_after_init_plugin=True,
                  ):
         # 路径规则配置
         self.dir_rule = DirRule(**dir_rule)
@@ -207,7 +208,21 @@ class JmOption:
         # 需要主线程等待完成的插件
         self.need_wait_plugins = []
 
-        self.call_all_plugin('after_init', safe=True)
+        if call_after_init_plugin:
+            self.call_all_plugin('after_init', safe=True)
+
+    def copy_option(self):
+        return self.__class__(
+            dir_rule={
+                'rule': self.dir_rule.rule_dsl,
+                'base_dir': self.dir_rule.base_dir,
+            },
+            download=self.download.src_dict,
+            client=self.client.src_dict,
+            plugins=self.plugins.src_dict,
+            filepath=self.filepath,
+            call_after_init_plugin=False
+        )
 
     """
     下面是decide系列方法，为了支持重写和增加程序动态性。
