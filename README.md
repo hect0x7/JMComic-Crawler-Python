@@ -33,7 +33,7 @@
 * 通过pip官方源安装（推荐，并且更新也是这个命令）
 
   ```shell
-  pip install jmcomic -i https://pypi.org/project --upgrade
+  pip install jmcomic -i https://pypi.org/project -U
   ```
 * 通过源代码安装
 
@@ -102,8 +102,8 @@ $ jmcomic 422866
 
 下面列出一些常用的文档链接：
 
+* [jmcomic常用类和方法演示](assets/docs/sources/tutorial/0_demo.md)
 * [option配置文件语法（包含插件配置）](./assets/docs/sources/option_file_syntax.md)
-* [常用类和方法演示（下载本子、获取实体类、搜索本子）](assets/docs/sources/tutorial/3_demo.md)
 * [命令行使用教程](assets/docs/sources/tutorial/2_command_line.md)
 * [GitHub Actions使用教程](./assets/docs/sources/tutorial/1_github_actions.md)
 * [插件机制](assets/docs/sources/tutorial/6_plugin.md)

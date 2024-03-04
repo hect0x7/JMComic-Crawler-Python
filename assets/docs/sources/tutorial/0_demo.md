@@ -1,16 +1,35 @@
-# 使用jmcomic实现简单功能
+# jmcomic 常用类和方法演示
 
-## 下载本子
+## 下载本子/章节
 
 ```python
 from jmcomic import *
 
-ls = str_to_list('''
-438696
-https://18comic.vip/album/497896/
-''')
+# 下载id为438696的本子 (https://18comic.vip/album/438696)
+download_album(438696)
 
-download_album(ls)
+# 下载章节 (https://18comic.vip/photo/438696)
+download_photo(438696)
+
+# 同时下载多个本子
+download_album([123, 456, 789])
+
+```
+
+## 使用option定制化下载本子
+
+```python
+from jmcomic import *
+
+# 1. 创建option对象，推荐使用配置文件的方式
+# 你可以配置很多东西，比如代理、cookies、下载规则等等
+# 配置文件的语法参考: https://jmcomic.readthedocs.io/en/latest/option_file_syntax/
+option = create_option_by_file('op.yml')  # 通过配置文件来创建option对象
+
+# 2. 调用下载api，把option作为参数传递 
+download_album(123, option)
+# 也可以使用下面这种面向对象的方式，是一样的
+option.download_album(123)
 ```
 
 ## 获取实体类
