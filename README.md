@@ -47,6 +47,7 @@
 
 ```python
 import jmcomic  # 导入此模块，需要先安装.
+
 jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载整个album到本地.
 ```
 
@@ -57,6 +58,20 @@ jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载�
 $ jmcomic 422866
 ```
 
+## 进阶使用
+
+文档网站：[jmcomic.readthedocs.io](https://jmcomic.readthedocs.io/en/latest)
+
+进阶使用可以参考：[jmcomic常用类和方法演示](assets/docs/sources/tutorial/0_demo.md)
+
+下面列出的是一些常用的文档：
+
+* [jmcomic常用类和方法演示](assets/docs/sources/tutorial/0_demo.md)
+* [option配置文件语法（包含插件配置）](./assets/docs/sources/option_file_syntax.md)
+* [命令行使用教程](assets/docs/sources/tutorial/2_command_line.md)
+* [GitHub Actions使用教程](./assets/docs/sources/tutorial/1_github_actions.md)
+* [插件机制](assets/docs/sources/tutorial/6_plugin.md)
+* [下载过滤器机制](assets/docs/sources/tutorial/5_filter.md)
 
 ## 项目特点
 
@@ -75,8 +90,9 @@ $ jmcomic 422866
 
     - 不配置也能使用，十分方便
     - 配置可以从配置文件生成，支持多种文件格式
-    - 配置点有：`请求域名` `客户端实现` `是否使用磁盘缓存` `同时下载的章节/图片数量` `图片格式转换` `下载路径规则` `请求元信息（headers,cookies,proxies）`
-  等
+    -
+    配置点有：`请求域名` `客户端实现` `是否使用磁盘缓存` `同时下载的章节/图片数量` `图片格式转换` `下载路径规则` `请求元信息（headers,cookies,proxies）`
+    等
 - **可扩展性强**
 
     - 支持自定义本子/章节/图片下载前后的回调函数
@@ -93,19 +109,6 @@ $ jmcomic 422866
         - `自动使用浏览器cookies插件`
         - `jpg图片合成为一个pdf插件`
         - `导出收藏夹为csv文件插件`
-
-## 进阶使用
-
-进阶使用请查阅文档：[文档](https://jmcomic.readthedocs.io/en/latest)
-
-下面列出一些常用的文档链接：
-
-* [jmcomic常用类和方法演示](assets/docs/sources/tutorial/0_demo.md)
-* [option配置文件语法（包含插件配置）](./assets/docs/sources/option_file_syntax.md)
-* [命令行使用教程](assets/docs/sources/tutorial/2_command_line.md)
-* [GitHub Actions使用教程](./assets/docs/sources/tutorial/1_github_actions.md)
-* [插件机制](assets/docs/sources/tutorial/6_plugin.md)
-* [下载过滤器机制](assets/docs/sources/tutorial/5_filter.md)
 
 ## 使用小说明
 
