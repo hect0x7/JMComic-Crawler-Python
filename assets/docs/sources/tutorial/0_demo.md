@@ -13,16 +13,22 @@ download_photo(438696)
 
 # 同时下载多个本子
 download_album([123, 456, 789])
-
 ```
 
 ## 使用option定制化下载本子
 
+如果你在下载本子时有一些定制化需求，
+
+例如指定禁漫域名，使用代理，登录禁漫，图片格式转换等等，
+
+那么，你可以试试看jmcomic提供的option机制
+
 ```python
 from jmcomic import *
 
-# 1. 创建option对象，推荐使用配置文件的方式
-# 你可以配置很多东西，比如代理、cookies、下载规则等等
+# 1. 在调用下载api前，通过创建和使用option对象，可以定制化下载行为。
+# 推荐使用配置文件的方式来创建option对象，
+# 你可以配置很多东西，比如代理、cookies、下载规则等等。
 # 配置文件的语法参考: https://jmcomic.readthedocs.io/en/latest/option_file_syntax/
 option = create_option_by_file('op.yml')  # 通过配置文件来创建option对象
 
@@ -32,7 +38,7 @@ download_album(123, option)
 option.download_album(123)
 ```
 
-## 获取实体类
+## 获取本子/章节/图片的实体类
 
 ```python
 from jmcomic import *
@@ -52,6 +58,7 @@ def fetch(photo: JmPhotoDetail):
     image: JmImageDetail
     for image in photo:
         print(image.img_url)
+
 
 # 多线程发起请求
 multi_thread_launcher(
@@ -100,6 +107,51 @@ for aid, atitle, tag_list in page.iter_id_title_tag():  # 使用page的iter_id_t
         aid_list.append(aid)
 
 download_album(aid_list, option)
+```
+
+## 分类 / 排行榜
+
+禁漫的分类是一个和搜索有些类似的功能。
+
+搜索是按某一条件进行过滤。
+
+分类没有过滤，就是把某一类别（category）下的本子全都调出来。
+
+禁漫的排行榜就是分类的一种形式
+
+下面演示调用分类api
+
+```python
+from jmcomic import *
+
+# 创建客户端
+op = JmOption.default()
+cl = op.new_jm_client()
+
+# 调用分类接口
+# 根据下面的参数，这个调用的意义就是：
+# 在全部分类下，选择所有时间范围，按观看数排序后，获取第一页的本子
+page: JmCategoryPage = cl.categories_filter(
+    page=1,
+    time=JmMagicConstants.TIME_ALL,  # 时间选择全部，具体可以写什么请见JmMagicConstants
+    category=JmMagicConstants.CATEGORY_ALL,  # 分类选择全部，具体可以写什么请见JmMagicConstants
+    order_by=JmMagicConstants.ORDER_BY_LATEST,  # 按照观看数排序，具体可以写什么请见JmMagicConstants
+)
+
+# 月排行
+page: JmCategoryPage = cl.month_ranking(1)
+# 周排行
+page: JmCategoryPage = cl.week_ranking(1)
+
+# 循环获取分页，使用更底层的 categories_filter 和 categories_filter_gen
+for page in cl.categories_filter_gen(1,
+                                     JmMagicConstants.TIME_WEEK,
+                                     JmMagicConstants.CATEGORY_ALL,
+                                     JmMagicConstants.ORDER_BY_VIEW,
+                                     ):
+    for aid, atitle in page:
+        print(aid, atitle)
+
 ```
 
 ## 手动创建Client
