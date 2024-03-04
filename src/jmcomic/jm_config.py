@@ -2,8 +2,8 @@ from common import time_stamp, str_to_list, field_cache, ProxyBuilder
 
 
 def default_jm_logging(topic: str, msg: str):
-    from common import format_ts
-    print(f'{format_ts()}:【{topic}】{msg}')
+    from common import format_ts, current_thread
+    print('[{}] [{}]:【{}】{}'.format(format_ts(), current_thread().name, topic, msg))
 
 
 # 禁漫常量
@@ -24,17 +24,18 @@ class JmMagicConstants:
     TIME_MONTH = 'm'
     TIME_ALL = 'a'
 
-    # 全部, 同人, 单本, 短篇, 其他, 韩漫, 美漫, cosplay, 3D
-    # category = ["0", "doujin", "single", "short", "another", "hanman", "meiman", "doujin_cosplay", "3D"]
-    CATEGORY_ALL = '0'
-    CATEGORY_DOUJIN = 'doujin'
-    CATEGORY_SINGLE = 'single'
-    CATEGORY_SHORT = 'short'
-    CATEGORY_ANOTHER = 'another'
-    CATEGORY_HANMAN = 'hanman'
-    CATEGORY_MEIMAN = 'meiman'
-    CATEGORY_DOUJIN_COSPLAY = 'doujin_cosplay'
-    CATEGORY_3D = '3D'
+    # 分类参数API接口的category
+    CATEGORY_ALL = '0'  # 全部
+    CATEGORY_DOUJIN = 'doujin'  # 同人
+    CATEGORY_SINGLE = 'single'  # 单本
+    CATEGORY_SHORT = 'short'  # 短篇
+    CATEGORY_ANOTHER = 'another'  # 其他
+    CATEGORY_HANMAN = 'hanman'  # 韩漫
+    CATEGORY_MEIMAN = 'meiman'  # 美漫
+    CATEGORY_DOUJIN_COSPLAY = 'doujin_cosplay'  # cosplay
+    CATEGORY_3D = '3D'  # 3D
+    CATEGORY_ENGLISH_SITE = 'english_site'  # 英文站
+    CATEGORY_JM_TEAM = '禁漫漢化組'
 
     # 分页大小
     PAGE_SIZE_SEARCH = 80
@@ -52,10 +53,10 @@ class JmMagicConstants:
     APP_TOKEN_SECRET = '18comicAPP'
     APP_TOKEN_SECRET_2 = '18comicAPPContent'
     APP_DATA_SECRET = '185Hcomic3PAPP7R'
-    APP_VERSION = '1.6.6'
+    APP_VERSION = '1.6.7'
     APP_HEADERS_TEMPLATE = {
         'Accept-Encoding': 'gzip',
-        'user-agent': 'Mozilla/5.0 (Linux; Android 9; V1938CT Build/PQ3A.190705.09211555; wv) AppleWebKit/537.36 (KHTML, '
+        'user-agent': 'Mozilla/5.0 (Linux; Android 9; V1938CT Build/PQ3A.190705.11211812; wv) AppleWebKit/537.36 (KHTML, '
                       'like Gecko) Version/4.0 Chrome/91.0.4472.114 Safari/537.36',
     }
 

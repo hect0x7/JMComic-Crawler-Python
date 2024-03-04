@@ -50,8 +50,10 @@ class JmDownloader(DownloadCallback):
 
     def __init__(self, option: JmOption) -> None:
         self.option = option
-        # 收集所有下载的image，为plugin提供数据
-        self.all_downloaded: Dict[JmAlbumDetail, Dict[JmPhotoDetail, List[Tuple[str, JmImageDetail]]]] = {}
+        # 下载成功的记录dict
+        self.download_success_dict: Dict[JmAlbumDetail, Dict[JmPhotoDetail, List[Tuple[str, JmImageDetail]]]] = {}
+        # 下载失败的记录list
+        self.download_failed_list: List[Tuple[JmImageDetail, BaseException]] = []
 
     def download_album(self, album_id):
         client = self.client_for_album(album_id)
@@ -101,11 +103,21 @@ class JmDownloader(DownloadCallback):
         if use_cache is True and image.is_exists:
             return
 
-        client.download_by_image_detail(
-            image,
-            img_save_path,
-            decode_image=decode_image,
-        )
+        e = None
+        try:
+            client.download_by_image_detail(
+                image,
+                img_save_path,
+                decode_image=decode_image,
+            )
+        except BaseException as e:
+            jm_log('image.failed', f'图片下载失败: [{image.download_url}], 异常: {e}')
+            # 保存失败记录
+            self.download_failed_list.append((image, e))
+
+        if e is not None:
+            raise e
+
         self.after_image(image, img_save_path)
 
     # noinspection PyMethodMayBeStatic
@@ -164,11 +176,33 @@ class JmDownloader(DownloadCallback):
         """
         return self.option.build_jm_client()
 
+    @property
+    def all_success(self) -> bool:
+        """
+        是否成功下载了全部图片
+
+        该属性需要等到downloader的全部download_xxx方法完成后才有意义。
+
+        注意！如果使用了filter机制，例如通过filter只下载3张图片，那么all_success也会为False
+        """
+        if len(self.download_failed_list) != 0:
+            return False
+
+        for album, photo_dict in self.download_success_dict.items():
+            if len(album) != len(photo_dict):
+                return False
+
+            for photo, image_list in photo_dict.items():
+                if len(photo) != len(image_list):
+                    return False
+
+        return True
+
     # 下面是回调方法
 
     def before_album(self, album: JmAlbumDetail):
         super().before_album(album)
-        self.all_downloaded.setdefault(album, {})
+        self.download_success_dict.setdefault(album, {})
         self.option.call_all_plugin(
             'before_album',
             album=album,
@@ -185,8 +219,8 @@ class JmDownloader(DownloadCallback):
 
     def before_photo(self, photo: JmPhotoDetail):
         super().before_photo(photo)
-        self.all_downloaded.setdefault(photo.from_album, {})
-        self.all_downloaded[photo.from_album].setdefault(photo, [])
+        self.download_success_dict.setdefault(photo.from_album, {})
+        self.download_success_dict[photo.from_album].setdefault(photo, [])
         self.option.call_all_plugin(
             'before_photo',
             photo=photo,
@@ -214,7 +248,7 @@ class JmDownloader(DownloadCallback):
         photo = image.from_photo
         album = photo.from_album
 
-        self.all_downloaded.get(album).get(photo).append((img_save_path, image))
+        self.download_success_dict.get(album).get(photo).append((img_save_path, image))
         self.option.call_all_plugin(
             'after_image',
             image=image,

@@ -1,11 +1,12 @@
 from .jm_downloader import *
 
+__DOWNLOAD_API_RET = Tuple[JmAlbumDetail, JmDownloader]
 
 def download_batch(download_api,
                    jm_id_iter: Union[Iterable, Generator],
                    option=None,
                    downloader=None,
-                   ) -> Set[Tuple[JmAlbumDetail, JmDownloader]]:
+                   ) -> Set[__DOWNLOAD_API_RET]:
     """
     批量下载 album / photo
 
@@ -46,7 +47,7 @@ def download_album(jm_album_id,
                    option=None,
                    downloader=None,
                    callback=None,
-                   ):
+                   ) -> Union[__DOWNLOAD_API_RET, Set[__DOWNLOAD_API_RET]]:
     """
     下载一个本子（album），包含其所有的章节（photo）
 

@@ -14,16 +14,26 @@
 
 本项目的核心功能是下载本子，基于此，设计了一套方便使用、便于扩展，能满足一些特殊下载需求的框架。
 
-除了下载功能以外，也实现了其他的一些禁漫接口，例如登录、搜索、收藏夹、分类、排行榜等等，按需实现。
+目前核心功能实现较为稳定，项目也处于维护阶段。
 
-目前核心功能实现较为稳定，项目也处于维护阶段（因为禁漫接口经常变动，需要经常维护）。
+除了下载功能以外，也实现了其他的一些禁漫接口，按需实现，具体如下。
+
+### 已实现的禁漫API：
+
+- 登录
+- 搜本
+- 分类 (排行榜)
+- 本子章节详情
+- 图片下载解码
+- 收藏夹
+- 移动端接口加解密
 
 ## 安装教程
 
 * 通过pip官方源安装（推荐，并且更新也是这个命令）
 
   ```shell
-  pip install jmcomic -i https://pypi.org/project --upgrade
+  pip install jmcomic -i https://pypi.org/project -U
   ```
 * 通过源代码安装
 
@@ -46,6 +56,21 @@ jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载�
 # 下载album_id为422866的本子
 $ jmcomic 422866
 ```
+
+## 进阶使用
+
+文档网站：[jmcomic.readthedocs.io](https://jmcomic.readthedocs.io/en/latest)
+
+进阶使用可以参考：[jmcomic常用类和方法演示](assets/docs/sources/tutorial/0_demo.md)
+
+下面列出的是一些常用的文档：
+
+* [jmcomic常用类和方法演示](assets/docs/sources/tutorial/0_demo.md)
+* [option配置文件语法（包含插件配置）](./assets/docs/sources/option_file_syntax.md)
+* [GitHub Actions使用教程](./assets/docs/sources/tutorial/1_github_actions.md)
+* [命令行使用教程](assets/docs/sources/tutorial/2_command_line.md)
+* [插件机制](assets/docs/sources/tutorial/6_plugin.md)
+* [下载过滤器机制](assets/docs/sources/tutorial/5_filter.md)
 
 ## 项目特点
 
@@ -83,19 +108,6 @@ $ jmcomic 422866
         - `jpg图片合成为一个pdf插件`
         - `导出收藏夹为csv文件插件`
 
-## 进阶使用
-
-进阶使用请查阅文档：[文档](https://jmcomic.readthedocs.io/en/latest)
-
-下面列出一些常用的文档链接：
-
-* [option配置文件语法（包含插件配置）](./assets/docs/sources/option_file_syntax.md)
-* [常用类和方法演示（下载本子、获取实体类、搜索本子）](assets/docs/sources/tutorial/3_demo.md)
-* [命令行使用教程](assets/docs/sources/tutorial/2_command_line.md)
-* [GitHub Actions使用教程](./assets/docs/sources/tutorial/1_github_actions.md)
-* [插件机制](assets/docs/sources/tutorial/6_plugin.md)
-* [下载过滤器机制](assets/docs/sources/tutorial/5_filter.md)
-
 ## 使用小说明
 
 * Python >= 3.7
@@ -103,10 +115,11 @@ $ jmcomic 422866
 
 ## 项目文件夹介绍
 
+* .github：GitHub Actions配置文件
 * assets：存放一些非代码的资源文件
 
-    * config：存放配置文件
     * docs：项目文档
+    * option：存放配置文件
 
 * src：存放源代码
 
