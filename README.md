@@ -47,7 +47,6 @@
 
 ```python
 import jmcomic  # 导入此模块，需要先安装.
-
 jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载整个album到本地.
 ```
 
@@ -68,8 +67,8 @@ $ jmcomic 422866
 
 * [jmcomic常用类和方法演示](assets/docs/sources/tutorial/0_demo.md)
 * [option配置文件语法（包含插件配置）](./assets/docs/sources/option_file_syntax.md)
-* [命令行使用教程](assets/docs/sources/tutorial/2_command_line.md)
 * [GitHub Actions使用教程](./assets/docs/sources/tutorial/1_github_actions.md)
+* [命令行使用教程](assets/docs/sources/tutorial/2_command_line.md)
 * [插件机制](assets/docs/sources/tutorial/6_plugin.md)
 * [下载过滤器机制](assets/docs/sources/tutorial/5_filter.md)
 

@@ -138,13 +138,14 @@ page: JmCategoryPage = cl.categories_filter(
     order_by=JmMagicConstants.ORDER_BY_LATEST,  # 按照观看数排序，具体可以写什么请见JmMagicConstants
 )
 
-# 月排行
+# 月排行，底层实现也是调的categories_filter
 page: JmCategoryPage = cl.month_ranking(1)
 # 周排行
 page: JmCategoryPage = cl.week_ranking(1)
 
-# 循环获取分页，使用更底层的 categories_filter 和 categories_filter_gen
-for page in cl.categories_filter_gen(1,
+# 循环获取分页，使用 cl.categories_filter_gen
+for page in cl.categories_filter_gen(1, # 起始页码
+                                     # 下面是分类参数
                                      JmMagicConstants.TIME_WEEK,
                                      JmMagicConstants.CATEGORY_ALL,
                                      JmMagicConstants.ORDER_BY_VIEW,
