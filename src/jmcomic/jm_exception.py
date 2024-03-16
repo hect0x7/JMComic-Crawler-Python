@@ -12,6 +12,8 @@ class JmcomicException(Exception):
     def from_context(self, key):
         return self.context[key]
 
+    def __str__(self):
+        return self.msg
 
 class ResponseUnexpectedException(JmcomicException):
     description = '响应不符合预期异常'

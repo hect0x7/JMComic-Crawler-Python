@@ -472,7 +472,7 @@ class JmPageTool:
         return JmFavoritePage(content, folder_list, total)
 
     @classmethod
-    def parse_api_to_search_page(cls, data: AdvancedEasyAccessDict) -> JmSearchPage:
+    def parse_api_to_search_page(cls, data: AdvancedDict) -> JmSearchPage:
         """
         model_data: {
           "search_query": "MANA",
@@ -501,7 +501,7 @@ class JmPageTool:
         return JmSearchPage(content, total)
 
     @classmethod
-    def parse_api_to_favorite_page(cls, data: AdvancedEasyAccessDict) -> JmFavoritePage:
+    def parse_api_to_favorite_page(cls, data: AdvancedDict) -> JmFavoritePage:
         """
         {
           "list": [
@@ -546,7 +546,7 @@ class JmPageTool:
 
     @classmethod
     def adapt_content(cls, content):
-        def adapt_item(item: AdvancedEasyAccessDict):
+        def adapt_item(item: AdvancedDict):
             item: dict = item.src_dict
             item.setdefault('tags', [])
             return item
@@ -673,7 +673,7 @@ class JmApiAdaptTool:
         series = data['series']
         episode_list = []
         for chapter in series:
-            chapter = AdvancedEasyAccessDict(chapter)
+            chapter = AdvancedDict(chapter)
             # photo_id, photo_index, photo_title, photo_pub_date
             episode_list.append(
                 (chapter.id, chapter.sort, chapter.name, None)
@@ -688,7 +688,7 @@ class JmApiAdaptTool:
         sort = 1
         series: list = data['series']  # series中的sort从1开始
         for chapter in series:
-            chapter = AdvancedEasyAccessDict(chapter)
+            chapter = AdvancedDict(chapter)
             if int(chapter.id) == int(data['id']):
                 sort = chapter.sort
                 break
