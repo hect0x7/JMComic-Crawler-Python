@@ -7,6 +7,8 @@
   因此，在配置option时，不需要配置全部的值，只需要配置特定部分即可。
 * 你可以使用下面的代码来得到option的默认值，你可以删除其中的大部分配置项，只保留你要覆盖的配置项
 
+* **下面的插件配置，kwargs参数支持引用环境变量，语法为 ${环境变量名}**
+
 ```python
 from jmcomic import JmOption
 JmOption.default().to_file('./option.yml') # 创建默认option，导出为option.yml文件
@@ -84,6 +86,8 @@ download:
 # 文件夹规则配置，决定图片文件存放在你的电脑上的哪个文件夹
 dir_rule:
   # base_dir: 根目录。
+  # 此配置也支持引用环境变量，例如
+  # base_dir: ${JM_DIR}/下载文件夹/
   base_dir: D:/a/b/c/
 
   # rule: 规则dsl。
@@ -106,7 +110,6 @@ dir_rule:
 
 ```yml
 # 插件的配置示例
-# 当kwargs的值为字符串类型时，支持使用环境变量，语法为 ${环境变量名}
 plugins:
   after_init:
     - plugin: usage_log # 实时打印硬件占用率的插件
@@ -159,6 +162,18 @@ plugins:
         img_overwrite:
           bg.jpg: D:/浏览器的背景图
           m_bg.jpeg: D:/移动设备浏览器的背景图
+
+    - plugin: subscribe_album_update # 自动订阅本子并下载、发送邮件通知的插件
+      kwargs:
+        download_if_has_update: true
+        email_notify: # 见下【发送qq邮件插件】
+          msg_from: x
+          msg_to: x
+          password: x
+          title: album update !!!
+          content: album update !!!
+        album_photo_dict:
+          324930: 424507
 
   after_album:
     - plugin: zip # 压缩文件插件

@@ -88,8 +88,8 @@ class JmJsonResp(JmResp):
         except Exception as e:
             ExceptionTool.raises_resp(f'json解析失败: {e}', self, JsonResolveFailException)
 
-    def model(self) -> AdvancedEasyAccessDict:
-        return AdvancedEasyAccessDict(self.json())
+    def model(self) -> AdvancedDict:
+        return AdvancedDict(self.json())
 
 
 class JmApiResp(JmJsonResp):
@@ -118,9 +118,9 @@ class JmApiResp(JmJsonResp):
         return loads(self.decoded_data)
 
     @property
-    def model_data(self) -> AdvancedEasyAccessDict:
+    def model_data(self) -> AdvancedDict:
         self.require_success()
-        return AdvancedEasyAccessDict(self.res_data)
+        return AdvancedDict(self.res_data)
 
 
 # album-comment

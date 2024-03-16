@@ -197,11 +197,11 @@ class JmOption:
         # 路径规则配置
         self.dir_rule = DirRule(**dir_rule)
         # 客户端配置
-        self.client = AdvancedEasyAccessDict(client)
+        self.client = AdvancedDict(client)
         # 下载配置
-        self.download = AdvancedEasyAccessDict(download)
+        self.download = AdvancedDict(download)
         # 插件配置
-        self.plugins = AdvancedEasyAccessDict(plugins)
+        self.plugins = AdvancedDict(plugins)
         # 其他配置
         self.filepath = filepath
 
@@ -376,6 +376,7 @@ class JmOption:
     @classmethod
     def from_file(cls, filepath: str) -> 'JmOption':
         dic: dict = PackerUtil.unpack(filepath)[0]
+        dic.setdefault('filepath', filepath)
         return cls.construct(dic)
 
     def to_file(self, filepath=None):
