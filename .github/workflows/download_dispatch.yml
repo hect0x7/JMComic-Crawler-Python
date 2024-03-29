@@ -5,7 +5,7 @@ on:
     inputs:
       JM_ALBUM_IDS:
         type: string
-        description: 本子id（多个id用-隔开，如 '123-456-789'）
+        description: JM317691（多个id用-隔开，如 '123-456-789'）
         required: false
 
       JM_PHOTO_IDS:
