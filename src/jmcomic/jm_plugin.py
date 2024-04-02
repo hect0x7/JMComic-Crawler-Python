@@ -963,3 +963,30 @@ class SubscribeAlbumUpdatePlugin(JmOptionPlugin):
                 is_new_photo = True
 
         return len(photo_new_list) != 0, photo_new_list
+
+
+class SkipPhotoWithFewImagesPlugin(JmOptionPlugin):
+    plugin_key = 'skip_photo_with_few_images'
+
+    def invoke(self,
+               at_least_image_count: int,
+               **kwargs
+               ):
+        option_decide_cache = self.option.decide_download_cache
+
+        def apply_filter_then_decide_cache(image: JmImageDetail):
+            photo = image.from_photo
+            if photo is None:
+                return option_decide_cache(image)
+
+            if len(photo) < at_least_image_count:
+                self.log(f'跳过下载章节: {photo.id} ({photo.album_id}[{photo.index}/{len(photo.from_album)}])，'
+                         f'因为其图片数: {len(photo)} < {at_least_image_count} (at_least_image_count)')
+                # hook is_exists True to skip download
+                image.is_exists = True
+                return True
+
+            # let option decide
+            return option_decide_cache(image)
+
+        self.option.decide_download_cache = apply_filter_then_decide_cache
