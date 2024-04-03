@@ -987,3 +987,8 @@ class SkipPhotoWithFewImagesPlugin(JmOptionPlugin):
         self.log(f'跳过下载章节: {photo.id} ({photo.album_id}[{photo.index}/{len(photo.from_album)}])，'
                  f'因为其图片数: {len(photo)} < {at_least_image_count} (at_least_image_count)')
         photo.skip = True
+
+    @classmethod
+    @field_cache()  # 单例
+    def build(cls, option: JmOption) -> 'JmOptionPlugin':
+        return super().build(option)
