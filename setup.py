@@ -28,7 +28,7 @@ setup(
     python_requires=">=3.7",
     install_requires=[
         'curl_cffi',
-        'commonX>=0.6.4',
+        'commonX',
         'PyYAML',
         'Pillow',
         'pycryptodome',
