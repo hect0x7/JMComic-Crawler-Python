@@ -368,7 +368,7 @@ class JmModuleConfig:
             'postman': {
                 'type': 'cffi',
                 'meta_data': {
-                    'impersonate': 'chrome110',
+                    'impersonate': 'chrome',
                     'headers': None,
                     'proxies': None,
                 }
