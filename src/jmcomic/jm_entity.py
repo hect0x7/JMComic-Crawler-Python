@@ -3,6 +3,14 @@ from common import *
 from .jm_config import *
 
 
+class Downloadable:
+
+    def __init__(self):
+        self.save_path: str = ''
+        self.exists: bool = False
+        self.skip = False
+
+
 class JmBaseEntity:
 
     def to_file(self, filepath):
@@ -117,7 +125,7 @@ class DetailEntity(JmBaseEntity, IndexedEntity):
     def __str__(self):
         return f'{self.__class__.__name__}' \
                '{' \
-               f'{self.id}: {self.title}'\
+               f'{self.id}: {self.title}' \
                '}'
 
     @classmethod
@@ -156,7 +164,7 @@ class DetailEntity(JmBaseEntity, IndexedEntity):
         return getattr(detail, ref)
 
 
-class JmImageDetail(JmBaseEntity):
+class JmImageDetail(JmBaseEntity, Downloadable):
 
     def __init__(self,
                  aid,
@@ -167,7 +175,8 @@ class JmImageDetail(JmBaseEntity):
                  from_photo=None,
                  query_params=None,
                  index=-1,
-                 ) -> None:
+                 ):
+        super().__init__()
         if scramble_id is None or (isinstance(scramble_id, str) and scramble_id == ''):
             from .jm_toolkit import ExceptionTool
             ExceptionTool.raises(f'图片的scramble_id不能为空')
@@ -181,10 +190,6 @@ class JmImageDetail(JmBaseEntity):
         self.from_photo: Optional[JmPhotoDetail] = from_photo
         self.query_params: Optional[str] = query_params
         self.index = index  # 从1开始
-
-        # temp fields, in order to simplify passing parameter
-        self.save_path: str = ''
-        self.is_exists: bool = False
 
     @property
     def filename_without_suffix(self):
@@ -252,7 +257,7 @@ class JmImageDetail(JmBaseEntity):
         return True
 
 
-class JmPhotoDetail(DetailEntity):
+class JmPhotoDetail(DetailEntity, Downloadable):
 
     def __init__(self,
                  photo_id,
@@ -267,6 +272,7 @@ class JmPhotoDetail(DetailEntity):
                  author=None,
                  from_album=None,
                  ):
+        super().__init__()
         self.photo_id: str = str(photo_id)
         self.scramble_id: str = str(scramble_id)
         self.name: str = str(name).strip()
@@ -411,7 +417,7 @@ class JmPhotoDetail(DetailEntity):
         return True
 
 
-class JmAlbumDetail(DetailEntity):
+class JmAlbumDetail(DetailEntity, Downloadable):
 
     def __init__(self,
                  album_id,
@@ -430,6 +436,7 @@ class JmAlbumDetail(DetailEntity):
                  tags,
                  related_list=None,
                  ):
+        super().__init__()
         self.album_id: str = str(album_id)
         self.scramble_id: str = str(scramble_id)
         self.name: str = name

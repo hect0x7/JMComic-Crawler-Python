@@ -234,7 +234,7 @@ class Test_Client(JmTestConfigurable):
                 self.assertEqual(ans, id(photo))
 
     def test_search_generator(self):
-        JmModuleConfig.flag_decode_url_when_logging = False
+        JmModuleConfig.FLAG_DECODE_URL_WHEN_LOGGING = False
 
         gen = self.client.search_gen('MANA')
         for i, page in enumerate(gen):

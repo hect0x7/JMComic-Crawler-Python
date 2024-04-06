@@ -445,9 +445,7 @@ class ImageSuffixFilterPlugin(JmOptionPlugin):
             if image.img_file_suffix not in allowed_suffix_set:
                 self.log(f'跳过下载图片: {image.tag}，'
                          f'因为其后缀\'{image.img_file_suffix}\'不在允许的后缀集合{allowed_suffix_set}内')
-                # hook is_exists True to skip download
-                image.is_exists = True
-                return True
+                image.skip = True
 
             # let option decide
             return option_decide_cache(image)
@@ -484,7 +482,7 @@ class LogTopicFilterPlugin(JmOptionPlugin):
         if whitelist is not None:
             whitelist = set(whitelist)
 
-        old_jm_log = JmModuleConfig.executor_log
+        old_jm_log = JmModuleConfig.EXECUTOR_LOG
 
         def new_jm_log(topic, msg):
             if whitelist is not None and topic not in whitelist:
@@ -492,7 +490,7 @@ class LogTopicFilterPlugin(JmOptionPlugin):
 
             old_jm_log(topic, msg)
 
-        JmModuleConfig.executor_log = new_jm_log
+        JmModuleConfig.EXECUTOR_LOG = new_jm_log
 
 
 class AutoSetBrowserCookiesPlugin(JmOptionPlugin):
@@ -963,3 +961,34 @@ class SubscribeAlbumUpdatePlugin(JmOptionPlugin):
                 is_new_photo = True
 
         return len(photo_new_list) != 0, photo_new_list
+
+
+class SkipPhotoWithFewImagesPlugin(JmOptionPlugin):
+    plugin_key = 'skip_photo_with_few_images'
+
+    def invoke(self,
+               at_least_image_count: int,
+               photo: Optional[JmPhotoDetail] = None,
+               image: Optional[JmImageDetail] = None,
+               album: Optional[JmAlbumDetail] = None,
+               **kwargs
+               ):
+        self.try_mark_photo_skip_and_log(photo, at_least_image_count)
+        if image is not None:
+            self.try_mark_photo_skip_and_log(image.from_photo, at_least_image_count)
+
+    def try_mark_photo_skip_and_log(self, photo: JmPhotoDetail, at_least_image_count: int):
+        if photo is None:
+            return
+
+        if len(photo) >= at_least_image_count:
+            return
+
+        self.log(f'跳过下载章节: {photo.id} ({photo.album_id}[{photo.index}/{len(photo.from_album)}])，'
+                 f'因为其图片数: {len(photo)} < {at_least_image_count} (at_least_image_count)')
+        photo.skip = True
+
+    @classmethod
+    @field_cache()  # 单例
+    def build(cls, option: JmOption) -> 'JmOptionPlugin':
+        return super().build(option)

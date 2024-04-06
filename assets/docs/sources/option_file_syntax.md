@@ -198,6 +198,11 @@ plugins:
         zip_enable: true # 对收藏夹进行压缩
         zip_filepath: ${JM_DOWNLOAD_DIR}/export.zip # 压缩文件路径
         zip_password: ${ZIP_PASSWORD} # 压缩密码
+  
+  before_photo:
+    - plugin: skip_photo_with_few_images # 跳过下载章节图片数量过少的章节。一些韩漫的章节是公告，没有实际内容，就可以用该插件来跳过下载这些章节。
+      kwargs:
+        at_least_image_count: 3
 
   after_photo:
     - plugin: j2p # jpg图片合成为一个pdf插件

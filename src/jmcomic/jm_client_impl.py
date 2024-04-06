@@ -224,7 +224,7 @@ class AbstractJmClient(
 
     # noinspection PyMethodMayBeStatic
     def decode(self, url: str):
-        if not JmModuleConfig.flag_decode_url_when_logging or '/search/' not in url:
+        if not JmModuleConfig.FLAG_DECODE_URL_WHEN_LOGGING or '/search/' not in url:
             return url
 
         from urllib.parse import unquote
@@ -767,7 +767,7 @@ class JmApiClient(AbstractJmClient):
         # 检查禁漫最新的版本号
         setting_ver = str(resp.model_data.version)
         # 禁漫接口的版本 > jmcomic库内置版本
-        if setting_ver > JmMagicConstants.APP_VERSION and JmModuleConfig.flag_use_version_newer_if_behind:
+        if setting_ver > JmMagicConstants.APP_VERSION and JmModuleConfig.FLAG_USE_VERSION_NEWER_IF_BEHIND:
             jm_log('api.setting', f'change APP_VERSION from [{JmMagicConstants.APP_VERSION}] to [{setting_ver}]')
             JmMagicConstants.APP_VERSION = setting_ver
 
@@ -883,7 +883,7 @@ class JmApiClient(AbstractJmClient):
             ts = time_stamp()
             token, tokenparam = JmCryptoTool.token_and_tokenparam(ts, secret=JmMagicConstants.APP_TOKEN_SECRET_2)
 
-        elif JmModuleConfig.flag_use_fix_timestamp:
+        elif JmModuleConfig.FLAG_USE_FIX_TIMESTAMP:
             ts, token, tokenparam = JmModuleConfig.get_fix_ts_token_tokenparam()
 
         else:
@@ -954,7 +954,7 @@ class JmApiClient(AbstractJmClient):
 
     def after_init(self):
         # 保证拥有cookies，因为移动端要求必须携带cookies，否则会直接跳转同一本子【禁漫娘】
-        if JmModuleConfig.flag_api_client_require_cookies:
+        if JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES:
             self.ensure_have_cookies()
 
     client_init_cookies_lock = Lock()

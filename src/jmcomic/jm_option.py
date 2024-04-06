@@ -285,7 +285,15 @@ class JmOption:
         )
 
         if ensure_exists:
-            mkdir_if_not_exists(save_dir)
+            try:
+                mkdir_if_not_exists(save_dir)
+            except OSError as e:
+                if e.errno == 36:
+                    # 目录名过长
+                    limit = JmModuleConfig.VAR_FILE_NAME_LENGTH_LIMIT
+                    jm_log('error', f'目录名过长，无法创建目录，强制缩短到{limit}个字符并重试')
+                    save_dir = save_dir[0:limit]
+                    mkdir_if_not_exists(save_dir)
 
         return save_dir
 
@@ -359,7 +367,7 @@ class JmOption:
     def deconstruct(self) -> Dict:
         return {
             'version': JmModuleConfig.JM_OPTION_VER,
-            'log': JmModuleConfig.flag_enable_jm_log,
+            'log': JmModuleConfig.FLAG_ENABLE_JM_LOG,
             'dir_rule': {
                 'rule': self.dir_rule.rule_dsl,
                 'base_dir': self.dir_rule.base_dir,

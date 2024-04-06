@@ -29,7 +29,7 @@ class DownloadCallback:
                f'章节下载完成: [{photo.id}] ({photo.album_id}[{photo.index}/{len(photo.from_album)}])')
 
     def before_image(self, image: JmImageDetail, img_save_path):
-        if image.is_exists:
+        if image.exists:
             jm_log('image.before',
                    f'图片已存在: {image.tag} ← [{img_save_path}]'
                    )
@@ -63,6 +63,8 @@ class JmDownloader(DownloadCallback):
 
     def download_by_album_detail(self, album: JmAlbumDetail, client: JmcomicClient):
         self.before_album(album)
+        if album.skip:
+            return
         self.execute_by_condition(
             iter_objs=album,
             apply=lambda photo: self.download_by_photo_detail(photo, client),
@@ -80,6 +82,8 @@ class JmDownloader(DownloadCallback):
         client.check_photo(photo)
 
         self.before_photo(photo)
+        if photo.skip:
+            return
         self.execute_by_condition(
             iter_objs=photo,
             apply=lambda image: self.download_by_image_detail(image, client),
@@ -91,16 +95,19 @@ class JmDownloader(DownloadCallback):
         img_save_path = self.option.decide_image_filepath(image)
 
         image.save_path = img_save_path
-        image.is_exists = file_exists(img_save_path)
+        image.exists = file_exists(img_save_path)
 
         self.before_image(image, img_save_path)
+
+        if image.skip:
+            return
 
         # let option decide use_cache and decode_image
         use_cache = self.option.decide_download_cache(image)
         decode_image = self.option.decide_download_image_decode(image)
 
         # skip download
-        if use_cache is True and image.is_exists:
+        if use_cache is True and image.exists:
             return
 
         e = None
