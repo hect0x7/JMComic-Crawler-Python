@@ -236,28 +236,6 @@ class JmOption:
     def decide_photo_batch_count(self, album: JmAlbumDetail):
         return self.download.threading.photo
 
-    def decide_album_dir(self, album: JmAlbumDetail) -> str:
-        """
-        该方法目前仅在 plugin-zip 中使用，不建议外部调用
-        """
-        dir_layer = []
-        dir_rule = self.dir_rule
-        for rule in dir_rule.rule_dsl.split('_'):
-            if rule == 'Bd':
-                dir_layer.append(dir_rule.base_dir)
-                continue
-
-            if rule[0] == 'A':
-                name = dir_rule.apply_rule_directly(album, None, rule)
-                dir_layer.append(name)
-
-            if rule[0] == 'P':
-                break
-
-        from os.path import join
-        # noinspection PyTypeChecker
-        return join(*dir_layer)
-
     # noinspection PyMethodMayBeStatic
     def decide_image_filename(self, image: JmImageDetail) -> str:
         """
