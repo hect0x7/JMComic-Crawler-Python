@@ -9,7 +9,6 @@ client:
   postman:
     meta_data:
       timeout: 7
-      impersonate: chrome120
   domain:
     html:
       - jmcomic1.me
