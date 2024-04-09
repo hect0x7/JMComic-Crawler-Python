@@ -302,27 +302,19 @@ class ZipPlugin(JmOptionPlugin):
 
         if level == 'album':
             zip_path = self.get_zip_path(album, None, filename_rule, suffix, zip_dir)
-            dir_path = self.zip_album(album, photo_dict, zip_path)
-            if dir_path is not None:
-                # 要删除这个album文件夹
-                dir_zip_dict[dir_path] = zip_path
-                # 也要删除album下的photo文件夹
-                for d in files_of_dir(dir_path):
-                    dir_zip_dict[d] = None
+            self.zip_album(album, photo_dict, zip_path, dir_zip_dict)
 
         elif level == 'photo':
             for photo, image_list in photo_dict.items():
                 zip_path = self.get_zip_path(None, photo, filename_rule, suffix, zip_dir)
-                dir_path = self.zip_photo(photo, image_list, zip_path)
-                if dir_path is not None:
-                    dir_zip_dict[dir_path] = zip_path
+                self.zip_photo(photo, image_list, zip_path, dir_zip_dict)
 
         else:
             ExceptionTool.raises(f'Not Implemented Zip Level: {level}')
 
         self.after_zip(dir_zip_dict)
 
-    def zip_photo(self, photo, image_list: list, zip_path: str) -> Optional[str]:
+    def zip_photo(self, photo, image_list: list, zip_path: str, dir_zip_dict) -> Optional[str]:
         """
         压缩photo文件夹
         :returns: photo文件夹路径
@@ -333,50 +325,58 @@ class ZipPlugin(JmOptionPlugin):
 
         all_filepath = set(map(lambda t: self.unified_path(t[0]), image_list))
 
-        return self.do_zip(photo_dir,
-                           zip_path,
-                           all_filepath,
-                           f'压缩章节[{photo.photo_id}]成功 → {zip_path}',
-                           )
-
-    @staticmethod
-    def unified_path(f):
-        return fix_filepath(f, os.path.isdir(f))
-
-    def zip_album(self, album, photo_dict: dict, zip_path) -> Optional[str]:
-        """
-        压缩album文件夹
-        :returns: album文件夹路径
-        """
-        all_filepath: Set[str] = set()
-
-        def addpath(f):
-            all_filepath.update(set(f))
-
-        album_dir = self.option.decide_album_dir(album)
-        # addpath(self.option.decide_image_save_dir(photo) for photo in photo_dict.keys())
-        addpath(path for ls in photo_dict.values() for path, _ in ls)
-
-        return self.do_zip(album_dir,
-                           zip_path,
-                           all_filepath,
-                           msg=f'压缩本子[{album.album_id}]成功 → {zip_path}',
-                           )
-
-    def do_zip(self, source_dir, zip_path, all_filepath, msg):
         if len(all_filepath) == 0:
             self.log('无下载文件，无需压缩', 'skip')
             return None
 
         from common import backup_dir_to_zip
         backup_dir_to_zip(
-            source_dir,
+            photo_dir,
             zip_path,
             acceptor=lambda f: os.path.isdir(f) or self.unified_path(f) in all_filepath
         ).close()
 
-        self.log(msg, 'finish')
-        return self.unified_path(source_dir)
+        self.log(f'压缩章节[{photo.photo_id}]成功 → {zip_path}', 'finish')
+        dir_zip_dict[self.unified_path(photo_dir)] = zip_path
+
+    @staticmethod
+    def unified_path(f):
+        return fix_filepath(f, os.path.isdir(f))
+
+    def zip_album(self, album, photo_dict: dict, zip_path, dir_zip_dict) -> Optional[str]:
+        """
+        压缩album文件夹
+        :returns: album文件夹路径
+        """
+
+        # 所有下载了的图片文件的路径
+        all_filepath: Set[str] = set(path for ls in photo_dict.values() for path, _ in ls)
+
+        if len(all_filepath) == 0:
+            self.log('无下载文件，无需压缩', 'skip')
+            return
+
+        # 该本子的所有章节的图片所在文件夹
+        photo_dir_list = [self.option.decide_image_save_dir(photo) for photo in photo_dict.keys()]
+
+        # 压缩文件对象
+        from common import backup_dir_to_zip
+        import zipfile
+        zfile = zipfile.ZipFile(zip_path, 'w')
+
+        for photo_dir in photo_dir_list:
+            photo_dir = self.unified_path(photo_dir)
+            backup_dir_to_zip(
+                photo_dir,
+                zip_path,
+                zfile=zfile,
+                prefix=os.path.basename(photo_dir.rstrip('/')),
+                acceptor=lambda f: os.path.isdir(f) or self.unified_path(f) in all_filepath
+            )
+            dir_zip_dict[photo_dir] = zip_path
+
+        zfile.close()
+        self.log(f'压缩本子[{album.album_id}]成功 → {zip_path}', 'finish')
 
     def after_zip(self, dir_zip_dict: Dict[str, Optional[str]]):
         # 删除所有原文件

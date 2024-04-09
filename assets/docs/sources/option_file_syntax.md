@@ -166,10 +166,10 @@ plugins:
     - plugin: subscribe_album_update # 自动订阅本子并下载、发送邮件通知的插件
       kwargs:
         download_if_has_update: true
-        email_notify: # 见下【发送qq邮件插件】
-          msg_from: x
-          msg_to: x
-          password: x
+        email_notify: # 参数说明见下【发送qq邮件插件】
+          msg_from: aaa@qq.com
+          msg_to: aaa@qq.com
+          password: dkjlakdjlkas
           title: album update !!!
           content: album update !!!
         album_photo_dict:
@@ -179,7 +179,14 @@ plugins:
     - plugin: zip # 压缩文件插件
       kwargs:
         level: photo # 按照章节，一个章节一个压缩文件
+        # level 也可以配成 album，表示一个本子对应一个压缩文件，该压缩文件会包含这个本子的所有章节
+
         filename_rule: Ptitle # 压缩文件的命名规则
+        # 请注意⚠ [https://github.com/hect0x7/JMComic-Crawler-Python/issues/223#issuecomment-2045227527]
+        # filename_rule和level有对应关系
+        # 如果level=[photo], filename_rule只能写Pxxx
+        # 如果level=[album], filename_rule只能写Axxx
+
         zip_dir: D:/jmcomic/zip/ # 压缩文件存放的文件夹
         delete_original_file: true # 压缩成功后，删除所有原文件和文件夹
 
@@ -195,17 +202,22 @@ plugins:
     - plugin: favorite_folder_export # 导出收藏夹插件
       log: false
       kwargs:
-        zip_enable: true # 对收藏夹进行压缩
+        zip_enable: true # 对导出文件进行压缩
         zip_filepath: ${JM_DOWNLOAD_DIR}/export.zip # 压缩文件路径
         zip_password: ${ZIP_PASSWORD} # 压缩密码
   
   before_photo:
     - plugin: skip_photo_with_few_images # 跳过下载章节图片数量过少的章节。一些韩漫的章节是公告，没有实际内容，就可以用该插件来跳过下载这些章节。
       kwargs:
-        at_least_image_count: 3
+        at_least_image_count: 3 # 至少要有多少张图，才下载此章节
 
   after_photo:
-    - plugin: j2p # jpg图片合成为一个pdf插件
+    - plugin: j2p # 图片合并插件，可以将下载下来的jpg图片合成为一个pdf插件
+      # 请注意⚠ 该插件的使用前提是，下载下来的图片是jpg图片
+      # 因此，使用该插件前，需要有如下配置:（下载图片格式转为jpg，上文有解释过此配置）
+      # download:
+      #   image:
+      #     suffix: .jpg
       kwargs:
         pdf_dir: D:/pdf # pdf存放文件夹
         filename_rule: Pid # pdf命名规则
