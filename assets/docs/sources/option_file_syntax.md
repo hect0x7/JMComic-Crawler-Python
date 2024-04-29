@@ -7,8 +7,6 @@
   因此，在配置option时，不需要配置全部的值，只需要配置特定部分即可。
 * 你可以使用下面的代码来得到option的默认值，你可以删除其中的大部分配置项，只保留你要覆盖的配置项
 
-* **下面的插件配置，kwargs参数支持引用环境变量，语法为 ${环境变量名}**
-
 ```python
 from jmcomic import JmOption
 JmOption.default().to_file('./option.yml') # 创建默认option，导出为option.yml文件
@@ -17,8 +15,8 @@ JmOption.default().to_file('./option.yml') # 创建默认option，导出为optio
 ## 2. option常规配置项
 
 ```yml
-# 开启jmcomic的日志输入，默认为true
-# 对日志有需求的可进一步参考文档
+# 开启jmcomic的日志输出，默认为true
+# 对日志有需求的可进一步参考文档 → https://jmcomic.readthedocs.io/en/latest/tutorial/11_log_custom/
 log: true
 
 # 配置客户端相关
@@ -26,7 +24,7 @@ client:
   # impl: 客户端实现类，不配置默认会使用JmModuleConfig.DEFAULT_CLIENT_IMPL
   # 可配置:
   #  html - 表示网页端
-  #  api - 表示使用APP端
+  #  api - 表示APP端
   impl: html
 
   # domain: 域名配置，默认是 []，表示运行时自动获取域名。
@@ -43,7 +41,7 @@ client:
 
   # postman: 请求配置
   postman:
-    meta_data:
+    metadata:
       # proxies: 代理配置，默认是 system，表示使用系统代理。
       # 以下的写法都可以:
       # proxies: null # 不使用代理
@@ -107,6 +105,7 @@ dir_rule:
 ```
 
 ## 3. option插件配置项
+* **插件配置中的kwargs参数支持引用环境变量，语法为 ${环境变量名}**
 
 ```yml
 # 插件的配置示例
@@ -136,7 +135,7 @@ plugins:
         proxy_client_key: photo_concurrent_fetcher_proxy # 代理类的client_key
         whitelist: [ api, ] # 白名单，当client.impl匹配白名单时才代理
 
-    - plugin: auto_set_browser_cookies # 自动获取浏览器cookies，详见插件类
+    - plugin: auto_set_browser_cookies # 自动获取浏览器cookies，详见插件类代码→AutoSetBrowserCookiesPlugin
       kwargs:
         browser: chrome
         domain: 18comic.vip
