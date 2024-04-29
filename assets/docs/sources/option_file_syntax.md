@@ -212,6 +212,15 @@ plugins:
         at_least_image_count: 3 # 至少要有多少张图，才下载此章节
 
   after_photo:
+    - plugin: img2pdf # 把章节所有图片合并为一个pdf的插件
+      kwargs:
+        pdf_dir: D:/pdf/ # pdf存放文件夹
+        filename_rule: Pid # pdf命名规则
+  
+    # 请注意⚠
+    # 下方的j2p插件的功能不如img2pdf插件，不建议使用。
+    # 如有图片转pdf的需求，直接使用img2pdf即可，下面的内容请忽略。
+
     - plugin: j2p # 图片合并插件，可以将下载下来的jpg图片合成为一个pdf插件
       # 请注意⚠ 该插件的使用前提是，下载下来的图片是jpg图片
       # 因此，使用该插件前，需要有如下配置:（下载图片格式转为jpg，上文有解释过此配置）
@@ -219,8 +228,8 @@ plugins:
       #   image:
       #     suffix: .jpg
       kwargs:
-        pdf_dir: D:/pdf # pdf存放文件夹
+        pdf_dir: D:/pdf/ # pdf存放文件夹
         filename_rule: Pid # pdf命名规则
         quality: 100 # pdf质量，0 - 100
-
+  
 ```

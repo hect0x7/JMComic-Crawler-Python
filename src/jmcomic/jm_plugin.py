@@ -757,6 +757,49 @@ class ConvertJpgToPdfPlugin(JmOptionPlugin):
             self.execute_deletion(paths)
 
 
+class Img2pdfPlugin(JmOptionPlugin):
+    plugin_key = 'img2pdf'
+
+    def invoke(self,
+               photo: JmPhotoDetail,
+               downloader=None,
+               pdf_dir=None,
+               filename_rule='Pid',
+               delete_original_file=False,
+               **kwargs,
+               ):
+        try:
+            import img2pdf
+        except ImportError:
+            self.warning_lib_not_install('img2pdf')
+            return
+
+        self.delete_original_file = delete_original_file
+
+        # 处理文件夹配置
+        filename = DirRule.apply_rule_directly(None, photo, filename_rule)
+        photo_dir = self.option.decide_image_save_dir(photo)
+
+        # 处理生成的pdf文件的路径
+        if pdf_dir is None:
+            pdf_dir = photo_dir
+        else:
+            pdf_dir = fix_filepath(pdf_dir, True)
+            mkdir_if_not_exists(pdf_dir)
+
+        pdf_filepath = os.path.join(pdf_dir, f'{filename}.pdf')
+
+        # 调用 img2pdf 把 photo_dir 下的所有图片转为pdf
+        all_img = files_of_dir(photo_dir)
+        with open(pdf_filepath, 'wb') as f:
+            f.write(img2pdf.convert(all_img))
+
+        # 执行删除
+        self.log(f'Convert Successfully: JM{photo.id} → {pdf_filepath}')
+        all_img.append(self.option.decide_image_save_dir(photo, ensure_exists=False))
+        self.execute_deletion(all_img)
+
+
 class JmServerPlugin(JmOptionPlugin):
     plugin_key = 'jm_server'
 
