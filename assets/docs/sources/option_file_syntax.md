@@ -106,6 +106,7 @@ dir_rule:
 ```
 
 ## 3. option插件配置项
+
 * **插件配置中的kwargs参数支持引用环境变量，语法为 ${环境变量名}**
 
 ```yml
@@ -143,7 +144,7 @@ plugins:
     
     # v2.5.0 引入的插件
     # 可以启动一个服务器，可以在浏览器上查看本子
-    # 基于flask框架，需要安装额外库: pip install plugin_jm_server
+    # 基于flask框架，需要安装额外库: [pip install plugin_jm_server]
     # 源码：https://github.com/hect0x7/plugin-jm-server
     - plugin: jm_server 
       kwargs:
@@ -212,7 +213,9 @@ plugins:
         at_least_image_count: 3 # 至少要有多少张图，才下载此章节
 
   after_photo:
-    - plugin: img2pdf # 把章节所有图片合并为一个pdf的插件
+    # 把章节的所有图片合并为一个pdf的插件
+    # 使用前需要安装依赖库: [pip install img2pdf]
+    - plugin: img2pdf
       kwargs:
         pdf_dir: D:/pdf/ # pdf存放文件夹
         filename_rule: Pid # pdf命名规则
