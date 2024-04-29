@@ -572,3 +572,15 @@ class JmcomicClient(
         }
 
         yield from self.do_page_iter(params, page, self.categories_filter)
+
+    def is_given_type(self, ctype: Type['JmcomicClient']) -> bool:
+        """
+        Client代理的此方法会被路由到内部client的方法
+        即：ClientProxy(AClient()).is_given_type(AClient) is True
+        但是: ClientProxy(AClient()).client_key != AClient.client_key
+        """
+        if isinstance(self, ctype):
+            return True
+        if self.client_key == instance.client_key:
+            return True
+        return False

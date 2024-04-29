@@ -1,13 +1,12 @@
-# Option File Syntax
+# 配置文件指南
 
 ## 1. 配置前需知
 
 * option有`默认值`，当你使用配置文件来创建option时，你配置文件中的值会覆盖`默认值`。
 
   因此，在配置option时，不需要配置全部的值，只需要配置特定部分即可。
-* 你可以使用下面的代码来得到option的默认值，你可以删除其中的大部分配置项，只保留你要覆盖的配置项
 
-* **下面的插件配置，kwargs参数支持引用环境变量，语法为 ${环境变量名}**
+* 你可以使用下面的代码来得到option的默认值，你可以删除其中的大部分配置项，只保留你要覆盖的配置项
 
 ```python
 from jmcomic import JmOption
@@ -17,8 +16,8 @@ JmOption.default().to_file('./option.yml') # 创建默认option，导出为optio
 ## 2. option常规配置项
 
 ```yml
-# 开启jmcomic的日志输入，默认为true
-# 对日志有需求的可进一步参考文档
+# 开启jmcomic的日志输出，默认为true
+# 对日志有需求的可进一步参考文档 → https://jmcomic.readthedocs.io/en/latest/tutorial/11_log_custom/
 log: true
 
 # 配置客户端相关
@@ -26,7 +25,7 @@ client:
   # impl: 客户端实现类，不配置默认会使用JmModuleConfig.DEFAULT_CLIENT_IMPL
   # 可配置:
   #  html - 表示网页端
-  #  api - 表示使用APP端
+  #  api - 表示APP端
   impl: html
 
   # domain: 域名配置，默认是 []，表示运行时自动获取域名。
@@ -43,7 +42,7 @@ client:
 
   # postman: 请求配置
   postman:
-    meta_data:
+    metadata:
       # proxies: 代理配置，默认是 system，表示使用系统代理。
       # 以下的写法都可以:
       # proxies: null # 不使用代理
@@ -108,6 +107,8 @@ dir_rule:
 
 ## 3. option插件配置项
 
+* **插件配置中的kwargs参数支持引用环境变量，语法为 ${环境变量名}**
+
 ```yml
 # 插件的配置示例
 plugins:
@@ -136,14 +137,14 @@ plugins:
         proxy_client_key: photo_concurrent_fetcher_proxy # 代理类的client_key
         whitelist: [ api, ] # 白名单，当client.impl匹配白名单时才代理
 
-    - plugin: auto_set_browser_cookies # 自动获取浏览器cookies，详见插件类
+    - plugin: auto_set_browser_cookies # 自动获取浏览器cookies，详见插件类代码→AutoSetBrowserCookiesPlugin
       kwargs:
         browser: chrome
         domain: 18comic.vip
     
     # v2.5.0 引入的插件
     # 可以启动一个服务器，可以在浏览器上查看本子
-    # 基于flask框架，需要安装额外库: pip install plugin_jm_server
+    # 基于flask框架，需要安装额外库: [pip install plugin_jm_server]
     # 源码：https://github.com/hect0x7/plugin-jm-server
     - plugin: jm_server 
       kwargs:
@@ -212,6 +213,17 @@ plugins:
         at_least_image_count: 3 # 至少要有多少张图，才下载此章节
 
   after_photo:
+    # 把章节的所有图片合并为一个pdf的插件
+    # 使用前需要安装依赖库: [pip install img2pdf]
+    - plugin: img2pdf
+      kwargs:
+        pdf_dir: D:/pdf/ # pdf存放文件夹
+        filename_rule: Pid # pdf命名规则
+  
+    # 请注意⚠
+    # 下方的j2p插件的功能不如img2pdf插件，不建议使用。
+    # 如有图片转pdf的需求，直接使用img2pdf即可，下面的内容请忽略。
+
     - plugin: j2p # 图片合并插件，可以将下载下来的jpg图片合成为一个pdf插件
       # 请注意⚠ 该插件的使用前提是，下载下来的图片是jpg图片
       # 因此，使用该插件前，需要有如下配置:（下载图片格式转为jpg，上文有解释过此配置）
@@ -219,8 +231,8 @@ plugins:
       #   image:
       #     suffix: .jpg
       kwargs:
-        pdf_dir: D:/pdf # pdf存放文件夹
+        pdf_dir: D:/pdf/ # pdf存放文件夹
         filename_rule: Pid # pdf命名规则
         quality: 100 # pdf质量，0 - 100
-
+  
 ```
