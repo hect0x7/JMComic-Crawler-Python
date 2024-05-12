@@ -43,27 +43,50 @@
 
 ## 快速上手
 
-使用下面的两行代码，即可实现功能：把某个本子（album）里的所有章节（photo）下载到本地
-
+### 1. 下载本子方法
+只需要使用如下代码，就可以下载本子`JM422866`的所有章节的图片：
 ```python
 import jmcomic  # 导入此模块，需要先安装.
 jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载整个album到本地.
 ```
 
-* v2.2.9: 新增命令行调用方式，上述的代码可以转为一行命令
+上面的 `download_album`方法还有一个参数`option`，可用于控制下载配置，配置包括禁漫域名、网络代理、图片格式转换、插件等等。
 
-```bash
-# 下载album_id为422866的本子
-$ jmcomic 422866
+你可能需要这些配置项。推荐使用配置文件创建option，用option下载本子，见下章：
+
+### 2. 使用option配置来下载本子
+
+1. 首先，创建一个配置文件，假设文件名为 `option.yml`
+   
+    该文件有特定的写法，你需要参考这个文档 → [option配置](./assets/docs/sources/option_file_syntax.md)
+    
+    下面做一个演示，假设你需要把下载的图片转为png格式，你应该把以下内容写进`option.yml`
+
+```yml
+download:
+  image:
+    suffix: .png # 该配置用于把下载的图片转为png格式
 ```
+
+2. 第二步，运行下面的python代码
+```python
+import jmcomic
+
+# 创建配置对象
+option = jmcomic.create_option_by_file('你的配置文件路径，例如 D:/option.yml')
+# 使用option对象来下载本子
+jmcomic.download_album(422866, option)
+```
+
+
 
 ## 进阶使用
 
 文档网站：[jmcomic.readthedocs.io](https://jmcomic.readthedocs.io/en/latest)
 
-进阶使用可以参考：[jmcomic常用类和方法演示](assets/docs/sources/tutorial/0_demo.md)
+首先，就下载功能，jmcomic提供了很多配置项，大部分的下载需求你都可以通过上文介绍的配置文件来配置。
 
-下面列出的是一些常用的文档：
+如果你不满足于下载，还有其他的使用需求，推荐你先看看以下文档：
 
 * [jmcomic常用类和方法演示](assets/docs/sources/tutorial/0_demo.md)
 * [option配置文件语法（包含插件配置）](./assets/docs/sources/option_file_syntax.md)
