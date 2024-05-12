@@ -26,6 +26,7 @@ client:
   # 可配置:
   #  html - 表示网页端
   #  api - 表示APP端
+  # APP端不限ip兼容性好，网页端限制ip地区但效率高
   impl: html
 
   # domain: 域名配置，默认是 []，表示运行时自动获取域名。
@@ -42,7 +43,7 @@ client:
 
   # postman: 请求配置
   postman:
-    metadata:
+    meta_data:
       # proxies: 代理配置，默认是 system，表示使用系统代理。
       # 以下的写法都可以:
       # proxies: null # 不使用代理
