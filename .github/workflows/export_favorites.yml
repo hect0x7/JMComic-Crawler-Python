@@ -48,9 +48,9 @@ jobs:
       ZIP_FP: /home/runner/work/jmcomic/download/export.7z
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python 3.11
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -71,7 +71,7 @@ jobs:
           python workflow_export_favorites.py
 
       - name: 上传结果
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: '导出的收藏夹'
           path: ${{ env.ZIP_FP }}
