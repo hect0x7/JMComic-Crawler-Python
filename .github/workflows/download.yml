@@ -26,7 +26,7 @@ jobs:
       # 固定值
       JM_DOWNLOAD_DIR: /home/runner/work/jmcomic/download/
       ZIP_NAME: '本子.tar.gz'
-      UPLOAD_NAME: '下载完成的本子'
+      UPLOAD_NAME: 'Click me to download'
 
     steps:
       - uses: actions/checkout@v4

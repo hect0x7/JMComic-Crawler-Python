@@ -39,7 +39,7 @@ on:
 
       UPLOAD_NAME:
         type: string
-        default: 下载完成的本子
+        default: Click me to download
         description: 上传文件名称
         required: false
 
