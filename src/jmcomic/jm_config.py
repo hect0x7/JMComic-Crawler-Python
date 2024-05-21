@@ -109,14 +109,17 @@ class JmModuleConfig:
     DOMAIN_IMAGE_LIST = str_to_list('''
     cdn-msp.jmapinodeudzn.net
     cdn-msp2.jmapinodeudzn.net
+    cdn-msp2.jmapiproxy3.cc
+    cdn-msp3.jmapinodeudzn.net
 
     ''')
 
     # 移动端API域名
     DOMAIN_API_LIST = str_to_list('''
     www.jmapinodeudzn.xyz
-    www.jmapinode.vip
-    www.jmapinode.biz
+    www.cdn-eldenringproxy.xyz
+    www.cdn-eldenringproxy.me
+    www.cdn-eldenringproxy.vip
     www.jmapinode.xyz
     ''')
 
