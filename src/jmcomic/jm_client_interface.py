@@ -581,6 +581,6 @@ class JmcomicClient(
         """
         if isinstance(self, ctype):
             return True
-        if self.client_key == instance.client_key:
+        if self.client_key == ctype.client_key:
             return True
         return False

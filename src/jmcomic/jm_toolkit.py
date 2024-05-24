@@ -707,7 +707,7 @@ class JmImageTool:
         如果需要改变图片的文件格式，比如 .jpg → .png，则需要指定参数 neet_convert=True.
         如果不需要改变图片的文件格式，使用 need_convert=False，可以跳过PIL解析图片，效率更高.
 
-        :param resp: HTTP响应对象
+        :param resp: JmImageResp
         :param filepath: 图片文件路径
         :param need_convert: 是否转换图片
         """
@@ -746,7 +746,7 @@ class JmImageTool:
 
         # 无需解密，直接保存
         if num == 0:
-            img_src.save(decoded_save_path)
+            cls.save_image(img_src, decoded_save_path)
             return
 
         import math
