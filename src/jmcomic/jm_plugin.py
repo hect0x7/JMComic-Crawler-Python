@@ -1079,6 +1079,7 @@ class DeleteDuplicatedFilesPlugin(JmOptionPlugin):
         if album is None:
             return
 
+        self.delete_original_file = delete_original_file
         # 获取到下载本子所在根目录
         root_folder = self.option.dir_rule.decide_album_root_dir(album)
         self.find_duplicated_files_and_delete(limit, root_folder, album)
