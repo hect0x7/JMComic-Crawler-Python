@@ -1081,15 +1081,15 @@ class DeleteDuplicatedFilesPlugin(JmOptionPlugin):
 
         # 获取到下载本子所在根目录
         root_folder = self.option.dir_rule.decide_album_root_dir(album)
-        self.find_duplicated_files_and_delete(limit, root_folder)
+        self.find_duplicated_files_and_delete(limit, root_folder, album)
 
-    def find_duplicated_files_and_delete(self, limit: int, root_folder: str):
+    def find_duplicated_files_and_delete(self, limit: int, root_folder: str, album: Optional[JmAlbumDetail] = None):
         md5_dict = self.find_duplicate_files(root_folder)
         # 打印MD5出现次数大于等于2的文件
         for md5, paths in md5_dict.items():
             if len(paths) >= limit:
-                print(f"MD5: {md5} 出现次数: {len(paths)}")
-                for path in paths:
-                    print(f"  {path}")
-
+                prefix = '' if album is None else album.album_id
+                message = [prefix + f'MD5: {md5} 出现次数: {len(paths)}'] + \
+                          [f'  {path}' for path in paths]
+                self.log('\n'.join(message))
                 self.execute_deletion(paths)
