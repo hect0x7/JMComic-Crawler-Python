@@ -1089,7 +1089,7 @@ class DeleteDuplicatedFilesPlugin(JmOptionPlugin):
         # 打印MD5出现次数大于等于2的文件
         for md5, paths in md5_dict.items():
             if len(paths) >= limit:
-                prefix = '' if album is None else album.album_id + ' '
+                prefix = '' if album is None else f'({album.album_id}) '
                 message = [prefix + f'MD5: {md5} 出现次数: {len(paths)}'] + \
                           [f'  {path}' for path in paths]
                 self.log('\n'.join(message))
