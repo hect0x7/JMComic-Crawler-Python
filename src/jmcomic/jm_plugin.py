@@ -1035,3 +1035,62 @@ class SkipPhotoWithFewImagesPlugin(JmOptionPlugin):
     @field_cache()  # 单例
     def build(cls, option: JmOption) -> 'JmOptionPlugin':
         return super().build(option)
+
+
+class DeleteDuplicatedFilesPlugin(JmOptionPlugin):
+    """
+    https://github.com/hect0x7/JMComic-Crawler-Python/issues/244
+    """
+    plugin_key = 'delete_duplicated_files'
+
+    @classmethod
+    def calculate_md5(cls, file_path):
+        import hashlib
+
+        """计算文件的MD5哈希值"""
+        hash_md5 = hashlib.md5()
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash_md5.update(chunk)
+        return hash_md5.hexdigest()
+
+    @classmethod
+    def find_duplicate_files(cls, root_folder):
+        """递归读取文件夹下所有文件并计算MD5出现次数"""
+        import os
+        from collections import defaultdict
+        md5_dict = defaultdict(list)
+
+        for root, _, files in os.walk(root_folder):
+            for file in files:
+                file_path = os.path.join(root, file)
+                file_md5 = cls.calculate_md5(file_path)
+                md5_dict[file_md5].append(file_path)
+
+        return md5_dict
+
+    def invoke(self,
+               limit,
+               album=None,
+               downloader=None,
+               delete_original_file=True,
+               **kwargs,
+               ) -> None:
+        if album is None:
+            return
+
+        self.delete_original_file = delete_original_file
+        # 获取到下载本子所在根目录
+        root_folder = self.option.dir_rule.decide_album_root_dir(album)
+        self.find_duplicated_files_and_delete(limit, root_folder, album)
+
+    def find_duplicated_files_and_delete(self, limit: int, root_folder: str, album: Optional[JmAlbumDetail] = None):
+        md5_dict = self.find_duplicate_files(root_folder)
+        # 打印MD5出现次数大于等于limit的文件
+        for md5, paths in md5_dict.items():
+            if len(paths) >= limit:
+                prefix = '' if album is None else f'({album.album_id}) '
+                message = [prefix + f'MD5: {md5} 出现次数: {len(paths)}'] + \
+                          [f'  {path}' for path in paths]
+                self.log('\n'.join(message))
+                self.execute_deletion(paths)
