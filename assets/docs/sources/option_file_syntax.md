@@ -191,6 +191,17 @@ plugins:
 
         zip_dir: D:/jmcomic/zip/ # 压缩文件存放的文件夹
         delete_original_file: true # 压缩成功后，删除所有原文件和文件夹
+    
+    # 删除重复文件插件
+    # 参考 → [https://github.com/hect0x7/JMComic-Crawler-Python/issues/244]
+    - plugin: delete_duplicated_files
+      kwargs:
+        # limit: 必填，表示对md5出现次数的限制
+        limit: 3
+        # 如果文件的md5的出现次数 >= limit，是否要删除
+        # 如果delete_original_file不配置，此插件只会打印信息，不会执行其他操作
+        # 如果limit=1, delete_original_file=true 效果会是删除所有文件 
+        delete_original_file: true
 
     - plugin: send_qq_email # 发送qq邮件插件
       kwargs:

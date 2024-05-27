@@ -1070,9 +1070,9 @@ class DeleteDuplicatedFilesPlugin(JmOptionPlugin):
         return md5_dict
 
     def invoke(self,
+               limit,
                album=None,
                downloader=None,
-               limit=2,
                delete_original_file=True,
                **kwargs,
                ) -> None:
@@ -1086,7 +1086,7 @@ class DeleteDuplicatedFilesPlugin(JmOptionPlugin):
 
     def find_duplicated_files_and_delete(self, limit: int, root_folder: str, album: Optional[JmAlbumDetail] = None):
         md5_dict = self.find_duplicate_files(root_folder)
-        # 打印MD5出现次数大于等于2的文件
+        # 打印MD5出现次数大于等于limit的文件
         for md5, paths in md5_dict.items():
             if len(paths) >= limit:
                 prefix = '' if album is None else f'({album.album_id}) '

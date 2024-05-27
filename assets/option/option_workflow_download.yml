@@ -34,10 +34,3 @@ plugins:
         password: ${EMAIL_PASS}
         title: ${EMAIL_TITLE}
         content: ${EMAIL_CONTENT}
-
-  after_album: # 每当一个本子下载完后，调用插件
-    - plugin: delete_duplicated_files
-      kwargs:
-        # 对md5出现次数的限制
-        limit: 2
-        delete_original_file: true
