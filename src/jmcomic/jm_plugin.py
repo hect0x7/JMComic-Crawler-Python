@@ -1,6 +1,7 @@
 """
 该文件存放的是option插件
 """
+import os.path
 
 from .jm_option import *
 
@@ -296,91 +297,63 @@ class ZipPlugin(JmOptionPlugin):
         zip_dir = JmcomicText.parse_to_abspath(zip_dir)
         mkdir_if_not_exists(zip_dir)
 
-        # 原文件夹 -> zip文件
-        dir_zip_dict: Dict[str, Optional[str]] = {}
+        path_to_delete = []
         photo_dict = downloader.download_success_dict[album]
 
         if level == 'album':
             zip_path = self.get_zip_path(album, None, filename_rule, suffix, zip_dir)
-            self.zip_album(album, photo_dict, zip_path, dir_zip_dict)
+            self.zip_album(album, photo_dict, zip_path, path_to_delete)
 
         elif level == 'photo':
             for photo, image_list in photo_dict.items():
                 zip_path = self.get_zip_path(None, photo, filename_rule, suffix, zip_dir)
-                self.zip_photo(photo, image_list, zip_path, dir_zip_dict)
+                self.zip_photo(photo, image_list, zip_path, path_to_delete)
 
         else:
             ExceptionTool.raises(f'Not Implemented Zip Level: {level}')
 
-        self.after_zip(dir_zip_dict)
+        self.after_zip(path_to_delete)
 
-    def zip_photo(self, photo, image_list: list, zip_path: str, dir_zip_dict) -> Optional[str]:
+    def zip_photo(self, photo, image_list: list, zip_path: str, path_to_delete):
         """
         压缩photo文件夹
-        :returns: photo文件夹路径
         """
         photo_dir = self.option.decide_image_save_dir(photo) \
             if len(image_list) == 0 \
             else os.path.dirname(image_list[0][0])
 
-        all_filepath = set(map(lambda t: self.unified_path(t[0]), image_list))
-
-        if len(all_filepath) == 0:
-            self.log('无下载文件，无需压缩', 'skip')
-            return None
-
         from common import backup_dir_to_zip
-        backup_dir_to_zip(
-            photo_dir,
-            zip_path,
-            acceptor=lambda f: os.path.isdir(f) or self.unified_path(f) in all_filepath
-        ).close()
+        backup_dir_to_zip(photo_dir, zip_path)
 
         self.log(f'压缩章节[{photo.photo_id}]成功 → {zip_path}', 'finish')
-        dir_zip_dict[self.unified_path(photo_dir)] = zip_path
+        path_to_delete.append(self.unified_path(photo_dir))
 
     @staticmethod
     def unified_path(f):
         return fix_filepath(f, os.path.isdir(f))
 
-    def zip_album(self, album, photo_dict: dict, zip_path, dir_zip_dict) -> Optional[str]:
+    def zip_album(self, album, photo_dict: dict, zip_path, path_to_delete):
         """
         压缩album文件夹
-        :returns: album文件夹路径
         """
 
-        # 所有下载了的图片文件的路径
-        all_filepath: Set[str] = set(path for ls in photo_dict.values() for path, _ in ls)
-
-        if len(all_filepath) == 0:
-            self.log('无下载文件，无需压缩', 'skip')
-            return
-
-        # 该本子的所有章节的图片所在文件夹
-        photo_dir_set = set()
-        for photo in photo_dict.keys():
-            photo_dir = self.unified_path(self.option.decide_image_save_dir(photo))
-            photo_dir_set.add(photo_dir)
-            dir_zip_dict[photo_dir] = zip_path
-
         album_dir = self.option.dir_rule.decide_album_root_dir(album)
-
-        # 从album根目录开始遍历
         import zipfile
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as f:
-            for photo_dir in photo_dir_set:
-                for _, _, files in os.walk(photo_dir):
-                    # 遍历当前目录下的文件
-                    for file in files:
-                        abspath = os.path.join(photo_dir, file)
-                        # 将相对路径添加到zip文件中，避免保存绝对路径
-                        relpath = os.path.relpath(abspath, album_dir)
-                        f.write(abspath, relpath)
+            for photo in photo_dict.keys():
+                # 定位到章节所在文件夹
+                photo_dir = self.unified_path(self.option.decide_image_save_dir(photo))
+                # 章节文件夹标记为删除
+                path_to_delete.append(photo_dir)
+                for file in files_of_dir(photo_dir):
+                    abspath = os.path.join(photo_dir, file)
+                    relpath = os.path.relpath(abspath, album_dir)
+                    f.write(abspath, relpath)
         self.log(f'压缩本子[{album.album_id}]成功 → {zip_path}', 'finish')
 
-    def after_zip(self, dir_zip_dict: Dict[str, Optional[str]]):
+    def after_zip(self, path_to_delete: List[str]):
         # 删除所有原文件
-        dirs = sorted(dir_zip_dict.keys(), reverse=True)
+        dirs = sorted(path_to_delete, reverse=True)
         image_paths = [
             path
             for photo_dict in self.downloader.download_success_dict.values()
