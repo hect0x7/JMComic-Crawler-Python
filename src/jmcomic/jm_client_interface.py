@@ -399,6 +399,7 @@ class JmCategoryClient:
                           time: str,
                           category: str,
                           order_by: str,
+                          sub_category: Optional[str] = None,
                           ) -> JmCategoryPage:
         """
         分类
@@ -406,6 +407,7 @@ class JmCategoryClient:
         :param page: 页码
         :param time: 时间范围，默认是全部时间
         :param category: 类别，默认是最新，即显示最新的禁漫本子
+        :param sub_category: 副分类，仅网页端有这功能
         :param order_by: 排序方式，默认是观看数
         """
         raise NotImplementedError
@@ -580,6 +582,7 @@ class JmcomicClient(
                               time: str = JmMagicConstants.TIME_ALL,
                               category: str = JmMagicConstants.CATEGORY_ALL,
                               order_by: str = JmMagicConstants.ORDER_BY_LATEST,
+                              sub_category: Optional[str] = None,
                               ) -> Generator[JmCategoryPage, Dict, None]:
         """
         见 search_gen
@@ -588,6 +591,7 @@ class JmcomicClient(
             'time': time,
             'category': category,
             'order_by': order_by,
+            'sub_category': sub_category,
         }
 
         yield from self.do_page_iter(params, page, self.categories_filter)

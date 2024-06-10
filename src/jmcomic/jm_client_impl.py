@@ -238,6 +238,7 @@ class JmHtmlClient(AbstractJmClient):
     func_to_cache = ['search', 'fetch_detail_entity']
 
     API_SEARCH = '/search/photos'
+    API_CATEGORY = '/albums'
 
     def add_favorite_album(self,
                            album_id,
@@ -320,7 +321,7 @@ class JmHtmlClient(AbstractJmClient):
             't': time,
         }
 
-        url = self.build_search_url(category, sub_category)
+        url = self.build_search_url(self.API_SEARCH, category, sub_category)
 
         resp = self.get_jm_html(
             self.append_params_to_url(url, params),
@@ -336,28 +337,30 @@ class JmHtmlClient(AbstractJmClient):
             return JmPageTool.parse_html_to_search_page(resp.text)
 
     @classmethod
-    def build_search_url(cls, category: str, sub_category: Optional[str]):
+    def build_search_url(cls, base: str, category: str, sub_category: Optional[str]):
         """
-        构建网页搜索URL
-        示例：
+        构建网页搜索/分类的URL
 
+        示例：
+        :param base: "/search/photos"
         :param category CATEGORY_DOUJIN
         :param sub_category SUB_DOUJIN_CG
-        :return '/search/photos/doujin/sub/CG?'
+        :return "/search/photos/doujin/sub/CG"
         """
         if category == JmMagicConstants.CATEGORY_ALL:
-            return cls.API_SEARCH
+            return base
 
         if sub_category is None:
-            return f'{cls.API_SEARCH}/{category}'
+            return f'{base}/{category}'
         else:
-            return f'{cls.API_SEARCH}/{category}/sub/{sub_category}'
+            return f'{base}/{category}/sub/{sub_category}'
 
     def categories_filter(self,
                           page: int,
                           time: str,
                           category: str,
                           order_by: str,
+                          sub_category: Optional[str] = None,
                           ) -> JmCategoryPage:
         params = {
             'page': page,
@@ -365,7 +368,7 @@ class JmHtmlClient(AbstractJmClient):
             't': time,
         }
 
-        url = f'/albums/' + (category if category != JmMagicConstants.CATEGORY_ALL else '')
+        url = self.build_search_url(self.API_CATEGORY, category, sub_category)
 
         resp = self.get_jm_html(
             self.append_params_to_url(url, params),
@@ -635,7 +638,11 @@ class JmApiClient(AbstractJmClient):
                           time: str,
                           category: str,
                           order_by: str,
+                          sub_category: Optional[str] = None,
                           ):
+        """
+        移动端不支持 sub_category
+        """
         # o: mv, mv_m, mv_w, mv_t
         o = f'{order_by}_{time}' if time != JmMagicConstants.TIME_ALL else order_by
 
