@@ -538,6 +538,7 @@ class JmcomicClient(
                    order_by: str = JmMagicConstants.ORDER_BY_LATEST,
                    time: str = JmMagicConstants.TIME_ALL,
                    category: str = JmMagicConstants.CATEGORY_ALL,
+                   sub_category: Optional[str] = None,
                    ) -> Generator[JmSearchPage, Dict, None]:
         """
         搜索结果的生成器，支持下面这种调用方式：
@@ -569,6 +570,7 @@ class JmcomicClient(
             'order_by': order_by,
             'time': time,
             'category': category,
+            'sub_category': sub_category,
         }
 
         yield from self.do_page_iter(params, page, self.search)

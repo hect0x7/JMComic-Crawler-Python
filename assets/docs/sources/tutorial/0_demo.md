@@ -144,16 +144,56 @@ page: JmCategoryPage = cl.month_ranking(1)
 page: JmCategoryPage = cl.week_ranking(1)
 
 # 循环获取分页，使用 cl.categories_filter_gen
-for page in cl.categories_filter_gen(1, # 起始页码
+for page in cl.categories_filter_gen(page=1, # 起始页码
                                      # 下面是分类参数
-                                     JmMagicConstants.TIME_WEEK,
-                                     JmMagicConstants.CATEGORY_ALL,
-                                     JmMagicConstants.ORDER_BY_VIEW,
+                                     time=JmMagicConstants.TIME_WEEK,
+                                     category=JmMagicConstants.CATEGORY_ALL,
+                                     order_by=JmMagicConstants.ORDER_BY_VIEW,
                                      ):
     for aid, atitle in page:
         print(aid, atitle)
 
 ```
+
+## 高级搜索
+
+* 禁漫网页端的搜索除了常规条件，还支持【分类】和【副分类】的搜索，下面演示代码如何调用。
+* 注意！！禁漫移动端没有提供如下功能，以下代码仅对网页端生效。
+
+```python
+# 在编写代码前，建议先熟悉禁漫网页的搜本功能，下面的代码都是对照网页编写的。
+# 网页搜索示例：https://18comic.vip/search/photos/doujin/sub/CG?main_tag=0&search_query=mana&page=1&o=mr&t=a
+
+from jmcomic import *
+
+op = create_option_by_file('op.yml')
+# 创建网页端client
+html_cl = op.new_jm_client(impl='html')
+
+# 使用站内搜索，指定【分类】和【副分类】
+# 分类 = JmMagicConstants.CATEGORY_DOUJIN = 同人本
+# 副分类 = JmMagicConstants.SUB_DOUJIN_CG = CG本
+# 实际URL：https://18comic.vip/search/photos/doujin/sub/CG?main_tag=0&search_query=mana&page=1&o=mr&t=a
+page = html_cl.search_site(search_query='mana',
+                           category=JmMagicConstants.CATEGORY_DOUJIN,
+                           sub_category=JmMagicConstants.SUB_DOUJIN_CG,
+                           page=1,
+                           )
+# 打印page内容
+for aid, atitle in page.iter_id_title():
+    print(aid, atitle)
+
+# 循环获取分页
+for page in html_cl.search_gen(search_query='mana',
+                               category=JmMagicConstants.CATEGORY_DOUJIN,
+                               sub_category=JmMagicConstants.SUB_DOUJIN_CG,
+                               page=1,
+                               ):
+    # 打印page内容
+    for aid, atitle in page.iter_id_title():
+        print(aid, atitle)
+```
+
 
 ## 手动创建Client
 
