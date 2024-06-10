@@ -370,7 +370,6 @@ class ZipPlugin(JmOptionPlugin):
                 photo_dir,
                 zip_path,
                 zfile=zfile,
-                prefix=os.path.basename(photo_dir.rstrip('/')),
                 acceptor=lambda f: os.path.isdir(f) or self.unified_path(f) in all_filepath
             )
             dir_zip_dict[photo_dir] = zip_path

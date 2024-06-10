@@ -308,9 +308,14 @@ class JmSearchAlbumClient:
                main_tag: int,
                order_by: str,
                time: str,
+               category: str,
+               sub_category: Optional[str],
                ) -> JmSearchPage:
         """
         搜索【成人A漫】
+        网页端与移动端的搜索有差别：
+
+        - 移动端不支持 category, sub_category参数，网页端支持全部参数
         """
         raise NotImplementedError
 
@@ -319,55 +324,65 @@ class JmSearchAlbumClient:
                     page: int = 1,
                     order_by: str = JmMagicConstants.ORDER_BY_LATEST,
                     time: str = JmMagicConstants.TIME_ALL,
+                    category: str = JmMagicConstants.CATEGORY_ALL,
+                    sub_category: Optional[str] = None,
                     ):
         """
         对应禁漫的站内搜索
         """
-        return self.search(search_query, page, 0, order_by, time)
+        return self.search(search_query, page, 0, order_by, time, category, sub_category)
 
     def search_work(self,
                     search_query: str,
                     page: int = 1,
                     order_by: str = JmMagicConstants.ORDER_BY_LATEST,
                     time: str = JmMagicConstants.TIME_ALL,
+                    category: str = JmMagicConstants.CATEGORY_ALL,
+                    sub_category: Optional[str] = None,
                     ):
         """
         搜索album的作品 work
         """
-        return self.search(search_query, page, 1, order_by, time)
+        return self.search(search_query, page, 1, order_by, time, category, sub_category)
 
     def search_author(self,
                       search_query: str,
                       page: int = 1,
                       order_by: str = JmMagicConstants.ORDER_BY_LATEST,
                       time: str = JmMagicConstants.TIME_ALL,
+                      category: str = JmMagicConstants.CATEGORY_ALL,
+                      sub_category: Optional[str] = None,
                       ):
         """
         搜索album的作者 author
         """
-        return self.search(search_query, page, 2, order_by, time)
+        return self.search(search_query, page, 2, order_by, time, category, sub_category)
 
     def search_tag(self,
                    search_query: str,
                    page: int = 1,
                    order_by: str = JmMagicConstants.ORDER_BY_LATEST,
                    time: str = JmMagicConstants.TIME_ALL,
+                   category: str = JmMagicConstants.CATEGORY_ALL,
+                   sub_category: Optional[str] = None,
                    ):
         """
         搜索album的标签 tag
         """
-        return self.search(search_query, page, 3, order_by, time)
+        return self.search(search_query, page, 3, order_by, time, category, sub_category)
 
     def search_actor(self,
                      search_query: str,
                      page: int = 1,
                      order_by: str = JmMagicConstants.ORDER_BY_LATEST,
                      time: str = JmMagicConstants.TIME_ALL,
+                     category: str = JmMagicConstants.CATEGORY_ALL,
+                     sub_category: Optional[str] = None,
                      ):
         """
         搜索album的登场角色 actor
         """
-        return self.search(search_query, page, 4, order_by, time)
+        return self.search(search_query, page, 4, order_by, time, category, sub_category)
 
 
 class JmCategoryClient:
@@ -522,6 +537,7 @@ class JmcomicClient(
                    page: int = 1,
                    order_by: str = JmMagicConstants.ORDER_BY_LATEST,
                    time: str = JmMagicConstants.TIME_ALL,
+                   category: str = JmMagicConstants.CATEGORY_ALL,
                    ) -> Generator[JmSearchPage, Dict, None]:
         """
         搜索结果的生成器，支持下面这种调用方式：
@@ -552,6 +568,7 @@ class JmcomicClient(
             'main_tag': main_tag,
             'order_by': order_by,
             'time': time,
+            'category': category,
         }
 
         yield from self.do_page_iter(params, page, self.search)

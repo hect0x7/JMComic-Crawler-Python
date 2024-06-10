@@ -35,7 +35,29 @@ class JmMagicConstants:
     CATEGORY_DOUJIN_COSPLAY = 'doujin_cosplay'  # cosplay
     CATEGORY_3D = '3D'  # 3D
     CATEGORY_ENGLISH_SITE = 'english_site'  # 英文站
-    CATEGORY_JM_TEAM = '禁漫漢化組'
+
+    # 副分类
+    SUB_CHINESE = 'chinese'  # 汉化，通用副分类
+    SUB_JAPANESE = 'japanese'  # 日语，通用副分类
+
+    # 其他类（CATEGORY_ANOTHER）的副分类
+    SUB_ANOTHER_OTHER = 'other'  # 其他漫画
+    SUB_ANOTHER_3D = '3d'  # 3D
+    SUB_ANOTHER_COSPLAY = 'cosplay'  # cosplay
+
+    # 同人（SUB_CHINESE）的副分类
+    SUB_DOUJIN_CG = 'CG'  # CG
+    SUB_DOUJIN_CHINESE = SUB_CHINESE
+    SUB_DOUJIN_JAPANESE = SUB_JAPANESE
+
+    # 短篇（CATEGORY_SHORT）的副分类
+    SUB_SHORT_CHINESE = SUB_CHINESE
+    SUB_SHORT_JAPANESE = SUB_JAPANESE
+
+    # 单本（CATEGORY_SINGLE）的副分类
+    SUB_SINGLE_CHINESE = SUB_CHINESE
+    SUB_SINGLE_JAPANESE = SUB_JAPANESE
+    SUB_SINGLE_YOUTH = 'youth'
 
     # 分页大小
     PAGE_SIZE_SEARCH = 80

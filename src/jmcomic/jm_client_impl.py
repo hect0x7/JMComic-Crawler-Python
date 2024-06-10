@@ -237,6 +237,8 @@ class JmHtmlClient(AbstractJmClient):
 
     func_to_cache = ['search', 'fetch_detail_entity']
 
+    API_SEARCH = '/search/photos'
+
     def add_favorite_album(self,
                            album_id,
                            folder_id='0',
@@ -304,7 +306,12 @@ class JmHtmlClient(AbstractJmClient):
                main_tag: int,
                order_by: str,
                time: str,
+               category: str,
+               sub_category: Optional[str],
                ) -> JmSearchPage:
+        """
+        网页搜索API
+        """
         params = {
             'main_tag': main_tag,
             'search_query': search_query,
@@ -313,8 +320,10 @@ class JmHtmlClient(AbstractJmClient):
             't': time,
         }
 
+        url = self.build_search_url(category, sub_category)
+
         resp = self.get_jm_html(
-            self.append_params_to_url('/search/photos', params),
+            self.append_params_to_url(url, params),
             allow_redirects=True,
         )
 
@@ -325,6 +334,24 @@ class JmHtmlClient(AbstractJmClient):
             return JmSearchPage.wrap_single_album(album)
         else:
             return JmPageTool.parse_html_to_search_page(resp.text)
+
+    @classmethod
+    def build_search_url(cls, category: str, sub_category: Optional[str]):
+        """
+        构建网页搜索URL
+        示例：
+
+        :param category CATEGORY_DOUJIN
+        :param sub_category SUB_DOUJIN_CG
+        :return '/search/photos/doujin/sub/CG?'
+        """
+        if category == JmMagicConstants.CATEGORY_ALL:
+            return cls.API_SEARCH
+
+        if sub_category is None:
+            return f'{cls.API_SEARCH}/{category}'
+        else:
+            return f'{cls.API_SEARCH}/{category}/sub/{sub_category}'
 
     def categories_filter(self,
                           page: int,
@@ -573,7 +600,12 @@ class JmApiClient(AbstractJmClient):
                main_tag: int,
                order_by: str,
                time: str,
+               category: str,
+               sub_category: Optional[str],
                ) -> JmSearchPage:
+        """
+        移动端暂不支持 category和sub_category
+        """
         params = {
             'main_tag': main_tag,
             'search_query': search_query,
