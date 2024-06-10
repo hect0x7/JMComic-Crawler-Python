@@ -192,7 +192,7 @@ for aid, atitle in page.iter_id_title():
 for page in html_cl.search_gen(search_query='mana',
                                category=JmMagicConstants.CATEGORY_DOUJIN,
                                sub_category=JmMagicConstants.SUB_DOUJIN_CG,
-                               page=1,
+                               page=1,  # 起始页码
                                ):
     # 打印page内容
     for aid, atitle in page.iter_id_title():
