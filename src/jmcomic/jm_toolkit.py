@@ -135,7 +135,7 @@ class JmcomicText:
                 last_pattern = pattern[len(pattern) - 1]
                 # 缩小文本
                 for i in range(0, len(pattern) - 1):
-                    match = pattern[i].search(text)
+                    match: Match = pattern[i].search(text)
                     if match is None:
                         return None
                     text = match[0]

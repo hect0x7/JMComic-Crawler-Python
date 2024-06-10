@@ -155,7 +155,7 @@ class Test_Client(JmTestConfigurable):
                     list2=ans,
                 )
 
-    def test_search_advanced(self):
+    def test_search_params(self):
         elist = []
 
         def search_and_test(expected_result, params):
@@ -310,3 +310,35 @@ class Test_Client(JmTestConfigurable):
         )
 
         return [f.result() for f in future_ls]  # 等待执行完毕
+
+    def test_search_advanced(self):
+        if not self.client.is_given_type(JmHtmlClient):
+            return
+
+        # noinspection PyTypeChecker
+        html_cl: JmHtmlClient = self.client
+        # 循环获取分页
+        for page in html_cl.search_gen(
+                search_query='mana',
+                page=1,  # 起始页码
+                category=JmMagicConstants.CATEGORY_DOUJIN,
+                sub_category=JmMagicConstants.SUB_DOUJIN_CG,
+                time=JmMagicConstants.TIME_ALL,
+        ):
+            self.print_page(page)
+
+        print_sep()
+        for page in html_cl.categories_filter_gen(
+                page=1,  # 起始页码
+                category=JmMagicConstants.CATEGORY_DOUJIN,
+                sub_category=JmMagicConstants.SUB_DOUJIN_CG,
+                time=JmMagicConstants.TIME_ALL,
+        ):
+            self.print_page(page)
+            break
+
+    @staticmethod
+    def print_page(page):
+        # 打印page内容
+        for aid, atitle in page:
+            print(aid, atitle)
