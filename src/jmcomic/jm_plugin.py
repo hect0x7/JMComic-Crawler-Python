@@ -357,24 +357,25 @@ class ZipPlugin(JmOptionPlugin):
             return
 
         # 该本子的所有章节的图片所在文件夹
-        photo_dir_list = [self.option.decide_image_save_dir(photo) for photo in photo_dict.keys()]
-
-        # 压缩文件对象
-        from common import backup_dir_to_zip
-        import zipfile
-        zfile = zipfile.ZipFile(zip_path, 'w')
-
-        for photo_dir in photo_dir_list:
-            photo_dir = self.unified_path(photo_dir)
-            backup_dir_to_zip(
-                photo_dir,
-                zip_path,
-                zfile=zfile,
-                acceptor=lambda f: os.path.isdir(f) or self.unified_path(f) in all_filepath
-            )
+        photo_dir_set = set()
+        for photo in photo_dict.keys():
+            photo_dir = self.unified_path(self.option.decide_image_save_dir(photo))
+            photo_dir_set.add(photo_dir)
             dir_zip_dict[photo_dir] = zip_path
 
-        zfile.close()
+        album_dir = self.option.dir_rule.decide_album_root_dir(album)
+
+        # 从album根目录开始遍历
+        import zipfile
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as f:
+            for photo_dir in photo_dir_set:
+                for _, _, files in os.walk(photo_dir):
+                    # 遍历当前目录下的文件
+                    for file in files:
+                        abspath = os.path.join(photo_dir, file)
+                        # 将相对路径添加到zip文件中，避免保存绝对路径
+                        relpath = os.path.relpath(abspath, album_dir)
+                        f.write(abspath, relpath)
         self.log(f'压缩本子[{album.album_id}]成功 → {zip_path}', 'finish')
 
     def after_zip(self, dir_zip_dict: Dict[str, Optional[str]]):
@@ -649,7 +650,7 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
         """
         import zipfile
 
-        with zipfile.ZipFile(zip_path, 'w') as zipf:
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
             # 获取文件夹中的文件列表并将其添加到 ZIP 文件中
             for file in files:
                 zipf.write(file, arcname=of_file_name(file))
