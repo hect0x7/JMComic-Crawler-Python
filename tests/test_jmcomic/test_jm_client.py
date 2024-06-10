@@ -312,7 +312,11 @@ class Test_Client(JmTestConfigurable):
         return [f.result() for f in future_ls]  # 等待执行完毕
 
     def test_search_advanced(self):
-        html_cl = self.option.new_jm_client(impl='html')
+        if not self.client.is_given_type(JmHtmlClient):
+            return
+
+        # noinspection PyTypeChecker
+        html_cl: JmHtmlClient = self.client
         # 循环获取分页
         for page in html_cl.search_gen(
                 search_query='mana',

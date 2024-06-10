@@ -229,6 +229,4 @@ cl = JmApiClient(
     domain_list=JmModuleConfig.DOMAIN_API_LIST,
     retry_times=1
 )
-
-
 ```
