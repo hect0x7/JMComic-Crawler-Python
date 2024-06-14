@@ -13,7 +13,7 @@ JmOption.default().to_file('./option.yml') # 创建默认option，导出为optio
 
 ## 2. option常规配置项
 
-```yml
+```yaml
 # 开启jmcomic的日志输出，默认为true
 # 对日志有需求的可进一步参考文档 → https://jmcomic.readthedocs.io/en/latest/tutorial/11_log_custom/
 log: true
@@ -108,7 +108,7 @@ dir_rule:
 
 * **插件配置中的kwargs参数支持引用环境变量，语法为 ${环境变量名}**
 
-```yml
+```yaml
 # 插件的配置示例
 plugins:
   after_init:

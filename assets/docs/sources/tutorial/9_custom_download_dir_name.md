@@ -8,7 +8,7 @@
 
 你可以使用配置文件定制DirRule，例如下面的例子
 
-```yml
+```yaml
 dir_rule:
   base_dir: D:/a/b/c/
   # 规则含义: 根目录 / 章节标题 / 图片文件
@@ -36,7 +36,7 @@ D:/a/b/c/ddd/00003.webp
 
 1. 给你的自定义字段取个名
 
-```yml
+```yaml
 dir_rule: # 忽略base_dir配置项
   rule: Bd_Amyname # A表示本子，myname表示本子的一个自定义字段
 ```
@@ -102,7 +102,7 @@ JmModuleConfig.PFIELD_ADVICE['myname'] = lambda photo: f'【{photo.id}】{photo.
 
 ### 文件夹名=第x话+标题
 
-```yml
+```yaml
 # 直接使用内置字段 indextitle 即可
 dir_rule:
   rule: Bd_Pindextitle

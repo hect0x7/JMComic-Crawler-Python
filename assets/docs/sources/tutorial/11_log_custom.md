@@ -15,7 +15,7 @@ disable_jm_log()
 
 使用配置：
 
-```yml
+```yaml
 log: false
 ```
 
@@ -23,7 +23,7 @@ log: false
 
 使用插件配置
 
-```yml
+```yaml
 log: true
 
 plugins:
@@ -40,7 +40,7 @@ plugins:
 
 给插件配置加上一个`log`配置项即可
 
-```yml
+```yaml
 plugins:
   after_init:
     - plugin: client_proxy # 提高移动端的请求效率的插件
