@@ -32,7 +32,6 @@
 
 > ⚠如果你没有安装过Python，需要先安装Python再执行下面的步骤，且版本需要>=3.7（[点我去python官网下载](https://www.python.org/downloads/)）
 
-
 * 通过pip官方源安装（推荐，并且更新也是这个命令）
 
   ```shell
@@ -47,7 +46,9 @@
 ## 快速上手
 
 ### 1. 下载本子方法
+
 只需要使用如下代码，就可以下载本子`JM422866`的所有章节的图片：
+
 ```python
 import jmcomic  # 导入此模块，需要先安装.
 jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载整个album到本地.
@@ -56,13 +57,14 @@ jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载�
 上面的 `download_album`方法还有一个参数`option`，可用于控制下载配置，配置包括禁漫域名、网络代理、图片格式转换、插件等等。
 
 你可能需要这些配置项。推荐使用配置文件创建option，用option下载本子，见下章：
+
 ### 2. 使用option配置来下载本子
 
 1. 首先，创建一个配置文件，假设文件名为 `option.yml`
-   
-    该文件有特定的写法，你需要参考这个文档 → [option配置](./assets/docs/sources/option_file_syntax.md)
-    
-    下面做一个演示，假设你需要把下载的图片转为png格式，你应该把以下内容写进`option.yml`
+
+   该文件有特定的写法，你需要参考这个文档 → [option配置](./assets/docs/sources/option_file_syntax.md)
+
+   下面做一个演示，假设你需要把下载的图片转为png格式，你应该把以下内容写进`option.yml`
 
 ```yml
 download:
@@ -71,6 +73,7 @@ download:
 ```
 
 2. 第二步，运行下面的python代码
+
 ```python
 import jmcomic
 
@@ -81,16 +84,11 @@ jmcomic.download_album(422866, option)
 # 等价写法: option.download_album(422866)
 ```
 
-
-
 ## 进阶使用
 
-请查阅文档网站→[jmcomic.readthedocs.io](https://jmcomic.readthedocs.io/zh-cn/latest)
+请查阅文档首页→[jmcomic.readthedocs.io](https://jmcomic.readthedocs.io/zh-cn/latest)
 
-首先，就下载功能，jmcomic提供了很多配置项，大部分的下载需求你都可以通过上文介绍的配置文件来配置。
-
-如果你不满足于下载，还有其他的使用需求，推荐你先看看以下文档
-
+（提示：jmcomic提供了很多下载配置项，大部分的下载需求你都可以尝试寻找相关配置项或插件来实现。）
 
 ## 项目特点
 
@@ -98,35 +96,35 @@ jmcomic.download_album(422866, option)
 - **实现禁漫APP接口最新的加解密算法 (1.6.3)**
 - 用法多样：
 
-    - GitHub
-      Actions：网页上直接输入本子id就能下载（[教程：使用GitHub Actions下载禁漫本子](./assets/docs/sources/tutorial/1_github_actions.md)）
-    - 命令行：无需写Python代码，简单易用（[教程：使用命令行下载禁漫本子](./assets/docs/sources/tutorial/2_command_line.md)）
-    - Python代码：最本质、最强大的使用方式，需要你有一定的python编程基础
+  - GitHub
+    Actions：网页上直接输入本子id就能下载（[教程：使用GitHub Actions下载禁漫本子](./assets/docs/sources/tutorial/1_github_actions.md)）
+  - 命令行：无需写Python代码，简单易用（[教程：使用命令行下载禁漫本子](./assets/docs/sources/tutorial/2_command_line.md)）
+  - Python代码：最本质、最强大的使用方式，需要你有一定的python编程基础
 - 支持**网页端**和**移动端**两种客户端实现，可通过配置切换（**移动端不限ip兼容性好，网页端限制ip地区但效率高**）
 - 支持**自动重试和域名切换**机制
 - **多线程下载**（可细化到一图一线程，效率极高）
 - **可配置性强**
 
-    - 不配置也能使用，十分方便
-    - 配置可以从配置文件生成，支持多种文件格式
-    - 配置点有：`请求域名` `客户端实现` `是否使用磁盘缓存` `同时下载的章节/图片数量` `图片格式转换` `下载路径规则` `请求元信息（headers,cookies,proxies）`
-  等
+  - 不配置也能使用，十分方便
+  - 配置可以从配置文件生成，支持多种文件格式
+  - 配置点有：`请求域名` `客户端实现` `是否使用磁盘缓存` `同时下载的章节/图片数量` `图片格式转换` `下载路径规则` `请求元信息（headers,cookies,proxies）`
+    等
 - **可扩展性强**
 
-    - 支持自定义本子/章节/图片下载前后的回调函数
-    - 支持自定义类：`Downloader（负责调度）` `Option（负责配置）` `Client（负责请求）` `实体类`等
-    - 支持自定义日志、异常监听器
-    - **支持Plugin插件，可以方便地扩展功能，以及使用别人的插件，目前内置插件有**：
-        - `登录插件`
-        - `硬件占用监控插件`
-        - `只下载新章插件`
-        - `压缩文件插件`
-        - `下载特定后缀图片插件`
-        - `发送QQ邮件插件`
-        - `日志主题过滤插件`
-        - `自动使用浏览器cookies插件`
-        - `jpg图片合成为一个pdf插件`
-        - `导出收藏夹为csv文件插件`
+  - 支持自定义本子/章节/图片下载前后的回调函数
+  - 支持自定义类：`Downloader（负责调度）` `Option（负责配置）` `Client（负责请求）` `实体类`等
+  - 支持自定义日志、异常监听器
+  - **支持Plugin插件，可以方便地扩展功能，以及使用别人的插件，目前内置插件有**：
+    - `登录插件`
+    - `硬件占用监控插件`
+    - `只下载新章插件`
+    - `压缩文件插件`
+    - `下载特定后缀图片插件`
+    - `发送QQ邮件插件`
+    - `日志主题过滤插件`
+    - `自动使用浏览器cookies插件`
+    - `jpg图片合成为一个pdf插件`
+    - `导出收藏夹为csv文件插件`
 
 ## 使用小说明
 
@@ -138,13 +136,11 @@ jmcomic.download_album(422866, option)
 * .github：GitHub Actions配置文件
 * assets：存放一些非代码的资源文件
 
-    * docs：项目文档
-    * option：存放配置文件
-
+  * docs：项目文档
+  * option：存放配置文件
 * src：存放源代码
 
-    * jmcomic：`jmcomic`模块
-
+  * jmcomic：`jmcomic`模块
 * tests：测试目录，存放测试代码，使用unittest
 * usage：用法目录，存放示例/使用代码
 
