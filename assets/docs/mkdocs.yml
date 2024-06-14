@@ -30,7 +30,6 @@ theme:
     - search.highlight
     - search.share
     - navigation.tabs
-    - navigation.tabs.sticky
 plugins:
   - search
   - mkdocstrings:
