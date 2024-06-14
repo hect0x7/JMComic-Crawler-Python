@@ -62,7 +62,7 @@ jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载�
 
 1. 首先，创建一个配置文件，假设文件名为 `option.yml`
 
-   该文件有特定的写法，你需要参考这个文档 → [option配置](./assets/docs/sources/option_file_syntax.md)
+   该文件有特定的写法，你需要参考这个文档 → [配置文件指南](./assets/docs/sources/option_file_syntax.md)
 
    下面做一个演示，假设你需要把下载的图片转为png格式，你应该把以下内容写进`option.yml`
 
