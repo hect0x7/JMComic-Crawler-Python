@@ -17,8 +17,8 @@ plugins:
 
 
 markdown_extensions:
-  - markdown_include.include:
-      base_path: .
-  - admonition
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
 
 docs_dir: sources
