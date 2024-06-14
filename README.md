@@ -85,18 +85,12 @@ jmcomic.download_album(422866, option)
 
 ## 进阶使用
 
-文档网站：[jmcomic.readthedocs.io](https://jmcomic.readthedocs.io/zh-cn/latest)
+请查阅文档网站→[jmcomic.readthedocs.io](https://jmcomic.readthedocs.io/zh-cn/latest)
 
 首先，就下载功能，jmcomic提供了很多配置项，大部分的下载需求你都可以通过上文介绍的配置文件来配置。
 
-如果你不满足于下载，还有其他的使用需求，推荐你先看看以下文档：
+如果你不满足于下载，还有其他的使用需求，推荐你先看看以下文档
 
-* [jmcomic常用类和方法演示](assets/docs/sources/tutorial/0_demo.md)
-* [option配置文件语法（包含插件配置）](./assets/docs/sources/option_file_syntax.md)
-* [GitHub Actions使用教程](./assets/docs/sources/tutorial/1_github_actions.md)
-* [命令行使用教程](assets/docs/sources/tutorial/2_command_line.md)
-* [插件机制](assets/docs/sources/tutorial/6_plugin.md)
-* [下载过滤器机制](assets/docs/sources/tutorial/5_filter.md)
 
 ## 项目特点
 

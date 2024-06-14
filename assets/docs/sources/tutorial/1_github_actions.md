@@ -1,4 +1,4 @@
-# GitHub Actions教程
+# GitHub Actions使用教程
 
 一共需要三步：
 
