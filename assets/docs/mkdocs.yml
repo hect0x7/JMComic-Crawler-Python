@@ -30,8 +30,7 @@ theme:
     - search.highlight
     - search.share
     - navigation.tabs
-    - header.autohide
-    - navigation.footer
+    - navigation.top
 plugins:
   - search
   - mkdocstrings:
