@@ -20,7 +20,7 @@ plugin的机制为，可在`特定时间` 回调 `特定插件`。
 
 首先，你需要在option配置文件当中配置如下内容，来实现在after_init时，调用login插件。
 
-```yml
+```yaml
 plugins:
   after_init: # 时机
     - plugin: login # 插件的key
@@ -69,7 +69,7 @@ JmModuleConfig.register_plugin(MyPlugin)
 
 接下来，在option中配置如下内容来使用你的插件
 
-```yml
+```yaml
 # 3. 在配置文件中使用plugin
 plugins:
   after_init: # 时机

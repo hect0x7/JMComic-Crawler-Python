@@ -2,11 +2,9 @@
 
 ## 1. 配置前需知
 
-* option有`默认值`，当你使用配置文件来创建option时，你配置文件中的值会覆盖`默认值`。
+* option有`默认值`，你配置文件中的配置项会覆盖`默认值`。因此你只需要添加感兴趣的配置项即可。
 
-  因此，在配置option时，不需要配置全部的值，只需要配置特定部分即可。
-
-* 你可以使用下面的代码来得到option的默认值，你可以删除其中的大部分配置项，只保留你要覆盖的配置项
+* 你也可以使用下面的代码来得到option的默认值。你可以删除其中的大部分配置项，只保留你要覆盖的配置项。
 
 ```python
 from jmcomic import JmOption
@@ -15,7 +13,7 @@ JmOption.default().to_file('./option.yml') # 创建默认option，导出为optio
 
 ## 2. option常规配置项
 
-```yml
+```yaml
 # 开启jmcomic的日志输出，默认为true
 # 对日志有需求的可进一步参考文档 → https://jmcomic.readthedocs.io/en/latest/tutorial/11_log_custom/
 log: true
@@ -110,7 +108,7 @@ dir_rule:
 
 * **插件配置中的kwargs参数支持引用环境变量，语法为 ${环境变量名}**
 
-```yml
+```yaml
 # 插件的配置示例
 plugins:
   after_init:

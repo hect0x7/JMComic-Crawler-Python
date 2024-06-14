@@ -1,102 +1,39 @@
-# jmcomic
+首页
+=====================================
 
-Python API for JMComic（禁漫天堂）
 
-## Features
 
-- Bypasses Cloudflare anti-bot measures.
-- Multiple usage ways:
+> jmcomic库封装了一套可用于爬取禁漫的Python API.
+>
+> 你可以通过简单的几行Python代码，访问禁漫的接口，以及下载禁漫的本子。
+> 
+> [查看项目更新计划](TODO.md)
 
-    - GitHub Actions: Requires only a GitHub account. (See
-      tutorial → [Tutorial - Download Album via GitHub Actions](./tutorial/1_github_actions.md))
-    - Command line: No need to write Python code, simple and easy to use. (See
-      tutorial → [Tutorial - Download Album via Command Line](./tutorial/2_command_line.md))
-    - Python code: The most flexible and powerful way, requires some basic knowledge of Python programming.
 
-- Supports two client implementations: web-based and mobile-based. Switchable through configuration (mobile-based has
-  better IP compatibility, web-based has higher efficiency).
-- Supports automatic request retry and domain switching mechanism.
-- Multi-threaded downloading (can be fine-tuned to one thread per image, highly efficient).
-- Highly configurable:
 
-    - Can be used without configuration, very convenient.
-    - Configuration can be generated from a configuration file, supports multiple file formats.
-    - Configuration options
-      include: `request domain`, `client implementation`, `number of chapters/images downloaded simultaneously`, `image format conversion`, `download path rules`, `request metadata (headers, cookies, proxies)`,
-      and more.
+## 入门
 
-- Highly extensible:
+- [快速上手(GitHub README)](https://github.com/hect0x7/JMComic-Crawler-Python/tree/master?tab=readme-ov-file#%E5%BF%AB%E9%80%9F%E4%B8%8A%E6%89%8B)
+- [常用类和方法演示](tutorial/0_common_usage)
+- [option配置以及插件写法](./option_file_syntax.md)
 
-    - Supports Plugin for easy functionality extension and use of other plugins.
-    - Currently built-in
-      plugins: `login plugin`, `hardware usage monitoring plugin`, `only download new chapters plugin`, `zip compression plugin`, `image suffix filter plugin` `send qq email plugin` `logging topic filter plugin` `auto set browser cookies plugin`.
-    - Supports custom callback functions before and after downloading album/chapter/images.
-    - Supports custom logging.
-    - Supports custom core
-      classes: `Downloader (responsible for scheduling)`, `Option (responsible for configuration)`, `Client (responsible for requests)`, `entity classes`,
-      and more.
 
-## Install
 
-- Install via official pip source (recommended, and also used for updates):
+## 特殊用法教程
+- [GitHub Actions使用教程](./tutorial/1_github_actions.md)
+- [命令行使用教程](tutorial/2_command_line.md)
+- [导出收藏夹教程](tutorial/10_export_favorites.md)
 
-```
-pip install jmcomic -i https://pypi.org/project --upgrade
-```
 
-- Install via GitHub code:
 
-```
-pip install git+https://github.com/hect0x7/JMComic-Crawler-Python
-```
+## 核心机制
+- [下载过滤器机制](tutorial/5_filter.md)
+- [插件机制](tutorial/6_plugin.md)
 
-## Getting Started
 
-### 1. Download album:
 
-- Python code
+## 自定义
+- [下载文件夹名](tutorial/9_custom_download_dir_name.md)
+- [日志](tutorial/9_custom_download_dir_name.md)
+- [模块](tutorial/4_module_custom.md)
 
-```python
-import jmcomic
-# Pass the ID of the album you want to download, and it will download all chapters of the album to your local machine.
-jmcomic.download_album('422866')
-```
-
-- Command line
-
-```
-jmcomic 422866
-```
-
-### 2. Customize download behavior using an option:
-
-For example, if you want to convert all downloaded images to the .jpg format, you can create a YAML file with the
-following content (refer to [option file syntax](./option_file_syntax.md)):
-
-```yml
-download:
-  image:
-    suffix: .jpg # Don't forget the '.'
-```
-
-Then, use one of the following ways:
-
-* Python code
-
-```python
-from jmcomic import download_album, create_option
-option = create_option('/path/to/your/optionfile')
-download_album('422866', option)
-```
-
-* Command line
-
-```
-jmcomic 422866 --option="/path/to/your/optionfile"
-```
-
-## Acknowledgement
-
-### Image Segmentation Algorithm Code + JMComic Mobile API
-
-[![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=tonquer&repo=JMComic-qt)](https://github.com/tonquer/JMComic-qt)
