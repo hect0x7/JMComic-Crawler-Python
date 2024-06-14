@@ -1,3 +1,6 @@
+nav:
+    - Home: '../../README.md'
+
 site_name: jmcomic
 theme:
   name: readthedocs

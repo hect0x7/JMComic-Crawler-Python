@@ -30,7 +30,7 @@
 
 ## 安装教程
 
-> ⚠如果你没有安装过Python，需要先安装Python再执行下面的步骤，且版本需要>=3.7（[点我去python官网下载](https://www.python.org/downloads/)）⚠
+> ⚠如果你没有安装过Python，需要先安装Python再执行下面的步骤，且版本需要>=3.7（[点我去python官网下载](https://www.python.org/downloads/)）
 
 
 * 通过pip官方源安装（推荐，并且更新也是这个命令）
@@ -85,7 +85,7 @@ jmcomic.download_album(422866, option)
 
 ## 进阶使用
 
-文档网站：[jmcomic.readthedocs.io](https://jmcomic.readthedocs.io/en/latest)
+文档网站：[jmcomic.readthedocs.io](https://jmcomic.readthedocs.io/zh-cn/latest)
 
 首先，就下载功能，jmcomic提供了很多配置项，大部分的下载需求你都可以通过上文介绍的配置文件来配置。
 
