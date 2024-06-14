@@ -3,25 +3,27 @@ site_name: jmcomic
 
 theme:
   palette:
-    # Palette toggle for light mode
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: 切换到浅色主题
     - media: "(prefers-color-scheme: light)"
       scheme: default
+      primary: indigo
+      accent: indigo
       toggle:
         icon: material/brightness-7
-        name: Switch to dark mode
-
-    # Palette toggle for dark mode
+        name: 切换到深色主题
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
+      primary: indigo
+      accent: indigo
       toggle:
         icon: material/brightness-4
-        name: Switch to light mode
+        name: 主题跟随系统
   name: material
-#  highlightjs: true
-#  color_mode: auto
-#  user_color_mode_toggle: true
-#  nav_style: primary
   features:
+    - navigation.sections
     - content.code.copy
     - content.code.select
     - search.suggest
@@ -40,6 +42,10 @@ plugins:
 
 
 markdown_extensions:
+  - attr_list
+  - toc:
+      permalink: true
+  - pymdownx.highlight
   - pymdownx.superfences
   - pymdownx.tabbed:
       alternate_style: true
@@ -49,6 +55,5 @@ markdown_extensions:
       pygments_lang_class: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
-  - pymdownx.superfences
 
 docs_dir: sources
