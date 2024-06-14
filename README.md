@@ -12,23 +12,26 @@
 
 ## 项目介绍
 
-本项目的核心功能是下载本子，基于此，设计了一套方便使用、便于扩展，能满足一些特殊下载需求的框架。
+本项目的核心功能是下载本子。
+
+基于此，设计了一套方便使用、便于扩展，能满足一些特殊下载需求的框架。
 
 目前核心功能实现较为稳定，项目也处于维护阶段。
 
-除了下载功能以外，也实现了其他的一些禁漫接口，按需实现，具体如下。
-
-### 已实现的禁漫API：
+除了下载功能以外，也实现了其他的一些禁漫接口，按需实现。目前已有功能：
 
 - 登录
-- 搜本
-- 分类 (排行榜)
-- 本子章节详情
+- 搜索本子（支持所有搜索项）
 - 图片下载解码
-- 收藏夹
-- 移动端接口加解密
+- 分类/排行榜
+- 本子/章节详情
+- 个人收藏夹
+- 接口加解密（APP的接口）
 
 ## 安装教程
+
+> ⚠如果你没有安装过Python，需要先安装Python再执行下面的步骤，且版本需要>=3.7（[点我去python官网下载](https://www.python.org/downloads/)）⚠
+
 
 * 通过pip官方源安装（推荐，并且更新也是这个命令）
 
@@ -53,7 +56,6 @@ jmcomic.download_album('422866')  # 传入要下载的album的id，即可下载�
 上面的 `download_album`方法还有一个参数`option`，可用于控制下载配置，配置包括禁漫域名、网络代理、图片格式转换、插件等等。
 
 你可能需要这些配置项。推荐使用配置文件创建option，用option下载本子，见下章：
-
 ### 2. 使用option配置来下载本子
 
 1. 首先，创建一个配置文件，假设文件名为 `option.yml`
@@ -76,6 +78,7 @@ import jmcomic
 option = jmcomic.create_option_by_file('你的配置文件路径，例如 D:/option.yml')
 # 使用option对象来下载本子
 jmcomic.download_album(422866, option)
+# 等价写法: option.download_album(422866)
 ```
 
 
@@ -155,4 +158,10 @@ jmcomic.download_album(422866, option)
 
 ### 图片分割算法代码+禁漫移动端API
 
-[![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=tonquer&repo=JMComic-qt)](https://github.com/tonquer/JMComic-qt)
+<a href="https://github.com/tonquer/JMComic-qt">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://github-readme-stats.vercel.app/api/pin/?username=tonquer&repo=JMComic-qt&theme=radical" />
+    <source media="(prefers-color-scheme: light)" srcset="https://github-readme-stats.vercel.app/api/pin/?username=tonquer&repo=JMComic-qt" />
+    <img alt="Repo Card" src="https://github-readme-stats.vercel.app/api/pin/?username=tonquer&repo=JMComic-qt" />
+  </picture>
+</a>
