@@ -29,7 +29,8 @@ theme:
     - search.suggest
     - search.highlight
     - search.share
-
+    - navigation.tabs
+    - navigation.tabs.sticky
 plugins:
   - search
   - mkdocstrings:
@@ -55,5 +56,6 @@ markdown_extensions:
       pygments_lang_class: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
+  - pymdownx.superfences
 
 docs_dir: sources
