@@ -20,9 +20,10 @@
 
 
 ## 特殊用法教程
-- [GitHub Actions使用教程](./tutorial/1_github_actions.md)
-- [命令行使用教程](tutorial/2_command_line.md)
-- [导出收藏夹教程](tutorial/10_export_favorites.md)
+- [使用GitHub Actions下载本子](./tutorial/1_github_actions.md)
+- [使用GitHub Actions导出收藏夹](tutorial/10_export_favorites.md)
+- [命令行用法教程](tutorial/2_command_line.md)
+- [测试你的ip能访问哪些禁漫域名](tutorial/8_pick_domain.md)
 
 
 

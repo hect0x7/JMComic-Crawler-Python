@@ -1,4 +1,4 @@
-# 日志自定义 - 如果你不想看到那么多的日志
+# 日志自定义
 
 本文档缘起于 GitHub Discussions: [discussions/195](https://github.com/hect0x7/JMComic-Crawler-Python/discussions/195)
 
