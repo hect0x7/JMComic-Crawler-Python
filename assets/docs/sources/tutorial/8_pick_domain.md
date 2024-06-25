@@ -16,7 +16,7 @@ meta_data = {
 disable_jm_log()
 
 
-def get_domain_ls():
+def get_all_domain():
     template = 'https://jmcmomic.github.io/go/{}.html'
     url_ls = [
         template.format(i)
@@ -39,9 +39,9 @@ def get_domain_ls():
     return domain_set
 
 
-domain_set = get_domain_ls()
-domain_status_dict = {}
+domain_set = get_all_domain()
 print(f'获取到{len(domain_set)}个域名，开始测试')
+domain_status_dict = {}
 
 
 def test_domain(domain: str):
