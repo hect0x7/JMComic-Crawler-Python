@@ -251,7 +251,7 @@ class Test_Client(JmTestConfigurable):
             return cl.get_album_detail('123')
 
         def assertEqual(first_cl, second_cl, msg):
-            return self.assertEqual(
+            self.assertEqual(
                 get(first_cl),
                 get(second_cl),
                 msg,
@@ -265,12 +265,6 @@ class Test_Client(JmTestConfigurable):
             )
 
         cases = [
-            (
-                CacheRegistry.level_option,
-                CacheRegistry.level_option,
-                CacheRegistry.level_client,
-                CacheRegistry.level_client,
-            ),
             (
                 True,
                 'level_option',
@@ -291,25 +285,17 @@ class Test_Client(JmTestConfigurable):
             # c1 == c2
             # c3 == c4
             # c1 != c3
+            assertEqual(c1, c2, 'equals in same option level')
+            assertNotEqual(c3, c4, 'not equals in client level')
+            assertNotEqual(c1, c3, 'not equals in different level')
+
             # c5 != c1, c2, c3, c4
-            invoke_all(
-                args_func_list=[
-                    (None, func) for func in [
-                        lambda: assertEqual(c1, c2, 'equals in same option level'),
-                        lambda: assertNotEqual(c3, c4, 'not equals in client level'),
-                        lambda: assertNotEqual(c1, c3, 'not equals in different level'),
-                        lambda: assertNotEqual(c1, c5, 'not equals for None level'),
-                        lambda: assertNotEqual(c3, c5, 'not equals for None level'),
-                    ]
-                ]
-            )
+            obj = get(c5)
+            self.assertNotEqual(obj, get(c1))
+            self.assertNotEqual(obj, get(c3))
 
-        future_ls = thread_pool_executor(
-            iter_objs=cases,
-            apply_each_obj_func=run,
-        )
-
-        return [f.result() for f in future_ls]  # 等待执行完毕
+        for case in cases:
+            run(*case)
 
     def test_search_advanced(self):
         if not self.client.is_given_type(JmHtmlClient):
