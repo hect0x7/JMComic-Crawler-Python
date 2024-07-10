@@ -402,7 +402,7 @@ class JmHtmlClient(AbstractJmClient):
                          allow_redirects=False,
                          )
 
-        if resp.status_code != 301:
+        if resp.status_code != 200:
             ExceptionTool.raises_resp(f'登录失败，状态码为{resp.status_code}', resp)
 
         orig_cookies = self.get_meta_data('cookies') or {}
