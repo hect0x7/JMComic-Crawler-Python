@@ -1067,3 +1067,27 @@ class DeleteDuplicatedFilesPlugin(JmOptionPlugin):
                           [f'  {path}' for path in paths]
                 self.log('\n'.join(message))
                 self.execute_deletion(paths)
+
+
+class ReplacePathStringPlugin(JmOptionPlugin):
+    plugin_key = 'replace_path_string'
+
+    def invoke(self,
+               replace: dict[str, str],
+               ):
+        if not replace:
+            return
+
+        old_decide_dir = self.option.decide_image_save_dir
+
+        def new_decide_dir(photo, ensure_exists=True) -> str:
+            original_path: str = old_decide_dir(photo, False)
+            for k, v in replace.items():
+                original_path = original_path.replace(k, v)
+
+            if ensure_exists:
+                JmcomicText.try_mkdir(original_path)
+
+            return original_path
+
+        self.option.decide_image_save_dir = new_decide_dir
