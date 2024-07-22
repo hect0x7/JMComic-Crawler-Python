@@ -1073,7 +1073,7 @@ class ReplacePathStringPlugin(JmOptionPlugin):
     plugin_key = 'replace_path_string'
 
     def invoke(self,
-               replace: dict[str, str],
+               replace: Dict[str, str],
                ):
         if not replace:
             return
