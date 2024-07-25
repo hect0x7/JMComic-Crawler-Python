@@ -973,6 +973,11 @@ class JmApiClient(AbstractJmClient):
             # 例如图片请求
             return resp
 
+        code = resp.status_code
+        if code != 200:
+            msg = JmModuleConfig.JM_ERROR_STATUS_CODE.get(code, f'HTTP状态码: {code}')
+            ExceptionTool.raises_resp(f"禁漫API异常响应, {msg}", resp)
+
         url = resp.request.url
 
         if self.API_SCRAMBLE in url:
