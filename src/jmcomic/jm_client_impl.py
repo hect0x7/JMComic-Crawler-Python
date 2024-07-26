@@ -27,7 +27,7 @@ class AbstractJmClient(
         self.retry_times = retry_times
         self.domain_list = domain_list
         self.CLIENT_CACHE = None
-        self.__username = None  # help for favorite_folder method
+        self._username = None  # help for favorite_folder method
         self.enable_cache()
         self.after_init()
 
@@ -412,7 +412,7 @@ class JmHtmlClient(AbstractJmClient):
             return resp
 
         self['cookies'] = new_cookies
-        self.__username = username
+        self._username = username
 
         return resp
 
@@ -423,8 +423,8 @@ class JmHtmlClient(AbstractJmClient):
                         username='',
                         ) -> JmFavoritePage:
         if username == '':
-            ExceptionTool.require_true(self.__username is not None, 'favorite_folder方法需要传username参数')
-            username = self.__username
+            ExceptionTool.require_true(self._username is not None, 'favorite_folder方法需要传username参数')
+            username = self._username
 
         resp = self.get_jm_html(
             f'/user/{username}/favorite/albums',
@@ -974,7 +974,7 @@ class JmApiClient(AbstractJmClient):
             return resp
 
         code = resp.status_code
-        if code != 200:
+        if code >= 500:
             msg = JmModuleConfig.JM_ERROR_STATUS_CODE.get(code, f'HTTP状态码: {code}')
             ExceptionTool.raises_resp(f"禁漫API异常响应, {msg}", resp)
 
