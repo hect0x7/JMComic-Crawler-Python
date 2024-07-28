@@ -509,13 +509,21 @@ class JmOption:
 
     # 下面的方法提供面向对象的调用风格
 
-    def download_album(self, album_id):
+    def download_album(self,
+                       album_id,
+                       downloader=None,
+                       callback=None,
+                       ):
         from .api import download_album
-        download_album(album_id, self)
+        download_album(album_id, self, downloader, callback)
 
-    def download_photo(self, photo_id):
+    def download_photo(self,
+                       photo_id,
+                       downloader=None,
+                       callback=None
+                       ):
         from .api import download_photo
-        download_photo(photo_id, self)
+        download_photo(photo_id, self, downloader, callback)
 
     # 下面的方法为调用插件提供支持
 

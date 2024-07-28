@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from common import *
 
 from .jm_config import *
@@ -400,6 +402,7 @@ class JmPhotoDetail(DetailEntity, Downloadable):
     def id(self):
         return self.photo_id
 
+    @lru_cache(None)
     def getindex(self, index) -> JmImageDetail:
         return self.create_image_detail(index)
 
@@ -514,6 +517,7 @@ class JmAlbumDetail(DetailEntity, Downloadable):
 
         return photo
 
+    @lru_cache(None)
     def getindex(self, item) -> JmPhotoDetail:
         return self.create_photo_detail(item)
 
