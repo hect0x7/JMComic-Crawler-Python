@@ -228,7 +228,15 @@ plugins:
     - plugin: img2pdf
       kwargs:
         pdf_dir: D:/pdf/ # pdf存放文件夹
-        filename_rule: Pid # pdf命名规则
+        filename_rule: Pid # pdf命名规则，P代表photo, id代表使用photo.id也就是章节id
+  
+    # img2pdf也支持合并整个本子，把上方的after_photo改为after_album即可。
+    # https://github.com/hect0x7/JMComic-Crawler-Python/discussions/258
+    # 配置到after_album时，需要修改filename_rule参数，不能写Pxx只能写Axx示例如下
+    - plugin: img2pdf
+      kwargs:
+        pdf_dir: D:/pdf/ # pdf存放文件夹
+        filename_rule: Aname # pdf命名规则，A代表album, name代表使用album.name也就是本子名称
   
     # 请注意⚠
     # 下方的j2p插件的功能不如img2pdf插件，不建议使用。
