@@ -53,11 +53,12 @@ album: JmAlbumDetail = client.get_album_detail('427413')
 def fetch(photo: JmPhotoDetail):
     # 章节实体类
     photo = client.get_photo_detail(photo.photo_id, False)
-
+    print(f'章节id: {photo.photo_id}')
+    
     # 图片实体类
     image: JmImageDetail
     for image in photo:
-        print(image.img_url)
+        print(f'图片url: {image.img_url}')
 
 
 # 多线程发起请求
@@ -66,6 +67,36 @@ multi_thread_launcher(
     apply_each_obj_func=fetch
 )
 ```
+
+## jmcomic异常处理示例
+
+```python
+from jmcomic import *
+
+# 客户端
+client = JmOption.default().new_jm_client()
+
+# 捕获jmcomic可能出现的异常
+try:
+    # 请求本子实体类
+    album: JmAlbumDetail = client.get_album_detail('427413')
+except MissingAlbumPhotoException as e:
+    print(f'id={e.error_jmid}的本子不存在')
+    
+except JsonResolveFailException as e:
+    print(f'解析json失败')
+    # 响应对象
+    resp = e.resp
+    print(f'resp.text: {resp.text}, resp.status_code: {resp.status_code}')
+    
+except RequestRetryAllFailException as e:
+    print(f'请求失败，重试次数耗尽')
+    
+except JmcomicException as e:
+    # 捕获所有异常，用作兜底
+    print(f'jmcomic遇到异常: {e}')
+```
+
 
 ## 搜索本子
 
