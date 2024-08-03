@@ -130,7 +130,13 @@ plugins:
       kwargs:
         allowed_orig_suffix: # 后缀列表，表示只想下载以.gif结尾的图片
           - .gif
-
+    - plugin: replace_path_string # 字符串替换插件，直接对下载文件夹的路径进行文本替换
+      kwargs:
+        replace: 
+          # {左边写你要替换的原文}: {右边写替换成什么文本}
+          aaa: bbb
+          kyockcho: きょくちょ
+          
     - plugin: client_proxy # 客户端实现类代理插件，不建议非开发人员使用
       kwargs:
         proxy_client_key: photo_concurrent_fetcher_proxy # 代理类的client_key

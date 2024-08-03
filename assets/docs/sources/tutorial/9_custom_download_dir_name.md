@@ -1,21 +1,46 @@
 # 自定义下载文件夹名
 
+## 0. 最简单直接粗暴有效的方式
 
+使用插件`replace_path_string`：
 
-## 1. DirRule简介
+这个插件可以直接替换下载文件夹路径，配置示例如下（把如下配置放入option配置文件即可）：
+
+```yml
+plugins:
+  after_init:
+    - plugin: replace_path_string
+      kwargs:
+        replace: 
+          # {左边写你要替换的原文}: {右边写替换成什么文本}
+          kyockcho: きょくちょ
+```
+该示例会把文件夹路径中所有`kyockcho`都变为`きょくちょ`，例如：
+
+`D:/a/[kyockcho]本子名称 - kyockcho/` 改为↓
+
+`D:/a/[きょくちょ]本子名称 - きょくちょ/` 
+
+---------------
+**_如果上述简单的文本替换无法满足你，或者你需要更多上下文写逻辑代码，那么下面的内容正适合你阅读。_**
+
+## 1. DirRule机制简介
+
 
 当你使用download_album下载本子时，本子会以一定的路径规则（DirRule）下载到你的磁盘上。
 
-你可以使用配置文件定制DirRule，例如下面的例子
+你可以使用配置文件定制DirRule，例如下面的例子：
 
 ```yaml
 dir_rule:
+  # 设定根目录 base_dir
   base_dir: D:/a/b/c/
-  # 规则含义: 根目录 / 章节标题 / 图片文件
-  rule: Bd_Ptitle # P表示章节，title表示使用章节的title字段
+  rule: Bd / Ptitle # P表示章节，title表示使用章节的title字段
+  # 这个规则的含义是，把图片下载到路径 {base_dir}/{Ptitle}/ 下
+  # 即：根目录 / 章节标题 / 图片文件
 ```
 
-如果一个章节的名称（title）是ddd，则最后的下载文件夹结构为：
+例如，假设一个章节的名称（Ptitle）是ddd，则最后的下载文件夹结构为 `D:/a/b/c/ddd/`：
 
 ```
 D:/a/b/c/ddd/00001.webp
@@ -24,6 +49,13 @@ D:/a/b/c/ddd/00003.webp
 ...
 ```
 
+上述的Ptitle，P表示章节，title表示使用章节的title字段。
+
+除了title，你还可以写什么？其实Ptitle表示的是jmcomic里的章节实体类 JmPhotoDetail 的属性。
+
+最终能写什么，取决于JmPhotoDetail有哪些属性，建议使用IDE来获知这些属性，不过这需要你懂一些python基础。
+
+除了Pxxx，你还可以写Axxx，表示这个章节所在的本子的属性xxx，详见本子实体类 JmAlbumDetail。
 
 
 ## 2. 自定义字段名
