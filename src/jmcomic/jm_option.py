@@ -270,15 +270,7 @@ class JmOption:
         )
 
         if ensure_exists:
-            try:
-                mkdir_if_not_exists(save_dir)
-            except OSError as e:
-                if e.errno == 36:
-                    # 目录名过长
-                    limit = JmModuleConfig.VAR_FILE_NAME_LENGTH_LIMIT
-                    jm_log('error', f'目录名过长，无法创建目录，强制缩短到{limit}个字符并重试')
-                    save_dir = save_dir[0:limit]
-                    mkdir_if_not_exists(save_dir)
+            save_dir = JmcomicText.try_mkdir(save_dir)
 
         return save_dir
 
@@ -517,13 +509,21 @@ class JmOption:
 
     # 下面的方法提供面向对象的调用风格
 
-    def download_album(self, album_id):
+    def download_album(self,
+                       album_id,
+                       downloader=None,
+                       callback=None,
+                       ):
         from .api import download_album
-        download_album(album_id, self)
+        download_album(album_id, self, downloader, callback)
 
-    def download_photo(self, photo_id):
+    def download_photo(self,
+                       photo_id,
+                       downloader=None,
+                       callback=None
+                       ):
         from .api import download_photo
-        download_photo(photo_id, self)
+        download_photo(photo_id, self, downloader, callback)
 
     # 下面的方法为调用插件提供支持
 

@@ -35,6 +35,6 @@
 
 ## 自定义
 - [下载文件夹名](tutorial/9_custom_download_dir_name.md)
-- [日志](tutorial/9_custom_download_dir_name.md)
+- [日志](tutorial/11_log_custom.md)
 - [模块](tutorial/4_module_custom.md)
 
