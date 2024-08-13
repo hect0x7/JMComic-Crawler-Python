@@ -1,0 +1,38 @@
+name: Ask For Help
+title: '[Help] '
+description: 使用求助
+labels: [ 'help wanted' ]
+
+body:
+  - type: checkboxes
+    attributes:
+      label: 注意事项
+      options:
+        - label: 提ISSUE前，请确认你已经在GitHub Issues和Discussions里搜索过类似的问题，并且没找到想要的答案。
+          required: true
+
+  - type: dropdown
+    attributes:
+      label: 你使用的是哪种方式？
+      options:
+        - GitHub Actions
+        - Python代码
+        - jmcomic命令行
+      default: 0
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: 你的目的？
+      placeholder: 详细描述一下你想要干什么
+
+  - type: textarea
+    attributes:
+      label: 你遇到的困难？
+      placeholder: 详细描述一下你有啥困难
+
+  - type: textarea
+    attributes:
+      label: 其他信息
+      placeholder: 如果有其他需要补充的信息，可以在这里留言

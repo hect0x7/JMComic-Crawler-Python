@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: GitHub Community Support
+    url: https://github.com/hect0x7/JMComic-Crawler-Python/discussions
+    about: 提Issues之前，先来Discussions找找有没有你的问题
