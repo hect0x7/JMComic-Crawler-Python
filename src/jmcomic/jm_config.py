@@ -59,50 +59,16 @@ class JmMagicConstants:
     SUB_SINGLE_JAPANESE = SUB_JAPANESE
     SUB_SINGLE_YOUTH = 'youth'
 
-    # 分页大小
-    PAGE_SIZE_SEARCH = 80
-    PAGE_SIZE_FAVORITE = 20
-
     # 图片分割参数
     SCRAMBLE_220980 = 220980
     SCRAMBLE_268850 = 268850
     SCRAMBLE_421926 = 421926  # 2023-02-08后改了图片切割算法
 
-    # 当本子没有作者名字时，顶替作者名字
-    DEFAULT_AUTHOR = 'default_author'
-
     # 移动端API密钥
     APP_TOKEN_SECRET = '18comicAPP'
     APP_TOKEN_SECRET_2 = '18comicAPPContent'
     APP_DATA_SECRET = '185Hcomic3PAPP7R'
-    APP_VERSION = '1.7.0'
-    APP_HEADERS_TEMPLATE = {
-        'Accept-Encoding': 'gzip',
-        'user-agent': 'Mozilla/5.0 (Linux; Android 9; V1938CT Build/PQ3A.190705.11211812; wv) AppleWebKit/537.36 (KHTML, '
-                      'like Gecko) Version/4.0 Chrome/91.0.4472.114 Safari/537.36',
-    }
-
-    # 网页端headers
-    HTML_HEADERS_TEMPLATE = {
-        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,'
-                  'application/signed-exchange;v=b3;q=0.7',
-        'accept-language': 'zh-CN,zh;q=0.9',
-        'cache-control': 'no-cache',
-        'dnt': '1',
-        'pragma': 'no-cache',
-        'priority': 'u=0, i',
-        'referer': 'https://18comic.vip/',
-        'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-        'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': '"Windows"',
-        'sec-fetch-dest': 'document',
-        'sec-fetch-mode': 'navigate',
-        'sec-fetch-site': 'none',
-        'sec-fetch-user': '?1',
-        'upgrade-insecure-requests': '1',
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 '
-                      'Safari/537.36',
-    }
+    APP_VERSION = '1.7.1'
 
 
 # 模块级别共用配置
@@ -128,9 +94,49 @@ class JmModuleConfig:
         524: '524: The origin web server timed out responding to this request. (禁漫服务器处理超时)',
     }
 
+    # 分页大小
+    PAGE_SIZE_SEARCH = 80
+    PAGE_SIZE_FAVORITE = 20
+
     # 图片分隔相关
     SCRAMBLE_CACHE = {}
 
+    # 当本子没有作者名字时，顶替作者名字
+    DEFAULT_AUTHOR = 'default_author'
+
+    APP_HEADERS_TEMPLATE = {
+        'Accept-Encoding': 'gzip',
+        'user-agent': 'Mozilla/5.0 (Linux; Android 9; V1938CT Build/PQ3A.190705.11211812; wv) AppleWebKit/537.36 (KHTML, '
+                      'like Gecko) Version/4.0 Chrome/91.0.4472.114 Safari/537.36',
+    }
+
+    APP_HEADERS_IMAGE = {
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'X-Requested-With': 'com.jiaohua_browser',
+        'Referer': 'https://www.jmfreedomproxy.xyz/',
+    }
+
+    # 网页端headers
+    HTML_HEADERS_TEMPLATE = {
+        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,'
+                  'application/signed-exchange;v=b3;q=0.7',
+        'accept-language': 'zh-CN,zh;q=0.9',
+        'cache-control': 'no-cache',
+        'dnt': '1',
+        'pragma': 'no-cache',
+        'priority': 'u=0, i',
+        'referer': 'https://18comic.vip/',
+        'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-fetch-dest': 'document',
+        'sec-fetch-mode': 'navigate',
+        'sec-fetch-site': 'none',
+        'sec-fetch-user': '?1',
+        'upgrade-insecure-requests': '1',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 '
+                      'Safari/537.36',
+    }
     # cookies，目前只在移动端使用，因为移动端请求接口须携带，但不会校验cookies的内容。
     APP_COOKIES = None
 
@@ -336,7 +342,7 @@ class JmModuleConfig:
         """
         网页端的headers
         """
-        headers = JmMagicConstants.HTML_HEADERS_TEMPLATE.copy()
+        headers = cls.HTML_HEADERS_TEMPLATE.copy()
         headers.update({
             'authority': domain,
             'origin': f'https://{domain}',

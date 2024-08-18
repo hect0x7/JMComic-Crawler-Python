@@ -915,17 +915,7 @@ class JmApiClient(AbstractJmClient):
     def update_request_with_specify_domain(self, kwargs: dict, domain: Optional[str], is_image=False):
         if is_image:
             # 设置APP端的图片请求headers
-            kwargs['headers'] = {
-                'User-Agent': 'Mozilla/5.0 (Linux; Android 9; V2172A Build/PQ3A.190705.11211812; wv) AppleWebKit/537.36 (KHTML, '
-                              'like Gecko) Version/4.0 Chrome/91.0.4472.114 Safari/537.36',
-                'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-                'X-Requested-With': 'com.jiaohua_browser',
-                'Sec-Fetch-Site': 'cross-site',
-                'Sec-Fetch-Mode': 'no-cors',
-                'Sec-Fetch-Dest': 'image',
-                'Referer': 'https://www.jmfreedomproxy.xyz/',
-                'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
-            }
+            kwargs['headers'] = {**JmModuleConfig.APP_HEADERS_TEMPLATE, **JmModuleConfig.APP_HEADERS_IMAGE}
 
     # noinspection PyMethodMayBeStatic
     def decide_headers_and_ts(self, kwargs, url):
@@ -945,7 +935,7 @@ class JmApiClient(AbstractJmClient):
             token, tokenparam = JmCryptoTool.token_and_tokenparam(ts)
 
         # 设置headers
-        headers = kwargs.get('headers', None) or JmMagicConstants.APP_HEADERS_TEMPLATE.copy()
+        headers = kwargs.get('headers', None) or JmModuleConfig.APP_HEADERS_TEMPLATE.copy()
         headers.update({
             'token': token,
             'tokenparam': tokenparam,
