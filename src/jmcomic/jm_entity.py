@@ -305,7 +305,8 @@ class JmPhotoDetail(DetailEntity, Downloadable):
         # 2. 值目前在网页端只在photo页面的图片标签的data-original属性出现
         # 这里的模拟思路是，获取到第一个图片标签的data-original，
         # 取出其query参数 → self.data_original_query_params, 该值未来会传递给 JmImageDetail
-        self.data_original_query_params = self.get_data_original_query_params(data_original_0)
+        # self.data_original_query_params = self.get_data_original_query_params(data_original_0)
+        self.data_original_query_params = None
 
     @property
     def is_single_album(self) -> bool:
