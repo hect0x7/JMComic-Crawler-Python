@@ -123,7 +123,7 @@ class JmModuleConfig:
     # JM的异常网页code
     JM_ERROR_STATUS_CODE = {
         403: 'ip地区禁止访问/爬虫被识别',
-        500: '500: 禁漫服务器内部异常（可能是服务器过载，可以换个ip或稍后重试）',
+        500: '500: 禁漫服务器内部异常（可能是服务器过载，可以切换ip或稍后重试）',
         520: '520: Web server is returning an unknown error (禁漫服务器内部报错)',
         524: '524: The origin web server timed out responding to this request. (禁漫服务器处理超时)',
     }
