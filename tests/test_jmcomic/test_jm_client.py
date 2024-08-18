@@ -1,17 +1,15 @@
 from test_jmcomic import *
 
-JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES = False
+
 class Test_Client(JmTestConfigurable):
 
     def test_download_image(self):
         jm_photo_id = 'JM438516'
-        # photo = self.client.get_photo_detail(jm_photo_id)
-        # image = photo[0]
-        # filepath = self.option.decide_image_filepath(image)
-        # self.client.download_by_image_detail(image, filepath)
-        # print(filepath)
-        self.client.get_jm_image('https://cdn-msp.jmapinodeudzn.net/media/photos/438516/00001.webp?v=1723965921')
-
+        photo = self.client.get_photo_detail(jm_photo_id)
+        image = photo[0]
+        filepath = self.option.decide_image_filepath(image)
+        self.client.download_by_image_detail(image, filepath)
+        print(filepath)
 
     def test_fetch_album(self):
         album_id = "JM438516"
