@@ -105,7 +105,7 @@ class JmModuleConfig:
     DEFAULT_AUTHOR = 'default_author'
 
     APP_HEADERS_TEMPLATE = {
-        'Accept-Encoding': 'gzip',
+        'Accept-Encoding': 'gzip, deflate',
         'user-agent': 'Mozilla/5.0 (Linux; Android 9; V1938CT Build/PQ3A.190705.11211812; wv) AppleWebKit/537.36 (KHTML, '
                       'like Gecko) Version/4.0 Chrome/91.0.4472.114 Safari/537.36',
     }
@@ -114,6 +114,7 @@ class JmModuleConfig:
         'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
         'X-Requested-With': 'com.jiaohua_browser',
         'Referer': 'https://www.jmfreedomproxy.xyz/',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
     }
 
     # 网页端headers
