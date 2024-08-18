@@ -92,7 +92,7 @@ class AbstractJmClient(
             jm_log(self.log_topic(), self.decode(url))
         else:
             # 图片url
-            pass
+            self.update_request_with_specify_domain(kwargs, None, True)
 
         if domain_index != 0 or retry_count != 0:
             jm_log(f'req.retry',
@@ -133,7 +133,7 @@ class AbstractJmClient(
         """
         return resp
 
-    def update_request_with_specify_domain(self, kwargs: dict, domain: str):
+    def update_request_with_specify_domain(self, kwargs: dict, domain: Optional[str], is_image: bool = False):
         """
         域名自动切换时，用于更新请求参数的回调
         """
@@ -463,7 +463,10 @@ class JmHtmlClient(AbstractJmClient):
 
         return resp
 
-    def update_request_with_specify_domain(self, kwargs: dict, domain: Optional[str]):
+    def update_request_with_specify_domain(self, kwargs: dict, domain: Optional[str], is_image=False):
+        if is_image:
+            return
+
         latest_headers = kwargs.get('headers', None)
         base_headers = self.get_meta_data('headers', None) or JmModuleConfig.new_html_headers(domain)
         base_headers.update(latest_headers or {})
@@ -909,8 +912,10 @@ class JmApiClient(AbstractJmClient):
 
         return resp
 
-    def update_request_with_specify_domain(self, kwargs: dict, domain: str):
-        pass
+    def update_request_with_specify_domain(self, kwargs: dict, domain: Optional[str], is_image=False):
+        if is_image:
+            # 设置APP端的图片请求headers
+            kwargs['headers'] = {**JmModuleConfig.APP_HEADERS_TEMPLATE, **JmModuleConfig.APP_HEADERS_IMAGE}
 
     # noinspection PyMethodMayBeStatic
     def decide_headers_and_ts(self, kwargs, url):
@@ -930,7 +935,7 @@ class JmApiClient(AbstractJmClient):
             token, tokenparam = JmCryptoTool.token_and_tokenparam(ts)
 
         # 设置headers
-        headers = kwargs.get('headers', None) or JmMagicConstants.APP_HEADERS_TEMPLATE.copy()
+        headers = kwargs.get('headers', None) or JmModuleConfig.APP_HEADERS_TEMPLATE.copy()
         headers.update({
             'token': token,
             'tokenparam': tokenparam,

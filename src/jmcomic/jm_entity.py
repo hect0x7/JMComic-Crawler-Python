@@ -305,7 +305,8 @@ class JmPhotoDetail(DetailEntity, Downloadable):
         # 2. 值目前在网页端只在photo页面的图片标签的data-original属性出现
         # 这里的模拟思路是，获取到第一个图片标签的data-original，
         # 取出其query参数 → self.data_original_query_params, 该值未来会传递给 JmImageDetail
-        self.data_original_query_params = self.get_data_original_query_params(data_original_0)
+        # self.data_original_query_params = self.get_data_original_query_params(data_original_0)
+        self.data_original_query_params = None
 
     @property
     def is_single_album(self) -> bool:
@@ -355,7 +356,7 @@ class JmPhotoDetail(DetailEntity, Downloadable):
             return self._author.strip()
 
         # 使用默认
-        return JmMagicConstants.DEFAULT_AUTHOR
+        return JmModuleConfig.DEFAULT_AUTHOR
 
     def create_image_detail(self, index) -> JmImageDetail:
         # 校验参数
@@ -475,7 +476,7 @@ class JmAlbumDetail(DetailEntity, Downloadable):
         if len(self.authors) >= 1:
             return self.authors[0]
 
-        return JmMagicConstants.DEFAULT_AUTHOR
+        return JmModuleConfig.DEFAULT_AUTHOR
 
     @property
     def id(self):
@@ -612,7 +613,7 @@ class JmSearchPage(JmPageContent):
 
     @property
     def page_size(self) -> int:
-        return JmMagicConstants.PAGE_SIZE_SEARCH
+        return JmModuleConfig.PAGE_SIZE_SEARCH
 
     # 下面的方法是对单个album的包装
 
@@ -653,7 +654,7 @@ class JmFavoritePage(JmPageContent):
 
     @property
     def page_size(self) -> int:
-        return JmMagicConstants.PAGE_SIZE_FAVORITE
+        return JmModuleConfig.PAGE_SIZE_FAVORITE
 
     def iter_folder_id_name(self) -> Generator[Tuple[str, str], None, None]:
         """

@@ -601,7 +601,7 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
         for page in page_data:
             for aid, extra in page.content:
                 data.append(
-                    (aid, extra.get('author', '') or JmMagicConstants.DEFAULT_AUTHOR, extra['name'])
+                    (aid, extra.get('author', '') or JmModuleConfig.DEFAULT_AUTHOR, extra['name'])
                 )
 
         if len(data) == 0:

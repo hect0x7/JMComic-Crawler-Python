@@ -8,7 +8,7 @@ client:
   retry_times: 3
   postman:
     meta_data:
-      timeout: 7
+      timeout: 15
   domain:
     html:
       - jmcomic1.me
