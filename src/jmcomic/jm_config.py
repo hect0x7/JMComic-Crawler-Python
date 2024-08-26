@@ -1,4 +1,12 @@
-from common import time_stamp, str_to_list, field_cache, ProxyBuilder
+from common import time_stamp, field_cache, ProxyBuilder
+
+
+def shuffled(lines):
+    from random import shuffle
+    from common import str_to_list
+    ls = str_to_list(lines)
+    shuffle(ls)
+    return ls
 
 
 def default_jm_logging(topic: str, msg: str):
@@ -142,18 +150,17 @@ class JmModuleConfig:
     APP_COOKIES = None
 
     # 移动端图片域名
-    DOMAIN_IMAGE_LIST = str_to_list('''
+    DOMAIN_IMAGE_LIST = shuffled('''
     cdn-msp.jmapiproxy1.cc
     cdn-msp.jmapiproxy2.cc
     cdn-msp2.jmapiproxy2.cc
     cdn-msp3.jmapiproxy2.cc
     cdn-msp.jmapinodeudzn.net
     cdn-msp3.jmapinodeudzn.net
-
     ''')
 
     # 移动端API域名
-    DOMAIN_API_LIST = str_to_list('''
+    DOMAIN_API_LIST = shuffled('''
     www.jmeadpoolcdn.one
     www.jmapiproxyxxx.one
     www.jmeadpoolcdn.life
