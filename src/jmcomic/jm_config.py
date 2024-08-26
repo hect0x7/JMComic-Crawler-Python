@@ -154,7 +154,6 @@ class JmModuleConfig:
 
     # 移动端API域名
     DOMAIN_API_LIST = str_to_list('''
-    www.jmapidestiny.xyz
     www.jmeadpoolcdn.one
     www.jmeadpoolcdn.life
     
