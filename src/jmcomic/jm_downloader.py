@@ -110,7 +110,6 @@ class JmDownloader(DownloadCallback):
         if use_cache is True and image.exists:
             return
 
-        e = None
         try:
             client.download_by_image_detail(
                 image,
@@ -121,9 +120,7 @@ class JmDownloader(DownloadCallback):
             jm_log('image.failed', f'图片下载失败: [{image.download_url}], 异常: {e}')
             # 保存失败记录
             self.download_failed_list.append((image, e))
-
-        if e is not None:
-            raise e
+            raise
 
         self.after_image(image, img_save_path)
 
