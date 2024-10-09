@@ -112,6 +112,30 @@ class JmModuleConfig:
     # 当本子没有作者名字时，顶替作者名字
     DEFAULT_AUTHOR = 'default_author'
 
+    # cookies，目前只在移动端使用，因为移动端请求接口须携带，但不会校验cookies的内容。
+    APP_COOKIES = None
+
+    # 移动端图片域名
+    DOMAIN_IMAGE_LIST = shuffled('''
+    cdn-msp.jmapiproxy1.cc
+    cdn-msp.jmapiproxy2.cc
+    cdn-msp2.jmapiproxy2.cc
+    cdn-msp3.jmapiproxy2.cc
+    cdn-msp.jmapinodeudzn.net
+    cdn-msp3.jmapinodeudzn.net
+    ''')
+
+    # 移动端API域名
+    DOMAIN_API_LIST = shuffled('''
+    www.cdnxxx-proxy.vip
+    www.cdnxxx-proxy.org
+    www.cdnxxx-proxy.xyz
+    www.cdnxxx-proxy.co
+    www.cdnblackmyth.xyz
+
+
+    ''')
+
     APP_HEADERS_TEMPLATE = {
         'Accept-Encoding': 'gzip, deflate',
         'user-agent': 'Mozilla/5.0 (Linux; Android 9; V1938CT Build/PQ3A.190705.11211812; wv) AppleWebKit/537.36 (KHTML, '
@@ -121,7 +145,7 @@ class JmModuleConfig:
     APP_HEADERS_IMAGE = {
         'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
         'X-Requested-With': 'com.jiaohua_browser',
-        'Referer': 'https://www.jmfreedomproxy.xyz/',
+        'Referer': PROT + DOMAIN_API_LIST[0],
         'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
     }
 
@@ -146,26 +170,6 @@ class JmModuleConfig:
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 '
                       'Safari/537.36',
     }
-    # cookies，目前只在移动端使用，因为移动端请求接口须携带，但不会校验cookies的内容。
-    APP_COOKIES = None
-
-    # 移动端图片域名
-    DOMAIN_IMAGE_LIST = shuffled('''
-    cdn-msp.jmapiproxy1.cc
-    cdn-msp.jmapiproxy2.cc
-    cdn-msp2.jmapiproxy2.cc
-    cdn-msp3.jmapiproxy2.cc
-    cdn-msp.jmapinodeudzn.net
-    cdn-msp3.jmapinodeudzn.net
-    ''')
-
-    # 移动端API域名
-    DOMAIN_API_LIST = shuffled('''
-    www.jmeadpoolcdn.one
-    www.jmapiproxyxxx.one
-    www.jmeadpoolcdn.life
-    
-    ''')
 
     # 网页端域名配置
     # 无需配置，默认为None，需要的时候会发起请求获得
