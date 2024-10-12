@@ -852,12 +852,17 @@ class LongImgPlugin(JmOptionPlugin):
 
         images = [Image.open(img_path) for img_path in img_paths]
 
+        try:
+            resample_method = Image.Resampling.LANCZOS
+        except AttributeError:
+            resample_method = Image.LANCZOS
+
         min_img_width = min(img.width for img in images)
         total_height = 0
         for i, img in enumerate(images):
             if img.width > min_img_width:
                 images[i] = img.resize((min_img_width, int(img.height * min_img_width / img.width)),
-                                       Image.Resampling.LANCZOS)
+                                       resample=resample_method)
             total_height += images[i].height
 
         long_img = Image.new('RGB', (min_img_width, total_height))
@@ -867,6 +872,7 @@ class LongImgPlugin(JmOptionPlugin):
             y_offset += img.height
 
         long_img.save(long_img_path)
+        [img.close() for img in images]
 
         return img_paths
 
