@@ -838,7 +838,7 @@ class LongImgPlugin(JmOptionPlugin):
         # 执行删除
         self.execute_deletion(img_path_ls)
 
-    def write_img_2_long_img(self, long_img_path, album: JmAlbumDetail, photo: JmPhotoDetail) -> list[str]:
+    def write_img_2_long_img(self, long_img_path, album: JmAlbumDetail, photo: JmPhotoDetail) -> List[str]:
         import itertools
         from PIL import Image
 
@@ -877,7 +877,7 @@ class LongImgPlugin(JmOptionPlugin):
         return img_paths
 
     @staticmethod
-    def get_img_dir(img_dir: str | None) -> str:
+    def get_img_dir(img_dir: Optional[str]) -> str:
         img_dir = fix_filepath(img_dir or os.getcwd())
         mkdir_if_not_exists(img_dir)
         return img_dir
