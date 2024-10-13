@@ -872,7 +872,8 @@ class LongImgPlugin(JmOptionPlugin):
             y_offset += img.height
 
         long_img.save(long_img_path)
-        [img.close() for img in images]
+        for img in images:
+            img.close()
 
         return img_paths
 
