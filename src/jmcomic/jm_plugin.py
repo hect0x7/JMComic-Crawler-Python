@@ -847,7 +847,8 @@ class LongImgPlugin(JmOptionPlugin):
         else:
             img_dir_items = [self.option.decide_image_save_dir(photo) for photo in album]
 
-        img_paths = list(itertools.chain(*map(files_of_dir, img_dir_items)))
+        img_paths = itertools.chain(*map(files_of_dir, img_dir_items))
+        img_paths = filter(lambda x: not x.startswith('.'), img_paths)  # 过滤系统文件
         img_paths = sorted(img_paths)
 
         images = [Image.open(img_path) for img_path in img_paths]
