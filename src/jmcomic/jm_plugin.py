@@ -850,7 +850,7 @@ class LongImgPlugin(JmOptionPlugin):
         img_paths = list(itertools.chain(*map(files_of_dir, img_dir_items)))
         img_paths = sorted(img_paths)
 
-        images = [Image.open(img_path) for img_path in img_paths]
+        images = self.open_images(img_paths)
 
         try:
             resample_method = Image.Resampling.LANCZOS
@@ -876,6 +876,16 @@ class LongImgPlugin(JmOptionPlugin):
             img.close()
 
         return img_paths
+
+    def open_images(self, img_paths: List[str]):
+        images = []
+        for img_path in img_paths:
+            try:
+                img = Image.open(img_path)
+                images.append(img)
+            except IOError as e:
+                self.log(f"Failed to open image {img_path}: {e}", 'error')
+        return images
 
     @staticmethod
     def get_img_dir(img_dir: Optional[str]) -> str:
