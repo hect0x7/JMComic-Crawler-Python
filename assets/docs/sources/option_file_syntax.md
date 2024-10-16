@@ -244,6 +244,13 @@ plugins:
         pdf_dir: D:/pdf/ # pdf存放文件夹
         filename_rule: Aname # pdf命名规则，A代表album, name代表使用album.name也就是本子名称
   
+    # 插件来源：https://github.com/hect0x7/JMComic-Crawler-Python/pull/294
+    # long_img插件是把所有图片合并为一个png长图，效果和img2pdf类似
+    - plugin: long_img
+      kwargs:
+        img_dir: D:/pdf/ # 长图存放文件夹
+        filename_rule: Aname # 长图命名规则，同上
+  
     # 请注意⚠
     # 下方的j2p插件的功能不如img2pdf插件，不建议使用。
     # 如有图片转pdf的需求，直接使用img2pdf即可，下面的内容请忽略。
