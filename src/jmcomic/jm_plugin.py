@@ -849,7 +849,6 @@ class LongImgPlugin(JmOptionPlugin):
 
         img_paths = itertools.chain(*map(files_of_dir, img_dir_items))
         img_paths = filter(lambda x: not x.startswith('.'), img_paths)  # 过滤系统文件
-        img_paths = sorted(img_paths)
 
         images = self.open_images(img_paths)
 
