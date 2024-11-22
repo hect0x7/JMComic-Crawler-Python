@@ -40,7 +40,8 @@ plugins:
         python:
           paths: [ '../../src/' ]
           options:
-            show_if_no_docstring: true
+            summary:
+              functions: true
             preload_modules:
               - common
             docstring_style: sphinx
