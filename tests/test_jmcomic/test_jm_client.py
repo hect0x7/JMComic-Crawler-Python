@@ -71,7 +71,7 @@ class Test_Client(JmTestConfigurable):
 
         # 测试用例 - 多章本子
         multi_photo_album_is = str_to_list('''
-        400222
+        282293
         122061
         ''')
 
