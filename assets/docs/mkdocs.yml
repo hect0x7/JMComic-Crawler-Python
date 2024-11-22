@@ -40,7 +40,7 @@ plugins:
         python:
           paths: [ '../../src/' ]
           options:
-            members: true
+            members: [Jm]
             preload_modules:
               - common
             docstring_style: sphinx
