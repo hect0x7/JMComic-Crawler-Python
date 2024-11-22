@@ -2,5 +2,5 @@
 
 ::: jmcomic.jm_entity
     options:
-      reload_modules: 
+      preload_modules: 
         commonX 
