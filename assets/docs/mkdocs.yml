@@ -43,13 +43,14 @@ plugins:
             preload_modules:
               - common
             docstring_style: sphinx
-            filters:
+            members:
               - ^Jm
               - jm
               - Option
               - Client
               - Plugin
               - Downloader
+              - Detail
 
 markdown_extensions:
   - attr_list
