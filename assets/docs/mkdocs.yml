@@ -43,8 +43,8 @@ plugins:
             preload_modules:
               - common
             docstring_style: sphinx
-            members: true
-
+            filters:
+              - 'filters.exclude_commonx_members'
 markdown_extensions:
   - attr_list
   - toc:
