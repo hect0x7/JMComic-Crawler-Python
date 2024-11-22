@@ -45,6 +45,10 @@ plugins:
             docstring_style: sphinx
             filters:
               - "!commonX.*"  # 排除 commonX 的所有类
+              - "!common.*"  # 排除 commonX 的所有类
+            exclude:
+              - "commonX.*"  # 排除所有来自 commonX 的内容
+              - "!common.*"  # 排除 commonX 的所有类
 
 
 markdown_extensions:
