@@ -43,8 +43,6 @@ plugins:
             preload_modules:
               - common
             docstring_style: sphinx
-            group_by_category: true
-            show_category_heading: false
 
 markdown_extensions:
   - attr_list
