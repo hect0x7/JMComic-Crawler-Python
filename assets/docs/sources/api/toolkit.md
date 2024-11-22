@@ -5,4 +5,7 @@
       inherited_members: true
       members:
       - JmcomicText
-      - Tool
+      - PatternTool
+      - JmPageTool
+      - JmImageTool
+      - JmCryptoTool
