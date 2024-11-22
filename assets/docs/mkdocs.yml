@@ -40,9 +40,6 @@ plugins:
         python:
           paths: [ '../../src/' ]
           options:
-            members: [Jm]
-            preload_modules:
-              - common
             docstring_style: sphinx
 
 markdown_extensions:
