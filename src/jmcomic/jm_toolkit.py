@@ -29,25 +29,26 @@ class JmcomicText:
     pattern_html_album_page_count = compile(r'<span class="pagecount">.*?:(\d+)</span>')
     pattern_html_album_pub_date = compile(r'>上架日期 : (.*?)</span>')
     pattern_html_album_update_date = compile(r'>更新日期 : (.*?)</span>')
+    pattern_html_tag_a = compile(r'<a[^>]*?>\s*(\S*)\s*</a>')
     # 作品
     pattern_html_album_works = [
         compile(r'<span itemprop="author" data-type="works">([\s\S]*?)</span>'),
-        compile(r'<a[^>]*?>(.*?)</a>')
+        pattern_html_tag_a,
     ]
     # 登場人物
     pattern_html_album_actors = [
         compile(r'<span itemprop="author" data-type="actor">([\s\S]*?)</span>'),
-        compile(r'<a[^>]*?>(.*?)</a>')
+        pattern_html_tag_a,
     ]
     # 标签
     pattern_html_album_tags = [
         compile(r'<span itemprop="genre" data-type="tags">([\s\S]*?)</span>'),
-        compile(r'<a[^>]*?>(.*?)</a>')
+        pattern_html_tag_a,
     ]
     # 作者
     pattern_html_album_authors = [
         compile(r'作者： *<span itemprop="author" data-type="author">([\s\S]*?)</span>'),
-        compile(r"<a[^>]*?>(.*?)</a>"),
+        pattern_html_tag_a,
     ]
     # 點擊喜歡
     pattern_html_album_likes = compile(r'<span id="albim_likes_\d+">(.*?)</span>')
