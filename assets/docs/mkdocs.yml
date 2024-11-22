@@ -40,7 +40,11 @@ plugins:
         python:
           paths: [ '../../src/' ]
           options:
+            preload_modules:
+              - common
             docstring_style: sphinx
+            filters:
+              - "!commonX.*"  # 排除 commonX 的所有类
 
 
 markdown_extensions:
