@@ -49,6 +49,7 @@ plugins:
               - Option
               - Client
               - Plugin
+              - Downloader
 
 markdown_extensions:
   - attr_list
