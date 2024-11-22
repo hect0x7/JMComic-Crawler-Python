@@ -2,3 +2,4 @@ mkdocs
 mkdocstrings[python]
 markdown-include
 mkdocs-material
+commonX
