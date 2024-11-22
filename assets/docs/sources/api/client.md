@@ -2,5 +2,5 @@
 
 ::: jmcomic.jm_client_impl
     options:
-        filters: ["isfunction or 'Client' in name"]
+        filters: ["Client", "^[a-z]"]
 
