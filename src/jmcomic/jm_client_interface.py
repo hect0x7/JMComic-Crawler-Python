@@ -63,7 +63,7 @@ class JmImageResp(JmResp):
                     ):
         img_url = img_url or self.url
 
-        if decode_image is False:
+        if decode_image is False or scramble_id is None:
             # 不解密图片，直接保存文件
             JmImageTool.save_resp_img(
                 self,
@@ -245,9 +245,6 @@ class JmImageClient:
         :param scramble_id: 图片所在photo的scramble_id
         :param decode_image: 要保存的是解密后的图还是原图
         """
-        if scramble_id is None:
-            scramble_id = JmMagicConstants.SCRAMBLE_220980
-
         # 请求图片
         resp = self.get_jm_image(img_url)
 
