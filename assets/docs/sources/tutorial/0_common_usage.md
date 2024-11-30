@@ -38,7 +38,7 @@ download_album(123, option)
 option.download_album(123)
 ```
 
-## 获取本子/章节/图片的实体类
+## 获取本子/章节/图片的实体类，下载图片
 
 ```python
 from jmcomic import *
@@ -59,7 +59,13 @@ def fetch(photo: JmPhotoDetail):
     image: JmImageDetail
     for image in photo:
         print(f'图片url: {image.img_url}')
-
+        
+    # 下载单个图片
+    client.download_by_image_detail(image, './a.jpg')
+    # 如果是已知未混淆的图片，也可以直接使用url来下载
+    random_image_domain = JmModuleConfig.DOMAIN_IMAGE_LIST
+    client.download_image(f'https://{random_image_domain}/media/albums/416130.jpg', './a.jpg')
+    
 
 # 多线程发起请求
 multi_thread_launcher(
