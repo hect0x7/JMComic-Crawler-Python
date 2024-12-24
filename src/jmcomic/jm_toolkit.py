@@ -298,7 +298,11 @@ class JmcomicText:
                 add()
                 # 定位右括号
                 j = find_right_pair(c, i)
-                ExceptionTool.require_true(j != -1, f'未闭合的 {c}{bracket_map[c]}: {title[i:]}')
+                if j == -1:
+                    # 括号未闭合
+                    char_list.append(c)
+                    i += 1
+                    continue
                 # 整个括号的单词结束
                 add(title[i:j])
                 # 移动指针
