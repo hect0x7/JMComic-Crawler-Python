@@ -40,6 +40,10 @@ plugins:
         python:
           paths: [ '../../src/' ]
           options:
+            summary:
+              functions: true
+            preload_modules:
+              - common
             docstring_style: sphinx
 
 

@@ -397,7 +397,7 @@ class JmPageTool:
     # 收藏页面的本子结果
     pattern_html_favorite_content = compile(
         r'<div id="favorites_album_[^>]*?>[\s\S]*?'
-        r'<a href="/album/(\d+)/">[\s\S]*?'
+        r'<a href="/album/(\d+)/[^"]*">[\s\S]*?'
         r'<div class="video-title title-truncate">([^<]*?)'
         r'</div>'
     )
