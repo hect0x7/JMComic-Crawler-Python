@@ -169,7 +169,7 @@ for page in cl.favorite_folder_gen(): # 如果你只想获取特定收藏夹，�
         print(f'收藏夹id: {folder_id}, 收藏夹名称: {folder_name}')
 
 # 获取特定收藏夹的单页，使用favorite_folder方法
-page = cl.favorite_folder(page=1,
+page = client.favorite_folder(page=1,
                           order_by=JmMagicConstants.ORDER_BY_LATEST,
                           folder_id='0' # 收藏夹id
                           )
