@@ -76,7 +76,7 @@ class JmMagicConstants:
     APP_TOKEN_SECRET = '18comicAPP'
     APP_TOKEN_SECRET_2 = '18comicAPPContent'
     APP_DATA_SECRET = '185Hcomic3PAPP7R'
-    APP_VERSION = '1.7.5'
+    APP_VERSION = '1.7.6'
 
 
 # 模块级别共用配置

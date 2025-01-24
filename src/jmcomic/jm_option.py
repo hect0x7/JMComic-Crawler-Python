@@ -159,7 +159,7 @@ class DirRule:
             return None
 
         def solve_func(detail):
-            return fix_windir_name(str(DetailEntity.get_dirname(detail, rule[1:])))
+            return fix_windir_name(str(DetailEntity.get_dirname(detail, rule[1:]))).strip()
 
         return rule[0], solve_func, rule
 
