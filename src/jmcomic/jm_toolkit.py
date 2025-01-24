@@ -329,7 +329,8 @@ class JmcomicText:
                 limit = JmModuleConfig.VAR_FILE_NAME_LENGTH_LIMIT
                 jm_log('error', f'目录名过长，无法创建目录，强制缩短到{limit}个字符并重试')
                 save_dir = save_dir[0:limit]
-                mkdir_if_not_exists(save_dir)
+                return cls.try_mkdir(save_dir)
+            raise e
         return save_dir
 
 
