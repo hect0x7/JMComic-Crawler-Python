@@ -84,6 +84,40 @@ jmcomic.download_album(422866, option)
 # 等价写法: option.download_album(422866)
 ```
 
+### 3. 使用命令行
+> 如果只想下载本子，使用命令行会比上述方式更加简单直接
+> 
+> 例如，在windows上，直接按下win+r键，输入jmcomic xxx就可以下载本子。
+
+示例：
+
+下载本子422866的命令
+
+```sh
+jmcomic 422866
+```
+同时下载本子123, 章节456的命令
+```sh
+jmcomic 123 p456
+```
+
+命令行模式也支持自定义option，你可以使用环境变量或者命令行参数：
+
+a. 通过命令行--option参数指定option文件路径
+
+```sh
+jmcomic 123 --option="D:/a.yml"
+```
+
+b. 配置环境变量 `JM_OPTION_PATH` 为option文件路径（推荐）
+
+```sh
+# set JM_OPTION_PATH="D:/a.yml"
+jmcomic 123
+```
+
+
+
 ## 进阶使用
 
 请查阅文档首页→[jmcomic.readthedocs.io](https://jmcomic.readthedocs.io/zh-cn/latest)
