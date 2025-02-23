@@ -1,18 +1,18 @@
-# Python API For JMComic (禁漫天堂)
+# Python API For Comic
 
-本项目封装了一套可用于爬取JM的Python API.
+本项目封装了一套可用于爬取的Python API.
 
-你可以通过简单的几行Python代码，实现下载JM上的本子到本地，并且是处理好的图片。
+你可以通过简单的几行Python代码，实现下载到本地，并且是处理好的图片。
 
-[【指路】教程：使用GitHub Actions下载禁漫本子](./assets/docs/sources/tutorial/1_github_actions.md)
+[【指路】教程：使用GitHub Actions下载](./assets/docs/sources/tutorial/1_github_actions.md)
 
-[【指路】教程：导出并下载你的禁漫收藏夹数据](./assets/docs/sources/tutorial/10_export_favorites.md)
+[【指路】教程：导出并下载你的收藏夹数据](./assets/docs/sources/tutorial/10_export_favorites.md)
 
-**友情提示：珍爱JM，为了减轻JM的服务器压力，请不要一次性爬取太多本子，西门🙏🙏🙏**.
+**友情提示：为了减轻JM的服务器压力，请不要一次性爬取太多，西门🙏🙏🙏**.
 
 ## 项目介绍
 
-本项目的核心功能是下载本子。
+本项目的核心功能是下载Cpmic。
 
 基于此，设计了一套方便使用、便于扩展，能满足一些特殊下载需求的框架。
 
@@ -79,7 +79,7 @@ import jmcomic
 
 # 创建配置对象
 option = jmcomic.create_option_by_file('你的配置文件路径，例如 D:/option.yml')
-# 使用option对象来下载本子
+# 使用option对象来下载
 jmcomic.download_album(422866, option)
 # 等价写法: option.download_album(422866)
 ```
@@ -131,8 +131,8 @@ jmcomic 123
 - 用法多样：
 
   - GitHub
-    Actions：网页上直接输入本子id就能下载（[教程：使用GitHub Actions下载禁漫本子](./assets/docs/sources/tutorial/1_github_actions.md)）
-  - 命令行：无需写Python代码，简单易用（[教程：使用命令行下载禁漫本子](./assets/docs/sources/tutorial/2_command_line.md)）
+    Actions：网页上直接输入id就能下载（[教程：使用GitHub Actions下载](./assets/docs/sources/tutorial/1_github_actions.md)）
+  - 命令行：无需写Python代码，简单易用（[教程：使用命令行下载](./assets/docs/sources/tutorial/2_command_line.md)）
   - Python代码：最本质、最强大的使用方式，需要你有一定的python编程基础
 - 支持**网页端**和**移动端**两种客户端实现，可通过配置切换（**移动端不限ip兼容性好，网页端限制ip地区但效率高**）
 - 支持**自动重试和域名切换**机制
@@ -181,7 +181,7 @@ jmcomic 123
 
 ## 感谢以下项目
 
-### 图片分割算法代码+禁漫移动端API
+### 图片分割算法代码+移动端API
 
 <a href="https://github.com/tonquer/JMComic-qt">
   <picture>
