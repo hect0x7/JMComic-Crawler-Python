@@ -278,8 +278,9 @@ class ZipPlugin(JmOptionPlugin):
 
     # noinspection PyAttributeOutsideInit
     def invoke(self,
-               album: JmAlbumDetail,
                downloader,
+               album: JmAlbumDetail = None,
+               photo: JmPhotoDetail = None,
                delete_original_file=False,
                level='photo',
                filename_rule='Ptitle',
@@ -298,7 +299,7 @@ class ZipPlugin(JmOptionPlugin):
         mkdir_if_not_exists(zip_dir)
 
         path_to_delete = []
-        photo_dict = downloader.download_success_dict[album]
+        photo_dict = self.get_downloaded_photo(downloader, album, photo)
 
         if level == 'album':
             zip_path = self.get_zip_path(album, None, filename_rule, suffix, zip_dir)
@@ -313,6 +314,13 @@ class ZipPlugin(JmOptionPlugin):
             ExceptionTool.raises(f'Not Implemented Zip Level: {level}')
 
         self.after_zip(path_to_delete)
+
+    def get_downloaded_photo(self, downloader, album, photo):
+        return (
+            downloader.download_success_dict[album]
+            if album is not None  # after_album
+            else downloader.download_success_dict[photo.from_album]  # after_photo
+        )
 
     def zip_photo(self, photo, image_list: list, zip_path: str, path_to_delete):
         """
