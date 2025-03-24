@@ -112,7 +112,8 @@ jmcomic 123 --option="D:/a.yml"
 b. 配置环境变量 `JM_OPTION_PATH` 为option文件路径（推荐）
 
 ```sh
-# set JM_OPTION_PATH="D:/a.yml"
+# setx JM_OPTION_PATH "D:/a.yml"
+# 重启终端生效
 jmcomic 123
 ```
 
