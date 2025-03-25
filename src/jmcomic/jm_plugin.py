@@ -385,9 +385,11 @@ class ZipPlugin(JmOptionPlugin):
 
 # Plugin: EncryptedZipPlugin
 # Author: AXIS5 a.k.a AXIS5Hacker
+# Plugin: EncryptedZipPlugin
 class EncryptedZipPlugin(JmOptionPlugin):
     plugin_key = 'encryptzip'
-
+    
+    
     # noinspection PyAttributeOutsideInit
     def invoke(self,
                downloader,
@@ -400,7 +402,7 @@ class EncryptedZipPlugin(JmOptionPlugin):
                zip_dir='./',
                default_password=None 
                ) -> None:
-        # default_password为指定的固定密码，在yml中配置，为空则为随机
+        #default_password为指定的固定密码，在yml中配置，为空则为随机
         
         downloader: JmDownloader
         self.downloader = downloader
@@ -408,11 +410,8 @@ class EncryptedZipPlugin(JmOptionPlugin):
         self.delete_original_file = delete_original_file
         self.default_password=default_password
 
-        # 使用的库
-        import random
-        import pyzipper
-        import zipfile
-                   
+        
+        
         # 确保压缩文件所在文件夹存在
         zip_dir = JmcomicText.parse_to_abspath(zip_dir)
         mkdir_if_not_exists(zip_dir)
@@ -438,6 +437,9 @@ class EncryptedZipPlugin(JmOptionPlugin):
         """
         自动生成随机字符密码，长度由randomlength指定
         """
+        # 使用的库
+        import random
+        
         random_str = ''
         base_str = r'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
         length = len(base_str) - 1
@@ -456,6 +458,10 @@ class EncryptedZipPlugin(JmOptionPlugin):
         """
         压缩photo文件夹
         """
+        # 使用的库
+        import zipfile
+        import pyzipper
+    
         photo_dir = self.option.decide_image_save_dir(photo) \
             if len(image_list) == 0 \
             else os.path.dirname(image_list[0][0])
@@ -463,15 +469,15 @@ class EncryptedZipPlugin(JmOptionPlugin):
         #from common import backup_dir_to_zip
         #backup_dir_to_zip(photo_dir, zip_path)
         if self.default_password is None:
-            #generate random password
+            # generate random password
             crypt=self.generate_random_str(48)
         else:
-            #fixed password
+            # fixed password
             crypt=self.default_password
         zip_file=pyzipper.AESZipFile(zip_path, "w",pyzipper.ZIP_DEFLATED)
         
         if self.default_password is None:
-            #attach the random password to the comment of the zip file
+            # attach the random password to the comment of the zip file
             zip_file.comment=str.encode(crypt)
         zip_file.setpassword(str.encode(crypt))
         zip_file.setencryption(pyzipper.WZ_AES, nbits=128)
@@ -494,16 +500,19 @@ class EncryptedZipPlugin(JmOptionPlugin):
         """
 
         album_dir = self.option.dir_rule.decide_album_root_dir(album)
-            
+        # 使用的库
+        import zipfile
+        import pyzipper
+    
         with pyzipper.AESZipFile(zip_path, 'w', pyzipper.ZIP_DEFLATED) as f:
             if self.default_password is None:
-                #generate random password
+                # generate random password
                 crypt=self.generate_random_str(48)
             else:
-                #fixed password
+                # fixed password
                 crypt=self.default_password
             if self.default_password is None:
-                #attach the random password to the comment of the zip file
+                # attach the random password to the comment of the zip file
                 f.comment=str.encode(crypt)
             f.setpassword(str.encode(crypt))
             f.setencryption(pyzipper.WZ_AES, nbits=128)
@@ -545,6 +554,7 @@ class EncryptedZipPlugin(JmOptionPlugin):
             zip_dir,
             filename + fix_suffix(suffix),
         )
+
 
 class ClientProxyPlugin(JmOptionPlugin):
     plugin_key = 'client_proxy'
