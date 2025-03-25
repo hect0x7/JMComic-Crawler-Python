@@ -1,7 +1,13 @@
 from .jm_downloader import *
+from dataclasses import dataclass
+
+@dataclass
+class ImageData:
+    image: JmImageDetail
+    image_num: int
+
 
 __DOWNLOAD_API_RET = Tuple[JmAlbumDetail, JmDownloader]
-
 
 def download_batch(download_api,
                    jm_id_iter: Union[Iterable, Generator],
@@ -123,3 +129,47 @@ def create_option_by_str(text: str, mode=None):
 
 
 create_option = create_option_by_file
+
+
+def get_album_images(jm_album_id:int, option=None) -> Tuple[JmAlbumDetail, List[ImageData]]:
+    """
+    获取本子信息和图片列表，不进行下载。
+    注意,获取到的图片内容是经过JM打乱的,需要使用 restore_original_image 进行恢复。
+
+    :param jm_album_id: 本子的禁漫车号
+    :param option: 下载选项
+    :return: 本子实体类和 ImageData 列表
+    """
+    from .jm_toolkit import JmImageTool
+    
+    if option is None:
+        option = JmModuleConfig.option_class().default()
+
+    client = option.build_jm_client()
+    album = client.get_album_detail(jm_album_id)
+
+    image_data_list = []
+    for photo in album:
+        client.check_photo(photo)
+        for image in photo:
+            image_num = JmImageTool.get_num(scramble_id=image.scramble_id, aid=image.aid, filename=image.filename)
+            image_data_list.append(ImageData(image=image, image_num=image_num))
+    
+    return album, image_data_list
+
+def restore_original_image(num: int, image_content: bytes, image_format: str = "PNG") -> bytes:
+    """
+    恢复被禁漫打乱的图片。
+
+    :param num: 图片的 num，用于解密
+    :param image_content: 被打乱的图片内容（字节流）
+    :param image_format: 恢复后的图片格式，默认PNG
+    :return: 恢复后的图片内容（字节流）
+    """
+    from .jm_toolkit import JmImageTool
+
+    # 打开图片
+    image = JmImageTool.open_image(image_content)
+
+    # 解密图片并返回字节
+    return JmImageTool.decode_and_return_bytes(num=num, img_src=image, img_format=image_format)

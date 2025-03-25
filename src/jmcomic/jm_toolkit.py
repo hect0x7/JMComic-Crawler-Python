@@ -760,16 +760,43 @@ class JmImageTool:
         :param img_src: 原始图片
         :param decoded_save_path: 解密图片的保存路径
         """
+        img_decode = cls.decode_image(num, img_src)
+        cls.save_image(img_decode, decoded_save_path)
 
-        # 无需解密，直接保存
+    @classmethod
+    def decode_and_return_bytes(cls,
+                                num: int,
+                                img_src: Image,
+                                img_format: str = "PNG"
+                                ) -> bytes:
+        """
+        解密图片并返回字节数据
+        :param num: 分割数，可以用 cls.calculate_segmentation_num 计算
+        :param img_src: 原始图片
+        :return: 解密后的图片字节数据
+        """
+        img_decode = cls.decode_image(num, img_src)
+        from io import BytesIO
+        buffer = BytesIO()
+        img_decode.save(buffer, format=img_format)  # 可根据需要调整格式
+        return buffer.getvalue()
+
+    @classmethod
+    def decode_image(cls, num: int, img_src: Image) -> Image:
+        """
+        解密图片的通用逻辑
+        :param num: 分割数
+        :param img_src: 原始图片
+        :return: 解密后的图片对象
+        """
+        
+        num = int(num)
+        
         if num == 0:
-            cls.save_image(img_src, decoded_save_path)
-            return
+            return img_src
 
         import math
         w, h = img_src.size
-
-        # 创建新的解密图片
         img_decode = Image.new("RGB", (w, h))
         over = h % num
         for i in range(num):
@@ -792,15 +819,7 @@ class JmImageTool:
                     w, y_dst + move
                 )
             )
-
-            # save every step result
-            # cls.save_image(img_decode, change_file_name(
-            #     decoded_save_path,
-            #     f'{of_file_name(decoded_save_path, trim_suffix=True)}_{i}{of_file_suffix(decoded_save_path)}'
-            # ))
-
-        # 保存到新的解密文件
-        cls.save_image(img_decode, decoded_save_path)
+        return img_decode
 
     @classmethod
     def open_image(cls, fp: Union[str, bytes]):

@@ -1,7 +1,50 @@
 from test_jmcomic import *
 
 
+def download_image(image_url: str) -> bytes:
+    """
+    下载图片并返回字节内容。
+    
+    :param image_url: 图片URL
+    :return: 图片的字节流
+    """
+    import requests
+    
+    response = requests.get(image_url, stream=True)
+    response.raise_for_status()
+    return response.content
+
 class Test_Api(JmTestConfigurable):
+    def test_fetch_and_decrypt_images(jm_id: int = 438516, output_dir: str = "output_dir"):
+        """
+        测试下载并解密图片
+        :param jm_album_id: 本子的禁漫车号
+        :param output_dir: 输出目录
+        """
+        import os
+
+        # 确保输出目录存在
+        os.makedirs(output_dir, exist_ok=True)
+        # 获取专辑详情和图片数据列表
+        album, image_data_list = get_album_images(jm_id)
+        print(f"调试信息: {album}, {image_data_list}")
+        
+        for image_data in image_data_list:
+            print(f"正在处理: {image_data.image.img_file_name},调试信息:{image_data}")
+            image_url = image_data.image.img_url
+            image_num = image_data.image_num
+            
+            # 下载图片内容
+            image_content = download_image(image_url)
+            
+            # 解密图片
+            restored_content = restore_original_image(image_num, image_content)
+            
+            # 生成文件名并保存
+            file_path = os.path.join(output_dir, f"{image_data.image.img_file_name}.jpg")
+            with open(file_path, "wb") as f:
+                f.write(restored_content)
+            print(f"已保存: {file_path}")
 
     def test_download_photo_by_id(self):
         """
