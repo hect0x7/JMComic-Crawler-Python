@@ -504,7 +504,7 @@ class EncryptedZipPlugin(JmOptionPlugin):
                 crypt=self.default_password
             if self.default_password is None:
                 #attach the random password to the comment of the zip file
-                zip_file.comment=str.encode(crypt)
+                f.comment=str.encode(crypt)
             f.setpassword(str.encode(crypt))
             f.setencryption(pyzipper.WZ_AES, nbits=128)
             for photo in photo_dict.keys():
