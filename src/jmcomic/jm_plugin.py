@@ -383,6 +383,168 @@ class ZipPlugin(JmOptionPlugin):
             filename + fix_suffix(suffix),
         )
 
+# Plugin: EncryptedZipPlugin
+# Author: AXIS5 a.k.a AXIS5Hacker
+class EncryptedZipPlugin(JmOptionPlugin):
+    plugin_key = 'encryptzip'
+
+    # noinspection PyAttributeOutsideInit
+    def invoke(self,
+               downloader,
+               album: JmAlbumDetail = None,
+               photo: JmPhotoDetail = None,
+               delete_original_file=False,
+               level='photo',
+               filename_rule='Ptitle',
+               suffix='zip',
+               zip_dir='./',
+               default_password=None 
+               ) -> None:
+        # default_password为指定的固定密码，在yml中配置，为空则为随机
+        
+        downloader: JmDownloader
+        self.downloader = downloader
+        self.level = level
+        self.delete_original_file = delete_original_file
+        self.default_password=default_password
+
+        # 使用的库
+        import random
+        import pyzipper
+        import zipfile
+                   
+        # 确保压缩文件所在文件夹存在
+        zip_dir = JmcomicText.parse_to_abspath(zip_dir)
+        mkdir_if_not_exists(zip_dir)
+
+        path_to_delete = []
+        photo_dict = self.get_downloaded_photo(downloader, album, photo)
+
+        if level == 'album':
+            zip_path = self.get_zip_path(album, None, filename_rule, suffix, zip_dir)
+            self.zip_album(album, photo_dict, zip_path, path_to_delete)
+
+        elif level == 'photo':
+            for photo, image_list in photo_dict.items():
+                zip_path = self.get_zip_path(None, photo, filename_rule, suffix, zip_dir)
+                self.zip_photo(photo, image_list, zip_path, path_to_delete)
+
+        else:
+            ExceptionTool.raises(f'Not Implemented Zip Level: {level}')
+
+        self.after_zip(path_to_delete)
+
+    def generate_random_str(self, randomlength=32):
+        """
+        自动生成随机字符密码，长度由randomlength指定
+        """
+        random_str = ''
+        base_str = r'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
+        length = len(base_str) - 1
+        for i in range(randomlength):
+            random_str += base_str[random.randint(0, length)]
+        return random_str
+
+    def get_downloaded_photo(self, downloader, album, photo):
+        return (
+            downloader.download_success_dict[album]
+            if album is not None  # after_album
+            else downloader.download_success_dict[photo.from_album]  # after_photo
+        )
+
+    def zip_photo(self, photo, image_list: list, zip_path: str, path_to_delete):
+        """
+        压缩photo文件夹
+        """
+        photo_dir = self.option.decide_image_save_dir(photo) \
+            if len(image_list) == 0 \
+            else os.path.dirname(image_list[0][0])
+
+        #from common import backup_dir_to_zip
+        #backup_dir_to_zip(photo_dir, zip_path)
+        if self.default_password is None:
+            #generate random password
+            crypt=self.generate_random_str(48)
+        else:
+            #fixed password
+            crypt=self.default_password
+        zip_file=pyzipper.AESZipFile(zip_path, "w",pyzipper.ZIP_DEFLATED)
+        
+        if self.default_password is None:
+            #attach the random password to the comment of the zip file
+            zip_file.comment=str.encode(crypt)
+        zip_file.setpassword(str.encode(crypt))
+        zip_file.setencryption(pyzipper.WZ_AES, nbits=128)
+        for file in files_of_dir(photo_dir):
+            abspath = os.path.join(photo_dir, file)
+            relpath = os.path.relpath(abspath, photo_dir)
+            zip_file.write(abspath, relpath)
+        if self.default_password is not None:
+            self.log(f'指定固定密码[{self.default_password}]')
+        self.log(f'加密压缩章节[{photo.photo_id}]成功 → {zip_path}', 'finish')
+        path_to_delete.append(self.unified_path(photo_dir))
+
+    @staticmethod
+    def unified_path(f):
+        return fix_filepath(f, os.path.isdir(f))
+
+    def zip_album(self, album, photo_dict: dict, zip_path, path_to_delete):
+        """
+        压缩album文件夹
+        """
+
+        album_dir = self.option.dir_rule.decide_album_root_dir(album)
+            
+        with pyzipper.AESZipFile(zip_path, 'w', pyzipper.ZIP_DEFLATED) as f:
+            if self.default_password is None:
+                #generate random password
+                crypt=self.generate_random_str(48)
+            else:
+                #fixed password
+                crypt=self.default_password
+            if self.default_password is None:
+                #attach the random password to the comment of the zip file
+                zip_file.comment=str.encode(crypt)
+            f.setpassword(str.encode(crypt))
+            f.setencryption(pyzipper.WZ_AES, nbits=128)
+            for photo in photo_dict.keys():
+                # 定位到章节所在文件夹
+                photo_dir = self.unified_path(self.option.decide_image_save_dir(photo))
+                # 章节文件夹标记为删除
+                path_to_delete.append(photo_dir)
+                for file in files_of_dir(photo_dir):
+                    abspath = os.path.join(photo_dir, file)
+                    relpath = os.path.relpath(abspath, album_dir)
+                    f.write(abspath, relpath)
+        if self.default_password is not None:
+            self.log(f'指定固定密码[{self.default_password}]')
+        self.log(f'加密压缩本子[{album.album_id}]成功 → {zip_path}', 'finish')
+
+    def after_zip(self, path_to_delete: List[str]):
+        # 删除所有原文件
+        dirs = sorted(path_to_delete, reverse=True)
+        
+        image_paths = [
+            path
+            for photo_dict in self.downloader.download_success_dict.values()
+            for image_list in photo_dict.values()
+            for path, image in image_list
+        ]
+        #print(image_paths)
+        self.execute_deletion(image_paths)
+        self.execute_deletion(dirs)
+
+    # noinspection PyMethodMayBeStatic
+    def get_zip_path(self, album, photo, filename_rule, suffix, zip_dir):
+        """
+        计算zip文件的路径
+        """
+        filename = DirRule.apply_rule_directly(album, photo, filename_rule)
+        from os.path import join
+        return join(
+            zip_dir,
+            filename + fix_suffix(suffix),
+        )
 
 class ClientProxyPlugin(JmOptionPlugin):
     plugin_key = 'client_proxy'
