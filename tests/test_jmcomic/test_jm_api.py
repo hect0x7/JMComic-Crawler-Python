@@ -15,10 +15,10 @@ def download_image(image_url: str) -> bytes:
     return response.content
 
 class Test_Api(JmTestConfigurable):
-    def test_fetch_and_decrypt_images(jm_id: int = 438516, output_dir: str = "output_dir"):
+    def test_fetch_and_decrypt_images(self, jm_id: int = 438516, output_dir: str = "output_dir"):
         """
         测试下载并解密图片
-        :param jm_album_id: 本子的禁漫车号
+        :param jm_id: 本子的禁漫车号
         :param output_dir: 输出目录
         """
         import os
