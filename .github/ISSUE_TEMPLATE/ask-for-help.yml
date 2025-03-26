@@ -14,11 +14,11 @@ body:
   - type: dropdown
     attributes:
       label: 你使用的是哪种方式？
+      multiple: true
       options:
         - GitHub Actions
         - Python代码
         - jmcomic命令行
-      default: 0
     validations:
       required: true
 
@@ -34,5 +34,8 @@ body:
 
   - type: textarea
     attributes:
-      label: 其他信息
-      placeholder: 如果有其他需要补充的信息，可以在这里留言
+      label: 额外信息（代码/option配置/截图等）
+      placeholder: |
+        - 如果是运行代码，请提供核心代码片段
+        - 如果有自定义option配置，请提供配置内容
+        - 如果是GitHub Actions，请提供运行记录的URL

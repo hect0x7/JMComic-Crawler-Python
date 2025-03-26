@@ -63,7 +63,7 @@ def fetch(photo: JmPhotoDetail):
     # 下载单个图片
     client.download_by_image_detail(image, './a.jpg')
     # 如果是已知未混淆的图片，也可以直接使用url来下载
-    random_image_domain = JmModuleConfig.DOMAIN_IMAGE_LIST
+    random_image_domain = JmModuleConfig.DOMAIN_IMAGE_LIST[0]
     client.download_image(f'https://{random_image_domain}/media/albums/416130.jpg', './a.jpg')
     
 
