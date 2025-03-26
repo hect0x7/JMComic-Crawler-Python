@@ -27,14 +27,17 @@ client:
   # APP端不限ip兼容性好，网页端限制ip地区但效率高
   impl: html
 
-  # domain: 域名配置，默认是 []，表示运行时自动获取域名。
-  # 可配置特定域名，如下：
-  # 程序会先用第一个域名，如果第一个域名重试n次失败，则换下一个域名重试，以此类推。
+  # domain: 禁漫域名配置，一般无需配置，jmcomic会根据上面的impl自动设置相应域名
+  # 该配置项需要和上面的impl结合使用，因为禁漫网页端和APP端使用的是不同域名，
+  # 所以配置是一个dict结构，key是impl的值，value是域名列表，表示这个impl走这些域名。
+  # 域名列表的使用顺序是：先用第一个域名，如果第一个域名重试n次失败，则换下一个域名重试，以此类推。
+  # 下面是示例：（注意下面这些域名可能会过时，不一定能用）
   domain:
-    - jm-comic.org
-    - jm-comic2.cc
-    - 18comic.vip
-    - 18comic.org
+    html:
+      - 18comic.vip
+      - 18comic.org
+    api:
+      - www.jmapiproxyxxx.vip
 
   # retry_times: 请求失败重试次数，默认为5
   retry_times: 5
