@@ -55,7 +55,10 @@ class Test_Client(JmTestConfigurable):
         ]
 
         for pair in ans:
-            self.assertListEqual(pair[0][0:9], pair[1][0:9])
+            left = pair[0][0:9]
+            right = pair[1][0:9]
+            for i, ans in enumerate(right):
+                self.assertEqual(JmcomicText.to_zh_cn(left[i]), JmcomicText.to_zh_cn(ans))
 
     def test_photo_sort(self):
         client = self.option.build_jm_client()

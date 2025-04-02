@@ -76,7 +76,7 @@ class JmMagicConstants:
     APP_TOKEN_SECRET = '18comicAPP'
     APP_TOKEN_SECRET_2 = '18comicAPPContent'
     APP_DATA_SECRET = '185Hcomic3PAPP7R'
-    APP_VERSION = '1.7.8'
+    APP_VERSION = '1.7.9'
 
 
 # 模块级别共用配置
@@ -127,10 +127,10 @@ class JmModuleConfig:
 
     # 移动端API域名
     DOMAIN_API_LIST = shuffled('''
-    www.jmapiproxyxxx.vip
-    www.cdnblackmyth.vip
-    www.cdnblackmyth.xyz
-    www.cdnxxx-proxy.co
+    www.cdnmhwscc.vip
+    www.cdnblackmyth.club
+    www.cdnmhws.cc
+    www.cdnuc.vip
     ''')
 
     APP_HEADERS_TEMPLATE = {

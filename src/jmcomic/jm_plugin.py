@@ -319,7 +319,7 @@ class ZipPlugin(JmOptionPlugin):
         return (
             downloader.download_success_dict[album]
             if album is not None  # after_album
-            else downloader.download_success_dict[photo.from_album]  # after_photo
+            else downloader.download_success_dict[photo.from_album] # after_photo
         )
 
     def zip_photo(self, photo, image_list: list, zip_path: str, path_to_delete):
