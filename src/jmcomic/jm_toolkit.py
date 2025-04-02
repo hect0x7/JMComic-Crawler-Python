@@ -317,7 +317,7 @@ class JmcomicText:
     @classmethod
     def to_zh_cn(cls, s):
         import zhconv
-        return zhconv.convert(s, 'zh_cn')
+        return zhconv.convert(s, 'zh-cn')
 
     @classmethod
     def try_mkdir(cls, save_dir: str):
