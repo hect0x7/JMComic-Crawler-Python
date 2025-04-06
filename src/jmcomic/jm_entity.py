@@ -457,10 +457,10 @@ class JmAlbumDetail(DetailEntity, Downloadable):
         self.authors: List[str] = authors  # 作者
 
         # 有的 album 没有章节，则自成一章。
-        episode_list: List[Tuple[str, str, str, Optional[str]]]
+        episode_list: List[Tuple[str, str, str]]
         if len(episode_list) == 0:
             # photo_id, photo_index, photo_title, photo_pub_date
-            episode_list = [(album_id, "1", name, None)]
+            episode_list = [(album_id, "1", name)]
         else:
             episode_list = self.distinct_episode(episode_list)
 
@@ -505,7 +505,7 @@ class JmAlbumDetail(DetailEntity, Downloadable):
             raise IndexError(f'photo index out of range for album-{self.album_id}: {index} >= {length}')
 
         # ('212214', '81', '94 突然打來', '2020-08-29')
-        pid, pindex, pname, _ = self.episode_list[index]
+        pid, pindex, pname = self.episode_list[index]
 
         photo = JmModuleConfig.photo_class()(
             photo_id=pid,

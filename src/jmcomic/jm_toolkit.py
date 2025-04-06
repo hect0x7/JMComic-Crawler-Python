@@ -693,7 +693,7 @@ class JmApiAdaptTool:
             chapter = AdvancedDict(chapter)
             # photo_id, photo_index, photo_title, photo_pub_date
             episode_list.append(
-                (chapter.id, chapter.sort, chapter.name, None)
+                (chapter.id, chapter.sort, chapter.name)
             )
         fields['episode_list'] = episode_list
         for it in 'scramble_id', 'page_count', 'pub_date', 'update_date':
