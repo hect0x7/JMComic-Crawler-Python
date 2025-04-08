@@ -1,6 +1,29 @@
 from .jm_option import *
 
 
+def catch_exception(field_name):
+    def deco(func):
+        def wrapper(self, *args, **kwargs):
+            try:
+                return func(self, *args, **kwargs)
+            except Exception as e:
+                detail: JmBaseEntity = args[1]
+                getattr(self, field_name).append((detail, e))
+                if detail.is_image():
+                    detail: JmImageDetail
+                    jm_log('image.failed', f'图片下载失败: [{detail.download_url}], 异常: {e}')
+
+                elif detail.is_photo():
+                    detail: JmPhotoDetail
+                    jm_log('photo.failed', f'章节下载失败: [{detail.id}], 异常: {e}')
+
+                raise e
+
+        return wrapper
+
+    return deco
+
+
 # noinspection PyMethodMayBeStatic
 class DownloadCallback:
 
@@ -55,29 +78,6 @@ class JmDownloader(DownloadCallback):
         # 下载失败的记录list
         self.download_failed_image: List[Tuple[JmImageDetail, BaseException]] = []
         self.download_failed_photo: List[Tuple[JmPhotoDetail, BaseException]] = []
-
-    @staticmethod
-    def catch_exception(field_name):
-        def deco(func):
-            def wrapper(self, *args, **kwargs):
-                try:
-                    return func(self, *args, **kwargs)
-                except Exception as e:
-                    detail: JmBaseEntity = args[1]
-                    getattr(self, field_name).append((detail, e))
-                    if detail.is_image():
-                        detail: JmImageDetail
-                        jm_log('image.failed', f'图片下载失败: [{detail.download_url}], 异常: {e}')
-
-                    elif detail.is_photo():
-                        detail: JmPhotoDetail
-                        jm_log('photo.failed', f'章节下载失败: [{detail.id}], 异常: {e}')
-
-                    raise e
-
-            return wrapper
-
-        return deco
 
     def download_album(self, album_id):
         client = self.client_for_album(album_id)
