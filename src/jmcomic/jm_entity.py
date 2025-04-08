@@ -35,6 +35,13 @@ class JmBaseEntity:
     def is_page(cls):
         return False
 
+    @classmethod
+    def __alias__(cls):
+        # "JmAlbumDetail" -> "album" (本子)
+        # "JmPhotoDetail" -> "photo" (章节)
+        cls_name = cls.__name__
+        return cls_name[cls_name.index("m") + 1: cls_name.rfind("Detail")].lower()
+
 
 class IndexedEntity:
     def getindex(self, index: int):
@@ -125,17 +132,9 @@ class DetailEntity(JmBaseEntity, IndexedEntity):
         return f'[{self.id}] {self.oname}'
 
     def __str__(self):
-        return f'{self.__class__.__name__}' \
-               '{' \
-               f'{self.id}: {self.title}' \
-               '}'
+        return f'''{self.__class__.__name__}({self.__alias__()}-{self.id}: "{self.title}")'''
 
-    @classmethod
-    def __alias__(cls):
-        # "JmAlbumDetail" -> "album" (本子)
-        # "JmPhotoDetail" -> "photo" (章节)
-        cls_name = cls.__name__
-        return cls_name[cls_name.index("m") + 1: cls_name.rfind("Detail")].lower()
+    __repr__ = __str__
 
     @classmethod
     def get_dirname(cls, detail: 'DetailEntity', ref: str) -> str:
@@ -257,6 +256,11 @@ class JmImageDetail(JmBaseEntity, Downloadable):
     @classmethod
     def is_image(cls):
         return True
+
+    def __str__(self):
+        return f'''{self.__class__.__name__}({self.__alias__()}-[{self.download_url}])'''
+
+    __repr__ = __str__
 
 
 class JmPhotoDetail(DetailEntity, Downloadable):

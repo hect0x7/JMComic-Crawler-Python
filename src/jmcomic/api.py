@@ -72,7 +72,7 @@ def download_album(jm_album_id,
         if callback is not None:
             callback(album, dler)
         if check_exception:
-            dler.raise_if_have_exception()
+            dler.raise_if_has_exception()
         return album, dler
 
 
