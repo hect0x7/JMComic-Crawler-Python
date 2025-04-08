@@ -125,10 +125,9 @@ class DetailEntity(JmBaseEntity, IndexedEntity):
         return f'[{self.id}] {self.oname}'
 
     def __str__(self):
-        return f'{self.__class__.__name__}' \
-               '{' \
-               f'{self.id}: {self.title}' \
-               '}'
+        return f'''{self.__class__.__name__}({self.__alias__()}-{self.id}: "{self.title}")'''
+
+    __repr__ = __str__
 
     @classmethod
     def __alias__(cls):
@@ -257,6 +256,11 @@ class JmImageDetail(JmBaseEntity, Downloadable):
     @classmethod
     def is_image(cls):
         return True
+
+    def __str__(self):
+        return f'''{self.__class__.__name__}(image-[{self.download_url}])'''
+
+    __repr__ = __str__
 
 
 class JmPhotoDetail(DetailEntity, Downloadable):

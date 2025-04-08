@@ -566,7 +566,7 @@ class JmHtmlClient(AbstractJmClient):
 
             cls.raise_request_error(
                 resp,
-                f'{reason}'
+                f'{reason}({content})'
                 + (f': {url}' if url is not None else '')
             )
 
