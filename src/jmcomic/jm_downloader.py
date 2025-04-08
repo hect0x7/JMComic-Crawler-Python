@@ -63,8 +63,8 @@ class JmDownloader(DownloadCallback):
                 try:
                     return func(self, *args, **kwargs)
                 except Exception as e:
-                    getattr(self, field_name).append(e)
                     detail: JmBaseEntity = args[1]
+                    getattr(self, field_name).append((detail, e))
                     if detail.is_image():
                         detail: JmImageDetail
                         jm_log('image.failed', f'图片下载失败: [{detail.download_url}], 异常: {e}')
