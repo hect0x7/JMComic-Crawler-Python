@@ -193,7 +193,7 @@ class JmDownloader(DownloadCallback):
 
         注意！如果使用了filter机制，例如通过filter只下载3张图片，那么all_success也会为False
         """
-        if not self.has_no_download_failed_exception:
+        if self.has_download_failures:
             return False
 
         for album, photo_dict in self.download_success_dict.items():
@@ -207,8 +207,8 @@ class JmDownloader(DownloadCallback):
         return True
 
     @property
-    def has_no_download_failed_exception(self):
-        return len(self.download_failed_image) == 0 and len(self.download_failed_photo) == 0
+    def has_download_failures(self):
+        return len(self.download_failed_image) != 0 or len(self.download_failed_photo) != 0
 
     # 下面是回调方法
 
@@ -268,7 +268,7 @@ class JmDownloader(DownloadCallback):
         )
 
     def raise_if_has_exception(self):
-        if self.has_no_download_failed_exception:
+        if not self.has_download_failures:
             return
         msg_ls = ['部分下载失败', '', '']
 

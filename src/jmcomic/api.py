@@ -79,7 +79,9 @@ def download_album(jm_album_id,
 def download_photo(jm_photo_id,
                    option=None,
                    downloader=None,
-                   callback=None):
+                   callback=None,
+                   check_exception=True,
+                   ):
     """
     下载一个章节（photo），参数同 download_album
     """
@@ -91,7 +93,8 @@ def download_photo(jm_photo_id,
 
         if callback is not None:
             callback(photo, dler)
-
+        if check_exception:
+            dler.raise_if_has_exception()
         return photo, dler
 
 

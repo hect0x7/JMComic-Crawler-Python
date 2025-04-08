@@ -62,6 +62,9 @@ class RequestRetryAllFailException(JmcomicException):
 class PartialDownloadFailedException(JmcomicException):
     description = '部分章节或图片下载失败异常'
 
+    @property
+    def downloader(self):
+        return self.from_context(ExceptionTool.CONTEXT_KEY_DOWNLOADER)
 
 class ExceptionTool:
     """
@@ -74,6 +77,7 @@ class ExceptionTool:
     CONTEXT_KEY_HTML = 'html'
     CONTEXT_KEY_RE_PATTERN = 'pattern'
     CONTEXT_KEY_MISSING_JM_ID = 'missing_jm_id'
+    CONTEXT_KEY_DOWNLOADER = 'downloader'
 
     @classmethod
     def raises(cls,
