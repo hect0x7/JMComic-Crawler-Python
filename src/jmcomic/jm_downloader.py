@@ -2,6 +2,9 @@ from .jm_option import *
 
 
 def catch_exception(func):
+    from functools import wraps
+
+    @wraps(func)
     def wrapper(self, *args, **kwargs):
         self: JmDownloader
         try:
@@ -20,7 +23,6 @@ def catch_exception(func):
 
             raise e
 
-    wrapper.__name__ = func.__name__
     return wrapper
 
 
