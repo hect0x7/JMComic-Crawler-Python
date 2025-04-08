@@ -287,7 +287,9 @@ class JmDownloader(DownloadCallback):
         if self.is_empty_download_failed:
             return
         ExceptionTool.raises(
-            f'部分下载失败: 有{len(self.download_failed_photo)}个章节下载失败, {len(self.download_failed_image)}个图片下载失败',
+            f'部分下载失败: 有{len(self.download_failed_photo)}个章节下载失败, {len(self.download_failed_image)}个图片下载失败。\n' +
+            f'失败章节IDs: {[photo.id for photo, _ in self.download_failed_photo][:5]}{"..." if len(self.download_failed_photo) > 5 else ""}\n' +
+            f'失败图片URLs: {[image.download_url for image, _ in self.download_failed_image][:5]}{"..." if len(self.download_failed_image) > 5 else ""}',
             {'downloader': self},
             PartialDownloadFailedException,
         )
