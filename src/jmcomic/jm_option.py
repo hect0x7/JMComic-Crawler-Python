@@ -71,7 +71,7 @@ class DirRule:
     ]
 
     Detail = Union[JmAlbumDetail, JmPhotoDetail, None]
-    RuleFunc = Callable[[Detail], str]
+    RuleFunc = Callable
     RuleSolver = Tuple[str, RuleFunc, str]
     RuleSolverList = List[RuleSolver]
 
@@ -154,6 +154,12 @@ class DirRule:
 
     @classmethod
     def get_rule_solver(cls, rule: str) -> Optional[RuleSolver]:
+        if '{' in rule:
+            def format_path(album, photo):
+                return fix_windir_name(rule.format(**album.get_properties_dict(), **photo.get_properties_dict())).strip()
+
+            return 'F', format_path, rule
+
         # 检查dsl
         if not rule.startswith(('A', 'P')):
             return None
@@ -176,15 +182,17 @@ class DirRule:
 
         def choose_detail(key):
             if key == 'Bd':
-                return None
+                return None,
             if key == 'A':
-                return album
+                return album,
             if key == 'P':
-                return photo
+                return photo,
+            if key == 'F':
+                return album, photo
 
         key, func, _ = rule_solver
         detail = choose_detail(key)
-        return func(detail)
+        return func(*detail)
 
     @classmethod
     def apply_rule_directly(cls, album, photo, rule: str) -> str:

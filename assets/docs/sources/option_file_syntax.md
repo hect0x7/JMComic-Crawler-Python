@@ -96,7 +96,14 @@ dir_rule:
   # 写法:
   # 1. 以'Bd'开头，表示根目录
   # 2. 文件夹每增加一层，使用 '_' 或者 '/' 区隔
-  # 3. 用Pxxx或者Ayyy指代文件夹名，意思是 JmPhotoDetail.xxx / JmAlbumDetail的.yyy。xxx和yyy可以写什么需要看源码。
+  # 3. 用Pxxx或者Ayyy指代文件夹名，意思是 JmPhotoDetail.xxx / JmAlbumDetail的.yyy。
+  # xxx和yyy可以写什么需要看源码，或通过下面代码打印出所有可用的值
+  # 
+  # ```python
+  # import jmcomic
+  # properties: dict = jmcomic.JmOption.default().new_jm_client().get_album_detail(本子id).get_properties_dict()
+  # print(properties)
+  # ```
   # 
   # 下面演示如果要使用禁漫网站的默认下载方式，该怎么写:
   # 规则: 根目录 / 本子id / 章节序号 / 图片文件
@@ -105,6 +112,9 @@ dir_rule:
 
   # 默认规则是: 根目录 / 章节标题 / 图片文件
   rule: Bd_Ptitle
+  # jmcomic v2.5.36 以后，支持使用python的f-string的语法组合文件夹名，下为示例
+  # rule: Bd / Aauthor / (JM{Aid}-{Pindex})-{Pname}
+  # {}大括号里的内容同样是写 Axxx 或 Pxxx，其他语法自行参考python f-string的语法
 ```
 
 ## 3. option插件配置项

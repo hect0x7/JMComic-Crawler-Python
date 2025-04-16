@@ -164,6 +164,32 @@ class DetailEntity(JmBaseEntity, IndexedEntity):
 
         return getattr(detail, ref)
 
+    def get_properties_dict(self):
+        import inspect
+
+        prefix = self.__class__.__name__[2]
+        result = {}
+
+        # field
+        for k, v in self.__dict__.items():
+            result[prefix + k] = v
+
+        # property
+        for cls in inspect.getmro(type(self)):
+            for name, attr in cls.__dict__.items():
+                k = prefix + name
+                if k not in result and isinstance(attr, property):
+                    v = attr.__get__(self, cls)
+                    result[k] = v
+
+        # advice
+        advice_dict = JmModuleConfig.AFIELD_ADVICE if self.is_album() else JmModuleConfig.PFIELD_ADVICE
+        for name, func in advice_dict.items():
+            k = prefix + name
+            result[k] = func(self)
+
+        return result
+
 
 class JmImageDetail(JmBaseEntity, Downloadable):
 

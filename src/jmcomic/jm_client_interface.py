@@ -62,13 +62,16 @@ class JmImageResp(JmResp):
                     img_url=None,
                     ):
         img_url = img_url or self.url
+        index = img_url.find("?")
+        if index != -1:
+            img_url = img_url[0:index]
 
         if decode_image is False or scramble_id is None:
             # 不解密图片，直接保存文件
             JmImageTool.save_resp_img(
                 self,
                 path,
-                need_convert=suffix_not_equal(img_url[:img_url.find("?")], path),
+                need_convert=suffix_not_equal(img_url, path),
             )
         else:
             # 解密图片并保存文件

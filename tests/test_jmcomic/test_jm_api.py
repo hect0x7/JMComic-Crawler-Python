@@ -79,6 +79,13 @@ class Test_Api(JmTestConfigurable):
 
     def test_partial_exception(self):
         class TestDownloader(JmDownloader):
+            def do_filter(self, detail: DetailEntity):
+                if detail.is_photo():
+                    return detail[0:2]
+                if detail.is_album():
+                    return detail[0:2]
+                return super().do_filter(detail)
+
             @catch_exception
             def download_by_image_detail(self, image: JmImageDetail):
                 raise Exception('test_partial_exception')
