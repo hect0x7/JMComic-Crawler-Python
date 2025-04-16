@@ -414,7 +414,7 @@ class JmModuleConfig:
             'cache': None,  # see CacheRegistry
             'domain': [],
             'postman': {
-                'type': 'cffi',
+                'type': 'curl_cffi',
                 'meta_data': {
                     'impersonate': 'chrome110',
                     'headers': None,
