@@ -184,7 +184,7 @@ class DetailEntity(JmBaseEntity, IndexedEntity):
 
         # advice
         advice_dict = JmModuleConfig.AFIELD_ADVICE if self.is_album() else JmModuleConfig.PFIELD_ADVICE
-        for name, func in advice_dict:
+        for name, func in advice_dict.items():
             k = prefix + name
             result[k] = func(self)
 
