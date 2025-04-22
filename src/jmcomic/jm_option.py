@@ -64,14 +64,23 @@ class DirRule:
         base_dir = JmcomicText.parse_to_abspath(base_dir)
         self.base_dir = base_dir
         self.rule_dsl = rule
-        self.parser_list: List[Tuple[str, Callable]] = self.get_rule_solver_list(rule)
+        self.parser_list: List[Tuple[str, Callable]] = self.get_rule_parser_list(rule)
 
     def decide_image_save_dir(self,
                               album: JmAlbumDetail,
                               photo: JmPhotoDetail,
                               ) -> str:
+        return self._build_path_from_rules(album, photo)
+
+    def decide_album_root_dir(self, album: JmAlbumDetail) -> str:
+        return self._build_path_from_rules(album, None, True)
+
+    def _build_path_from_rules(self, album, photo, only_album_rules=False) -> str:
         path_ls = []
         for rule, parser in self.parser_list:
+            if only_album_rules and not (rule == self.RULE_BASE_DIR or rule.startswith('A')):
+                continue
+
             try:
                 path = parser(album, photo, rule)
             except BaseException as e:
@@ -85,26 +94,7 @@ class DirRule:
 
         return fix_filepath('/'.join(path_ls), is_dir=True)
 
-    def decide_album_root_dir(self, album: JmAlbumDetail) -> str:
-        path_ls = []
-        for rule, parser in self.parser_list:
-            if rule == self.RULE_BASE_DIR or rule.startswith('A'):
-                continue
-
-            try:
-                path = parser(album, None, rule)
-            except BaseException as e:
-                # noinspection PyUnboundLocalVariable
-                jm_log('dir_rule', f'路径规则"{rule}"的解析出错: {e}, album={album}')
-                raise e
-            if parser != self.parse_bd_rule:
-                path = fix_windir_name(str(path)).strip()
-
-            path_ls.append(path)
-
-        return fix_filepath('/'.join(path_ls), is_dir=True)
-
-    def get_rule_solver_list(self, rule_dsl: str):
+    def get_rule_parser_list(self, rule_dsl: str):
         """
         解析下载路径dsl，得到一个路径规则解析列表
         """
