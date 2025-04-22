@@ -169,6 +169,8 @@ class DirRule:
 
     @classmethod
     def apply_rule_directly(cls, album, photo, rule: str) -> str:
+        if album is None:
+            album = photo.from_album
         # noinspection PyArgumentList
         return fix_windir_name(cls.get_rule_parser(rule)(album, photo, rule)).strip()
 
