@@ -307,7 +307,7 @@ class ZipPlugin(JmOptionPlugin):
 
         elif level == 'photo':
             for photo, image_list in photo_dict.items():
-                zip_path = self.get_zip_path(None, photo, filename_rule, suffix, zip_dir)
+                zip_path = self.get_zip_path(photo.from_album, photo, filename_rule, suffix, zip_dir)
                 self.zip_photo(photo, image_list, zip_path, path_to_delete)
 
         else:
