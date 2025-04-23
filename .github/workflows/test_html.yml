@@ -16,7 +16,7 @@ jobs:
   test: # This code is based on https://github.com/gaogaotiantian/viztracer/blob/master/.github/workflows/python-package.yml
     strategy:
       matrix:
-        python-version: ['3.7', '3.8', '3.11', '3.12']
+        python-version: ['3.9', '3.10', '3.11', '3.13']
         os: [ ubuntu-latest ]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5
