@@ -385,11 +385,11 @@ class ZipPlugin(JmOptionPlugin):
 
 # Plugin: EncryptedZipPlugin
 # Author: AXIS5 a.k.a AXIS5Hacker
-# Plugin: EncryptedZipPlugin
+# Plugin Key: encryptzip
 class EncryptedZipPlugin(JmOptionPlugin):
     plugin_key = 'encryptzip'
-    
-    
+
+
     # noinspection PyAttributeOutsideInit
     def invoke(self,
                downloader,
@@ -403,15 +403,15 @@ class EncryptedZipPlugin(JmOptionPlugin):
                default_password=None 
                ) -> None:
         #default_password为指定的固定密码，在yml中配置，为空则为随机
-        
+
         downloader: JmDownloader
         self.downloader = downloader
         self.level = level
         self.delete_original_file = delete_original_file
         self.default_password=default_password
 
-        
-        
+
+
         # 确保压缩文件所在文件夹存在
         zip_dir = JmcomicText.parse_to_abspath(zip_dir)
         mkdir_if_not_exists(zip_dir)
@@ -425,7 +425,7 @@ class EncryptedZipPlugin(JmOptionPlugin):
 
         elif level == 'photo':
             for photo, image_list in photo_dict.items():
-                zip_path = self.get_zip_path(None, photo, filename_rule, suffix, zip_dir)
+                zip_path = self.get_zip_path(photo.from_album, photo, filename_rule, suffix, zip_dir)
                 self.zip_photo(photo, image_list, zip_path, path_to_delete)
 
         else:
@@ -439,7 +439,7 @@ class EncryptedZipPlugin(JmOptionPlugin):
         """
         # 使用的库
         import random
-        
+
         random_str = ''
         base_str = r'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
         length = len(base_str) - 1
@@ -461,7 +461,7 @@ class EncryptedZipPlugin(JmOptionPlugin):
         # 使用的库
         import zipfile
         import pyzipper
-    
+
         photo_dir = self.option.decide_image_save_dir(photo) \
             if len(image_list) == 0 \
             else os.path.dirname(image_list[0][0])
@@ -475,7 +475,7 @@ class EncryptedZipPlugin(JmOptionPlugin):
             # fixed password
             crypt=self.default_password
         zip_file=pyzipper.AESZipFile(zip_path, "w",pyzipper.ZIP_DEFLATED)
-        
+
         if self.default_password is None:
             # attach the random password to the comment of the zip file
             zip_file.comment=str.encode(crypt)
@@ -503,7 +503,7 @@ class EncryptedZipPlugin(JmOptionPlugin):
         # 使用的库
         import zipfile
         import pyzipper
-    
+
         with pyzipper.AESZipFile(zip_path, 'w', pyzipper.ZIP_DEFLATED) as f:
             if self.default_password is None:
                 # generate random password
@@ -532,7 +532,7 @@ class EncryptedZipPlugin(JmOptionPlugin):
     def after_zip(self, path_to_delete: List[str]):
         # 删除所有原文件
         dirs = sorted(path_to_delete, reverse=True)
-        
+
         image_paths = [
             path
             for photo_dict in self.downloader.download_success_dict.values()
