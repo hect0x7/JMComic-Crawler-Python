@@ -380,7 +380,7 @@ class JmModuleConfig:
 
     @classmethod
     def new_postman(cls, session=False, **kwargs):
-        kwargs.setdefault('impersonate', 'chrome110')
+        kwargs.setdefault('impersonate', 'chrome')
         kwargs.setdefault('headers', JmModuleConfig.new_html_headers())
         kwargs.setdefault('proxies', JmModuleConfig.DEFAULT_PROXIES)
 
@@ -416,7 +416,7 @@ class JmModuleConfig:
             'postman': {
                 'type': 'curl_cffi',
                 'meta_data': {
-                    'impersonate': 'chrome110',
+                    'impersonate': 'chrome',
                     'headers': None,
                     'proxies': None,
                 }
