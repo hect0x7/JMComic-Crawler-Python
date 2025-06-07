@@ -56,11 +56,12 @@ class JmOptionPlugin:
 
         raise PluginValidationException(self, msg)
 
-    def warning_lib_not_install(self, lib: str):
+    def warning_lib_not_install(self, lib: str, throw=False):
         msg = (f'插件`{self.plugin_key}`依赖库: {lib}，请先安装{lib}再使用。'
                f'安装命令: [pip install {lib}]')
         import warnings
         warnings.warn(msg)
+        self.require_param(throw, msg)
 
     def execute_deletion(self, paths: List[str]):
         """
@@ -303,6 +304,11 @@ class FindUpdatePlugin(JmOptionPlugin):
 
 
 class ZipPlugin(JmOptionPlugin):
+    """
+    感谢zip加密功能的贡献者:
+        - AXIS5 a.k.a AXIS5Hacker (https://github.com/hect0x7/JMComic-Crawler-Python/pull/375)
+    """
+
     plugin_key = 'zip'
 
     # noinspection PyAttributeOutsideInit
@@ -316,6 +322,7 @@ class ZipPlugin(JmOptionPlugin):
                suffix='zip',
                zip_dir='./',
                dir_rule=None,
+               encrypt=None,
                ) -> None:
 
         from .jm_downloader import JmDownloader
@@ -333,18 +340,19 @@ class ZipPlugin(JmOptionPlugin):
 
         if level == 'album':
             zip_path = self.decide_filepath(album, None, filename_rule, suffix, zip_dir, dir_rule)
-            self.zip_album(album, photo_dict, zip_path, path_to_delete)
+            self.zip_album(album, photo_dict, zip_path, path_to_delete, encrypt)
 
         elif level == 'photo':
             for photo, image_list in photo_dict.items():
                 zip_path = self.decide_filepath(photo.from_album, photo, filename_rule, suffix, zip_dir, dir_rule)
-                self.zip_photo(photo, image_list, zip_path, path_to_delete)
+                self.zip_photo(photo, image_list, zip_path, path_to_delete, encrypt)
 
         else:
             ExceptionTool.raises(f'Not Implemented Zip Level: {level}')
 
         self.after_zip(path_to_delete)
 
+    # noinspection PyMethodMayBeStatic
     def get_downloaded_photo(self, downloader, album, photo):
         return (
             downloader.download_success_dict[album]
@@ -352,7 +360,7 @@ class ZipPlugin(JmOptionPlugin):
             else downloader.download_success_dict[photo.from_album]  # after_photo
         )
 
-    def zip_photo(self, photo, image_list: list, zip_path: str, path_to_delete):
+    def zip_photo(self, photo, image_list: list, zip_path: str, path_to_delete, encrypt_dict):
         """
         压缩photo文件夹
         """
@@ -360,8 +368,11 @@ class ZipPlugin(JmOptionPlugin):
             if len(image_list) == 0 \
             else os.path.dirname(image_list[0][0])
 
-        from common import backup_dir_to_zip
-        backup_dir_to_zip(photo_dir, zip_path)
+        with self.open_zip_file(zip_path, encrypt_dict) as f:
+            for file in files_of_dir(photo_dir):
+                abspath = os.path.join(photo_dir, file)
+                relpath = os.path.relpath(abspath, photo_dir)
+                f.write(abspath, relpath)
 
         self.log(f'压缩章节[{photo.photo_id}]成功 → {zip_path}', 'finish')
         path_to_delete.append(self.unified_path(photo_dir))
@@ -370,14 +381,13 @@ class ZipPlugin(JmOptionPlugin):
     def unified_path(f):
         return fix_filepath(f, os.path.isdir(f))
 
-    def zip_album(self, album, photo_dict: dict, zip_path, path_to_delete):
+    def zip_album(self, album, photo_dict: dict, zip_path, path_to_delete, encrypt_dict):
         """
         压缩album文件夹
         """
 
         album_dir = self.option.dir_rule.decide_album_root_dir(album)
-        import zipfile
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as f:
+        with self.open_zip_file(zip_path, encrypt_dict) as f:
             for photo in photo_dict.keys():
                 # 定位到章节所在文件夹
                 photo_dir = self.unified_path(self.option.decide_image_save_dir(photo))
@@ -400,6 +410,67 @@ class ZipPlugin(JmOptionPlugin):
         ]
         self.execute_deletion(image_paths)
         self.execute_deletion(dirs)
+
+    # noinspection PyMethodMayBeStatic
+    @classmethod
+    def generate_random_str(cls, random_length) -> str:
+        """
+        自动生成随机字符密码，长度由randomlength指定
+        """
+        import random
+
+        random_str = ''
+        base_str = r'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
+        base_length = len(base_str) - 1
+        for _ in range(random_length):
+            random_str += base_str[random.randint(0, base_length)]
+        return random_str
+
+    def open_zip_file(self, zip_path: str, encrypt_dict: Optional[dict]):
+        if encrypt_dict is None:
+            import zipfile
+            return zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED)
+
+        password, is_random = self.decide_password(encrypt_dict, zip_path)
+        if encrypt_dict.get('impl', '') == '7z':
+            try:
+                # noinspection PyUnresolvedReferences
+                import py7zr
+            except ImportError:
+                self.warning_lib_not_install('py7zr')
+
+            # noinspection PyUnboundLocalVariable
+            filters = [{'id': py7zr.FILTER_COPY}]
+            return py7zr.SevenZipFile(zip_path, mode='w', password=password, filters=filters, header_encryption=True)
+        else:
+            try:
+                # noinspection PyUnresolvedReferences
+                import pyzipper
+            except ImportError:
+                self.warning_lib_not_install('pyzipper')
+
+            # noinspection PyUnboundLocalVariable
+            aes_zip_file = pyzipper.AESZipFile(zip_path, "w", pyzipper.ZIP_DEFLATED)
+            aes_zip_file.setencryption(pyzipper.WZ_AES, nbits=128)
+            password_bytes = str.encode(password)
+            aes_zip_file.setpassword(password_bytes)
+            if is_random:
+                aes_zip_file.comment = password_bytes
+            return aes_zip_file
+
+    def decide_password(self, encrypt_dict: dict, zip_path: str):
+        encrypt_type = encrypt_dict.get('type', '')
+        is_random = False
+
+        if encrypt_type == 'random':
+            is_random = True
+            password = self.generate_random_str(48)
+            self.log(f'生成随机密码: [{password}] → [{zip_path}]', 'encrypt')
+        else:
+            password = str(encrypt_dict['password'])
+            self.log(f'使用指定密码: [{password}] → [{zip_path}]', 'encrypt')
+
+        return password, is_random
 
 
 class ClientProxyPlugin(JmOptionPlugin):
@@ -869,6 +940,7 @@ class JmServerPlugin(JmOptionPlugin):
             # 服务器的代码位于一个独立库：plugin_jm_server，需要独立安装
             # 源代码仓库：https://github.com/hect0x7/plugin-jm-server
             try:
+                # noinspection PyUnresolvedReferences
                 import plugin_jm_server
                 self.log(f'当前使用plugin_jm_server版本: {plugin_jm_server.__version__}')
             except ImportError:
