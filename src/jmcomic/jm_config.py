@@ -76,7 +76,8 @@ class JmMagicConstants:
     APP_TOKEN_SECRET = '18comicAPP'
     APP_TOKEN_SECRET_2 = '18comicAPPContent'
     APP_DATA_SECRET = '185Hcomic3PAPP7R'
-    APP_VERSION = '1.7.9'
+    API_DOMAIN_SERVER_SECRET = 'diosfjckwpqpdfjkvnqQjsik'
+    APP_VERSION = '1.8.0'
 
 
 # 模块级别共用配置
@@ -128,10 +129,14 @@ class JmModuleConfig:
     # 移动端API域名
     DOMAIN_API_LIST = shuffled('''
     www.cdnmhwscc.vip
-    www.cdnblackmyth.club
-    www.cdnmhws.cc
+    www.cdnplaystation6.club
+    www.cdnplaystation6.org
     www.cdnuc.vip
+    www.cdn-mspjmapiproxy.xyz
     ''')
+
+    # 获取最新移动端API域名的地址
+    API_URL_DOMAIN_SERVER = f'{PROT}jmappc01-1308024008.cos.ap-guangzhou.myqcloud.com/server-2024.txt'
 
     APP_HEADERS_TEMPLATE = {
         'Accept-Encoding': 'gzip, deflate',
@@ -200,6 +205,9 @@ class JmModuleConfig:
     FLAG_USE_FIX_TIMESTAMP = True
     # 移动端Client初始化cookies
     FLAG_API_CLIENT_REQUIRE_COOKIES = True
+    # 自动更新禁漫API域名
+    FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = True
+    FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN_DONE = None
     # log开关标记
     FLAG_ENABLE_JM_LOG = True
     # log时解码url
@@ -380,7 +388,7 @@ class JmModuleConfig:
 
     @classmethod
     def new_postman(cls, session=False, **kwargs):
-        kwargs.setdefault('impersonate', 'chrome110')
+        kwargs.setdefault('impersonate', 'chrome')
         kwargs.setdefault('headers', JmModuleConfig.new_html_headers())
         kwargs.setdefault('proxies', JmModuleConfig.DEFAULT_PROXIES)
 
@@ -416,7 +424,7 @@ class JmModuleConfig:
             'postman': {
                 'type': 'curl_cffi',
                 'meta_data': {
-                    'impersonate': 'chrome110',
+                    'impersonate': 'chrome',
                     'headers': None,
                     'proxies': None,
                 }

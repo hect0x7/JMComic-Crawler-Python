@@ -1,7 +1,6 @@
 """
 该文件存放的是option插件
 """
-import os.path
 
 from .jm_option import *
 
@@ -57,11 +56,12 @@ class JmOptionPlugin:
 
         raise PluginValidationException(self, msg)
 
-    def warning_lib_not_install(self, lib: str):
+    def warning_lib_not_install(self, lib: str, throw=False):
         msg = (f'插件`{self.plugin_key}`依赖库: {lib}，请先安装{lib}再使用。'
                f'安装命令: [pip install {lib}]')
         import warnings
         warnings.warn(msg)
+        self.require_param(throw, msg)
 
     def execute_deletion(self, paths: List[str]):
         """
@@ -76,6 +76,9 @@ class JmOptionPlugin:
                 continue
 
             if os.path.isdir(p):
+                if os.listdir(p):
+                    self.log(f'文件夹中存在非本次下载的文件，请手动删除文件夹内的文件: {p}', 'remove.ignore')
+                    continue
                 os.rmdir(p)
                 self.log(f'删除文件夹: {p}', 'remove')
             else:
@@ -103,6 +106,33 @@ class JmOptionPlugin:
 
     def wait_until_finish(self):
         pass
+
+    # noinspection PyMethodMayBeStatic
+    def decide_filepath(self,
+                        album: Optional[JmAlbumDetail],
+                        photo: Optional[JmPhotoDetail],
+                        filename_rule: str, suffix: str, base_dir: Optional[str],
+                        dir_rule_dict: Optional[dict]
+                        ):
+        """
+        根据规则计算一个文件的全路径
+
+        参数 dir_rule_dict 优先级最高，
+        如果 dir_rule_dict 不为空，优先用 dir_rule_dict
+        否则使用 base_dir + filename_rule + suffix
+        """
+        filepath: str
+        base_dir: str
+        if dir_rule_dict is not None:
+            dir_rule = DirRule(**dir_rule_dict)
+            filepath = dir_rule.apply_rule_to_path(album, photo)
+            base_dir = os.path.dirname(filepath)
+        else:
+            base_dir = base_dir or os.getcwd()
+            filepath = os.path.join(base_dir, DirRule.apply_rule_to_filename(album, photo, filename_rule) + fix_suffix(suffix))
+
+        mkdir_if_not_exists(base_dir)
+        return filepath
 
 
 class JmLoginPlugin(JmOptionPlugin):
@@ -274,6 +304,11 @@ class FindUpdatePlugin(JmOptionPlugin):
 
 
 class ZipPlugin(JmOptionPlugin):
+    """
+    感谢zip加密功能的贡献者:
+        - AXIS5 a.k.a AXIS5Hacker (https://github.com/hect0x7/JMComic-Crawler-Python/pull/375)
+    """
+
     plugin_key = 'zip'
 
     # noinspection PyAttributeOutsideInit
@@ -285,7 +320,9 @@ class ZipPlugin(JmOptionPlugin):
                level='photo',
                filename_rule='Ptitle',
                suffix='zip',
-               zip_dir='./'
+               zip_dir='./',
+               dir_rule=None,
+               encrypt=None,
                ) -> None:
 
         from .jm_downloader import JmDownloader
@@ -302,19 +339,20 @@ class ZipPlugin(JmOptionPlugin):
         photo_dict = self.get_downloaded_photo(downloader, album, photo)
 
         if level == 'album':
-            zip_path = self.get_zip_path(album, None, filename_rule, suffix, zip_dir)
-            self.zip_album(album, photo_dict, zip_path, path_to_delete)
+            zip_path = self.decide_filepath(album, None, filename_rule, suffix, zip_dir, dir_rule)
+            self.zip_album(album, photo_dict, zip_path, path_to_delete, encrypt)
 
         elif level == 'photo':
             for photo, image_list in photo_dict.items():
-                zip_path = self.get_zip_path(photo.from_album, photo, filename_rule, suffix, zip_dir)
-                self.zip_photo(photo, image_list, zip_path, path_to_delete)
+                zip_path = self.decide_filepath(photo.from_album, photo, filename_rule, suffix, zip_dir, dir_rule)
+                self.zip_photo(photo, image_list, zip_path, path_to_delete, encrypt)
 
         else:
             ExceptionTool.raises(f'Not Implemented Zip Level: {level}')
 
         self.after_zip(path_to_delete)
 
+    # noinspection PyMethodMayBeStatic
     def get_downloaded_photo(self, downloader, album, photo):
         return (
             downloader.download_success_dict[album]
@@ -322,7 +360,7 @@ class ZipPlugin(JmOptionPlugin):
             else downloader.download_success_dict[photo.from_album]  # after_photo
         )
 
-    def zip_photo(self, photo, image_list: list, zip_path: str, path_to_delete):
+    def zip_photo(self, photo, image_list: list, zip_path: str, path_to_delete, encrypt_dict):
         """
         压缩photo文件夹
         """
@@ -330,8 +368,11 @@ class ZipPlugin(JmOptionPlugin):
             if len(image_list) == 0 \
             else os.path.dirname(image_list[0][0])
 
-        from common import backup_dir_to_zip
-        backup_dir_to_zip(photo_dir, zip_path)
+        with self.open_zip_file(zip_path, encrypt_dict) as f:
+            for file in files_of_dir(photo_dir):
+                abspath = os.path.join(photo_dir, file)
+                relpath = os.path.relpath(abspath, photo_dir)
+                f.write(abspath, relpath)
 
         self.log(f'压缩章节[{photo.photo_id}]成功 → {zip_path}', 'finish')
         path_to_delete.append(self.unified_path(photo_dir))
@@ -340,14 +381,13 @@ class ZipPlugin(JmOptionPlugin):
     def unified_path(f):
         return fix_filepath(f, os.path.isdir(f))
 
-    def zip_album(self, album, photo_dict: dict, zip_path, path_to_delete):
+    def zip_album(self, album, photo_dict: dict, zip_path, path_to_delete, encrypt_dict):
         """
         压缩album文件夹
         """
 
         album_dir = self.option.dir_rule.decide_album_root_dir(album)
-        import zipfile
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as f:
+        with self.open_zip_file(zip_path, encrypt_dict) as f:
             for photo in photo_dict.keys():
                 # 定位到章节所在文件夹
                 photo_dir = self.unified_path(self.option.decide_image_save_dir(photo))
@@ -372,16 +412,65 @@ class ZipPlugin(JmOptionPlugin):
         self.execute_deletion(dirs)
 
     # noinspection PyMethodMayBeStatic
-    def get_zip_path(self, album, photo, filename_rule, suffix, zip_dir):
+    @classmethod
+    def generate_random_str(cls, random_length) -> str:
         """
-        计算zip文件的路径
+        自动生成随机字符密码，长度由randomlength指定
         """
-        filename = DirRule.apply_rule_directly(album, photo, filename_rule)
-        from os.path import join
-        return join(
-            zip_dir,
-            filename + fix_suffix(suffix),
-        )
+        import random
+
+        random_str = ''
+        base_str = r'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
+        base_length = len(base_str) - 1
+        for _ in range(random_length):
+            random_str += base_str[random.randint(0, base_length)]
+        return random_str
+
+    def open_zip_file(self, zip_path: str, encrypt_dict: Optional[dict]):
+        if encrypt_dict is None:
+            import zipfile
+            return zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED)
+
+        password, is_random = self.decide_password(encrypt_dict, zip_path)
+        if encrypt_dict.get('impl', '') == '7z':
+            try:
+                # noinspection PyUnresolvedReferences
+                import py7zr
+            except ImportError:
+                self.warning_lib_not_install('py7zr', True)
+
+            # noinspection PyUnboundLocalVariable
+            filters = [{'id': py7zr.FILTER_COPY}]
+            return py7zr.SevenZipFile(zip_path, mode='w', password=password, filters=filters, header_encryption=True)
+        else:
+            try:
+                # noinspection PyUnresolvedReferences
+                import pyzipper
+            except ImportError:
+                self.warning_lib_not_install('pyzipper', True)
+
+            # noinspection PyUnboundLocalVariable
+            aes_zip_file = pyzipper.AESZipFile(zip_path, "w", pyzipper.ZIP_DEFLATED)
+            aes_zip_file.setencryption(pyzipper.WZ_AES, nbits=128)
+            password_bytes = str.encode(password)
+            aes_zip_file.setpassword(password_bytes)
+            if is_random:
+                aes_zip_file.comment = password_bytes
+            return aes_zip_file
+
+    def decide_password(self, encrypt_dict: dict, zip_path: str):
+        encrypt_type = encrypt_dict.get('type', '')
+        is_random = False
+
+        if encrypt_type == 'random':
+            is_random = True
+            password = self.generate_random_str(48)
+            self.log(f'生成随机密码: [{password}] → [{zip_path}]', 'encrypt')
+        else:
+            password = str(encrypt_dict['password'])
+            self.log(f'使用指定密码: [{password}] → [{zip_path}]', 'encrypt')
+
+        return password, is_random
 
 
 class ClientProxyPlugin(JmOptionPlugin):
@@ -649,95 +738,6 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
         self.execute_multi_line_cmd(cmd_list)
 
 
-class ConvertJpgToPdfPlugin(JmOptionPlugin):
-    plugin_key = 'j2p'
-
-    def check_image_suffix_is_valid(self, std_suffix):
-        """
-        检查option配置的图片后缀转换，目前限制使用Magick时只能搭配jpg
-        暂不探究Magick是否支持更多图片格式
-        """
-        cur_suffix: Optional[str] = self.option.download.image.suffix
-
-        ExceptionTool.require_true(
-            cur_suffix is not None and cur_suffix.endswith(std_suffix),
-            '请把图片的后缀转换配置为jpg，不然无法使用Magick！'
-            f'（当前配置是[{cur_suffix}]）\n'
-            f'配置模板如下: \n'
-            f'```\n'
-            f'download:\n'
-            f'  image:\n'
-            f'    suffix: {std_suffix} # 当前配置是{cur_suffix}\n'
-            f'```'
-        )
-
-    def invoke(self,
-               photo: JmPhotoDetail,
-               downloader=None,
-               pdf_dir=None,
-               filename_rule='Pid',
-               quality=100,
-               delete_original_file=False,
-               override_cmd=None,
-               override_jpg=None,
-               **kwargs,
-               ):
-        self.delete_original_file = delete_original_file
-
-        # 检查图片后缀配置
-        suffix = override_jpg or '.jpg'
-        self.check_image_suffix_is_valid(suffix)
-
-        # 处理文件夹配置
-        filename = DirRule.apply_rule_directly(None, photo, filename_rule)
-        photo_dir = self.option.decide_image_save_dir(photo)
-
-        # 处理生成的pdf文件的路径
-        if pdf_dir is None:
-            pdf_dir = photo_dir
-        else:
-            pdf_dir = fix_filepath(pdf_dir, True)
-            mkdir_if_not_exists(pdf_dir)
-
-        pdf_filepath = os.path.join(pdf_dir, f'{filename}.pdf')
-
-        # 生成命令
-        def generate_cmd():
-            return (
-                    override_cmd or
-                    'magick convert -quality {quality} "{photo_dir}*{suffix}" "{pdf_filepath}"'
-            ).format(
-                quality=quality,
-                photo_dir=photo_dir,
-                suffix=suffix,
-                pdf_filepath=pdf_filepath,
-            )
-
-        cmd = generate_cmd()
-        self.log(f'Execute Command: [{cmd}]')
-        code = self.execute_cmd(cmd)
-
-        ExceptionTool.require_true(
-            code == 0,
-            'jpg图片合并为pdf失败！'
-            '请确认你是否安装了magick，安装网站: [https://www.imagemagick.org/]',
-        )
-
-        self.log(f'Convert Successfully: JM{photo.id} → {pdf_filepath}')
-
-        if downloader is not None:
-            from .jm_downloader import JmDownloader
-            downloader: JmDownloader
-
-            paths = [
-                path
-                for path, image in downloader.download_success_dict[photo.from_album][photo]
-            ]
-
-            paths.append(self.option.decide_image_save_dir(photo, ensure_exists=False))
-            self.execute_deletion(paths)
-
-
 class Img2pdfPlugin(JmOptionPlugin):
     plugin_key = 'img2pdf'
 
@@ -747,6 +747,7 @@ class Img2pdfPlugin(JmOptionPlugin):
                downloader=None,
                pdf_dir=None,
                filename_rule='Pid',
+               dir_rule=None,
                delete_original_file=False,
                **kwargs,
                ):
@@ -762,13 +763,7 @@ class Img2pdfPlugin(JmOptionPlugin):
         self.delete_original_file = delete_original_file
 
         # 处理生成的pdf文件的路径
-        pdf_dir = self.ensure_make_pdf_dir(pdf_dir)
-
-        # 处理pdf文件名
-        filename = DirRule.apply_rule_directly(album, photo, filename_rule)
-
-        # pdf路径
-        pdf_filepath = os.path.join(pdf_dir, f'{filename}.pdf')
+        pdf_filepath = self.decide_filepath(album, photo, filename_rule, 'pdf', pdf_dir, dir_rule)
 
         # 调用 img2pdf 把 photo_dir 下的所有图片转为pdf
         img_path_ls, img_dir_ls = self.write_img_2_pdf(pdf_filepath, album, photo)
@@ -794,17 +789,13 @@ class Img2pdfPlugin(JmOptionPlugin):
                 continue
             img_path_ls += imgs
 
+        if len(img_path_ls) == 0:
+            self.log(f'所有文件夹都不存在图片，无法生成pdf：{img_dir_ls}', 'error')
+
         with open(pdf_filepath, 'wb') as f:
             f.write(img2pdf.convert(img_path_ls))
 
         return img_path_ls, img_dir_ls
-
-    @staticmethod
-    def ensure_make_pdf_dir(pdf_dir: str):
-        pdf_dir = pdf_dir or os.getcwd()
-        pdf_dir = fix_filepath(pdf_dir, True)
-        mkdir_if_not_exists(pdf_dir)
-        return pdf_dir
 
 
 class LongImgPlugin(JmOptionPlugin):
@@ -817,6 +808,7 @@ class LongImgPlugin(JmOptionPlugin):
                img_dir=None,
                filename_rule='Pid',
                delete_original_file=False,
+               dir_rule=None,
                **kwargs,
                ):
         if photo is None and album is None:
@@ -830,14 +822,8 @@ class LongImgPlugin(JmOptionPlugin):
 
         self.delete_original_file = delete_original_file
 
-        # 处理文件夹配置
-        img_dir = self.get_img_dir(img_dir)
-
         # 处理生成的长图文件的路径
-        filename = DirRule.apply_rule_directly(album, photo, filename_rule)
-
-        # 长图路径
-        long_img_path = os.path.join(img_dir, f'{filename}.png')
+        long_img_path = self.decide_filepath(album, photo, filename_rule, 'png', img_dir, dir_rule)
 
         # 调用 PIL 把 photo_dir 下的所有图片合并为长图
         img_path_ls = self.write_img_2_long_img(long_img_path, album, photo)
@@ -856,7 +842,7 @@ class LongImgPlugin(JmOptionPlugin):
             img_dir_items = [self.option.decide_image_save_dir(photo) for photo in album]
 
         img_paths = itertools.chain(*map(files_of_dir, img_dir_items))
-        img_paths = filter(lambda x: not x.startswith('.'), img_paths)  # 过滤系统文件
+        img_paths = list(filter(lambda x: not x.startswith('.'), img_paths))  # 过滤系统文件
 
         images = self.open_images(img_paths)
 
@@ -894,12 +880,6 @@ class LongImgPlugin(JmOptionPlugin):
             except IOError as e:
                 self.log(f"Failed to open image {img_path}: {e}", 'error')
         return images
-
-    @staticmethod
-    def get_img_dir(img_dir: Optional[str]) -> str:
-        img_dir = fix_filepath(img_dir or os.getcwd())
-        mkdir_if_not_exists(img_dir)
-        return img_dir
 
 
 class JmServerPlugin(JmOptionPlugin):
@@ -960,6 +940,7 @@ class JmServerPlugin(JmOptionPlugin):
             # 服务器的代码位于一个独立库：plugin_jm_server，需要独立安装
             # 源代码仓库：https://github.com/hect0x7/plugin-jm-server
             try:
+                # noinspection PyUnresolvedReferences
                 import plugin_jm_server
                 self.log(f'当前使用plugin_jm_server版本: {plugin_jm_server.__version__}')
             except ImportError:

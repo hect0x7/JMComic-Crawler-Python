@@ -70,12 +70,12 @@ class DirRule:
                               album: JmAlbumDetail,
                               photo: JmPhotoDetail,
                               ) -> str:
-        return self._build_path_from_rules(album, photo)
+        return self.apply_rule_to_path(album, photo)
 
     def decide_album_root_dir(self, album: JmAlbumDetail) -> str:
-        return self._build_path_from_rules(album, None, True)
+        return self.apply_rule_to_path(album, None, True)
 
-    def _build_path_from_rules(self, album, photo, only_album_rules=False) -> str:
+    def apply_rule_to_path(self, album, photo, only_album_rules=False) -> str:
         path_ls = []
         for rule, parser in self.parser_list:
             if only_album_rules and not (rule == self.RULE_BASE_DIR or rule.startswith('A')):
@@ -92,7 +92,7 @@ class DirRule:
 
             path_ls.append(path)
 
-        return fix_filepath('/'.join(path_ls), is_dir=True)
+        return fix_filepath('/'.join(path_ls))
 
     def get_rule_parser_list(self, rule_dsl: str):
         """
@@ -103,7 +103,6 @@ class DirRule:
         parser_list: list = []
 
         for rule in rule_list:
-            rule = rule.strip()
             if rule == self.RULE_BASE_DIR:
                 parser_list.append((rule, self.parse_bd_rule))
                 continue
@@ -135,17 +134,21 @@ class DirRule:
         return str(DetailEntity.get_dirname(detail, rule[1:]))
 
     # noinspection PyMethodMayBeStatic
-    def split_rule_dsl(self, rule_dsl: str):
-        if rule_dsl == self.RULE_BASE_DIR:
-            return [rule_dsl]
-
+    def split_rule_dsl(self, rule_dsl: str) -> list[str]:
         if '/' in rule_dsl:
-            return rule_dsl.split('/')
+            rule_list = rule_dsl.split('/')
+        elif '_' in rule_dsl:
+            rule_list = rule_dsl.split('_')
+        else:
+            rule_list = [rule_dsl]
 
-        if '_' in rule_dsl:
-            return rule_dsl.split('_')
+        for i, e in enumerate(rule_list):
+            rule_list[i] = e.strip()
 
-        ExceptionTool.raises(f'不支持的rule配置: "{rule_dsl}"')
+        if rule_list[0] != self.RULE_BASE_DIR:
+            rule_list.insert(0, self.RULE_BASE_DIR)
+
+        return rule_list
 
     @classmethod
     def get_rule_parser(cls, rule: str):
@@ -158,7 +161,7 @@ class DirRule:
         ExceptionTool.raises(f'不支持的rule配置: "{rule}"')
 
     @classmethod
-    def apply_rule_directly(cls, album, photo, rule: str) -> str:
+    def apply_rule_to_filename(cls, album, photo, rule: str) -> str:
         if album is None:
             album = photo.from_album
         # noinspection PyArgumentList
