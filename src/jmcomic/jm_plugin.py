@@ -437,7 +437,7 @@ class ZipPlugin(JmOptionPlugin):
                 # noinspection PyUnresolvedReferences
                 import py7zr
             except ImportError:
-                self.warning_lib_not_install('py7zr')
+                self.warning_lib_not_install('py7zr', True)
 
             # noinspection PyUnboundLocalVariable
             filters = [{'id': py7zr.FILTER_COPY}]
@@ -447,7 +447,7 @@ class ZipPlugin(JmOptionPlugin):
                 # noinspection PyUnresolvedReferences
                 import pyzipper
             except ImportError:
-                self.warning_lib_not_install('pyzipper')
+                self.warning_lib_not_install('pyzipper', True)
 
             # noinspection PyUnboundLocalVariable
             aes_zip_file = pyzipper.AESZipFile(zip_path, "w", pyzipper.ZIP_DEFLATED)
