@@ -1005,9 +1005,50 @@ class JmApiClient(AbstractJmClient):
         ExceptionTool.raises_resp(f'响应无数据！request_url=[{url}]', resp)
 
     def after_init(self):
+        # 自动更新禁漫API域名
+        if JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN:
+            self.update_api_domain()
+
         # 保证拥有cookies，因为移动端要求必须携带cookies，否则会直接跳转同一本子【禁漫娘】
         if JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES:
             self.ensure_have_cookies()
+
+    client_update_domain_lock = Lock()
+
+    def update_api_domain(self):
+        if True is JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN_DONE:
+            return
+
+        with self.client_update_domain_lock:
+            if True is JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN_DONE:
+                return
+            try:
+                # 获取域名列表
+                resp = self.postman.get(JmModuleConfig.API_URL_DOMAIN_SERVER)
+                res_json = JmCryptoTool.decode_resp_data(resp.text, '', JmMagicConstants.API_DOMAIN_SERVER_SECRET)
+                res_data = json_loads(res_json)
+
+                # 检查返回值
+                if not res_data.get('Server', None):
+                    jm_log('api.update_domain.empty',
+                           f'获取禁漫最新API域名失败, 返回值: {res_json}')
+                    return
+                new_server_list: list[str] = res_data['Server']
+                old_server_list = JmModuleConfig.DOMAIN_API_LIST
+                jm_log('api.update_domain.success',
+                       f'获取到最新的API域名，替换jmcomic内置域名：(new){new_server_list} ---→ (old){old_server_list}'
+                       )
+                # 更新域名
+                if self.domain_list is old_server_list:
+                    self.domain_list = new_server_list
+                JmModuleConfig.DOMAIN_API_LIST = new_server_list
+            except Exception as e:
+                jm_log('api.update_domain.error',
+                       f'自动更新API域名失败，仍使用jmcomic内置域名。'
+                       f'可通过代码[JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN=False]关闭自动更新API域名. 异常： {e}'
+                       )
+            finally:
+                JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN_DONE = True
 
     client_init_cookies_lock = Lock()
 
