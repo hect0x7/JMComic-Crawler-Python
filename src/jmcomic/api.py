@@ -48,6 +48,7 @@ def download_album(jm_album_id,
                    option=None,
                    downloader=None,
                    callback=None,
+                   check_exception=True,
                    ) -> Union[__DOWNLOAD_API_RET, Set[__DOWNLOAD_API_RET]]:
     """
     下载一个本子（album），包含其所有的章节（photo）
@@ -58,6 +59,7 @@ def download_album(jm_album_id,
     :param option: 下载选项
     :param downloader: 下载器类
     :param callback: 返回值回调函数，可以拿到 album 和 downloader
+    :param check_exception: 是否检查异常, 如果为True，会检查downloader是否有下载异常，并上抛PartialDownloadFailedException
     :return: 对于的本子实体类，下载器（如果是上述的批量情况，返回值为download_batch的返回值）
     """
 
@@ -69,14 +71,17 @@ def download_album(jm_album_id,
 
         if callback is not None:
             callback(album, dler)
-
+        if check_exception:
+            dler.raise_if_has_exception()
         return album, dler
 
 
 def download_photo(jm_photo_id,
                    option=None,
                    downloader=None,
-                   callback=None):
+                   callback=None,
+                   check_exception=True,
+                   ):
     """
     下载一个章节（photo），参数同 download_album
     """
@@ -88,7 +93,8 @@ def download_photo(jm_photo_id,
 
         if callback is not None:
             callback(photo, dler)
-
+        if check_exception:
+            dler.raise_if_has_exception()
         return photo, dler
 
 

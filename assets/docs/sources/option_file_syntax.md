@@ -27,14 +27,17 @@ client:
   # APP端不限ip兼容性好，网页端限制ip地区但效率高
   impl: html
 
-  # domain: 域名配置，默认是 []，表示运行时自动获取域名。
-  # 可配置特定域名，如下：
-  # 程序会先用第一个域名，如果第一个域名重试n次失败，则换下一个域名重试，以此类推。
+  # domain: 禁漫域名配置，一般无需配置，jmcomic会根据上面的impl自动设置相应域名
+  # 该配置项需要和上面的impl结合使用，因为禁漫网页端和APP端使用的是不同域名，
+  # 所以配置是一个dict结构，key是impl的值，value是域名列表，表示这个impl走这些域名。
+  # 域名列表的使用顺序是：先用第一个域名，如果第一个域名重试n次失败，则换下一个域名重试，以此类推。
+  # 下面是示例：（注意下面这些域名可能会过时，不一定能用）
   domain:
-    - jm-comic.org
-    - jm-comic2.cc
-    - 18comic.vip
-    - 18comic.org
+    html:
+      - 18comic.vip
+      - 18comic.org
+    api:
+      - www.jmapiproxyxxx.vip
 
   # retry_times: 请求失败重试次数，默认为5
   retry_times: 5
@@ -93,7 +96,14 @@ dir_rule:
   # 写法:
   # 1. 以'Bd'开头，表示根目录
   # 2. 文件夹每增加一层，使用 '_' 或者 '/' 区隔
-  # 3. 用Pxxx或者Ayyy指代文件夹名，意思是 JmPhotoDetail.xxx / JmAlbumDetail的.yyy。xxx和yyy可以写什么需要看源码。
+  # 3. 用Pxxx或者Ayyy指代文件夹名，意思是 JmPhotoDetail.xxx / JmAlbumDetail的.yyy。
+  # xxx和yyy可以写什么需要看源码，或通过下面代码打印出所有可用的值
+  # 
+  # ```python
+  # import jmcomic
+  # properties: dict = jmcomic.JmOption.default().new_jm_client().get_album_detail(本子id).get_properties_dict()
+  # print(properties)
+  # ```
   # 
   # 下面演示如果要使用禁漫网站的默认下载方式，该怎么写:
   # 规则: 根目录 / 本子id / 章节序号 / 图片文件
@@ -102,6 +112,9 @@ dir_rule:
 
   # 默认规则是: 根目录 / 章节标题 / 图片文件
   rule: Bd_Ptitle
+  # jmcomic v2.5.36 以后，支持使用python的f-string的语法组合文件夹名，下为示例
+  # rule: Bd / Aauthor / (JM{Aid}-{Pindex})-{Pname}
+  # {}大括号里的内容同样是写 Axxx 或 Pxxx，其他语法自行参考python f-string的语法
 ```
 
 ## 3. option插件配置项
@@ -250,20 +263,5 @@ plugins:
       kwargs:
         img_dir: D:/pdf/ # 长图存放文件夹
         filename_rule: Aname # 长图命名规则，同上
-  
-    # 请注意⚠
-    # 下方的j2p插件的功能不如img2pdf插件，不建议使用。
-    # 如有图片转pdf的需求，直接使用img2pdf即可，下面的内容请忽略。
-
-    - plugin: j2p # 图片合并插件，可以将下载下来的jpg图片合成为一个pdf插件
-      # 请注意⚠ 该插件的使用前提是，下载下来的图片是jpg图片
-      # 因此，使用该插件前，需要有如下配置:（下载图片格式转为jpg，上文有解释过此配置）
-      # download:
-      #   image:
-      #     suffix: .jpg
-      kwargs:
-        pdf_dir: D:/pdf/ # pdf存放文件夹
-        filename_rule: Pid # pdf命名规则
-        quality: 100 # pdf质量，0 - 100
   
 ```

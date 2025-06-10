@@ -6,3 +6,4 @@ psutil
 pycryptodome
 requests
 plugin_jm_server
+zhconv

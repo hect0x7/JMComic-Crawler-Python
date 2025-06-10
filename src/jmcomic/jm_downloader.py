@@ -1,6 +1,31 @@
 from .jm_option import *
 
 
+def catch_exception(func):
+    from functools import wraps
+
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        self: JmDownloader
+        try:
+            return func(self, *args, **kwargs)
+        except Exception as e:
+            detail: JmBaseEntity = args[0]
+            if detail.is_image():
+                detail: JmImageDetail
+                jm_log('image.failed', f'图片下载失败: [{detail.download_url}], 异常: [{e}]')
+                self.download_failed_image.append((detail, e))
+
+            elif detail.is_photo():
+                detail: JmPhotoDetail
+                jm_log('photo.failed', f'章节下载失败: [{detail.id}], 异常: [{e}]')
+                self.download_failed_photo.append((detail, e))
+
+            raise e
+
+    return wrapper
+
+
 # noinspection PyMethodMayBeStatic
 class DownloadCallback:
 
@@ -50,48 +75,50 @@ class JmDownloader(DownloadCallback):
 
     def __init__(self, option: JmOption) -> None:
         self.option = option
+        self.client = option.build_jm_client()
         # 下载成功的记录dict
         self.download_success_dict: Dict[JmAlbumDetail, Dict[JmPhotoDetail, List[Tuple[str, JmImageDetail]]]] = {}
         # 下载失败的记录list
-        self.download_failed_list: List[Tuple[JmImageDetail, BaseException]] = []
+        self.download_failed_image: List[Tuple[JmImageDetail, BaseException]] = []
+        self.download_failed_photo: List[Tuple[JmPhotoDetail, BaseException]] = []
 
     def download_album(self, album_id):
-        client = self.client_for_album(album_id)
-        album = client.get_album_detail(album_id)
-        self.download_by_album_detail(album, client)
+        album = self.client.get_album_detail(album_id)
+        self.download_by_album_detail(album)
         return album
 
-    def download_by_album_detail(self, album: JmAlbumDetail, client: JmcomicClient):
+    def download_by_album_detail(self, album: JmAlbumDetail):
         self.before_album(album)
         if album.skip:
             return
-        self.execute_by_condition(
+        self.execute_on_condition(
             iter_objs=album,
-            apply=lambda photo: self.download_by_photo_detail(photo, client),
+            apply=self.download_by_photo_detail,
             count_batch=self.option.decide_photo_batch_count(album)
         )
         self.after_album(album)
 
     def download_photo(self, photo_id):
-        client = self.client_for_photo(photo_id)
-        photo = client.get_photo_detail(photo_id)
-        self.download_by_photo_detail(photo, client)
+        photo = self.client.get_photo_detail(photo_id)
+        self.download_by_photo_detail(photo)
         return photo
 
-    def download_by_photo_detail(self, photo: JmPhotoDetail, client: JmcomicClient):
-        client.check_photo(photo)
+    @catch_exception
+    def download_by_photo_detail(self, photo: JmPhotoDetail):
+        self.client.check_photo(photo)
 
         self.before_photo(photo)
         if photo.skip:
             return
-        self.execute_by_condition(
+        self.execute_on_condition(
             iter_objs=photo,
-            apply=lambda image: self.download_by_image_detail(image, client),
+            apply=self.download_by_image_detail,
             count_batch=self.option.decide_image_batch_count(photo)
         )
         self.after_photo(photo)
 
-    def download_by_image_detail(self, image: JmImageDetail, client: JmcomicClient):
+    @catch_exception
+    def download_by_image_detail(self, image: JmImageDetail):
         img_save_path = self.option.decide_image_filepath(image)
 
         image.save_path = img_save_path
@@ -110,22 +137,15 @@ class JmDownloader(DownloadCallback):
         if use_cache is True and image.exists:
             return
 
-        try:
-            client.download_by_image_detail(
-                image,
-                img_save_path,
-                decode_image=decode_image,
-            )
-        except BaseException as e:
-            jm_log('image.failed', f'图片下载失败: [{image.download_url}], 异常: {e}')
-            # 保存失败记录
-            self.download_failed_list.append((image, e))
-            raise
+        self.client.download_by_image_detail(
+            image,
+            img_save_path,
+            decode_image=decode_image,
+        )
 
         self.after_image(image, img_save_path)
 
-    # noinspection PyMethodMayBeStatic
-    def execute_by_condition(self,
+    def execute_on_condition(self,
                              iter_objs: DetailEntity,
                              apply: Callable,
                              count_batch: int,
@@ -166,20 +186,6 @@ class JmDownloader(DownloadCallback):
         """
         return detail
 
-    # noinspection PyUnusedLocal
-    def client_for_album(self, jm_album_id) -> JmcomicClient:
-        """
-        默认情况下，所有的JmDownloader共用一个JmcomicClient
-        """
-        return self.option.build_jm_client()
-
-    # noinspection PyUnusedLocal
-    def client_for_photo(self, jm_photo_id) -> JmcomicClient:
-        """
-        默认情况下，所有的JmDownloader共用一个JmcomicClient
-        """
-        return self.option.build_jm_client()
-
     @property
     def all_success(self) -> bool:
         """
@@ -189,7 +195,7 @@ class JmDownloader(DownloadCallback):
 
         注意！如果使用了filter机制，例如通过filter只下载3张图片，那么all_success也会为False
         """
-        if len(self.download_failed_list) != 0:
+        if self.has_download_failures:
             return False
 
         for album, photo_dict in self.download_success_dict.items():
@@ -201,6 +207,10 @@ class JmDownloader(DownloadCallback):
                     return False
 
         return True
+
+    @property
+    def has_download_failures(self):
+        return len(self.download_failed_image) != 0 or len(self.download_failed_photo) != 0
 
     # 下面是回调方法
 
@@ -259,6 +269,23 @@ class JmDownloader(DownloadCallback):
             downloader=self,
         )
 
+    def raise_if_has_exception(self):
+        if not self.has_download_failures:
+            return
+        msg_ls = ['部分下载失败', '', '']
+
+        if len(self.download_failed_photo) != 0:
+            msg_ls[1] = f'共{len(self.download_failed_photo)}个章节下载失败: {self.download_failed_photo}'
+
+        if len(self.download_failed_image) != 0:
+            msg_ls[2] = f'共{len(self.download_failed_image)}个图片下载失败: {self.download_failed_image}'
+
+        ExceptionTool.raises(
+            '\n'.join(msg_ls),
+            {'downloader': self},
+            PartialDownloadFailedException,
+        )
+
     # 下面是对with语法的支持
 
     def __enter__(self):
@@ -283,7 +310,7 @@ class DoNotDownloadImage(JmDownloader):
     不会下载任何图片的Downloader，用作测试
     """
 
-    def download_by_image_detail(self, image: JmImageDetail, client: JmcomicClient):
+    def download_by_image_detail(self, image: JmImageDetail):
         # ensure make dir
         self.option.decide_image_filepath(image)
 
@@ -297,12 +324,13 @@ class JustDownloadSpecificCountImage(JmDownloader):
     count_lock = Lock()
     count = 0
 
-    def download_by_image_detail(self, image: JmImageDetail, client: JmcomicClient):
+    @catch_exception
+    def download_by_image_detail(self, image: JmImageDetail):
         # ensure make dir
         self.option.decide_image_filepath(image)
 
         if self.try_countdown():
-            return super().download_by_image_detail(image, client)
+            return super().download_by_image_detail(image)
 
     def try_countdown(self):
         if self.count < 0:

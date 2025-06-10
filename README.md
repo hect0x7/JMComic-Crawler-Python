@@ -111,8 +111,9 @@ jmcomic 123 --option="D:/a.yml"
 
 b. 配置环境变量 `JM_OPTION_PATH` 为option文件路径（推荐）
 
+> 请自行google配置环境变量的方式，或使用powershell命令:  `setx JM_OPTION_PATH "D:/a.yml"` 重启后生效
+
 ```sh
-# set JM_OPTION_PATH="D:/a.yml"
 jmcomic 123
 ```
 
@@ -156,10 +157,11 @@ jmcomic 123
     - `下载特定后缀图片插件`
     - `发送QQ邮件插件`
     - `自动使用浏览器cookies插件`
-    - `jpg图片合成为一个pdf插件`
     - `导出收藏夹为csv文件插件`
     - `合并所有图片为pdf文件插件`
-    - `合并所有图片为长图插件`
+    - `合并所有图片为长图png插件`
+    - `重复文件检测删除插件`
+    - `网页观看本地章节插件`
 
 ## 使用小说明
 
