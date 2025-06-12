@@ -208,6 +208,23 @@ plugins:
 
         zip_dir: D:/jmcomic/zip/ # 压缩文件存放的文件夹
         delete_original_file: true # 压缩成功后，删除所有原文件和文件夹
+        
+        # zip插件还支持设置密码和加密方式和，使用encrypt配置项，该配置是可选的，示例如下：
+        # 1. 给压缩包设置一个指定密码
+        # encrypt:
+        #   password: 123456
+        # 2. 设置随机生成的密码。该密码会在日志中打印出来，并附着到zip的压缩文件注释里
+        # encrypt:
+        #   type: random
+        # 配置密码时，type和password二选一必填
+        
+        # 插件还支持使用7z加密，这种方式会加密文件名，只有输入了密码才能查看文件名，隐私性最好。
+        # 使用encrypt.impl配置项开启7z格式加密，如果不配置，默认仍使用zip格式：
+        # encrypt:
+        #   impl: 7z
+        #   type: random # type和password二选一必填，和上面一样
+        # 需要提醒的是，7z没有压缩文件注释，因此如果设置随机密码，密码就只会存在于日志中，请注意及时保存密码。
+         
     
     # 删除重复文件插件
     # 参考 → [https://github.com/hect0x7/JMComic-Crawler-Python/issues/244]
