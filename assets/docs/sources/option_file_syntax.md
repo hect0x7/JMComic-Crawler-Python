@@ -207,7 +207,38 @@ plugins:
         # 如果level=[album], filename_rule只能写Axxx
 
         zip_dir: D:/jmcomic/zip/ # 压缩文件存放的文件夹
+
+        suffix: zip #压缩包后缀名，默认值为zip，可以指定为zip或者7z
+
+        # v2.6.0 以后，zip插件也支持dir_rule配置项，可以替代旧版本的zip_dir和filename_rule
+        # 请注意⚠ 使用此配置项会使filename_rule，zip_dir，suffix三个配置项无效，与这三个配置项同时存在时仅会使用dir_rule
+        # 示例如下:
+        # dir_rule: # 新配置项，可取代旧的zip_dir和filename_rule
+        #   base_dir: D:/jmcomic-zip
+        #   rule: 'Bd / {Atitle} / [{Pid}]-{Ptitle}.zip'  # 设置压缩文件夹规则，中间Atitle表示创建一层文件夹，名称是本子标题。[{Pid}]-{Ptitle}.zip 表示压缩文件的命名规则(需显式写出后缀名)
+        # 使用此方法指定压缩包存储路径则无需和level对应
+
         delete_original_file: true # 压缩成功后，删除所有原文件和文件夹
+        
+        # 在v2.6.0及以后版本，zip插件还支持设置密码和加密方式，使用encrypt配置项，该配置是可选的，示例如下：
+        # 1. 给压缩包设置一个指定密码
+        # encrypt:
+        #   password: 123456
+        # 2. 设置随机生成的密码。该密码会在日志中打印出来，并附着到zip的压缩文件注释里
+        # encrypt:
+        #   type: random
+        # 配置密码时，type和password二选一必填
+        
+        # 插件还支持使用7z加密，这种方式会加密压缩包文件头，只有输入了密码才能查看压缩包文件列表，隐私性最好。
+        # 使用encrypt.impl配置项开启7z格式加密，如果不配置，默认仍使用zip格式。
+        # 使用7z格式时记得把压缩包后缀名指定为7z。
+        # 示例如下:
+        # suffix: 7z
+        # encrypt:
+        #   impl: 7z
+        #   type: random # type和password二选一必填，和上面一样
+        # 需要提醒的是，7z没有压缩文件注释，因此如果设置随机密码，密码就只会存在于日志中，请注意及时保存密码。
+         
     
     # 删除重复文件插件
     # 参考 → [https://github.com/hect0x7/JMComic-Crawler-Python/issues/244]
