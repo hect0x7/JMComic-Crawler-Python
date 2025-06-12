@@ -208,11 +208,14 @@ plugins:
 
         zip_dir: D:/jmcomic/zip/ # 压缩文件存放的文件夹
 
+        suffix: zip #压缩包后缀名，默认值为zip，可以指定为zip或者7z
+
         # v2.6.0 以后，zip插件也支持dir_rule配置项，可以替代旧版本的zip_dir和filename_rule
+        # 请注意⚠ 使用此配置项会使filename_rule，zip_dir，suffix三个配置项无效，与这三个配置项同时存在时仅会使用dir_rule
         # 示例如下:
         # dir_rule: # 新配置项，可取代旧的zip_dir和filename_rule
         #   base_dir: D:/jmcomic-zip
-        #   rule: 'Bd / {Atitle} / [{Pid}]-{Ptitle}.zip'  # 设置压缩文件夹规则，中间Atitle表示创建一层文件夹，名称是本子标题。[{Pid}]-{Ptitle}.zip 表示压缩文件的命名规则
+        #   rule: 'Bd / {Atitle} / [{Pid}]-{Ptitle}.zip'  # 设置压缩文件夹规则，中间Atitle表示创建一层文件夹，名称是本子标题。[{Pid}]-{Ptitle}.zip 表示压缩文件的命名规则(需显式写出后缀名)
         # 使用此方法指定压缩包存储路径则无需和level对应
 
         delete_original_file: true # 压缩成功后，删除所有原文件和文件夹
