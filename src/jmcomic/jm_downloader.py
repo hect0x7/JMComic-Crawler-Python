@@ -294,7 +294,7 @@ class JmDownloader(DownloadCallback):
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is not None:
             jm_log('dler.exception',
-                   f'{self.__class__.__name__} Exit with exception: {exc_type, exc_val}'
+                   f'{self.__class__.__name__} Exit with exception: {exc_type, str(exc_val)}'
                    )
 
     @classmethod

@@ -22,6 +22,7 @@ class JmcomicText:
     pattern_html_photo_sort = compile(r'var sort = (\d+);')
     pattern_html_photo_page_arr = compile(r'var page_arr = (.*?);')
 
+    pattern_html_b64_decode_content = compile(r'const html = base64DecodeUtf8\("(.*?)"\)')
     pattern_html_album_album_id = compile(r'<span class="number">.*?：JM(\d+)</span>')
     pattern_html_album_scramble_id = compile(r'var scramble_id = (\d+);')
     pattern_html_album_name = compile(r'id="book-name"[^>]*?>([\s\S]*?)<')
@@ -107,6 +108,15 @@ class JmcomicText:
         ))
 
     @classmethod
+    def parse_jm_base64_html(cls, resp_text: str) -> str:
+        from base64 import b64decode
+        html_b64 = PatternTool.match_or_default(resp_text, cls.pattern_html_b64_decode_content, None)
+        if html_b64 is None:
+            return resp_text
+        html = b64decode(html_b64).decode()
+        return html
+
+    @classmethod
     def analyse_jm_photo_html(cls, html: str) -> JmPhotoDetail:
         return cls.reflect_new_instance(
             html,
@@ -117,7 +127,7 @@ class JmcomicText:
     @classmethod
     def analyse_jm_album_html(cls, html: str) -> JmAlbumDetail:
         return cls.reflect_new_instance(
-            html,
+            cls.parse_jm_base64_html(html),
             "pattern_html_album_",
             JmModuleConfig.album_class()
         )

@@ -431,7 +431,7 @@ class JmHtmlClient(AbstractJmClient):
             params={
                 'page': page,
                 'o': order_by,
-                'folder_id': folder_id,
+                'folder': folder_id,
             }
         )
 
