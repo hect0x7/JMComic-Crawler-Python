@@ -1033,7 +1033,7 @@ class JmApiClient(AbstractJmClient):
                     jm_log('api.update_domain.empty',
                            f'获取禁漫最新API域名失败, 返回值: {res_json}')
                     return
-                new_server_list: list[str] = res_data['Server']
+                new_server_list: List[str] = res_data['Server']
                 old_server_list = JmModuleConfig.DOMAIN_API_LIST
                 jm_log('api.update_domain.success',
                        f'获取到最新的API域名，替换jmcomic内置域名：(new){new_server_list} ---→ (old){old_server_list}'

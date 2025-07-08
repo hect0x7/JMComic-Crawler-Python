@@ -134,7 +134,7 @@ class DirRule:
         return str(DetailEntity.get_dirname(detail, rule[1:]))
 
     # noinspection PyMethodMayBeStatic
-    def split_rule_dsl(self, rule_dsl: str) -> list[str]:
+    def split_rule_dsl(self, rule_dsl: str) -> List[str]:
         if '/' in rule_dsl:
             rule_list = rule_dsl.split('/')
         elif '_' in rule_dsl:
