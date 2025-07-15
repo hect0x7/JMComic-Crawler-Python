@@ -17,6 +17,7 @@ class Test_Client(JmTestConfigurable):
 
     def test_search(self):
         page: JmSearchPage = self.client.search_tag('+无修正 +中文 -全彩')
+        print(f'总数: {page.total}, 分页大小: {page.page_size}，页数: {page.page_count}')
 
         if len(page) >= 1:
             for aid, ainfo in page[0:1:1]:
