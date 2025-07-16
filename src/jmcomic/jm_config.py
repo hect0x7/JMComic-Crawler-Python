@@ -136,7 +136,7 @@ class JmModuleConfig:
     ''')
 
     # 获取最新移动端API域名的地址
-    API_URL_DOMAIN_SERVER = f'{PROT}jmappc01-1308024008.cos.ap-guangzhou.myqcloud.com/server-2024.txt'
+    API_URL_DOMAIN_SERVER = f'{PROT}jmapp03-1308024008.cos.ap-jakarta.myqcloud.com/server-2024.txt'
 
     APP_HEADERS_TEMPLATE = {
         'Accept-Encoding': 'gzip, deflate',

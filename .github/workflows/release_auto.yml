@@ -10,6 +10,9 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
     if: startsWith(github.event.head_commit.message, 'v')
     steps:
       - uses: actions/checkout@v4
@@ -40,5 +43,5 @@ jobs:
 
       - name: Release PYPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_JMCOMIC }}
+#        with:
+#          password: ${{ secrets.PYPI_JMCOMIC }}

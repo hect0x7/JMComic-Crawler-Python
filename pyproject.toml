@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools"]
+
+[project]
+name = "jmcomic"
+authors = [{name = "hect0x7", email = "93357912+hect0x7@users.noreply.github.com"}]
+description = "Python API For JMComic (禁漫天堂)"
+readme = "README.md"
+requires-python = ">=3.7"
+license = {file = "LICENSE"}
+keywords=['python', 'jmcomic', '18comic', '禁漫天堂', 'NSFW']
+classifiers=[
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+]
+dependencies = [
+    "commonx>=0.6.38",
+    "curl-cffi",
+    "pillow",
+    "pycryptodome",
+    "pyyaml",
+]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/hect0x7/JMComic-Crawler-Python"
+Documentation = "https://jmcomic.readthedocs.io"
+
+[project.scripts]
+jmcomic = "jmcomic.cl:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "jmcomic.__version__"}
