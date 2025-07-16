@@ -7,9 +7,11 @@ authors = [{name = "hect0x7", email = "93357912+hect0x7@users.noreply.github.com
 description = "Python API For JMComic (禁漫天堂)"
 readme = "README.md"
 requires-python = ">=3.7"
+license = {file = "LICENSE"}
 keywords=['python', 'jmcomic', '18comic', '禁漫天堂', 'NSFW']
 classifiers=[
     "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
