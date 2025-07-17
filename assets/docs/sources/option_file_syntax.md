@@ -279,6 +279,8 @@ plugins:
       kwargs:
         pdf_dir: D:/pdf/ # pdf存放文件夹
         filename_rule: Pid # pdf命名规则，P代表photo, id代表使用photo.id也就是章节id
+        encrypt: # pdf密码，可选配置项
+          password: 123 # 密码
   
     # img2pdf也支持合并整个本子，把上方的after_photo改为after_album即可。
     # https://github.com/hect0x7/JMComic-Crawler-Python/discussions/258

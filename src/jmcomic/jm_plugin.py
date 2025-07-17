@@ -749,6 +749,7 @@ class Img2pdfPlugin(JmOptionPlugin):
                filename_rule='Pid',
                dir_rule=None,
                delete_original_file=False,
+               encrypt=None,
                **kwargs,
                ):
         if photo is None and album is None:
@@ -766,14 +767,14 @@ class Img2pdfPlugin(JmOptionPlugin):
         pdf_filepath = self.decide_filepath(album, photo, filename_rule, 'pdf', pdf_dir, dir_rule)
 
         # 调用 img2pdf 把 photo_dir 下的所有图片转为pdf
-        img_path_ls, img_dir_ls = self.write_img_2_pdf(pdf_filepath, album, photo)
+        img_path_ls, img_dir_ls = self.write_img_2_pdf(pdf_filepath, album, photo, encrypt)
         self.log(f'Convert Successfully: JM{album or photo} → {pdf_filepath}')
 
         # 执行删除
         img_path_ls += img_dir_ls
         self.execute_deletion(img_path_ls)
 
-    def write_img_2_pdf(self, pdf_filepath, album: JmAlbumDetail, photo: JmPhotoDetail):
+    def write_img_2_pdf(self, pdf_filepath, album: JmAlbumDetail, photo: JmPhotoDetail, encrypt):
         import img2pdf
 
         if album is None:
@@ -795,7 +796,21 @@ class Img2pdfPlugin(JmOptionPlugin):
         with open(pdf_filepath, 'wb') as f:
             f.write(img2pdf.convert(img_path_ls))
 
+        if encrypt:
+            self.encrypt_pdf(pdf_filepath, encrypt)
+
         return img_path_ls, img_dir_ls
+
+    def encrypt_pdf(self, pdf_filepath: str, encrypt: dict):
+        try:
+            import pikepdf
+        except ImportError:
+            self.warning_lib_not_install('pikepdf')
+            return
+
+        password = str(encrypt.get('password', ''))
+        with pikepdf.open(pdf_filepath, allow_overwriting_input=True) as pdf:
+            pdf.save(pdf_filepath, encryption=pikepdf.Encryption(user=password, owner=password))
 
 
 class LongImgPlugin(JmOptionPlugin):
