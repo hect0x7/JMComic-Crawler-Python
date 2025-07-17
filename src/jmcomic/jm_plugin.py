@@ -129,8 +129,7 @@ class JmOptionPlugin:
             base_dir = os.path.dirname(filepath)
         else:
             base_dir = base_dir or os.getcwd()
-            filepath = os.path.join(base_dir,
-                                    DirRule.apply_rule_to_filename(album, photo, filename_rule) + fix_suffix(suffix))
+            filepath = os.path.join(base_dir, DirRule.apply_rule_to_filename(album, photo, filename_rule) + fix_suffix(suffix))
 
         mkdir_if_not_exists(base_dir)
         return filepath
