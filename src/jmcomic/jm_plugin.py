@@ -809,7 +809,7 @@ class Img2pdfPlugin(JmOptionPlugin):
             self.warning_lib_not_install('pikepdf')
             return
 
-        password = encrypt['password']
+        password = str(encrypt.get('password', ''))
         with pikepdf.open(pdf_filepath, allow_overwriting_input=True) as pdf:
             pdf.save(pdf_filepath, encryption=pikepdf.Encryption(user=password, owner=password))
 

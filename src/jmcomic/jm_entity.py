@@ -469,11 +469,13 @@ class JmAlbumDetail(DetailEntity, Downloadable):
                  authors,
                  tags,
                  related_list=None,
+                 description='',
                  ):
         super().__init__()
         self.album_id: str = str(album_id)
         self.scramble_id: str = str(scramble_id)
         self.name: str = str(name).strip()
+        self.description = str(description).strip()
         self.page_count: int = int(page_count)  # 总页数
         self.pub_date: str = pub_date  # 发布日期
         self.update_date: str = update_date  # 更新日期
