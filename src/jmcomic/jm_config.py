@@ -128,11 +128,10 @@ class JmModuleConfig:
 
     # 移动端API域名
     DOMAIN_API_LIST = shuffled('''
-    www.cdnmhwscc.vip
-    www.cdnplaystation6.club
-    www.cdnplaystation6.org
-    www.cdnuc.vip
-    www.cdn-mspjmapiproxy.xyz
+    www.cdnaspa.vip
+    www.cdnaspa.club
+    www.cdnplaystation6.vip
+    www.cdnplaystation6.cc
     ''')
 
     # 获取最新移动端API域名的地址
