@@ -216,7 +216,7 @@ page: JmCategoryPage = cl.categories_filter(
     page=1,
     time=JmMagicConstants.TIME_ALL,  # 时间选择全部，具体可以写什么请见JmMagicConstants
     category=JmMagicConstants.CATEGORY_ALL,  # 分类选择全部，具体可以写什么请见JmMagicConstants
-    order_by=JmMagicConstants.ORDER_BY_LATEST,  # 按照观看数排序，具体可以写什么请见JmMagicConstants
+    order_by=JmMagicConstants.ORDER_BY_LATEST,  # 按照更新时间排序，具体可以写什么请见JmMagicConstants
 )
 
 # 月排行，底层实现也是调的categories_filter
