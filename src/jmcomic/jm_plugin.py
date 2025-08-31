@@ -1229,6 +1229,7 @@ class AdvancedRetryPlugin(JmOptionPlugin):
         def hook_new_jm_client(*args, **kwargs):
             client: AbstractJmClient = new_jm_client(*args, **kwargs)
             client.domain_retry_strategy = self.request_with_retry
+            return client
 
         self.option.new_jm_client = hook_new_jm_client
 

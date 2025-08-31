@@ -78,7 +78,7 @@ class AbstractJmClient(
                                               )
 
         if domain_index >= len(self.domain_list):
-            return self.fallback(request, url, domain_index, retry_count, **kwargs)
+            return self.fallback(request, url, domain_index, retry_count, is_image, **kwargs)
 
         url_backup = url
 
@@ -116,9 +116,9 @@ class AbstractJmClient(
             self.before_retry(e, kwargs, retry_count, url)
 
         if retry_count < self.retry_times:
-            return self.request_with_retry(request, url_backup, domain_index, retry_count + 1, **kwargs)
+            return self.request_with_retry(request, url_backup, domain_index, retry_count + 1, is_image, **kwargs)
         else:
-            return self.request_with_retry(request, url_backup, domain_index + 1, 0, **kwargs)
+            return self.request_with_retry(request, url_backup, domain_index + 1, 0, is_image, **kwargs)
 
     # noinspection PyMethodMayBeStatic
     def raise_if_resp_should_retry(self, resp, is_image):
@@ -206,7 +206,7 @@ class AbstractJmClient(
         self.domain_list = domain_list
 
     # noinspection PyUnusedLocal
-    def fallback(self, request, url, domain_index, retry_count, **kwargs):
+    def fallback(self, request, url, domain_index, retry_count, is_image, **kwargs):
         msg = f"请求重试全部失败: [{url}], {self.domain_list}"
         jm_log('req.fallback', msg)
         ExceptionTool.raises(msg, {}, RequestRetryAllFailException)
@@ -1054,11 +1054,11 @@ class JmApiClient(AbstractJmClient):
                     break
                 except Exception as e:
                     jm_log('api.update_domain.error',
-                           f'自动更新API域名失败，仍使用jmcomic内置域名。'
+                           f'通过[{url}]自动更新API域名失败，仍使用jmcomic内置域名。'
                            f'可通过代码[JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN=False]关闭自动更新API域名. 异常： {e}'
                            )
-                finally:
-                    JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN_DONE = True
+            # set done finally
+            JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN_DONE = True
 
     client_init_cookies_lock = Lock()
 
