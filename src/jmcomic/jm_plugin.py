@@ -1237,7 +1237,7 @@ class AdvancedRetryPlugin(JmOptionPlugin):
                            client,
                            request,
                            url,
-                           callback=None,
+                           is_image,
                            **kwargs,
                            ):
         pass

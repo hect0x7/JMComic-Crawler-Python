@@ -73,7 +73,7 @@ class AbstractJmClient(
             return self.domain_retry_strategy(self,
                                               request,
                                               url,
-                                              is_image=is_image,
+                                              is_image,
                                               **kwargs,
                                               )
 
