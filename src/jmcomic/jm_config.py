@@ -77,7 +77,7 @@ class JmMagicConstants:
     APP_TOKEN_SECRET_2 = '18comicAPPContent'
     APP_DATA_SECRET = '185Hcomic3PAPP7R'
     API_DOMAIN_SERVER_SECRET = 'diosfjckwpqpdfjkvnqQjsik'
-    APP_VERSION = '1.8.0'
+    APP_VERSION = '2.0.6'
 
 
 # 模块级别共用配置
@@ -135,7 +135,10 @@ class JmModuleConfig:
     ''')
 
     # 获取最新移动端API域名的地址
-    API_URL_DOMAIN_SERVER = f'{PROT}jmapp03-1308024008.cos.ap-jakarta.myqcloud.com/server-2024.txt'
+    API_URL_DOMAIN_SERVER_LIST = shuffled('''
+    https://rup4a04-c01.tos-ap-southeast-1.bytepluses.com/newsvr-2025.txt
+    https://rup4a04-c02.tos-cn-hongkong.bytepluses.com/newsvr-2025.txt
+    ''')
 
     APP_HEADERS_TEMPLATE = {
         'Accept-Encoding': 'gzip, deflate',
