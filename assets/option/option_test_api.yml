@@ -26,3 +26,9 @@ plugins:
       kwargs:
         proxy_client_key: photo_concurrent_fetcher_proxy
         whitelist: [ api, ]
+
+    - plugin: advanced-retry
+      kwargs:
+        retry_config:
+          retry_rounds: 3 # 一共对域名列表重试3轮
+          retry_domain_max_times: 5 # 当一个域名重试次数超过5次，忽略该域名，不再重试

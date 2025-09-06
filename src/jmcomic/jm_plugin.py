@@ -1288,6 +1288,8 @@ class AdvancedRetryPlugin(JmOptionPlugin):
                     jm_log('req.error', str(e))
                     self.update_failed_count(client, domain)
 
+        return client.fallback(request, url, 0, 0, is_image, **kwargs)
+
     def get_sorted_domain(self, client: JmcomicClient, times):
         domain_list = client.get_domain_list()
         return sorted(
