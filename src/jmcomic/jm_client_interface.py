@@ -101,6 +101,17 @@ class JmApiResp(JmJsonResp):
         super().__init__(resp)
         self.ts = ts
 
+    # 重写json()方法，专门处理API响应的清理
+    @field_cache()
+    def json(self) -> Dict:
+        from .jm_toolkit import safe_parse_json  # 导入清理函数
+        try:
+            # 仅对API响应进行清理（保留原始JmJsonResp的逻辑不变）
+            clean_text = safe_parse_json(self.resp.text)
+            return clean_text
+        except Exception as e:
+            ExceptionTool.raises_resp(f'API json解析失败: {e}', self, JsonResolveFailException)
+            
     @property
     def is_success(self) -> bool:
         return super().is_success and self.json()['code'] == 200
