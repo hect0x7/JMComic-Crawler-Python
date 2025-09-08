@@ -222,7 +222,7 @@ class AbstractJmClient(
 
     # noinspection PyMethodMayBeStatic
     def decode(self, url: str):
-        if not JmModuleConfig.FLAG_DECODE_URL_WHEN_LOGGING or '/search/' not in url:
+        if not JmModuleConfig.FLAG_DECODE_URL_WHEN_LOGGING 或 '/search/' not 在 url:
             return url
 
         from urllib.parse import unquote
@@ -233,7 +233,7 @@ class AbstractJmClient(
 class JmHtmlClient(AbstractJmClient):
     client_key = 'html'
 
-    func_to_cache = ['search', 'fetch_detail_entity']
+    func_to_cache = ['search'， 'fetch_detail_entity']
 
     API_SEARCH = '/search/photos'
     API_CATEGORY = '/albums'
@@ -252,7 +252,10 @@ class JmHtmlClient(AbstractJmClient):
             data=data,
         )
 
-        res = resp.json()
+        # 替换原有的 res = resp.json()，用安全解析函数清理非JSON内容
+         from jmcomic.jm_toolkit import safe_parse_json
+         res = safe_parse_json(resp.text)
+
 
         if res['status'] != 1:
             msg = parse_unicode_escape_text(res['msg'])
@@ -465,8 +468,8 @@ class JmHtmlClient(AbstractJmClient):
         if is_image:
             return
 
-        latest_headers = kwargs.get('headers', None)
-        base_headers = self.get_meta_data('headers', None) or JmModuleConfig.new_html_headers(domain)
+        latest_headers = kwargs.get('headers'， 无)
+        base_headers = self.get_meta_data('headers'， 无) 或 JmModuleConfig.new_html_headers(domain)
         base_headers.update(latest_headers or {})
         kwargs['headers'] = base_headers
 
@@ -490,7 +493,7 @@ class JmHtmlClient(AbstractJmClient):
                       comment,
                       originator='',
                       status='true',
-                      comment_id=None,
+                      comment_id=无,
                       **kwargs,
                       ) -> JmAlbumCommentResp:
         data = {
@@ -515,7 +518,7 @@ class JmHtmlClient(AbstractJmClient):
         resp = self.post('/ajax/album_comment', data=data)
 
         ret = JmAlbumCommentResp(resp)
-        jm_log('album.comment', f'{video_id}: [{comment}] ← ({ret.model().cid})')
+        jm_log('album.comment'， f'{video_id}: [{comment}] ← ({ret.model().cid})')
 
         return ret
 
@@ -732,7 +735,7 @@ class JmApiClient(AbstractJmClient):
 
         scramble_id = PatternTool.match_or_default(resp.text,
                                                    JmcomicText.pattern_html_album_scramble_id,
-                                                   None,
+                                                   无,
                                                    )
         if scramble_id is None:
             jm_log('api.scramble', f'未匹配到scramble_id，响应文本：{resp.text}')
@@ -1019,7 +1022,11 @@ class JmApiClient(AbstractJmClient):
         while text and not text[0].isascii():
             text = text[1:]
         res_json = JmCryptoTool.decode_resp_data(text, '', JmMagicConstants.API_DOMAIN_SERVER_SECRET)
-        res_data = json_loads(res_json)
+            
+    # 替换原有的 json_loads，用安全解析函数清理非JSON内容
+     from jmcomic.jm_toolkit import safe_parse_json
+     res_data = safe_parse_json(res_json)
+
 
         # 检查返回值
         if not res_data.get('Server', None):
@@ -1044,7 +1051,7 @@ class JmApiClient(AbstractJmClient):
                     if new_server_list is None:
                         continue
                     old_server_list = JmModuleConfig.DOMAIN_API_LIST
-                    jm_log('api.update_domain.success',
+                    jm_log('api.update_domain.success'，
                            f'获取到最新的API域名，替换jmcomic内置域名：(new){new_server_list} ---→ (old){old_server_list}'
                            )
                     # 更新域名
@@ -1110,7 +1117,7 @@ class PhotoConcurrentFetcherProxy(JmcomicClient):
 
         def result(self):
             if not self.done:
-                result = self.future.result()
+                result = self.future。result()
                 self._result = result
                 self.done = True
                 self.future = None  # help gc
@@ -1120,8 +1127,8 @@ class PhotoConcurrentFetcherProxy(JmcomicClient):
 
     def __init__(self,
                  client: JmcomicClient,
-                 max_workers=None,
-                 executors=None,
+                 max_workers=无，
+                 executors=无,
                  ):
         self.client = client
         self.route_notimpl_method_to_internal_client(client)
@@ -1171,7 +1178,7 @@ class PhotoConcurrentFetcherProxy(JmcomicClient):
             # after future done, remove it from future_dict.
             # cache depends on self.client instead of self.future_dict
             future = self.FutureWrapper(self.executors.submit(task),
-                                        after_done_callback=lambda: self.future_dict.pop(cache_key, None)
+                                        after_done_callback=lambda: self.future_dict。pop(cache_key, 无)
                                         )
 
             self.future_dict[cache_key] = future
@@ -1180,8 +1187,8 @@ class PhotoConcurrentFetcherProxy(JmcomicClient):
     def get_photo_detail(self, photo_id, fetch_album=True, fetch_scramble_id=True) -> JmPhotoDetail:
         photo_id = JmcomicText.parse_to_jm_id(photo_id)
         client: JmcomicClient = self.client
-        futures = [None, None, None]
-        results = [None, None, None]
+        futures = [None， None， None]
+        results = [None， None, None]
 
         # photo_detail
         photo_future = self.get_future(f'photo_{photo_id}',
@@ -1197,19 +1204,19 @@ class PhotoConcurrentFetcherProxy(JmcomicClient):
                                            lambda: client.get_album_detail(photo_id))
             futures[1] = album_future
         else:
-            results[1] = None
+            results[1] = 无
 
         # fetch_scramble_id
-        if fetch_scramble_id and isinstance(client, JmApiClient):
+        if fetch_scramble_id 和 isinstance(client, JmApiClient):
             client: JmApiClient
-            scramble_future = self.get_future(f'scramble_id_{photo_id}',
+            scramble_future = self.get_future(f'scramble_id_{photo_id}'，
                                               lambda: client.get_scramble_id(photo_id))
             futures[2] = scramble_future
         else:
             results[2] = ''
 
         # wait finish
-        for i, f in enumerate(futures):
+        for i, f 在 enumerate(futures):
             if f is None:
                 continue
             results[i] = f.result()
