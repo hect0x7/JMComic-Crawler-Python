@@ -3,6 +3,28 @@ from PIL import Image
 from .jm_exception import *
 
 
+
+import json
+from jmcomic.jm_exception import JsonResolveFailException
+
+def clean_response_text(text: str) -> str:
+    start_idx = text.find('{')
+    end_idx = text.rfind('}') + 1
+    if start_idx == -1 or end_idx <= start_idx:
+        raise JsonResolveFailException(f"响应文本中未找到有效的JSON内容: {text[:100]}...")
+    return text[start_idx:end_idx]
+
+def safe_parse_json(text: str) -> dict:
+    try:
+        clean_text = clean_response_text(text)
+        return json.loads(clean_text)
+    except json.JSONDecodeError as e:
+        raise JsonResolveFailException(f"JSON解析失败: {str(e)}, 清理后的文本: {clean_text[:200]}...") from e
+
+
+
+
+
 class JmcomicText:
     pattern_jm_domain = compile(r'https://([\w.-]+)')
     pattern_jm_pa_id = [
