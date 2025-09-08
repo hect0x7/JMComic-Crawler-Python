@@ -3,7 +3,7 @@ from PIL import Image
 from .jm_exception import *
 
 
-
+#修复JSON解析失败问题（添加清理函数）
 import json
 from jmcomic.jm_exception import JsonResolveFailException
 
