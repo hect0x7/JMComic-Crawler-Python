@@ -252,7 +252,10 @@ class JmHtmlClient(AbstractJmClient):
             data=data,
         )
 
-        res = resp.json()
+     # 替换原有的 res = resp.json()，用安全解析函数清理非JSON内容
+     from jmcomic.jm_toolkit import safe_parse_json
+     res = safe_parse_json(resp.text)
+
 
         if res['status'] != 1:
             msg = parse_unicode_escape_text(res['msg'])
@@ -1019,7 +1022,10 @@ class JmApiClient(AbstractJmClient):
         while text and not text[0].isascii():
             text = text[1:]
         res_json = JmCryptoTool.decode_resp_data(text, '', JmMagicConstants.API_DOMAIN_SERVER_SECRET)
-        res_data = json_loads(res_json)
+         # 替换原有的 json_loads，用安全解析函数清理非JSON内容
+         from jmcomic.jm_toolkit import safe_parse_json
+         res_data = safe_parse_json(res_json)
+
 
         # 检查返回值
         if not res_data.get('Server', None):
