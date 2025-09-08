@@ -81,15 +81,18 @@ class JmImageResp(JmResp):
                 path,
             )
 
-
 class JmJsonResp(JmResp):
 
     @field_cache()
     def json(self) -> Dict:
+        from .jm_toolkit import safe_parse_json  # 导入清理函数
         try:
-            return self.resp.json()
+            # 先用safe_parse_json清理响应文本，再解析
+            clean_text = safe_parse_json(self.resp.text)
+            return clean_text
         except Exception as e:
             ExceptionTool.raises_resp(f'json解析失败: {e}', self, JsonResolveFailException)
+
 
     def model(self) -> AdvancedDict:
         return AdvancedDict(self.json())
