@@ -101,6 +101,14 @@ class JmApiResp(JmJsonResp):
         super().__init__(resp)
         self.ts = ts
 
+    # 重写json()方法，可以忽略一些非json格式的脏数据
+    @field_cache()
+    def json(self) -> Dict:
+        try:
+            return JmcomicText.try_parse_json_object(self.resp.text)
+        except Exception as e:
+            ExceptionTool.raises_resp(f'json解析失败: {e}', self, JsonResolveFailException)
+
     @property
     def is_success(self) -> bool:
         return super().is_success and self.json()['code'] == 200

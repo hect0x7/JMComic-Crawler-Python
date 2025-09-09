@@ -419,7 +419,7 @@ class JmOption:
         if clazz == AbstractJmClient or not issubclass(clazz, AbstractJmClient):
             raise NotImplementedError(clazz)
 
-        client: AbstractJmClient = clazz(
+        client: JmcomicClient = clazz(
             postman=postman,
             domain_list=decide_domain_list(),
             retry_times=retry_times,
