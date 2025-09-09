@@ -29,12 +29,13 @@ jobs:
           python .github/release.py "$commit_message"
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.tb.outputs.tag }}
           body_path: release_body.txt
+          generate_release_notes: true
 
       - name: Build
         run: |
