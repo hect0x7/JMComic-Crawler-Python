@@ -116,6 +116,13 @@ class JmApiResp(JmJsonResp):
     def is_success(self) -> bool:
         return super().is_success and self.json()['code'] == 200
 
+    def json(self) -> Dict:
+        try:
+            text = self.resp.text
+            return JmcomicText.try_parse_json_object(text)
+        except Exception as e:
+            ExceptionTool.raises_resp(f'json解析失败: {e}', self, JsonResolveFailException)
+
     @property
     @field_cache()
     def decoded_data(self) -> str:

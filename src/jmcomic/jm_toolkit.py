@@ -61,6 +61,8 @@ class JmcomicText:
 
     # 提取接口返回值信息
     pattern_ajax_favorite_msg = compile(r'</button>(.*?)</div>')
+    # 提取api接口返回值里的json，防止返回值里有无关日志导致json解析报错
+    pattern_api_response_json_object = re.compile(r'\{.*?}')
 
     @classmethod
     def parse_to_jm_domain(cls, text: str):
@@ -343,6 +345,18 @@ class JmcomicText:
                 return cls.try_mkdir(save_dir)
             raise e
         return save_dir
+
+    # noinspection PyTypeChecker
+    @classmethod
+    def try_parse_json_object(cls, text: str) -> dict:
+        import json
+        text = text.strip()
+        if text.startswith('{') and text.endswith('}'):
+            # fast case
+            return json.loads(text)
+
+        for match in cls.pattern_api_response_json_object.finditer(text):
+            return json.loads(match.group(0))
 
 
 # 支持dsl: #{???} -> os.getenv(???)
