@@ -895,7 +895,7 @@ class JmApiClient(AbstractJmClient):
         检查返回数据中的status字段是否为ok
         """
         data = resp.model_data
-        if data.status == 'ok':
+        if data.status != 'ok':
             ExceptionTool.raises_resp(data.msg, resp)
 
     def req_api(self, url, get=True, require_success=True, **kwargs) -> JmApiResp:
@@ -995,7 +995,7 @@ class JmApiClient(AbstractJmClient):
                 # 找到第一个有效字符
                 ExceptionTool.require_true(
                     char == '{',
-                    f'请求不是json格式，强制重试！响应文本: [{resp.text}]'
+                    f'请求不是json格式，强制重试！响应文本: [{JmcomicText.limit_text(text, 200)}]'
                 )
                 return resp
 

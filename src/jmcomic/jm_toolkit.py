@@ -62,7 +62,7 @@ class JmcomicText:
     # 提取接口返回值信息
     pattern_ajax_favorite_msg = compile(r'</button>(.*?)</div>')
     # 提取api接口返回值里的json，防止返回值里有无关日志导致json解析报错
-    pattern_api_response_json_object = re.compile(r'\{.*?}')
+    pattern_api_response_json_object = compile(r'\{[\s\S]*?}')
 
     @classmethod
     def parse_to_jm_domain(cls, text: str):
@@ -348,15 +348,25 @@ class JmcomicText:
 
     # noinspection PyTypeChecker
     @classmethod
-    def try_parse_json_object(cls, text: str) -> dict:
+    def try_parse_json_object(cls, resp_text: str) -> dict:
         import json
-        text = text.strip()
+        text = resp_text.strip()
         if text.startswith('{') and text.endswith('}'):
             # fast case
             return json.loads(text)
 
         for match in cls.pattern_api_response_json_object.finditer(text):
-            return json.loads(match.group(0))
+            try:
+                return json.loads(match.group(0))
+            except Exception as e:
+                jm_log('parse_json_object.error', e)
+
+        raise AssertionError(f'未解析出json数据: {cls.limit_text(resp_text, 200)}')
+
+    @classmethod
+    def limit_text(cls, text: str, limit: int) -> str:
+        length = len(text)
+        return text if length <= limit else (text[:limit] + f'...({length - limit}')
 
 
 # 支持dsl: #{???} -> os.getenv(???)
@@ -464,10 +474,7 @@ class JmPageTool:
             # 这里不作解析，因为没什么用...
             tags = cls.pattern_html_search_tags.findall(tag_text)
             content.append((
-                album_id, {
-                    'name': title,  # 改成name是为了兼容 parse_api_resp_to_page
-                    'tags': tags
-                }
+                album_id, dict(name=title, tags=tags)  # 改成name是为了兼容 parse_api_resp_to_page
             ))
 
         return JmSearchPage(content, total)
@@ -482,10 +489,7 @@ class JmPageTool:
         for (album_id, title, tag_text) in album_info_list:
             tags = cls.pattern_html_search_tags.findall(tag_text)
             content.append((
-                album_id, {
-                    'name': title,  # 改成name是为了兼容 parse_api_resp_to_page
-                    'tags': tags
-                }
+                album_id, dict(name=title, tags=tags)  # 改成name是为了兼容 parse_api_resp_to_page
             ))
 
         return JmSearchPage(content, total)

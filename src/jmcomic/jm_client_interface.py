@@ -101,27 +101,17 @@ class JmApiResp(JmJsonResp):
         super().__init__(resp)
         self.ts = ts
 
-    # 重写json()方法，专门处理API响应的清理
+    # 重写json()方法，可以忽略一些非json格式的脏数据
     @field_cache()
     def json(self) -> Dict:
-        from .jm_toolkit import safe_parse_json  # 导入清理函数
         try:
-            # 仅对API响应进行清理（保留原始JmJsonResp的逻辑不变）
-            clean_text = safe_parse_json(self.resp.text)
-            return clean_text
+            return JmcomicText.try_parse_json_object(self.resp.text)
         except Exception as e:
-            ExceptionTool.raises_resp(f'API json解析失败: {e}', self, JsonResolveFailException)
-            
+            ExceptionTool.raises_resp(f'json解析失败: {e}', self, JsonResolveFailException)
+
     @property
     def is_success(self) -> bool:
         return super().is_success and self.json()['code'] == 200
-
-    def json(self) -> Dict:
-        try:
-            text = self.resp.text
-            return JmcomicText.try_parse_json_object(text)
-        except Exception as e:
-            ExceptionTool.raises_resp(f'json解析失败: {e}', self, JsonResolveFailException)
 
     @property
     @field_cache()
