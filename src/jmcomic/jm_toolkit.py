@@ -368,6 +368,25 @@ class JmcomicText:
         length = len(text)
         return text if length <= limit else (text[:limit] + f'...({length - limit}')
 
+    @classmethod
+    def get_album_cover_url(cls,
+                            album_id: str,
+                            image_domain: str = None,
+                            size: str = ''
+                            ) -> str:
+        """
+        根据本子id生成封面url
+
+        :param album_id 本子id
+        :param image_domain: 图片cdn域名
+        :param size: 尺寸后缀，例如搜索列表页会使用 size="_3x4" 的封面图
+        """
+        if image_domain is None:
+            import random
+            image_domain = random.choice(JmModuleConfig.DOMAIN_IMAGE_LIST)
+
+        return f'{JmModuleConfig.PROT}{image_domain}/media/albums/{cls.parse_to_jm_id(album_id)}{size}.jpg'
+
 
 # 支持dsl: #{???} -> os.getenv(???)
 JmcomicText.dsl_replacer.add_dsl_and_replacer(r'\$\{(.*?)\}', JmcomicText.match_os_env)
