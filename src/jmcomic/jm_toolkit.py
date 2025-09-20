@@ -383,10 +383,11 @@ class JmcomicText:
         """
         if image_domain is None:
             import random
-            image_domain = random.choice(JmModuleConfig.DOMAIN_IMAGE_LIST)  # noqa: S311
+            image_domain = random.choice(JmModuleConfig.DOMAIN_IMAGE_LIST)
 
         path = f'/media/albums/{cls.parse_to_jm_id(album_id)}{size}.jpg'
         return cls.format_url(path, image_domain)
+
 
 # 支持dsl: #{???} -> os.getenv(???)
 JmcomicText.dsl_replacer.add_dsl_and_replacer(r'\$\{(.*?)\}', JmcomicText.match_os_env)
