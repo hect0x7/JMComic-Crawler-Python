@@ -370,23 +370,23 @@ class JmcomicText:
 
     @classmethod
     def get_album_cover_url(cls,
-                            album_id: str,
-                            image_domain: str = None,
-                            size: str = ''
+                            album_id: Union[str, int],
+                            image_domain: Optional[str] = None,
+                            size: str = '',
                             ) -> str:
         """
         根据本子id生成封面url
 
-        :param album_id 本子id
-        :param image_domain: 图片cdn域名
+        :param album_id: 本子id
+        :param image_domain: 图片cdn域名（可传入裸域或含协议的域名）
         :param size: 尺寸后缀，例如搜索列表页会使用 size="_3x4" 的封面图
         """
         if image_domain is None:
             import random
-            image_domain = random.choice(JmModuleConfig.DOMAIN_IMAGE_LIST)
+            image_domain = random.choice(JmModuleConfig.DOMAIN_IMAGE_LIST)  # noqa: S311
 
-        return f'{JmModuleConfig.PROT}{image_domain}/media/albums/{cls.parse_to_jm_id(album_id)}{size}.jpg'
-
+        path = f'/media/albums/{cls.parse_to_jm_id(album_id)}{size}.jpg'
+        return cls.format_url(path, image_domain)
 
 # 支持dsl: #{???} -> os.getenv(???)
 JmcomicText.dsl_replacer.add_dsl_and_replacer(r'\$\{(.*?)\}', JmcomicText.match_os_env)
