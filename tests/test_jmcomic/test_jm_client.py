@@ -332,3 +332,8 @@ class Test_Client(JmTestConfigurable):
         # 打印page内容
         for aid, atitle in page:
             print(aid, atitle)
+
+    def test_download_cover(self):
+        album_id = 123
+        self.client.download_album_cover(album_id, f'{self.option.dir_rule.base_dir}/{album_id}.webp')
+        self.client.download_album_cover(album_id, f'{self.option.dir_rule.base_dir}/{album_id}_3x4.webp', '_3x4')

@@ -293,6 +293,14 @@ class JmImageClient:
         # https://cdn-msp2.18comic.vip/media/photos/498976/00027.gif
         return data_original.endswith('.gif')
 
+    def download_album_cover(self, album_id, save_path: str, size: str = ''):
+        self.download_image(
+            img_url=JmcomicText.get_album_cover_url(album_id, size=size),
+            img_save_path=save_path,
+            scramble_id=None,
+            decode_image=False,
+        )
+
 
 class JmSearchAlbumClient:
     """

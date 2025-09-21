@@ -158,7 +158,8 @@ class DirRule:
         if rule.startswith(('A', 'P')):
             return cls.parse_detail_rule
 
-        ExceptionTool.raises(f'不支持的rule配置: "{rule}"')
+        return cls.parse_f_string_rule
+        # ExceptionTool.raises(f'不支持的rule配置: "{rule}"')
 
     @classmethod
     def apply_rule_to_filename(cls, album, photo, rule: str) -> str:

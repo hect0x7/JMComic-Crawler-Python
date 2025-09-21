@@ -38,7 +38,7 @@ download_album(123, option)
 option.download_album(123)
 ```
 
-## 获取本子/章节/图片的实体类，下载图片
+## 获取本子/章节/图片的实体类，下载图片/封面图
 
 ```python
 from jmcomic import *
@@ -49,23 +49,26 @@ client = JmOption.default().new_jm_client()
 # 本子实体类
 album: JmAlbumDetail = client.get_album_detail('427413')
 
+# 下载本子封面图，保存为 cover.png （图片后缀可指定为jpg、webp等）
+client.download_album_cover('427413', './cover.png')
+
 
 def fetch(photo: JmPhotoDetail):
     # 章节实体类
     photo = client.get_photo_detail(photo.photo_id, False)
     print(f'章节id: {photo.photo_id}')
-    
+
     # 图片实体类
     image: JmImageDetail
     for image in photo:
         print(f'图片url: {image.img_url}')
-        
+
     # 下载单个图片
     client.download_by_image_detail(image, './a.jpg')
     # 如果是已知未混淆的图片，也可以直接使用url来下载
     random_image_domain = JmModuleConfig.DOMAIN_IMAGE_LIST[0]
     client.download_image(f'https://{random_image_domain}/media/albums/416130.jpg', './a.jpg')
-    
+
 
 # 多线程发起请求
 multi_thread_launcher(
