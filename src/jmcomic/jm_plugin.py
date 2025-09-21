@@ -1234,14 +1234,18 @@ class AdvancedRetryPlugin(JmOptionPlugin):
         new_jm_client: Callable = self.option.new_jm_client
 
         def hook_new_jm_client(*args, **kwargs):
-            client: JmcomicClient = new_jm_client(*args, **kwargs)
-            client.domain_retry_strategy = self.request_with_retry
-            client.domain_req_failed_counter = {}
-            from threading import Lock
-            client.domain_counter_lock = Lock()
-            return client
+            return new_jm_client(*args, **kwargs, domain_retry_strategy=self)
 
         self.option.new_jm_client = hook_new_jm_client
+
+    def __call__(self, client: AbstractJmClient, *args, **kwargs):
+        if args and kwargs:
+            return self.request_with_retry(client, *args, **kwargs)
+        else:
+            # init
+            from threading import Lock
+            client.domain_req_failed_counter = {}
+            client.domain_counter_lock = Lock()
 
     def request_with_retry(self,
                            client: AbstractJmClient,

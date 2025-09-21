@@ -30,6 +30,8 @@ class AbstractJmClient(
         self.domain_retry_strategy = domain_retry_strategy
         self.CLIENT_CACHE = None
         self._username = None  # help for favorite_folder method
+        if domain_retry_strategy:
+            domain_retry_strategy(self)
         self.enable_cache()
         self.after_init()
 
