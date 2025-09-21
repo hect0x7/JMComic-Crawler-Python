@@ -111,7 +111,7 @@ class JmOptionPlugin:
     def decide_filepath(self,
                         album: Optional[JmAlbumDetail],
                         photo: Optional[JmPhotoDetail],
-                        filename_rule: str, suffix: str, base_dir: Optional[str],
+                        filename_rule: Optional[str], suffix: Optional[str], base_dir: Optional[str],
                         dir_rule_dict: Optional[dict]
                         ):
         """
@@ -1219,7 +1219,7 @@ class ReplacePathStringPlugin(JmOptionPlugin):
 
 
 class AdvancedRetryPlugin(JmOptionPlugin):
-    plugin_key = 'advanced-retry'
+    plugin_key = 'advanced_retry'
 
     def __init__(self, option: JmOption):
         super().__init__(option)
@@ -1234,14 +1234,17 @@ class AdvancedRetryPlugin(JmOptionPlugin):
         new_jm_client: Callable = self.option.new_jm_client
 
         def hook_new_jm_client(*args, **kwargs):
-            client: JmcomicClient = new_jm_client(*args, **kwargs)
-            client.domain_retry_strategy = self.request_with_retry
-            client.domain_req_failed_counter = {}
-            from threading import Lock
-            client.domain_counter_lock = Lock()
-            return client
+            return new_jm_client(*args, **kwargs, domain_retry_strategy=self)
 
         self.option.new_jm_client = hook_new_jm_client
+
+    def __call__(self, client: AbstractJmClient, *args, **kwargs):
+        if args:
+            return self.request_with_retry(client, *args, **kwargs)
+        # init
+        from threading import Lock
+        client.domain_req_failed_counter = {}
+        client.domain_counter_lock = Lock()
 
     def request_with_retry(self,
                            client: AbstractJmClient,
@@ -1306,3 +1309,25 @@ class AdvancedRetryPlugin(JmOptionPlugin):
     def failed_count(client: JmcomicClient, domain: str) -> int:
         # noinspection PyUnresolvedReferences
         return client.domain_req_failed_counter.get(domain, 0)
+
+
+class DownloadCoverPlugin(JmOptionPlugin):
+    plugin_key = 'download_cover'
+
+    def invoke(self,
+               dir_rule: dict,
+               size='',
+               photo: JmPhotoDetail = None,
+               album: JmAlbumDetail = None,
+               downloader=None,
+               **kwargs) -> None:
+        album_id = album.id if album else photo.album_id
+        save_path = self.decide_filepath(
+            album, photo,
+            None, None, None,
+            dir_rule
+        )
+        if self.option.download.cache and os.path.exists(save_path):
+            self.log(f'album-{album_id}的封面已存在，跳过下载: [{save_path}]', 'skip')
+            return
+        downloader.client.download_album_cover(album_id, save_path, size)

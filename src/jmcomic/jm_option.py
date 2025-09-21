@@ -158,7 +158,8 @@ class DirRule:
         if rule.startswith(('A', 'P')):
             return cls.parse_detail_rule
 
-        ExceptionTool.raises(f'不支持的rule配置: "{rule}"')
+        return cls.parse_f_string_rule
+        # ExceptionTool.raises(f'不支持的rule配置: "{rule}"')
 
     @classmethod
     def apply_rule_to_filename(cls, album, photo, rule: str) -> str:
@@ -362,7 +363,13 @@ class JmOption:
         """
         return self.new_jm_client(**kwargs)
 
-    def new_jm_client(self, domain_list=None, impl=None, cache=None, **kwargs) -> Union[JmHtmlClient, JmApiClient]:
+    def new_jm_client(self,
+                      domain_list=None,
+                      impl=None,
+                      cache=None,
+                      domain_retry_strategy=None,
+                      **kwargs
+                      ) -> Union[JmHtmlClient, JmApiClient]:
         """
         创建新的Client（客户端），不同Client之间的元数据不共享
         """
@@ -423,6 +430,7 @@ class JmOption:
             postman=postman,
             domain_list=decide_domain_list(),
             retry_times=retry_times,
+            domain_retry_strategy=domain_retry_strategy,
         )
 
         # enable cache

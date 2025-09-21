@@ -109,12 +109,12 @@ dir_rule:
   # 规则: 根目录 / 本子id / 章节序号 / 图片文件
   # rule: 'Bd  / Aid   / Pindex'
   # rule: 'Bd_Aid_Pindex'
-
   # 默认规则是: 根目录 / 章节标题 / 图片文件
-  rule: Bd_Ptitle
+  rule: Bd / Ptitle
   # jmcomic v2.5.36 以后，支持使用python的f-string的语法组合文件夹名，下为示例
   # rule: Bd / Aauthor / (JM{Aid}-{Pindex})-{Pname}
   # {}大括号里的内容同样是写 Axxx 或 Pxxx，其他语法自行参考python f-string的语法
+  # 另外，rule开头的Bd可忽略不写，因为程序会自动插入Bd
 ```
 
 ## 3. option插件配置项
@@ -193,6 +193,15 @@ plugins:
           content: album update !!!
         album_photo_dict:
           324930: 424507
+
+  before_album:
+    - plugin: download_cover # 额外下载本子封面的插件
+      kwargs:
+        size: '_3x4' # 可选项，禁漫搜索页的封面图尺寸是 4x3，和详情页不一样，想下搜索页的封面就设置此项
+        dir_rule: # 封面图存放路径规则，写法同上
+          base_dir: D:/a/b/c/
+          rule: '{Atitle}/{Aid}_cover.jpg'
+    
 
   after_album:
     - plugin: zip # 压缩文件插件

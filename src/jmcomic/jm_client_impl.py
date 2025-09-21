@@ -15,6 +15,7 @@ class AbstractJmClient(
                  postman: Postman,
                  domain_list: List[str],
                  retry_times=0,
+                 domain_retry_strategy=None,
                  ):
         """
         创建JM客户端
@@ -26,9 +27,11 @@ class AbstractJmClient(
         super().__init__(postman)
         self.retry_times = retry_times
         self.domain_list = domain_list
-        self.domain_retry_strategy = None
+        self.domain_retry_strategy = domain_retry_strategy
         self.CLIENT_CACHE = None
         self._username = None  # help for favorite_folder method
+        if domain_retry_strategy:
+            domain_retry_strategy(self)
         self.enable_cache()
         self.after_init()
 

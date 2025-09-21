@@ -27,7 +27,7 @@ plugins:
         proxy_client_key: photo_concurrent_fetcher_proxy
         whitelist: [ api, ]
 
-    - plugin: advanced-retry
+    - plugin: advanced_retry
       kwargs:
         retry_config:
           retry_rounds: 3 # 一共对域名列表重试3轮
