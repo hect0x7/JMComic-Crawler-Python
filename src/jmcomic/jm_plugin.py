@@ -1219,7 +1219,7 @@ class ReplacePathStringPlugin(JmOptionPlugin):
 
 
 class AdvancedRetryPlugin(JmOptionPlugin):
-    plugin_key = 'advanced-retry'
+    plugin_key = 'advanced_retry'
 
     def __init__(self, option: JmOption):
         super().__init__(option)
@@ -1309,7 +1309,7 @@ class AdvancedRetryPlugin(JmOptionPlugin):
 
 
 class DownloadCoverPlugin(JmOptionPlugin):
-    plugin_key = 'download-cover'
+    plugin_key = 'download_cover'
 
     def invoke(self,
                dir_rule: dict,
@@ -1324,4 +1324,7 @@ class DownloadCoverPlugin(JmOptionPlugin):
             None, None, None,
             dir_rule
         )
+        if self.option.download.cache and os.path.exists(save_path):
+            self.log(f'album-{album_id}的封面已存在，跳过下载: [{save_path}]', 'skip')
+            return
         downloader.client.download_album_cover(album_id, save_path, size)
