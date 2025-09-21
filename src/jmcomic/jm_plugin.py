@@ -1239,13 +1239,12 @@ class AdvancedRetryPlugin(JmOptionPlugin):
         self.option.new_jm_client = hook_new_jm_client
 
     def __call__(self, client: AbstractJmClient, *args, **kwargs):
-        if args and kwargs:
+        if args:
             return self.request_with_retry(client, *args, **kwargs)
-        else:
-            # init
-            from threading import Lock
-            client.domain_req_failed_counter = {}
-            client.domain_counter_lock = Lock()
+        # init
+        from threading import Lock
+        client.domain_req_failed_counter = {}
+        client.domain_counter_lock = Lock()
 
     def request_with_retry(self,
                            client: AbstractJmClient,

@@ -195,7 +195,7 @@ plugins:
           324930: 424507
 
   before_album:
-    - plugin: download-cover # 额外下载本子封面的插件
+    - plugin: download_cover # 额外下载本子封面的插件
       kwargs:
         size: '_3x4' # 可选项，禁漫搜索页的封面图尺寸是 4x3，和详情页不一样，想下搜索页的封面就设置此项
         dir_rule: # 封面图存放路径规则，写法同上
