@@ -126,6 +126,7 @@ dir_rule:
   #   base_dir: D:/a/b/c/
   #   rule: Bd / Ptitle
   #   normalize_zh: zh-cn
+```
 
 ## 3. option插件配置项
 
