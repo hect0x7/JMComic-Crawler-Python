@@ -1,5 +1,4 @@
 from .jm_client_impl import *
-from .jm_toolkit import JmcomicText
 
 
 class CacheRegistry:
