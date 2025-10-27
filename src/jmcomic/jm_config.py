@@ -411,7 +411,7 @@ class JmModuleConfig:
 
     DEFAULT_OPTION_DICT: dict = {
         'log': None,
-        'dir_rule': {'rule': 'Bd_Pname', 'base_dir': None, 'normalize_zh': ''},
+        'dir_rule': {'rule': 'Bd_Pname', 'base_dir': None, 'normalize_zh': None},
         'download': {
             'cache': True,
             'image': {'decode': True, 'suffix': None},

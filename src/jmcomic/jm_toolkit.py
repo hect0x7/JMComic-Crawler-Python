@@ -350,6 +350,9 @@ class JmcomicText:
         try:
             import zhconv
             return zhconv.convert(s, target)
+        except ImportError as e:
+            jm_log('zhconv.error', '繁简转换失败，未安装zhconv，请先使用命令安装: [pip install zhconv]')
+            return s
         except Exception as e:
             # 如果 zhconv 不可用或转换失败，则回退原字符串
             jm_log('zhconv.error', f'error: [{e}], s: [{s}]')
@@ -469,7 +472,8 @@ class JmPageTool:
     pattern_html_search_tags = compile(r'<a[^>]*?>(.*?)</a>')
 
     # 查找错误，例如 [错误，關鍵字過短，請至少輸入兩個字以上。]
-    pattern_html_search_error = compile(r'<fieldset>\n<legend>(.*?)</legend>\n<div class=.*?>\n(.*?)\n</div>\n</fieldset>')
+    pattern_html_search_error = compile(
+        r'<fieldset>\n<legend>(.*?)</legend>\n<div class=.*?>\n(.*?)\n</div>\n</fieldset>')
 
     pattern_html_search_total = compile(r'class="text-white">(\d+)</span> A漫.'), 0
 
