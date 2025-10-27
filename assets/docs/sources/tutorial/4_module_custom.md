@@ -102,6 +102,8 @@ def custom_album_photo_image_detail_class():
     dir_rule:
         base_dir: ${workspace}
         rule: Bd_Acustom_Pcustom
+        # 可选：对目录名进行繁/简体规范化（None/zh-cn/zh-tw），默认不启用
+        # normalize_zh: zh-cn
     
     上面的Acustom，Pcustom都是自定义字段
     如果你想要使用这种自定义字段，你就需要替换默认的实体类，方式如下

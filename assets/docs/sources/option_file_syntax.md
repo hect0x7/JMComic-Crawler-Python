@@ -115,7 +115,17 @@ dir_rule:
   # rule: Bd / Aauthor / (JM{Aid}-{Pindex})-{Pname}
   # {}大括号里的内容同样是写 Axxx 或 Pxxx，其他语法自行参考python f-string的语法
   # 另外，rule开头的Bd可忽略不写，因为程序会自动插入Bd
-```
+
+  # normalize_zh: 可选。控制是否对目录/文件名中的中文进行繁简体规范化。
+  #   - None（默认）：不做任何转换，保持历史行为
+  #   - zh-cn：将中文文本规范为简体
+  #   - zh-tw：将中文文本规范为繁体
+  # 该功能依赖可选库 `zhconv`（非必需），若未安装或转换失败，程序会回退到原字符串并继续工作，不会影响下载流程。
+  # 示例：
+  # dir_rule:
+  #   base_dir: D:/a/b/c/
+  #   rule: Bd / Ptitle
+  #   normalize_zh: zh-cn
 
 ## 3. option插件配置项
 
