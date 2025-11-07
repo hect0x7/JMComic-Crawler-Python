@@ -81,6 +81,19 @@ def cover_option_config(option: JmOption):
     if suffix is not None:
         option.download.image.suffix = fix_suffix(suffix)
 
+    pdf_option = env('PDF_OPTION', None)
+    if pdf_option and pdf_option != '否':
+        call_when = 'after_album' if pdf_option == '是 | 本子维度合并pdf' else 'after_photo'
+        plugin = [{
+            'plugin': Img2pdfPlugin.plugin_key,
+            'kwargs': {
+                'pdf_dir': option.dir_rule.base_dir + '/pdf/',
+                'filename_rule': call_when[6].upper() + 'id',
+                'delete_original_file': True,
+            }
+        }]
+        option.plugins[call_when] = plugin
+
 
 def log_before_raise():
     jm_download_dir = env('JM_DOWNLOAD_DIR', workspace())
