@@ -1,0 +1,36 @@
+# Test configuration for toolkit tests
+# 移动端配置 (API client is more reliable for tests)
+dir_rule:
+  normalize_zh: zh-cn
+  rule: Bd_Aauthor_Aid_Pindextitle
+
+client:
+  impl: api
+  retry_times: 3
+  postman:
+    meta_data:
+      timeout: 15
+  domain:
+    html:
+      - jmcomic1.me
+      - jmcomic.me
+
+# 插件配置
+plugins:
+  after_init:
+    # Disabled usage_log plugin to avoid psutil dependency in tests
+    # - plugin: usage_log
+    #   kwargs:
+    #     interval: 0.5
+    #     enable_warning: false
+
+    - plugin: client_proxy
+      kwargs:
+        proxy_client_key: photo_concurrent_fetcher_proxy
+        whitelist: [ api, ]
+
+    - plugin: advanced_retry
+      kwargs:
+        retry_config:
+          retry_rounds: 3
+          retry_domain_max_times: 5
