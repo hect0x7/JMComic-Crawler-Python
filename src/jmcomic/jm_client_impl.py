@@ -966,7 +966,8 @@ class JmApiClient(AbstractJmClient):
     def after_init(self):
         # 自动更新禁漫API域名
         if JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN:
-            self.update_api_domain()
+            new_server_list = self.fetch_latest_api_domain_for_module()
+            self.update_old_api_domain(new_server_list)
 
         # 保证拥有cookies，因为移动端要求必须携带cookies，否则会直接跳转同一本子【禁漫娘】
         if JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES:
@@ -991,13 +992,19 @@ class JmApiClient(AbstractJmClient):
         else:
             return res_data['Server']
 
-    def update_api_domain(self):
-        if True is JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN_DONE:
-            return
+    def update_old_api_domain(self, new_server_list: list[str]):
+        if new_server_list and sorted(self.domain_list) == sorted(JmModuleConfig.DOMAIN_API_LIST):
+            self.domain_list = new_server_list
+
+    def fetch_latest_api_domain_for_module(self):
+        if JmModuleConfig.DOMAIN_API_UPDATED_LIST is not None:
+            return JmModuleConfig.DOMAIN_API_UPDATED_LIST
 
         with self.client_update_domain_lock:
-            if True is JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN_DONE:
-                return
+            # double check
+            if JmModuleConfig.DOMAIN_API_UPDATED_LIST is not None:
+                return JmModuleConfig.DOMAIN_API_UPDATED_LIST
+
             # 遍历多个域名服务器
             for url in JmModuleConfig.API_URL_DOMAIN_SERVER_LIST:
                 try:
@@ -1009,18 +1016,20 @@ class JmApiClient(AbstractJmClient):
                     jm_log('api.update_domain.success',
                            f'获取到最新的API域名，替换jmcomic内置域名：(new){new_server_list} ---→ (old){old_server_list}'
                            )
-                    # 更新域名
-                    if sorted(self.domain_list) == sorted(old_server_list):
-                        self.domain_list = new_server_list
-                    JmModuleConfig.DOMAIN_API_LIST = new_server_list
-                    break
+                    JmModuleConfig.DOMAIN_API_UPDATED_LIST = new_server_list
+                    return new_server_list
                 except Exception as e:
                     jm_log('api.update_domain.error',
-                           f'通过[{url}]自动更新API域名失败，仍使用jmcomic内置域名。'
+                           f'通过[{url}]自动更新API域名失败，尝试下一个地址。'
                            f'可通过代码[JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN=False]关闭自动更新API域名. 异常： {e}'
                            )
-            # set done finally
-            JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN_DONE = True
+                    continue
+
+            # 走到这里，说明没有获取到域名更新
+            # 为了本方法不被重复执行，把新域名字段修改为空列表
+            # 空列表相当于一个done标识
+            JmModuleConfig.DOMAIN_API_UPDATED_LIST = []
+            return JmModuleConfig.DOMAIN_API_UPDATED_LIST
 
     client_init_cookies_lock = Lock()
 

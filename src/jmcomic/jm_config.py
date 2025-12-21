@@ -134,6 +134,8 @@ class JmModuleConfig:
     www.cdnplaystation6.cc
     ''')
 
+    DOMAIN_API_UPDATED_LIST = None
+
     # 获取最新移动端API域名的地址
     API_URL_DOMAIN_SERVER_LIST = shuffled('''
     https://rup4a04-c01.tos-ap-southeast-1.bytepluses.com/newsvr-2025.txt
@@ -209,7 +211,6 @@ class JmModuleConfig:
     FLAG_API_CLIENT_REQUIRE_COOKIES = True
     # 自动更新禁漫API域名
     FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = True
-    FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN_DONE = None
     # log开关标记
     FLAG_ENABLE_JM_LOG = True
     # log时解码url
