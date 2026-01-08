@@ -992,7 +992,7 @@ class JmApiClient(AbstractJmClient):
         else:
             return res_data['Server']
 
-    def update_old_api_domain(self, new_server_list: list[str]):
+    def update_old_api_domain(self, new_server_list: List[str]):
         if new_server_list and sorted(self.domain_list) == sorted(JmModuleConfig.DOMAIN_API_LIST):
             self.domain_list = new_server_list
 
