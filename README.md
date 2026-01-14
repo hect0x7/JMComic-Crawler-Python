@@ -28,6 +28,9 @@
 [【指路】教程：导出并下载你的禁漫收藏夹数据](./assets/docs/sources/tutorial/10_export_favorites.md)
 
 
+![introduction.jpg](./assets/docs/sources/images/introduction.jpg)
+
+
 ## 项目介绍
 
 本项目的核心功能是下载本子。
