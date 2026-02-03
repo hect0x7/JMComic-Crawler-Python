@@ -710,7 +710,7 @@ class JmApiClient(AbstractJmClient):
             })
         )
 
-        if resp.res_data.get('name') is None:
+        if not resp.encoded_data or resp.res_data.get('name') is None:
             ExceptionTool.raise_missing(resp, jmid)
 
         return JmApiAdaptTool.parse_entity(resp.res_data, clazz)

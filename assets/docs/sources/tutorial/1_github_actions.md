@@ -1,5 +1,8 @@
 # GitHub Actions使用教程
 
+
+![tutorial](../images/github_actions_tutorial.jpg)
+
 一共需要三步：
 
 1. fork一份我的代码仓库。

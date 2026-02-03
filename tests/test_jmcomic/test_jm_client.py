@@ -42,7 +42,7 @@ class Test_Client(JmTestConfigurable):
         self.assertRaises(
             MissingAlbumPhotoException,
             self.client.get_album_detail,
-            '0'
+            '530595'
         )
 
     def test_detail_property_list(self):
@@ -337,3 +337,6 @@ class Test_Client(JmTestConfigurable):
         album_id = 123
         self.client.download_album_cover(album_id, f'{self.option.dir_rule.base_dir}/{album_id}.webp')
         self.client.download_album_cover(album_id, f'{self.option.dir_rule.base_dir}/{album_id}_3x4.webp', '_3x4')
+
+    def test_ranking(self):
+        print(self.client.month_ranking(1))
