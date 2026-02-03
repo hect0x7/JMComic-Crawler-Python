@@ -39,6 +39,11 @@ class Test_Client(JmTestConfigurable):
         self.client.download_by_image_detail(image, self.option.decide_image_filepath(image))
 
     def test_album_missing(self):
+        """
+        Verify get_album_detail raises MissingAlbumPhotoException for a missing album.
+        
+        Asserts that requesting album with ID '530595' causes a MissingAlbumPhotoException to be raised.
+        """
         self.assertRaises(
             MissingAlbumPhotoException,
             self.client.get_album_detail,
@@ -46,6 +51,11 @@ class Test_Client(JmTestConfigurable):
         )
 
     def test_detail_property_list(self):
+        """
+        Validate that selected property lists of album 410090 match expected values after conversion to Chinese.
+        
+        Fetches album detail for ID 410090 and compares the first up to nine entries of its `works`, `actors`, `tags`, and `authors` lists against expected values, converting both sides with `JmcomicText.to_zh_cn` before asserting element-wise equality.
+        """
         album = self.client.get_album_detail(410090)
 
         ans = [
@@ -339,4 +349,9 @@ class Test_Client(JmTestConfigurable):
         self.client.download_album_cover(album_id, f'{self.option.dir_rule.base_dir}/{album_id}_3x4.webp', '_3x4')
 
     def test_ranking(self):
+        """
+        Fetches and prints the client's monthly ranking for month 1.
+        
+        This test retrieves the month-1 ranking from the configured client and writes it to standard output.
+        """
         print(self.client.month_ranking(1))
