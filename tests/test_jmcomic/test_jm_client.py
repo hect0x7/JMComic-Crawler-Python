@@ -186,7 +186,7 @@ class Test_Client(JmTestConfigurable):
         cases = {
             152637: {
                 'search_query': '无修正',
-                'order_by': JmMagicConstants.ORDER_BY_LIKE,
+                'order_by': JmMagicConstants.ORDER_BY_VIEW,
                 'time': JmMagicConstants.TIME_ALL,
             },
             147643: {
