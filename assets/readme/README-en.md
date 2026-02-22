@@ -43,7 +43,7 @@
 
 The core function of this project is to download albums.
 
-Based on this, an easy-to-use, highly extensible framework is designated to meet a variety of download requirements.
+Based on this, an easy-to-use, highly extensible framework is designed to meet various download requirements.
 
 Currently, the core functions are relatively stable, and the project is in the maintenance phase.
 
@@ -54,7 +54,7 @@ In addition to downloading, other JM interfaces are also implemented on demand. 
 - Image downloading and decoding
 - Categories/Rankings
 - Album/Chapter details
-- Personal favorites layer
+- Personal favorites
 - Interface encryption and decryption (for the APP API)
 
 ## Installation Guide
@@ -151,7 +151,7 @@ jmcomic 123
 
 ## Advanced Usage
 
-Please check the documentation homepage → [jmcomic.readthedocs.io](https://jmcomic.readthedocs.io/zh-cn/latest)
+Please check the documentation homepage → [jmcomic.readthedocs.io (Chinese language)](https://jmcomic.readthedocs.io/zh-cn/latest)
 
 *(Tip: jmcomic provides many options. For most download requirements, you can find a corresponding configuration or plugin setup.)*
 
