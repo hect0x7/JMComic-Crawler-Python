@@ -1,6 +1,14 @@
 <!-- 顶部标题 & 统计徽章 -->
 <div align="center">
   <h1 style="margin-top: 0" align="center">Python API for JMComic</h1>
+
+  <p align="center">
+    <strong>简体中文</strong> •
+    <a href="./assets/readme/README-en.md">English</a> •
+    <a href="./assets/readme/README-jp.md">日本語</a> •
+    <a href="./assets/readme/README-kr.md">한국어</a>
+  </p>
+
   <p align="center">
   <strong>提供 Python API 访问禁漫天堂（网页端 & 移动端），集成 GitHub Actions 下载器🚀</strong>
   </p>
@@ -175,14 +183,21 @@ jmcomic 123
     - `硬件占用监控插件`
     - `只下载新章插件`
     - `压缩文件插件`
+    - `客户端代理插件`
     - `下载特定后缀图片插件`
     - `发送QQ邮件插件`
-    - `自动使用浏览器cookies插件`
+    - `日志主题过滤插件`
+    - `自动获取浏览器cookies插件`
     - `导出收藏夹为csv文件插件`
     - `合并所有图片为pdf文件插件`
     - `合并所有图片为长图png插件`
-    - `重复文件检测删除插件`
     - `网页观看本地章节插件`
+    - `订阅更新插件`
+    - `小章节跳过插件`
+    - `重复文件检测删除插件`
+    - `路径字符串替换插件`
+    - `高级重试插件`
+    - `封面下载插件`
 
 ## 使用小说明
 

@@ -32,6 +32,33 @@ theme:
     - search.share
     - navigation.tabs
     - navigation.top
+nav:
+  - 首页: index.md
+  - 版本更新计划: roadmap.md
+  - 配置文件指南: option_file_syntax.md
+  - Api 文档:
+    - api/client.md
+    - api/command-line.md
+    - api/config.md
+    - api/download.md
+    - api/entity.md
+    - api/option.md
+    - api/plugin.md
+    - api/toolkit.md
+  - 使用教程:
+    - tutorial/0_common_usage.md
+    - tutorial/1_github_actions.md
+    - tutorial/2_command_line.md
+    - tutorial/4_module_custom.md
+    - tutorial/5_filter.md
+    - tutorial/6_plugin.md
+    - tutorial/7_advance.md
+    - tutorial/8_pick_domain.md
+    - tutorial/9_custom_download_dir_name.md
+    - tutorial/10_export_favorites.md
+    - tutorial/11_log_custom.md
+    - tutorial/12_domain_strategy.md
+
 plugins:
   - search
   - mkdocstrings:
