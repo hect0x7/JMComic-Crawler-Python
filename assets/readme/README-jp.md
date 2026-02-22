@@ -64,7 +64,7 @@
 * 公式 pip ソースからインストール（推奨。アップデートもこのコマンドを使用します）
 
   ```shell
-  pip install jmcomic -i https://pypi.org/project -U
+  pip install jmcomic -U
   ```
 * ソースコードからインストール
 

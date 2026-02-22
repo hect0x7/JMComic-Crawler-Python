@@ -64,7 +64,7 @@
 * 通过pip官方源安装（推荐，并且更新也是这个命令）
 
   ```shell
-  pip install jmcomic -i https://pypi.org/project -U
+  pip install jmcomic -U
   ```
 * 通过源代码安装
 

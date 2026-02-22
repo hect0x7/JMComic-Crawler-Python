@@ -124,7 +124,13 @@ option = create_option('xxx')
 如果你编写的插件是异步的（比如启动了新线程处理任务），此时主程序可能会先于插件执行完毕而退出。为解决此问题，`JmOptionPlugin` 提供了注册等待挂起的功能：
 
 ```python
+import threading
+import time
+from jmcomic import JmOptionPlugin, JmModuleConfig
+
 class MyAsyncPlugin(JmOptionPlugin):
+    plugin_key = 'my_async_plugin'
+
     def invoke(self, **kwargs) -> None:
         # 1. 告诉 option 有一个异步插件正在运行，请主线程在退出前关掉我或等我
         self.enter_wait_list()
@@ -145,6 +151,8 @@ class MyAsyncPlugin(JmOptionPlugin):
         self.is_running = False # 发送停机信号
         if hasattr(self, 'thread') and self.thread.is_alive():
             self.thread.join() # 阻塞直到线程安全退出
+
+JmModuleConfig.register_plugin(MyAsyncPlugin)
 ```
 
 这样，程序在所有任务执行完退出的最后一刻，会通过 `option.wait_all_plugins_finish()` 遍历所有调用过 `enter_wait_list()` 挂起的插件，并调用其 `wait_until_finish()` 方法。只要你在该方法中实现了停机信号或阻塞等待的发送，主线程就会等待你的异步逻辑全部安全并优雅地退出。

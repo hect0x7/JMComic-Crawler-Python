@@ -64,7 +64,7 @@ In addition to downloading, other JM interfaces are also implemented on demand. 
 * Install via official pip source (recommended, the update command is identical)
 
   ```shell
-  pip install jmcomic -i https://pypi.org/project -U
+  pip install jmcomic -U
   ```
 * Install from source code
 

@@ -70,7 +70,8 @@ op = JmOption.default()
 op.client.retry_times = 3
 
 # 应用域名池新建包含该域名的 Client (记得指定 impl='html')
-cl = op.new_jm_client(domain_list=domains, impl='html')
+# 将新建的 client 赋值回 op，使其在后续的下载中生效
+op.client = op.new_jm_client(domain_list=domains, impl='html')
 
 download_album('438696', op)
 ```
@@ -86,7 +87,7 @@ from jmcomic import *
 domain = JmModuleConfig.get_html_domain()
 
 op = JmOption.default()
-cl = op.new_jm_client(domain_list=[domain], impl='html')
+op.client = op.new_jm_client(domain_list=[domain], impl='html')
 ```
 
 
