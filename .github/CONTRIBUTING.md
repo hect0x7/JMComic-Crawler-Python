@@ -109,9 +109,9 @@ PR 申请后，我会尽快 review 各位机长的代码并反馈通讯。再次
 #### 1. 统一使用黑匣子网关 (统一日志)
 所有的业务代码请统一使用 `from jmcomic import jm_log` 进行留痕。**避免**直接 `import logging` 或手动去拼接带有 `【】` 的日志头：
 ```python
-from jmcomic import jm_log
+from jmcomic import jm_log, jm_logger
 
-# ❌ 避免直接调用底层 logger
+# ❌ 避免直接调用底层 logger（jm_logger 是 jmcomic 内部原始的 logging.Logger 实例）
 jm_logger.info("【api】请求成功")
 
 # ✅ 推荐做法，统一走网关，系统会自动套用格式化主题
