@@ -16,7 +16,7 @@ jobs:
   test: # This code is based on https://github.com/gaogaotiantian/viztracer/blob/master/.github/workflows/python-package.yml
     strategy:
       matrix:
-        python-version: ['3.9', '3.10', '3.13', '3.14']
+        python-version: ['3.9', '3.10', '3.13', '3.14'] # 3.9 is kept as the minimum supported version test (EOL)
         os: [ ubuntu-latest ]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5

@@ -407,7 +407,10 @@ class JmModuleConfig:
     @classmethod
     def jm_log(cls, topic: str, msg: str, e: Exception = None):
         if cls.FLAG_ENABLE_JM_LOG is True:
-            cls.EXECUTOR_LOG(topic, msg, e)
+            try:
+                cls.EXECUTOR_LOG(topic, msg, e)
+            except TypeError:
+                cls.EXECUTOR_LOG(topic, msg)
 
     @classmethod
     def disable_jm_log(cls):
