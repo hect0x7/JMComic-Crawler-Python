@@ -548,23 +548,28 @@ class SendQQEmailPlugin(JmOptionPlugin):
 class LogTopicFilterPlugin(JmOptionPlugin):
     plugin_key = 'log_topic_filter'
 
+    import logging
+
+    class TopicFilter(logging.Filter):
+        def __init__(self, whitelist):
+            super().__init__()
+            self.whitelist = whitelist
+
+        def filter(self, record):
+            topic = getattr(record, 'topic', None)
+            if self.whitelist is not None and topic is not None and topic not in self.whitelist:
+                return False
+            return True
+
     def invoke(self, whitelist) -> None:
         if whitelist is not None:
             whitelist = set(whitelist)
 
-        import logging
         from jmcomic import jm_logger
 
-        class TopicFilter(logging.Filter):
-            def filter(self, record):
-                topic = getattr(record, 'topic', None)
-                if whitelist is not None and topic is not None and topic not in whitelist:
-                    return False
-                return True
-
         # 删除旧的同类 filter 避免重复
-        jm_logger.filters = [f for f in jm_logger.filters if not isinstance(f, TopicFilter)]
-        jm_logger.addFilter(TopicFilter())
+        jm_logger.filters = [f for f in jm_logger.filters if not isinstance(f, LogTopicFilterPlugin.TopicFilter)]
+        jm_logger.addFilter(LogTopicFilterPlugin.TopicFilter(whitelist))
 
 
 class AutoSetBrowserCookiesPlugin(JmOptionPlugin):

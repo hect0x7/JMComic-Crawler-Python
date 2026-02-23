@@ -18,7 +18,7 @@ def setup_default_jm_logger():
     if not jm_logger.handlers:
         import sys
         handler = logging.StreamHandler(sys.stdout)
-        formatter = logging.Formatter('[%(asctime)s] [%(threadName)s]:【%(topic)s】%(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+        formatter = logging.Formatter('[%(asctime)s] [%(threadName)s]:【%(topic)s】%(message)s', datefmt='%Y-%m-%d %H:%M:%S', defaults={'topic': ''})
         handler.setFormatter(formatter)
         jm_logger.addHandler(handler)
         jm_logger.setLevel(logging.INFO)
