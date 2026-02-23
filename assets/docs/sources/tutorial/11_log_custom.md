@@ -8,9 +8,13 @@
 
 使用代码：
 
-```
+```python
 from jmcomic import disable_jm_log 
 disable_jm_log()
+
+# 推荐使用 Python 原生的 logging 控制
+import logging
+logging.getLogger("jmcomic").setLevel(logging.WARNING) # 只显示警告以上的日志
 ```
 
 使用配置：

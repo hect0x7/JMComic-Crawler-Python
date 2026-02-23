@@ -1,4 +1,8 @@
+import logging
+
 from common import time_stamp, field_cache, ProxyBuilder
+
+jm_logger = logging.getLogger('jmcomic')
 
 
 def shuffled(lines):
@@ -9,9 +13,27 @@ def shuffled(lines):
     return ls
 
 
-def default_jm_logging(topic: str, msg: str):
-    from common import format_ts, current_thread
-    print('[{}] [{}]:【{}】{}'.format(format_ts(), current_thread().name, topic, msg))
+def setup_default_jm_logger():
+    # 为了保持原有默认向下兼容，如果没有 handler，我们加一个控制台 handler
+    if not jm_logger.handlers:
+        import sys
+        handler = logging.StreamHandler(sys.stdout)
+        formatter = logging.Formatter('[%(asctime)s] [%(threadName)s]:【%(topic)s】%(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+        handler.setFormatter(formatter)
+        jm_logger.addHandler(handler)
+        jm_logger.setLevel(logging.INFO)
+
+
+def default_jm_logging(topic: str, msg, e: Exception = None):
+    # 支持 jm_log('topic', e) 的简写
+    if isinstance(msg, BaseException):
+        e = msg
+        msg = str(msg)
+    extra = {'topic': topic}
+    if e is not None:
+        jm_logger.error(msg, extra=extra, exc_info=e)
+    else:
+        jm_logger.info(msg, extra=extra)
 
 
 # 禁漫常量
@@ -382,11 +404,10 @@ class JmModuleConfig:
         token, tokenparam = JmCryptoTool.token_and_tokenparam(ts)
         return ts, token, tokenparam
 
-    # noinspection PyUnusedLocal
     @classmethod
-    def jm_log(cls, topic: str, msg: str):
+    def jm_log(cls, topic: str, msg: str, e: Exception = None):
         if cls.FLAG_ENABLE_JM_LOG is True:
-            cls.EXECUTOR_LOG(topic, msg)
+            cls.EXECUTOR_LOG(topic, msg, e)
 
     @classmethod
     def disable_jm_log(cls):
@@ -506,6 +527,8 @@ class JmModuleConfig:
     def register_exception_listener(cls, etype, listener):
         cls.REGISTRY_EXCEPTION_LISTENER[etype] = listener
 
+
+setup_default_jm_logger()
 
 jm_log = JmModuleConfig.jm_log
 disable_jm_log = JmModuleConfig.disable_jm_log

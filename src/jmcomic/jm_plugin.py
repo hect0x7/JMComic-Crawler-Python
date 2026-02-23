@@ -552,15 +552,19 @@ class LogTopicFilterPlugin(JmOptionPlugin):
         if whitelist is not None:
             whitelist = set(whitelist)
 
-        old_jm_log = JmModuleConfig.EXECUTOR_LOG
+        import logging
+        from jmcomic import jm_logger
 
-        def new_jm_log(topic, msg):
-            if whitelist is not None and topic not in whitelist:
-                return
+        class TopicFilter(logging.Filter):
+            def filter(self, record):
+                topic = getattr(record, 'topic', None)
+                if whitelist is not None and topic is not None and topic not in whitelist:
+                    return False
+                return True
 
-            old_jm_log(topic, msg)
-
-        JmModuleConfig.EXECUTOR_LOG = new_jm_log
+        # 删除旧的同类 filter 避免重复
+        jm_logger.filters = [f for f in jm_logger.filters if not isinstance(f, TopicFilter)]
+        jm_logger.addFilter(TopicFilter())
 
 
 class AutoSetBrowserCookiesPlugin(JmOptionPlugin):
@@ -1286,9 +1290,7 @@ class AdvancedRetryPlugin(JmOptionPlugin):
                 try:
                     return do_request(domain)
                 except Exception as e:
-                    from common import traceback_print_exec
-                    traceback_print_exec()
-                    jm_log('req.error', str(e))
+                    jm_log('req.error', e)
                     self.update_failed_count(client, domain)
 
         return client.fallback(request, url, 0, 0, is_image, **kwargs)

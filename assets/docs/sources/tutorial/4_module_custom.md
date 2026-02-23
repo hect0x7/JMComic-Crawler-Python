@@ -137,24 +137,32 @@ def custom_album_photo_image_detail_class():
 ```python
 def custom_jm_log():
     """
-    该函数演示自定义log
+    该函数演示如何接管和自定义日志输出
     """
 
-    # jmcomic模块在运行过程中会使用 jm_log() 这个函数进行打印信息
-    # jm_log() 这个函数 最后会调用 JmModuleConfig.EXECUTOR_LOG 函数
-    # 你可以写一个自己的函数，替换 JmModuleConfig.EXECUTOR_LOG，实现自定义log
+    # jmcomic 项目默认使用内置的 Python logging 模块
+    # 其日志记录器的名字固定为 "jmcomic"
     
-    # 1. 自定义log函数
-    def my_log(topic: str, msg: str):
+    # 【推荐方式】直接配置原生的 logging logger
+    import logging
+    jm_logger = logging.getLogger("jmcomic")
+    
+    # 例如，取消默认往下游控制台打印的 Handler，转存到文件中
+    jm_logger.handlers.clear()
+    jm_logger.addHandler(logging.FileHandler("jm_download.log", encoding="utf-8"))
+    
+    # 【向后兼容方式/遗留用法】
+    # 你依然可以通过替换全局配置类的 EXECUTOR_LOG 函数暴力接管日志
+    def my_custom_log(topic: str, msg, e: Exception = None):
         """
-        这个log函数的参数列表必须包含两个参数，topic和msg
         @param topic: log主题，例如 'album.before', 'req.error', 'plugin.error'
-        @param msg: 具体log的信息
+        @param msg: 具体log的信息，也可以直接传入 Exception 对象（底层会自动适配）
+        @param e: 可选，异常对象（当 msg 本身就是 Exception 时无需传）
         """
         pass
     
-    # 2. 让my_log生效
-    JmModuleConfig.EXECUTOR_LOG = my_log
+    # 生效自定义的 proxy
+    JmModuleConfig.EXECUTOR_LOG = my_custom_log
 ```
 
 

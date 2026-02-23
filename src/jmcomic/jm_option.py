@@ -541,7 +541,7 @@ class JmOption:
                 self.invoke_plugin(pclass, kwargs, extra, pinfo)
             except BaseException as e:
                 if safe is True:
-                    traceback_print_exec()
+                    jm_log('plugin.exception', e)
                 else:
                     raise e
 

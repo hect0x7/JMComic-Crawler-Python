@@ -6,6 +6,7 @@ class JmcomicException(Exception):
     description = 'jmcomic 模块异常'
 
     def __init__(self, msg: str, context: dict):
+        super().__init__(msg)
         self.msg = msg
         self.context = context
 
