@@ -23,17 +23,17 @@
 </div>
 
 
-
-
 > 本项目封装了一套可用于爬取JM的Python API.
 > 
 > 你可以通过简单的几行Python代码，实现下载JM上的本子到本地，并且是处理好的图片。
 > 
+> **🧭 快速指路**
+> - [教程：使用 GitHub Actions 下载禁漫本子](./assets/docs/sources/tutorial/1_github_actions.md)
+> - [教程：导出并下载你的禁漫收藏夹数据](./assets/docs/sources/tutorial/10_export_favorites.md)
+> - [塔台广播：欢迎各位机长加入并贡献代码](./CONTRIBUTING.md)
+> 
 > **友情提示：珍爱JM，为了减轻JM的服务器压力，请不要一次性爬取太多本子，西门🙏🙏🙏**.
-
-[【指路】教程：使用GitHub Actions下载禁漫本子](./assets/docs/sources/tutorial/1_github_actions.md)
-
-[【指路】教程：导出并下载你的禁漫收藏夹数据](./assets/docs/sources/tutorial/10_export_favorites.md)
+> 
 
 
 ![introduction.jpg](./assets/docs/sources/images/introduction.jpg)
@@ -59,7 +59,8 @@
 
 ## 安装教程
 
-> ⚠如果你没有安装过Python，需要先安装Python再执行下面的步骤，且版本需要>=3.7（[点我去python官网下载](https://www.python.org/downloads/)）
+> ⚠如果你没有安装过 Python，需要先前往 [Python 官网下载](https://www.python.org/downloads/) 再执行以下步骤。
+>**推荐使用 Python 3.12及以上版本**
 
 * 通过pip官方源安装（推荐，并且更新也是这个命令）
 
@@ -201,8 +202,10 @@ jmcomic 123
 
 ## 使用小说明
 
-* Python >= 3.7，建议3.9以上，因为jmcomic的依赖库可能会不支持3.9以下的版本。
-* 个人项目，文档和示例会有不及时之处，可以Issue提问
+* 推荐使用 **Python 3.12+**，目前最低兼容版本为3.9。
+  > 注意：Python 3.9 及更早版本皆已于 2025 年彻底结束官方生命周期 (EOL)，使用3.9及以下随时有可能遇到第三方库不兼容的问题。
+
+* 个人项目，文档和示例会有不及时之处，可以Issue提问。
 
 ## 项目文件夹介绍
 

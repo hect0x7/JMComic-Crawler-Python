@@ -29,11 +29,12 @@
 > 
 > 몇 줄의 간단한 Python 코드만으로 JM의 앨범을 로컬로 원활하게 다운로드할 수 있으며, 이미지 또한 모두 처리된 상태입니다.
 > 
+> **🧭 빠른 가이드**
+> - [튜토리얼: GitHub Actions를 사용하여 다운로드하기](../docs/sources/tutorial/1_github_actions.md)
+> - [튜토리얼: 즐겨찾기 데이터를 내보내고 다운로드하기](../docs/sources/tutorial/10_export_favorites.md)
+> - [타워 브로드캐스트: 기장 여러분의 소스 코드 기여와 동참을 환영합니다](../../CONTRIBUTING.md)
+> 
 > **안내: JM 서버의 부하를 줄이기 위해 한 번에 너무 많은 앨범을 다운로드하지 말아주세요 🙏🙏🙏**
-
-[【가이드】튜토리얼: GitHub Actions를 사용하여 다운로드하기](../docs/sources/tutorial/1_github_actions.md)
-
-[【가이드】튜토리얼: 즐겨찾기 데이터를 내보내고 다운로드하기](../docs/sources/tutorial/10_export_favorites.md)
 
 
 ![introduction.jpg](../docs/sources/images/introduction.jpg)
@@ -59,7 +60,8 @@
 
 ## 설치 가이드
 
-> ⚠ Python이 시스템에 설치되어 있지 않다면, 다음 단계를 진행하기 전에 반드시 Python을 먼저 설치해주시기 바랍니다. 필요 버전 >= 3.7 ([Python 공식 사이트에서 다운로드하기](https://www.python.org/downloads/)).
+> ⚠ Python이 시스템에 설치되어 있지 않다면, 다음 단계를 진행하기 전에 먼저 [Python 공식 사이트](https://www.python.org/downloads/) 에서 다운로드하여 설치해주시기 바랍니다.
+> **Python 3.12 이상 버전을 권장합니다**
 
 * 공식 pip 저장소를 통한 설치 (추천. 업데이트 명령어도 동일합니다)
 
@@ -199,7 +201,9 @@ jmcomic 123
 
 ## 사용 팁
 
-* Python 3.7 이상을 요구하지만, 라이브러리와 jmcomic 패키지의 충돌을 막기 위해 3.9 이상의 쓰임을 추천합니다.
+* **Python 3.12 이상**을 권장하며, 현재 최소 호환 버전은 3.9입니다.
+  > 참고: Python 3.9 및 이전 버전은 모두 2025년에 공식 지원 종료(EOL)되었으므로 3.9 이하 버전을 사용할 경우 언제든 서드파티 라이브러리 호환성 문제에 부딪힐 수 있습니다.
+
 * 여유 시간에 만들어 지는 프로젝트이기에 정보나 활용 코드의 늦은 갱신이 다분합니다. 이슈(Issue)페이지로 연락주시기 바랍니다!
 
 ## 프로젝트 폴더 안내

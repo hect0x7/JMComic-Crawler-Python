@@ -29,11 +29,12 @@
 > 
 > With a few simple lines of Python code, you can download albums from JM to your local machine, with properly processed images.
 > 
+> **🧭 Quick Guide**
+> - [Tutorial: Downloading JM Albums using GitHub Actions](../docs/sources/tutorial/1_github_actions.md)
+> - [Tutorial: Exporting and downloading your JM favorites data](../docs/sources/tutorial/10_export_favorites.md)
+> - [Tower Broadcast: Welcome captains to join and contribute code](../../CONTRIBUTING.md)
+> 
 > **Friendly Prompt: Cherish JM. In order to reduce the pressure on JM servers, please do not download too many albums at once 🙏🙏🙏.**
-
-[【Guide】Tutorial: Downloading JM Albums using GitHub Actions](../docs/sources/tutorial/1_github_actions.md)
-
-[【Guide】Tutorial: Exporting and downloading your JM favorites data](../docs/sources/tutorial/10_export_favorites.md)
 
 
 ![introduction.jpg](../docs/sources/images/introduction.jpg)
@@ -59,7 +60,8 @@ In addition to downloading, other JM interfaces are also implemented on demand. 
 
 ## Installation Guide
 
-> ⚠ If you have not installed Python, you must install Python before executing the following steps. Version >= 3.7 is required ([Download from Python Official Site](https://www.python.org/downloads/)).
+> ⚠ If you have not installed Python, you must install Python before executing the following steps. [Download from Python Official Site](https://www.python.org/downloads/)
+> **Version 3.12+ is recommended.**
 
 * Install via official pip source (recommended, the update command is identical)
 
@@ -200,7 +202,9 @@ Please check the documentation homepage → [jmcomic.readthedocs.io (Chinese lan
 
 ## Prerequisites
 
-* Python >= 3.7. Version 3.9+ is highly recommended because `jmcomic`'s dependencies may not perfectly support prior versions.
+* Version **3.12+** is recommended, with a minimum compatible version of 3.9.
+  > Note: Python 3.9 and earlier versions reached their End Of Life (EOL) in 2025. You may encounter third-party library incompatibilities at any time if you use version 3.9 or below.
+
 * Since this is a personal project, the documentation/examples may occasionally be out of sync. Please feel free to open an Issue for any clarifications.
 
 ## Directory Structure
