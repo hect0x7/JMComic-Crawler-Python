@@ -161,7 +161,7 @@ def custom_jm_log():
         """
         pass
     
-    # 生效自定义的 proxy
+    # 生效自定义的 log 打印函数
     JmModuleConfig.EXECUTOR_LOG = my_custom_log
 ```
 
