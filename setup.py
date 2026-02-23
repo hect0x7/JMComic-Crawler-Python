@@ -25,7 +25,7 @@ setup(
     author_email='93357912+hect0x7@users.noreply.github.com',
     packages=find_packages("src"),
     package_dir={"": "src"},
-    python_requires=">=3.7",
+    python_requires=">=3.9",
     install_requires=[
         'curl_cffi',
         'commonX',
@@ -37,8 +37,7 @@ setup(
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
+
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
