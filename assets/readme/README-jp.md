@@ -32,7 +32,7 @@
 > **🧭 クイックガイド**
 > - [チュートリアル: GitHub Actionsを使ってダウンロードする](../docs/sources/tutorial/1_github_actions.md)
 > - [チュートリアル: お気に入りのデータをエクスポートしてダウンロードする](../docs/sources/tutorial/10_export_favorites.md)
-> - [タワーブロードキャスト: 機長のみなさん、参加とコード提供を歓迎します](../../CONTRIBUTING.md)
+> - [タワーブロードキャスト: 機長のみなさん、参加とコード提供を歓迎します](../../.github/CONTRIBUTING.md)
 > 
 > **ご案内：JMのサーバー負荷を軽減するため、一度に大量のダウンロードは控えてください 🙏🙏🙏**
 

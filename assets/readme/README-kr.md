@@ -32,7 +32,7 @@
 > **🧭 빠른 가이드**
 > - [튜토리얼: GitHub Actions를 사용하여 다운로드하기](../docs/sources/tutorial/1_github_actions.md)
 > - [튜토리얼: 즐겨찾기 데이터를 내보내고 다운로드하기](../docs/sources/tutorial/10_export_favorites.md)
-> - [타워 브로드캐스트: 기장 여러분의 소스 코드 기여와 동참을 환영합니다](../../CONTRIBUTING.md)
+> - [타워 브로드캐스트: 기장 여러분의 소스 코드 기여와 동참을 환영합니다](../../.github/CONTRIBUTING.md)
 > 
 > **안내: JM 서버의 부하를 줄이기 위해 한 번에 너무 많은 앨범을 다운로드하지 말아주세요 🙏🙏🙏**
 

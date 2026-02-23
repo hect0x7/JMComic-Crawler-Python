@@ -30,7 +30,7 @@
 > **🧭 快速指路**
 > - [教程：使用 GitHub Actions 下载禁漫本子](./assets/docs/sources/tutorial/1_github_actions.md)
 > - [教程：导出并下载你的禁漫收藏夹数据](./assets/docs/sources/tutorial/10_export_favorites.md)
-> - [塔台广播：欢迎各位机长加入并贡献代码](./CONTRIBUTING.md)
+> - [塔台广播：欢迎各位机长加入并贡献代码](./.github/CONTRIBUTING.md)
 > 
 > **友情提示：珍爱JM，为了减轻JM的服务器压力，请不要一次性爬取太多本子，西门🙏🙏🙏**.
 > 

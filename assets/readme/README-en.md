@@ -32,7 +32,7 @@
 > **🧭 Quick Guide**
 > - [Tutorial: Downloading JM Albums using GitHub Actions](../docs/sources/tutorial/1_github_actions.md)
 > - [Tutorial: Exporting and downloading your JM favorites data](../docs/sources/tutorial/10_export_favorites.md)
-> - [Tower Broadcast: Welcome captains to join and contribute code](../../CONTRIBUTING.md)
+> - [Tower Broadcast: Welcome captains to join and contribute code](../../.github/CONTRIBUTING.md)
 > 
 > **Friendly Prompt: Cherish JM. In order to reduce the pressure on JM servers, please do not download too many albums at once 🙏🙏🙏.**
 
