@@ -407,10 +407,23 @@ class JmModuleConfig:
     @classmethod
     def jm_log(cls, topic: str, msg: str, e: Exception = None):
         if cls.FLAG_ENABLE_JM_LOG is True:
-            try:
-                cls.EXECUTOR_LOG(topic, msg, e)
-            except TypeError:
-                cls.EXECUTOR_LOG(topic, msg)
+            executor = cls.EXECUTOR_LOG
+            if e is None:
+                executor(topic, msg)
+            else:
+                import inspect
+                try:
+                    sig = inspect.signature(executor)
+                    params_count = len(sig.parameters)
+                except (ValueError, TypeError):
+                    params_count = 2
+
+                if params_count >= 3:
+                    executor(topic, msg, e)
+                else:
+                    import warnings
+                    warnings.warn('jmcomic已升级到标准logging，建议将EXECUTOR_LOG重新定义为3个参数以接收异常对象 (topic, msg, e)')
+                    executor(topic, msg)
 
     @classmethod
     def disable_jm_log(cls):
