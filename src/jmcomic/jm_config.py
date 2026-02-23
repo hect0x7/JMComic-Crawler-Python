@@ -422,7 +422,10 @@ class JmModuleConfig:
                     executor(topic, msg, e)
                 else:
                     import warnings
-                    warnings.warn('jmcomic已升级到标准logging，建议将EXECUTOR_LOG重新定义为3个参数以接收异常对象 (topic, msg, e)')
+                    warnings.warn(
+                        'jmcomic已升级到标准logging，建议将EXECUTOR_LOG重新定义为3个参数以接收异常对象 (topic, msg, e)',
+                        stacklevel=2
+                    )
                     executor(topic, msg)
 
     @classmethod
