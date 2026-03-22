@@ -131,6 +131,7 @@ class JmViewUI:
     def __init__(self) -> None:
         self.raw_text: str = ''
         self.option_path: Optional[str] = None
+        self.auto_exit: bool = False
 
     def parse_arg(self):
         import argparse
@@ -148,9 +149,15 @@ class JmViewUI:
             type=str,
             default=get_env('JM_OPTION_PATH', ''),
         )
+        parser.add_argument(
+            '-y', '--yes',
+            action='store_true',
+            help='执行完毕后直接退出，无需按回车确认',
+        )
 
         args = parser.parse_args()
         self.raw_text = args.text
+        self.auto_exit = args.yes
 
         option_str = args.option
         if len(option_str) == 0 or option_str == "''":
@@ -214,8 +221,16 @@ class JmViewUI:
 
         print(f'{sep}\n')
 
+    def _pause(self):
+        if not self.auto_exit:
+            input('\n[运行结束] 请按回车键关闭窗口... (下次运行可附加 -y 参数跳过确认)')
+
     def main(self):
         self.parse_arg()
+
+        import atexit
+        atexit.register(self._pause)
+
         album_id = self.extract_album_id()
 
         from .api import jm_log

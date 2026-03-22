@@ -117,7 +117,7 @@ jmcomic.download_album(123, option)
 ### 3. 使用命令行
 > 如果只想下载本子，使用命令行会比上述方式更加简单直接
 > 
-> 例如，在windows上，直接按下win+r键，输入jmcomic xxx就可以下载本子。
+> 例如，在windows上，直接按下 win+R 键，输入`jmcomic xxx`就可以下载本子。
 
 示例：
 
@@ -149,7 +149,9 @@ jmcomic 123
 
 ### 4. 查看本子详情（jmv 命令）
 
-> `jmv` 命令用于快速查看本子详情，无需下载。
+> `jmv` 命令用于快速查看本子详情，不做下载。
+> 
+> **适用场景**：在某些网站上看到一串*神秘车号*，想快速看看具体是啥本子。此时只需copy原文本，按下 win+R，输入`jmv [粘贴内容]`即可
 >
 > 支持从任意文本中提取数字作为车号，方便直接粘贴各种格式的车号。
 
@@ -164,6 +166,9 @@ jmv 350谁还没看过234
 
 # 指定option文件（也支持环境变量，用法同上）
 jmv 350234 --option="D:/a.yml"
+
+# -y 参数：执行完毕后直接退出，无需按回车确认
+jmv 350234 -y
 ```
 
 输出效果：
@@ -192,13 +197,17 @@ jmv 350234 --option="D:/a.yml"
      第1話  上  (id: 350234)
      第2話  下  (id: 350235)
 ──────────────────────────────────────────────────
+
+[运行结束] 请按回车键关闭窗口... (下次运行可附加 -y 参数跳过确认)
 ```
 
 
 
 ## 进阶使用
 
-请查阅文档首页→[jmcomic.readthedocs.io](https://jmcomic.readthedocs.io/zh-cn/latest)
+请查阅文档首页 → [jmcomic.readthedocs.io](https://jmcomic.readthedocs.io/zh-cn/latest)
+
+或者查看github仓库的文档 → [github-repo-docs](https://github.com/hect0x7/JMComic-Crawler-Python/blob/master/assets/docs/sources/tutorial/0_common_usage.md)
 
 （提示：jmcomic提供了很多下载配置项，大部分的下载需求你都可以尝试寻找相关配置项或插件来实现。）
 
