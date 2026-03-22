@@ -175,12 +175,15 @@ class JmViewUI:
         return ', '.join(items[:limit]) + f' ...等{len(items)}个'
 
     def print_album_detail(self, album):
+        from jmcomic import JmcomicText
+
         sep = '─' * 50
 
         print(f'\n{sep}')
         print(f'  📖 标题:  {album.name}')
         print(f'  🆔 ID:    JM{album.album_id}')
-        print(f'  🔗 链接:  https://18comic.vip/album/{album.album_id}/')
+        print(f'  🔗 链接:  {JmcomicText.format_album_url(album.album_id)}')
+        print(f'  🎨 封面:  {JmcomicText.get_album_cover_url(album.album_id)}')
         print(f'  ✍️ 作者:  {self._truncate_list(album.authors) if album.authors else "未知"}')
         print(sep)
 
