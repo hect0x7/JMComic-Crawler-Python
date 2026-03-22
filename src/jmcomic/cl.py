@@ -130,8 +130,8 @@ class JmViewUI:
 
     def __init__(self) -> None:
         self.raw_text: str = ''
+        self.option_path: Optional[str] = None
 
-    # noinspection PyAttributeOutsideInit
     def parse_arg(self):
         import argparse
         parser = argparse.ArgumentParser(

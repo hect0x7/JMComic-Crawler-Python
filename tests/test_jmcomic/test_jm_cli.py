@@ -37,7 +37,7 @@ class Test_Cli(JmTestConfigurable):
     def test_jmcomic_download_album(self):
         """jmcomic 真实下载 album 350234"""
         JustDownloadSpecificCountImage.count = 5
-        album, dler = download_album(self.album_id, self.option, downloader=JustDownloadSpecificCountImage)
+        album, _dler = download_album(self.album_id, self.option, downloader=JustDownloadSpecificCountImage)
         self.assertEqual(album.album_id, self.album_id)
         self.assertTrue(len(album.name) > 0, '标题不应为空')
 
