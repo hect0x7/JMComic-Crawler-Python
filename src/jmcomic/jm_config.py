@@ -102,7 +102,7 @@ class JmMagicConstants:
     APP_TOKEN_SECRET_2 = '18comicAPPContent'
     APP_DATA_SECRET = '185Hcomic3PAPP7R'
     API_DOMAIN_SERVER_SECRET = 'diosfjckwpqpdfjkvnqQjsik'
-    APP_VERSION = '2.0.18'
+    APP_VERSION = '2.0.19'
 
 
 # 模块级别共用配置
@@ -405,8 +405,8 @@ class JmModuleConfig:
         return ts, token, tokenparam
 
     @classmethod
-    def jm_log(cls, topic: str, msg: str, e: Exception = None):
-        if cls.FLAG_ENABLE_JM_LOG is True:
+    def jm_log(cls, topic: str, msg, e: Exception = None):
+        if cls.FLAG_ENABLE_JM_LOG:
             executor = cls.EXECUTOR_LOG
             if e is None:
                 executor(topic, msg)
@@ -440,7 +440,7 @@ class JmModuleConfig:
 
         from common import Postmans
 
-        if session is True:
+        if session:
             return Postmans.new_session(**kwargs)
 
         return Postmans.new_postman(**kwargs)
