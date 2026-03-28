@@ -522,7 +522,7 @@ class JmOption:
 
     # 下面的方法为调用插件提供支持
 
-    def call_all_plugin(self, group: str, safe=True, **extra):
+    def call_all_plugin(self, group: str, safe=None, **extra):
         plugin_list: List[dict] = self.plugins.get(group, [])
         if plugin_list is None or len(plugin_list) == 0:
             return
@@ -540,7 +540,7 @@ class JmOption:
             try:
                 self.invoke_plugin(pclass, kwargs, extra, pinfo)
             except BaseException as e:
-                if safe is True:
+                if safe is True or pinfo.get('safe', True):
                     jm_log('plugin.exception', e)
                 else:
                     raise e
