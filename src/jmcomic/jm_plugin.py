@@ -68,7 +68,7 @@ class JmOptionPlugin:
         删除文件和文件夹
         :param paths: 路径列表
         """
-        if self.delete_original_file:
+        if not self.delete_original_file:
             return
 
         for p in paths:

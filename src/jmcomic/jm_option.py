@@ -298,7 +298,7 @@ class JmOption:
 
         # log
         log = dic.pop('log', True)
-        if not log:
+        if log is False:
             disable_jm_log()
 
         # version
