@@ -125,6 +125,8 @@ class JmOptionPlugin:
         """
         if album is None:
             album = photo.from_album
+        if album is None:
+            jm_log('plugin', f'Warning: album context is None for photo={photo.photo_id}, dir_rule placeholders may fail')
         filepath: str
         base_dir: str
         if dir_rule_dict is not None:
