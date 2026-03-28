@@ -36,6 +36,8 @@ class Test_Custom(JmTestConfigurable):
             os.path.abspath(save_dir),
             os.path.abspath(base_dir + dic[1] + '/' + dic[2]),
         )
+        JmModuleConfig.CLASS_ALBUM = JmAlbumDetail
+        JmModuleConfig.CLASS_PHOTO = JmPhotoDetail
 
     def test_extends_api_client(self):
         class MyClient(JmApiClient):
