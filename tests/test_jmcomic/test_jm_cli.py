@@ -54,10 +54,18 @@ class Test_Cli(JmTestConfigurable):
             )
 
             try:
-                subprocess.run([cmd, "--help"], capture_output=True, text=True, check=True)
+                subprocess.run(
+                    [cmd, "--help"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=10,
+                )
+            except subprocess.TimeoutExpired:
+                self.fail(f"Command '{cmd} --help' timed out execution.")
             except subprocess.CalledProcessError as e:
                 self.fail(f"Command '{cmd} --help' failed with exit code {e.returncode}. Stderr: {e.stderr.strip()}")
-            except Exception as e:
+            except OSError as e:
                 self.fail(f"Failed to execute command '{cmd}': {e}")
 
     # -- extract_album_id --
