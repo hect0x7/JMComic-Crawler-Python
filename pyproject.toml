@@ -38,6 +38,7 @@ Documentation = "https://jmcomic.readthedocs.io"
 
 [project.scripts]
 jmcomic = "jmcomic.cl:main"
+jmv = "jmcomic.cl:view_main"
 
 [tool.setuptools.dynamic]
 version = {attr = "jmcomic.__version__"}

@@ -43,6 +43,31 @@ class Test_Cli(JmTestConfigurable):
 
     # ========== jmv 命令测试 ==========
 
+    def test_entry_points_installed(self):
+        """验证控制台命令行是否被正确安装到了所在系统的环境变量里"""
+        import shutil
+        import subprocess
+        for cmd in ['jmcomic', 'jmv']:
+            self.assertIsNotNone(
+                shutil.which(cmd),
+                f"Command '{cmd}' not found in PATH. Please verify entry_points in setup.py or [project.scripts] in pyproject.toml and ensure the package is installed."
+            )
+
+            try:
+                subprocess.run(
+                    [cmd, "--help"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=10,
+                )
+            except subprocess.TimeoutExpired:
+                self.fail(f"Command '{cmd} --help' timed out execution.")
+            except subprocess.CalledProcessError as e:
+                self.fail(f"Command '{cmd} --help' failed with exit code {e.returncode}. Stderr: {e.stderr.strip()}")
+            except OSError as e:
+                self.fail(f"Failed to execute command '{cmd}': {e}")
+
     # -- extract_album_id --
 
     def test_jmv_extract_pure_digits(self):
