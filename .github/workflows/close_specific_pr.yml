@@ -26,6 +26,13 @@ jobs:
         run: |
           PR_TITLE=$(jq -r ".pull_request.title" $GITHUB_EVENT_PATH)
           echo "PR_TITLE: $PR_TITLE"
+          
+          # 检查标题是否符合 Conventional Commits 格式中的 feat 或 fix (不区分大小写)
+          if printf '%s\n' "$PR_TITLE" | grep -Eiq '(^|[[:space:]])(feat|fix)(\([^)]+\))?(!)?:'; then
+            echo "PR title contains feat or fix, skipping auto-close."
+            exit 0
+          fi
+          
           gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body '${{ env.comment }}'
           gh pr close ${{ github.event.pull_request.number }} --repo ${{ github.repository }}
         env:
