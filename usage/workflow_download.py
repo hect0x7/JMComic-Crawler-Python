@@ -84,11 +84,16 @@ def cover_option_config(option: JmOption):
     pdf_option = env('PDF_OPTION', None)
     if pdf_option and pdf_option != '否':
         call_when = 'after_album' if pdf_option == '是 | 本子维度合并pdf' else 'after_photo'
+        
+        pdf_name_rule = env('PDF_NAME_RULE', None)
+        if not pdf_name_rule:
+            pdf_name_rule = 'Atitle' if call_when == 'after_album' else 'Atitle_Ptitle'
+            
         plugin = [{
             'plugin': Img2pdfPlugin.plugin_key,
             'kwargs': {
                 'pdf_dir': option.dir_rule.base_dir + '/pdf/',
-                'filename_rule': call_when[6].upper() + 'id',
+                'filename_rule': pdf_name_rule,
                 'delete_original_file': True,
             }
         }]
