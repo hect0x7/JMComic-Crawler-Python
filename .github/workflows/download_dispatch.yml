@@ -40,6 +40,12 @@ on:
           - 是 | 本子维度合并pdf
           - 是 | 章节维度合并pdf
 
+      PDF_NAME_RULE:
+        type: string
+        description: PDF输出的文件名规则。默认本子维度的为'[{Aid}] {Atitle}'，章节维度的为'[{Aid}] {Pindex}_{Pid}_{Ptitle}'
+        default: ''
+        required: false
+
       ZIP_NAME:
         type: string
         default: 本子.tar.gz
@@ -78,6 +84,7 @@ jobs:
       UPLOAD_NAME: ${{ github.event.inputs.UPLOAD_NAME }}
       IMAGE_SUFFIX: ${{ github.event.inputs.IMAGE_SUFFIX }}
       PDF_OPTION: ${{ github.event.inputs.PDF_OPTION }}
+      PDF_NAME_RULE: ${{ github.event.inputs.PDF_NAME_RULE }}
 
       # 登录相关secrets
       JM_USERNAME: ${{ secrets.JM_USERNAME }}
