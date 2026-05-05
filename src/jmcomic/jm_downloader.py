@@ -81,6 +81,8 @@ class JmDownloader(DownloadCallback):
         # 下载失败的记录list
         self.download_failed_image: List[Tuple[JmImageDetail, BaseException]] = []
         self.download_failed_photo: List[Tuple[JmPhotoDetail, BaseException]] = []
+        # Feature 特性列表: [(feature, feature_from), ...]
+        self._feature_list: list = []
 
     def download_album(self, album_id):
         album = self.client.get_album_detail(album_id)
@@ -230,6 +232,8 @@ class JmDownloader(DownloadCallback):
             album=album,
             downloader=self,
         )
+        # 触发匹配 after_album 的 Feature
+        self._invoke_features_for('after_album', album=album, downloader=self)
 
     def before_photo(self, photo: JmPhotoDetail):
         super().before_photo(photo)
@@ -248,6 +252,8 @@ class JmDownloader(DownloadCallback):
             photo=photo,
             downloader=self,
         )
+        # 触发匹配 after_photo 的 Feature
+        self._invoke_features_for('after_photo', photo=photo, downloader=self)
 
     def before_image(self, image: JmImageDetail, img_save_path):
         super().before_image(image, img_save_path)
@@ -268,6 +274,38 @@ class JmDownloader(DownloadCallback):
             image=image,
             downloader=self,
         )
+
+    def add_features(self, features, feature_from: str):
+        """
+        注册 Feature 及其来源。
+
+        :param features: Feature / FeatureChain / list / None
+        :param feature_from: 来源标记，如 'download_album' 或 'download_photo'
+        """
+        if features is None:
+            return
+
+        from .jm_feature import FeatureChain
+
+        if isinstance(features, list):
+            for f in features:
+                self.add_features(f, feature_from)
+        elif isinstance(features, FeatureChain):
+            for f in features._features:
+                self._feature_list.append((f, feature_from))
+        else:
+            self._feature_list.append((features, feature_from))
+
+    def _invoke_features_for(self, when: str, **context):
+        """
+        在指定钩子(when)中触发匹配的 Feature。
+
+        :param when: 当前钩子名，如 'after_album', 'after_photo'
+        :param context: album, photo, downloader 等上下文
+        """
+        for feature, feature_from in self._feature_list:
+            if feature.should_invoke(when, feature_from):
+                feature.invoke(self.option, feature_from=feature_from, **context)
 
     def raise_if_has_exception(self):
         if not self.has_download_failures:

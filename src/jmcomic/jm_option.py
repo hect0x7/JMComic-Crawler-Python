@@ -249,7 +249,7 @@ class JmOption:
         # 非动图，以配置为先
         return self.download.image.suffix or image.img_file_suffix
 
-    def decide_image_save_dir(self, photo, ensure_exists=True) -> str:
+    def decide_image_save_dir(self, photo: JmPhotoDetail, ensure_exists=True) -> str:
         # 使用 self.dir_rule 决定 save_dir
         save_dir = self.dir_rule.decide_image_save_dir(
             photo.from_album,
@@ -300,6 +300,8 @@ class JmOption:
         log = dic.pop('log', True)
         if log is False:
             disable_jm_log()
+        elif log == 'pretty':
+            enable_pretty_log()
 
         # version
         version = dic.pop('version', None)
@@ -547,7 +549,7 @@ class JmOption:
 
     def invoke_plugin(self, pclass, kwargs: Optional[Dict], extra: dict, pinfo: dict):
         # 检查插件的参数类型
-        kwargs = self.fix_kwargs(kwargs)
+        kwargs: dict = self.fix_kwargs(kwargs)
         # 把插件的配置数据kwargs和附加数据extra合并，extra会覆盖kwargs
         if len(extra) != 0:
             kwargs.update(extra)

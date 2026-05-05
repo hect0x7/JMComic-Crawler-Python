@@ -2,10 +2,11 @@
 # 被依赖方 <--- 使用方
 # config <--- entity <--- toolkit <--- client <--- option <--- downloader
 
-__version__ = '2.6.18'
+__version__ = '2.6.19'
 
 from .api import *
 from .jm_plugin import *
+from .jm_feature import *
 
 # 下面进行注册组件（客户端、插件）
 gb = dict(filter(lambda pair: isinstance(pair[1], type), globals().items()))

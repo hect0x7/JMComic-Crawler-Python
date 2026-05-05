@@ -551,3 +551,55 @@ setup_default_jm_logger()
 
 jm_log = JmModuleConfig.jm_log
 disable_jm_log = JmModuleConfig.disable_jm_log
+
+
+class PrettyFormatter(logging.Formatter):
+    """带 ANSI 颜色的日志格式化器，按 topic 前缀分配颜色"""
+
+    TOPIC_COLORS = {
+        'album':  '\033[1;36m',  # 青色加粗 — 本子级别
+        'photo':  '\033[36m',    # 青色 — 章节级别
+        'image':  '\033[2;37m',  # 暗灰 — 图片级别（弱化）
+        'plugin': '\033[35m',    # 紫色 — 插件
+        'req':    '\033[33m',    # 黄色 — 网络请求
+        'api':    '\033[34m',    # 蓝色 — API
+    }
+    ERROR_COLOR = '\033[1;31m'   # 红色加粗
+    WARN_COLOR = '\033[33m'      # 黄色
+    RESET = '\033[0m'
+
+    def __init__(self):
+        super().__init__(fmt='[%(asctime)s] %(message)s', datefmt='%H:%M:%S')
+
+    def format(self, record):
+        topic = getattr(record, 'topic', '')
+        if record.levelno >= logging.ERROR:
+            color = self.ERROR_COLOR
+        elif record.levelno >= logging.WARNING:
+            color = self.WARN_COLOR
+        else:
+            # 按 topic 前缀匹配颜色
+            color = next(
+                (c for prefix, c in self.TOPIC_COLORS.items()
+                 if topic.startswith(prefix)),
+                ''
+            )
+        formatted = super().format(record)
+        return f'{color}{formatted}{self.RESET}' if color else formatted
+
+
+def enable_pretty_log():
+    """开启带颜色的美化日志"""
+    import sys
+    import os as _os
+
+    # Windows 需要启用 VT100 ANSI 支持
+    if sys.platform == 'win32':
+        _os.system('')
+
+    jm_logger.handlers.clear()
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(PrettyFormatter())
+    jm_logger.addHandler(handler)
+    jm_logger.setLevel(logging.INFO)
+

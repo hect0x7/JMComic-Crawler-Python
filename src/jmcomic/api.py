@@ -49,6 +49,7 @@ def download_album(jm_album_id,
                    downloader=None,
                    callback=None,
                    check_exception=True,
+                   extra=None,
                    ) -> Union[__DOWNLOAD_API_RET, Set[__DOWNLOAD_API_RET]]:
     """
     下载一个本子（album），包含其所有的章节（photo）
@@ -60,6 +61,7 @@ def download_album(jm_album_id,
     :param downloader: 下载器类
     :param callback: 返回值回调函数，可以拿到 album 和 downloader
     :param check_exception: 是否检查异常, 如果为True，会检查downloader是否有下载异常，并上抛PartialDownloadFailedException
+    :param extra: 下载特性（Feature），下载完成后自动执行对应插件。支持单个 Feature、FeatureChain、或列表
     :return: 对于的本子实体类，下载器（如果是上述的批量情况，返回值为download_batch的返回值）
     """
 
@@ -67,6 +69,8 @@ def download_album(jm_album_id,
         return download_batch(download_album, jm_album_id, option, downloader)
 
     with new_downloader(option, downloader) as dler:
+        # 注册 Feature 及来源，由 downloader 在 after_album 钩子中自动执行
+        dler.add_features(extra, 'download_album')
         album = dler.download_album(jm_album_id)
 
         if callback is not None:
@@ -81,14 +85,17 @@ def download_photo(jm_photo_id,
                    downloader=None,
                    callback=None,
                    check_exception=True,
+                   extra=None,
                    ):
     """
     下载一个章节（photo），参数同 download_album
     """
     if not isinstance(jm_photo_id, (str, int)):
-        return download_batch(download_photo, jm_photo_id, option)
+        return download_batch(download_photo, jm_photo_id, option, downloader)
 
     with new_downloader(option, downloader) as dler:
+        # 注册 Feature 及来源，由 downloader 在 after_photo 钩子中自动执行
+        dler.add_features(extra, 'download_photo')
         photo = dler.download_photo(jm_photo_id)
 
         if callback is not None:
