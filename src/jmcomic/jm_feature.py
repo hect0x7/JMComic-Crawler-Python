@@ -1,8 +1,9 @@
 """
 该文件存放的是 Feature（下载特性）机制
 
-Feature 用于在 download_album / download_photo 时附加额外行为，
-例如下载完成后自动导出为 PDF、ZIP 等格式。
+Feature 用于在下载生命周期中挂载上下文相关的动态附加行为，
+例如下载完成后自适应导出为 PDF、ZIP 或长图等。
+它不仅是插件的封装，更能根据调用来源（整本/单章）智能调整执行策略。
 
 用法:
     from jmcomic import download_album, Feature

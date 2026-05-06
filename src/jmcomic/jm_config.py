@@ -595,7 +595,12 @@ def enable_pretty_log():
 
     # Windows 需要启用 VT100 ANSI 支持
     if sys.platform == 'win32':
-        _os.system('')
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.GetStdHandle(-11)  # STD_OUTPUT_HANDLE
+        mode = ctypes.c_uint32()
+        if kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+            kernel32.SetConsoleMode(handle, mode.value | 0x0004)  # ENABLE_VIRTUAL_TERMINAL_PROCESSING
 
     jm_logger.handlers.clear()
     handler = logging.StreamHandler(sys.stdout)

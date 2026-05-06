@@ -85,7 +85,7 @@ download_photo('456', option, extra=Feature.export_pdf)
 ├── [章节标题].pdf       ← 该章节导出为 1 个 PDF
 ```
 
-> 💡 **提示**：同一个 Feature，通过 `download_album` 和 `download_photo` 调用时会自动适配不同的导出行为，详见下方 [智能适配规则](#智能适配规则)。
+> 💡 **提示**：同一个 Feature，通过 `download_album` 和 `download_photo` 调用时会自动适配不同的导出行为，详见下方 [智能适配规则](#25-智能适配规则)。
 
 ### 2.5 智能适配规则
 

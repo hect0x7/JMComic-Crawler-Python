@@ -285,7 +285,8 @@ class JmDownloader(DownloadCallback):
         if features is None:
             return
 
-        from .jm_feature import FeatureChain
+        from .jm_feature import FeatureChain, Feature
+        from .jm_toolkit import ExceptionTool
 
         if isinstance(features, list):
             for f in features:
@@ -293,8 +294,10 @@ class JmDownloader(DownloadCallback):
         elif isinstance(features, FeatureChain):
             for f in features._features:
                 self._feature_list.append((f, feature_from))
-        else:
+        elif isinstance(features, Feature):
             self._feature_list.append((features, feature_from))
+        else:
+            ExceptionTool.raises(f'不支持的 extra 类型: {type(features)}，请传入 Feature / FeatureChain / list / None')
 
     def _invoke_features_for(self, when: str, **context):
         """
