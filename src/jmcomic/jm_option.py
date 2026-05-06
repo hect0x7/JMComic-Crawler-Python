@@ -344,6 +344,29 @@ class JmOption:
         level 已废弃，打包粒度由所在钩子的上下文自动推导。
         迁移规则：level='album' → 确保在 after_album；其他 → 确保在 after_photo。
         """
+
+        def log_advice(reason, plugins):
+            import yaml
+            # 意图聚焦：建议配置中只展示相关的 zip 插件，剔除其他无关插件的干扰
+            advice_plugins = {}
+            for g, plist in plugins.items():
+                zips = [p for p in plist if p.get('plugin') == 'zip']
+                if zips:
+                    advice_plugins[g] = zips
+
+            if not advice_plugins:
+                return
+
+            plugins_yml = yaml.dump({'plugins': advice_plugins}, default_flow_style=False, indent=2, sort_keys=False).strip()
+
+            jm_log('option.migrate',
+                   f'[zip 插件迁移] level 参数已过时，建议直接删除。'
+                   f'{reason}，建议参考如下的等价新写法：\n'
+                   f'```yml\n'
+                   f'{plugins_yml}\n'
+                   f'```'
+                   )
+
         for group in ['after_album', 'after_photo']:
             plugin_list = plugins.get(group)
             if not isinstance(plugin_list, list):
@@ -365,18 +388,18 @@ class JmOption:
                     # after_album + level=photo → 等价迁移到 after_photo
                     plugins.setdefault('after_photo', []).append(pinfo)
                     plugin_list.pop(i)
-                    jm_log('option.migrate',
-                           f'[zip 插件迁移] level 参数已过时，建议删除level参数。'
-                           f'你的当前配置为，在本子下载完毕后按章节压缩，建议改为如下的等价新写法：\n'
-                           f'plugins:\n'
-                           f'  after_photo:\n'
-                           f'    - plugin: {pinfo["plugin"]}\n'
-                           f'      kwargs: {pinfo["kwargs"]}\n'
-                           )
+                    log_advice('你的当前配置为：在本子下载完毕后按章节压缩', plugins)
+
+                elif group == 'after_photo' and level == 'album':
+                    # after_photo + level=album → 等价迁移到 after_album
+                    plugins.setdefault('after_album', []).append(pinfo)
+                    plugin_list.pop(i)
+                    log_advice('你的当前配置为：在单章节下载完毕后对全本进行压缩', plugins)
+
                 else:
                     if level != 'photo':
                         jm_log('option.migrate',
-                               f'[zip 插件迁移] level 参数已过时，你可以直接删除该参数，不会有任何影响')
+                               '[zip 插件迁移] level 参数已过时，你可以直接删除该参数，不会有任何影响')
                     i += 1
 
     def deconstruct(self) -> Dict:

@@ -62,27 +62,29 @@ class Test_Feature(JmTestConfigurable):
 
     def test_adapt_kwargs(self):
         """测试 PluginFeature 参数动态适配"""
-        # download_album 模式：P前缀 → A前缀, level → album
+        when = 'after_album'
+        
         pdf = Feature.export_pdf
         adapted = pdf._adapt_plugin_kwargs('download_album', when)
-        self.assertEqual(adapted['filename_rule'], 'Atitle')  # A开头不变
+        self.assertEqual(adapted['filename_rule'], '[JM{Aid}]{Atitle}')
 
         zip_f = Feature.export_zip
         adapted = zip_f._adapt_plugin_kwargs('download_album', when)
-        self.assertEqual(adapted['filename_rule'], 'Atitle')  # Ptitle → Atitle
+        self.assertEqual(adapted['filename_rule'], '[JM{Aid}]{Atitle}')
 
         long_img = Feature.export_long_img
         adapted = long_img._adapt_plugin_kwargs('download_album', when)
-        self.assertEqual(adapted['filename_rule'], 'Aid')  # Pid → Aid
+        self.assertEqual(adapted['filename_rule'], '[JM{Aid}]{Atitle}')
 
-        # download_photo 模式：A前缀 → P前缀, level → photo
+        # download_photo 模式
+        when = 'after_photo'
         adapted = pdf._adapt_plugin_kwargs('download_photo', when)
-        self.assertEqual(adapted['filename_rule'], 'Ptitle')  # Atitle → Ptitle
+        self.assertEqual(adapted['filename_rule'], '[JM{Pid}]{Ptitle}')
 
-        # 用户显式传入的参数不被动态适配
+        # 用户显式传入的参数不被动态适配 (通过 kwargs 机制自带)
         custom = Feature.export_zip(filename_rule='Ptitle')
         adapted = custom._adapt_plugin_kwargs('download_album', when)
-        self.assertEqual(adapted['filename_rule'], 'Ptitle')  # 用户显式指定，不适配
+        self.assertEqual(adapted['filename_rule'], 'Ptitle')  # 用户显式指定，不被 setdefault 覆盖
 
     def test_download_use_feature(self):
         album_id = '438516'

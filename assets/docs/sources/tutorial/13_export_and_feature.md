@@ -54,7 +54,7 @@ download_album('123', option, extra=Feature.export_pdf + Feature.export_zip)
 
 # 也支持列表语法，|语法
 download_album('123', option, extra=[Feature.export_pdf, Feature.export_zip])
-download_album('123', option, extra=Feature.export_pdf ｜ Feature.export_zip)
+download_album('123', option, extra=Feature.export_pdf | Feature.export_zip)
 ```
 
 效果同pdf，会在本子下载完以后，额外在当前工作目录下，生成包含所有本子图片的 PDF 文件和 ZIP 文件：

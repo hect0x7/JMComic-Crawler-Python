@@ -16,8 +16,6 @@ Feature 用于封装复杂、高级的功能特性，例如pdf导出插件，以
     download_album(id, option, extra=[Feature.export_pdf, Feature.export_zip])
     download_album(id, option, extra=Feature.export_pdf + Feature.export_zip)
 """
-from typing import LiteralString
-
 from .jm_plugin import *
 
 
@@ -81,8 +79,6 @@ class PluginFeature(Feature):
     def __init__(self, plugin_key, **kwargs):
         self.plugin_key = plugin_key
         self.kwargs = kwargs
-        # 用户通过 __call__ 显式传入的参数名，这些参数不会被 _adapt_kwargs 动态适配
-        self._user_keys: set = set()
 
     def should_invoke(self, feature_from: str, when: str) -> bool:
         """
@@ -100,8 +96,6 @@ class PluginFeature(Feature):
         new_kwargs = self.kwargs.copy()
         new_kwargs.update(kwargs)
         new_instance = PluginFeature(self.plugin_key, **new_kwargs)
-        # 记录用户显式传入的参数名，这些参数不被动态适配
-        new_instance._user_0keys = set(kwargs.keys())
         return new_instance
 
     def invoke(self, option: JmOption, feature_from: str, when: str, **extra):
