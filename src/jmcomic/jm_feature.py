@@ -106,7 +106,7 @@ class PluginFeature(Feature):
     def invoke(self, option, feature_from=None, **context):
         """
         执行此 Feature 对应的插件。
-        根据 feature_from 动态适配 filename_rule 和 level 等参数。
+        根据 feature_from 动态适配 filename_rule 等参数。
         """
         pclass = JmModuleConfig.REGISTRY_PLUGIN.get(self.plugin_key)
         if pclass is None:
@@ -127,29 +127,24 @@ class PluginFeature(Feature):
         """
         根据 feature_from 动态适配参数：
         - filename_rule 前缀：download_album → A前缀，download_photo → P前缀
-        - level：download_album → 'album'，download_photo → 'photo'
 
         注意：用户通过 __call__ 显式传入的参数（记录在 _user_keys 中）不会被适配。
         """
         kwargs = self.kwargs.copy()
 
         if feature_from == 'download_album':
-            # album 模式：P前缀规则 → A前缀规则, level → album
+            # album 模式：P前缀规则 → A前缀规则
             if 'filename_rule' not in self._user_keys and 'filename_rule' in kwargs:
                 rule = kwargs['filename_rule']
                 if rule and rule[0] == 'P':
                     kwargs['filename_rule'] = 'A' + rule[1:]
-            if 'level' not in self._user_keys and 'level' in kwargs and kwargs['level'] == 'photo':
-                kwargs['level'] = 'album'
 
         elif feature_from == 'download_photo':
-            # photo 模式：A前缀规则 → P前缀规则, level → photo
+            # photo 模式：A前缀规则 → P前缀规则
             if 'filename_rule' not in self._user_keys and 'filename_rule' in kwargs:
                 rule = kwargs['filename_rule']
                 if rule and rule[0] == 'A':
                     kwargs['filename_rule'] = 'P' + rule[1:]
-            if 'level' not in self._user_keys and 'level' in kwargs and kwargs['level'] == 'album':
-                kwargs['level'] = 'photo'
 
         return kwargs
 
@@ -187,9 +182,8 @@ class FeatureChain:
 
 
 # 预定义特性（用插件类的 plugin_key 引用，附带默认参数）
-# filename_rule 和 level 会根据 feature_from 在 invoke 时动态适配：
-#   download_album → A前缀 + level=album
-#   download_photo → P前缀 + level=photo
+# filename_rule 会根据 feature_from 在 invoke 时动态适配 A/P 前缀
+# zip 的打包粒度由插件根据上下文（album/photo）自动推导，无需 level 参数
 Feature.export_pdf = PluginFeature(Img2pdfPlugin.plugin_key, pdf_dir='./', filename_rule='Atitle')
-Feature.export_zip = PluginFeature(ZipPlugin.plugin_key, level='photo', zip_dir='./', filename_rule='Ptitle')
+Feature.export_zip = PluginFeature(ZipPlugin.plugin_key, zip_dir='./', filename_rule='Ptitle')
 Feature.export_long_img = PluginFeature(LongImgPlugin.plugin_key, img_dir='./', filename_rule='Pid')

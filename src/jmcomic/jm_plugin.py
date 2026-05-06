@@ -321,7 +321,7 @@ class ZipPlugin(JmOptionPlugin):
                album: JmAlbumDetail = None,
                photo: JmPhotoDetail = None,
                delete_original_file=False,
-               level='photo',
+               level=None,
                filename_rule='Ptitle',
                suffix='zip',
                zip_dir='./',
@@ -332,6 +332,9 @@ class ZipPlugin(JmOptionPlugin):
         from .jm_downloader import JmDownloader
         downloader: JmDownloader
         self.downloader = downloader
+        # level 自动推导：有 album 则合并打包，只有 photo 则单章打包
+        if level is None:
+            level = 'album' if album is not None else 'photo'
         self.level = level
         self.delete_original_file = delete_original_file
 

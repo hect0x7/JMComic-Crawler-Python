@@ -226,14 +226,19 @@ plugins:
   after_album:
     - plugin: zip # 压缩文件插件
       kwargs:
-        level: photo # 按照章节，一个章节一个压缩文件
-        # level 也可以配成 album，表示一个本子对应一个压缩文件，该压缩文件会包含这个本子的所有章节
+        # ⚠ level 参数已在 v2.6.19 废弃，打包粒度由插件所在的钩子自动推导：
+        #   配置在 after_album 下 → 整本合并为一个压缩文件
+        #   配置在 after_photo  下 → 每个章节各一个压缩文件
+        # 旧配置会自动等价迁移，无需手动修改配置文件。
+        # 迁移示例：
+        #   旧：after_album + level: photo  →  等价于：after_photo（不写 level）
+        #   旧：after_album + level: album  →  等价于：after_album（不写 level）
 
         filename_rule: Ptitle # 压缩文件的命名规则
         # 请注意⚠ [https://github.com/hect0x7/JMComic-Crawler-Python/issues/223#issuecomment-2045227527]
-        # filename_rule和level有对应关系
-        # 如果level=[photo], filename_rule只能写Pxxx
-        # 如果level=[album], filename_rule只能写Axxx
+        # filename_rule和所在钩子有对应关系
+        # 如果配置在 after_photo 下, filename_rule只能写Pxxx
+        # 如果配置在 after_album 下, filename_rule只能写Axxx
 
         zip_dir: D:/jmcomic/zip/ # 压缩文件存放的文件夹
 
@@ -245,7 +250,7 @@ plugins:
         # dir_rule: # 新配置项，可取代旧的zip_dir和filename_rule
         #   base_dir: D:/jmcomic-zip
         #   rule: 'Bd / {Atitle} / [{Pid}]-{Ptitle}.zip'  # 设置压缩文件夹规则，中间Atitle表示创建一层文件夹，名称是本子标题。[{Pid}]-{Ptitle}.zip 表示压缩文件的命名规则(需显式写出后缀名)
-        # 使用此方法指定压缩包存储路径则无需和level对应
+        # 使用此方法指定压缩包存储路径则无需和所在钩子对应
 
         delete_original_file: true # 压缩成功后，删除所有原文件和文件夹
         

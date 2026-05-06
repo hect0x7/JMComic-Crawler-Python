@@ -330,6 +330,52 @@ class JmOption:
         if 'plugin' in dic:
             dic['plugins'] = dic.pop('plugin')
 
+        # 3: zip 插件 level 参数迁移
+        # level 已废弃，打包粒度由所在钩子上下文自动推导
+        plugins = dic.get('plugins', {})
+        if isinstance(plugins, dict):
+            cls._migrate_zip_level(plugins)
+
+    @classmethod
+    def _migrate_zip_level(cls, plugins: dict):
+        """
+        zip 插件 level 参数迁移。
+
+        level 已废弃，打包粒度由所在钩子的上下文自动推导。
+        迁移规则：level='album' → 确保在 after_album；其他 → 确保在 after_photo。
+        """
+        for group in ['after_album', 'after_photo']:
+            plugin_list = plugins.get(group)
+            if not isinstance(plugin_list, list):
+                continue
+            i = 0
+            while i < len(plugin_list):
+                pinfo = plugin_list[i]
+                if pinfo.get('plugin') != 'zip':
+                    i += 1
+                    continue
+                kwargs = pinfo.get('kwargs') or {}
+                if 'level' not in kwargs:
+                    # 旧版本默认值是 'photo'
+                    level = 'photo'
+                else:
+                    level = kwargs.pop('level')
+
+                if group == 'after_album' and level != 'album':
+                    # after_album + level=photo → 等价迁移到 after_photo
+                    plugins.setdefault('after_photo', []).append(pinfo)
+                    plugin_list.pop(i)
+                    jm_log('option.migrate',
+                           f'[zip 插件迁移] level 参数已废弃，打包粒度由所在钩子自动推导。'
+                           f'已自动将 after_album 下的 zip(level={level!r}) 等价迁移到 after_photo。'
+                           f'等价写法：将 zip 插件从 after_album 移至 after_photo 并删除 level 配置项。')
+                else:
+                    if level != 'photo':
+                        jm_log('option.migrate',
+                               f'[zip 插件迁移] level 参数已废弃，已自动移除。'
+                               f'打包粒度由所在钩子自动推导（{group} → {level}）。')
+                    i += 1
+
     def deconstruct(self) -> Dict:
         return {
             'version': JmModuleConfig.JM_OPTION_VER,

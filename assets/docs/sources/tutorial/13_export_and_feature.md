@@ -89,7 +89,7 @@ download_photo('456', option, extra=Feature.export_pdf)
 
 ### 2.5 智能适配规则
 
-内置的导出 Feature 会根据调用的 API **自动适配**参数（命名规则、打包级别等）：
+内置的导出 Feature 会根据调用的 API **自动适配**参数（命名规则、打包粒度等）：
 
 | 调用方式 | Feature.export_pdf | Feature.export_zip | Feature.export_long_img |
 |---------|-------------------|-------------------|----------------------|
