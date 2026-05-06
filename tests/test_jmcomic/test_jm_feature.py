@@ -126,13 +126,11 @@ class Test_Feature(JmTestConfigurable):
         album, dler = jmcomic.download_album(album_id, self.option, extra=combo)
 
         # 验证文件是否精确生成
-        # 通过 download_album 注册，动态适配后：
-        # PDF: Atitle(不变) → [album标题].pdf
-        # ZIP: Ptitle→Atitle → [album标题].zip
-        # PNG: Pid→Aid → [album_id].png
-        pdf_name = DirRule.apply_rule_to_filename(album, None, 'Atitle') + '.pdf'
-        zip_name = DirRule.apply_rule_to_filename(album, None, 'Atitle') + '.zip'
-        png_name = DirRule.apply_rule_to_filename(album, None, 'Aid') + '.png'
+        # 通过 download_album 注册，动态适配后默认规则均为：[JM{Aid}]{Atitle}
+        rule = '[JM{Aid}]{Atitle}'
+        pdf_name = DirRule.apply_rule_to_filename(album, None, rule) + '.pdf'
+        zip_name = DirRule.apply_rule_to_filename(album, None, rule) + '.zip'
+        png_name = DirRule.apply_rule_to_filename(album, None, rule) + '.png'
 
         import os
         pdf_path = os.path.join(export_dir, pdf_name)
@@ -142,3 +140,19 @@ class Test_Feature(JmTestConfigurable):
         self.assertTrue(os.path.exists(pdf_path), f"未生成精确匹配的 PDF 文件: {pdf_path}")
         self.assertTrue(os.path.exists(zip_path), f"未生成精确匹配的 ZIP 文件: {zip_path}")
         self.assertTrue(os.path.exists(png_path), f"未生成精确匹配的 PNG 长图: {png_path}")
+
+    def test_export_features_photo(self):
+        photo_id = '438516'
+        export_dir = self.option.dir_rule.base_dir
+
+        # 测试单个章节的 PDF 导出
+        f_pdf = Feature.export_pdf(pdf_dir=export_dir)
+        photo, dler = jmcomic.download_photo(photo_id, self.option, extra=f_pdf)
+
+        # 验证文件是否按照 [JM{Pid}]{Ptitle} 规则生成
+        rule = '[JM{Pid}]{Ptitle}'
+        pdf_name = DirRule.apply_rule_to_filename(None, photo, rule) + '.pdf'
+
+        import os
+        pdf_path = os.path.join(export_dir, pdf_name)
+        self.assertTrue(os.path.exists(pdf_path), f"未生成精确匹配的 PDF 文件 (章节级): {pdf_path}")
