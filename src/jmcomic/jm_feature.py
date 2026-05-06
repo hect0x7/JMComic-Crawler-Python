@@ -78,7 +78,7 @@ class PluginFeature(Feature):
 
     def __init__(self, plugin_key, **kwargs):
         self.plugin_key = plugin_key
-        self.kwargs = kwargs
+        self.kwargs = dict(kwargs)
 
     def should_invoke(self, feature_from: str, when: str) -> bool:
         """
@@ -95,7 +95,7 @@ class PluginFeature(Feature):
         """带自定义参数，返回新实例（继承默认参数）"""
         new_kwargs = self.kwargs.copy()
         new_kwargs.update(kwargs)
-        new_instance = PluginFeature(self.plugin_key, **new_kwargs)
+        new_instance = type(self)(self.plugin_key, **new_kwargs)
         return new_instance
 
     def invoke(self, option: JmOption, feature_from: str, when: str, **extra):
@@ -158,9 +158,7 @@ class FeatureChain:
         return f'FeatureChain({self._features})'
 
 
-# 预定义特性（用插件类的 plugin_key 引用，附带默认参数）
-# filename_rule 会根据 feature_from 在 invoke 时动态适配 A/P 前缀
-# zip 的打包粒度由插件根据上下文（album/photo）自动推导，无需 level 参数
+# 内置的 PluginFeature
 Feature.export_pdf = PluginFeature(Img2pdfPlugin.plugin_key, pdf_dir='./')
 Feature.export_zip = PluginFeature(ZipPlugin.plugin_key, zip_dir='./')
 Feature.export_long_img = PluginFeature(LongImgPlugin.plugin_key, img_dir='./')

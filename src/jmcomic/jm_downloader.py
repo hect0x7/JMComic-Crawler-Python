@@ -308,7 +308,10 @@ class JmDownloader(DownloadCallback):
         """
         for feature, feature_from in self._feature_list:
             if feature.should_invoke(feature_from, when):
-                feature.invoke(self.option, feature_from=feature_from, when=when, **kwargs)
+                try:
+                    feature.invoke(self.option, feature_from=feature_from, when=when, **kwargs)
+                except BaseException as e:
+                    jm_log('downloader.feature.exception', f'Feature执行失败: [{feature}], 来源: [{feature_from}], 异常: [{e}]')
 
     def raise_if_has_exception(self):
         if not self.has_download_failures:

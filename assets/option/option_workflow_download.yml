@@ -1,4 +1,6 @@
 # GitHub Actions 下载脚本配置
+log: pretty
+
 dir_rule:
   base_dir: ${JM_DOWNLOAD_DIR}
   rule: Bd_Aauthor_Atitle_Pindex

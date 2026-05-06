@@ -75,9 +75,14 @@ download_album('123', option, extra=Feature.export_pdf | Feature.export_zip)
 download_album('123', option, extra=Feature.export_pdf(
     # 下面是自定义参数
     pdf_dir='D:/my_pdfs',          # PDF 保存到 D:/my_pdfs 文件夹
-    filename_rule='Ptitle',        # 用章节标题作为文件名
+    filename_rule='Atitle',        # 用本子标题作为文件名
     delete_original_file=True,     # 合并完 PDF 后删除原图
 ))
+
+> 💡 **小白必读：命名规则（filename_rule）的小知识**
+> - `A` 开头的占位符（如 `Atitle`, `Aid`）代表 **Album (本子)**，适用于 `download_album`。
+> - `P` 开头的占位符（如 `Ptitle`, `Pid`）代表 **Photo (章节)**，适用于 `download_photo`。
+> - 如果在下载整本（Album）时强行使用章节级（Photo）的规则，程序会因为不知道该用哪一章的标题而报错。
 
 # 示例 2：全都要——ZIP 存盘 + 长图阅读
 combo = (

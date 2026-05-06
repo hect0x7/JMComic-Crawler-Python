@@ -110,6 +110,11 @@ class Test_Feature(JmTestConfigurable):
         jmcomic.download_photo(photo_id, self.option, extra=counter_feature)
         self.assertEqual(custom_feature_call_count, 3)
 
+        # 测试 download_batch (Iterable 批量输入): 确保 extra 参数不被丢弃
+        jmcomic.download_batch(jmcomic.download_album, [album_id], self.option, extra=counter_feature)
+        # 上面增加了 1 个 album (包含 1 个 photo)，因此 invoke 追加 2 次，总计 5 次
+        self.assertEqual(custom_feature_call_count, 5)
+
     def test_export_features(self):
         album_id = '438516'
 
@@ -156,3 +161,18 @@ class Test_Feature(JmTestConfigurable):
         import os
         pdf_path = os.path.join(export_dir, pdf_name)
         self.assertTrue(os.path.exists(pdf_path), f"未生成精确匹配的 PDF 文件 (章节级): {pdf_path}")
+
+    def test_export_album_use_photo_rule(self):
+        """
+        负面测试：在 Album 模式下强行使用 Photo 级规则（Ptitle），预期报错。
+        本子=album，本子的章节=photo。下载本子时，photo对象为None。
+        """
+        album_id = '438516'
+        # 强行使用 Ptitle
+        f = Feature.export_pdf(filename_rule='Ptitle')
+
+        # 验证底层 invoke 会抛出 AttributeError
+        # 因为在 download_album 的 after_album 阶段，photo 为 None
+        with self.assertRaises(AttributeError):
+            album = self.client.get_album_detail(album_id)
+            f.invoke(self.option, feature_from='download_album', when='after_album', album=album, photo=None)
