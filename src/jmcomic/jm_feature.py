@@ -1,9 +1,7 @@
 """
-该文件存放的是 Feature（下载特性）机制
+该文件存放的是 Feature 机制
 
-Feature 用于在下载生命周期中挂载上下文相关的动态附加行为，
-例如下载完成后自适应导出为 PDF、ZIP 或长图等。
-它不仅是插件的封装，更能根据调用来源（整本/单章）智能调整执行策略。
+Feature 用于封装复杂、高级的功能特性，例如pdf导出插件，以前用户需要知道插件名称，调用时机，option插件参数等等，使用feature相当于包办了这些。
 
 用法:
     from jmcomic import download_album, Feature
@@ -11,13 +9,14 @@ Feature 用于在下载生命周期中挂载上下文相关的动态附加行为
     # 最简单
     download_album(id, option, extra=Feature.export_pdf)
 
-    # 带参数
+    # 带自定义参数
     download_album(id, option, extra=Feature.export_pdf(pdf_dir='./output'))
 
     # 多个 Feature（列表 / 运算符均可）
     download_album(id, option, extra=[Feature.export_pdf, Feature.export_zip])
     download_album(id, option, extra=Feature.export_pdf + Feature.export_zip)
 """
+from typing import LiteralString
 
 from .jm_plugin import *
 
@@ -36,23 +35,25 @@ class Feature:
     export_zip: 'PluginFeature'
     export_long_img: 'PluginFeature'
 
-    def should_invoke(self, when: str, feature_from: str) -> bool:
+    def should_invoke(self, feature_from: str, when: str) -> bool:
         """
         判断在当前钩子(when)下，根据来源(feature_from)，是否应该执行。
         默认返回 True（任何钩子都执行）。子类可覆写来限制执行时机。
 
-        :param when: 当前触发的钩子名称，如 'after_album', 'after_photo'
         :param feature_from: Feature 的注册来源，如 'download_album', 'download_photo'
+        :param when: 当前触发的钩子名称，如 'after_album', 'after_photo'
         :returns: 是否应该执行
         """
         return True
 
-    def invoke(self, option, **context):
+    def invoke(self, option: JmOption, feature_from: str, when: str, **kwargs):
         """
         执行此 Feature。子类需实现该方法。
 
         :param option: 当前的 JmOption
-        :param context: album, photo, downloader, feature_from 等上下文
+        :param feature_from 注册来源，如 'download_album', 'download_photo'
+        :param when: 钩子回调时机，如 'after_album', 'after_photo'
+        :param kwargs: album, photo, downloader 等回调参数
         """
         raise NotImplementedError
 
@@ -83,9 +84,9 @@ class PluginFeature(Feature):
         # 用户通过 __call__ 显式传入的参数名，这些参数不会被 _adapt_kwargs 动态适配
         self._user_keys: set = set()
 
-    def should_invoke(self, when: str, feature_from: str) -> bool:
+    def should_invoke(self, feature_from: str, when: str) -> bool:
         """
-        根据注册来源推导执行时机：
+        默认根据注册来源推导执行时机：
         download_album → after_album, download_photo → after_photo
         """
         if feature_from == 'download_album':
@@ -100,52 +101,34 @@ class PluginFeature(Feature):
         new_kwargs.update(kwargs)
         new_instance = PluginFeature(self.plugin_key, **new_kwargs)
         # 记录用户显式传入的参数名，这些参数不被动态适配
-        new_instance._user_keys = set(kwargs.keys())
+        new_instance._user_0keys = set(kwargs.keys())
         return new_instance
 
-    def invoke(self, option, feature_from=None, **context):
+    def invoke(self, option: JmOption, feature_from: str, when: str, **extra):
         """
         执行此 Feature 对应的插件。
         根据 feature_from 动态适配 filename_rule 等参数。
         """
-        pclass = JmModuleConfig.REGISTRY_PLUGIN.get(self.plugin_key)
-        if pclass is None:
-            ExceptionTool.raises(f'PluginFeature 引用了未注册的插件: {self.plugin_key}')
+        pclass: type = JmModuleConfig.REGISTRY_PLUGIN.get(self.plugin_key)
+        ExceptionTool.require_true(pclass is not None, f'PluginFeature 引用了未注册的插件: {self.plugin_key}, from {feature_from}, when {when}')
 
         # 根据 feature_from 动态适配参数
-        adapted = self._adapt_kwargs(feature_from)
-        merged_kwargs = {**adapted, **context}
+        plugin_kwargs: dict = self._adapt_plugin_kwargs(feature_from, when)
 
         option.invoke_plugin(
             pclass=pclass,
-            kwargs=merged_kwargs,
-            extra={},
-            pinfo={'plugin': self.plugin_key, 'kwargs': adapted},
+            kwargs=plugin_kwargs,
+            extra=extra,
+            pinfo={'plugin': self.plugin_key, 'kwargs': plugin_kwargs},
         )
 
-    def _adapt_kwargs(self, feature_from):
+    def _adapt_plugin_kwargs(self, feature_from: str, when: str) -> dict:
         """
-        根据 feature_from 动态适配参数：
-        - filename_rule 前缀：download_album → A前缀，download_photo → P前缀
-
-        注意：用户通过 __call__ 显式传入的参数（记录在 _user_keys 中）不会被适配。
+        根据feature_from和when动态确定以下插件参数:
+        filename_rule
         """
         kwargs = self.kwargs.copy()
-
-        if feature_from == 'download_album':
-            # album 模式：P前缀规则 → A前缀规则
-            if 'filename_rule' not in self._user_keys and 'filename_rule' in kwargs:
-                rule = kwargs['filename_rule']
-                if rule and rule[0] == 'P':
-                    kwargs['filename_rule'] = 'A' + rule[1:]
-
-        elif feature_from == 'download_photo':
-            # photo 模式：A前缀规则 → P前缀规则
-            if 'filename_rule' not in self._user_keys and 'filename_rule' in kwargs:
-                rule = kwargs['filename_rule']
-                if rule and rule[0] == 'A':
-                    kwargs['filename_rule'] = 'P' + rule[1:]
-
+        kwargs.setdefault('filename_rule', '[JM{Aid}]{Atitle}' if feature_from == 'download_album' else '[JM{Pid}]{Ptitle}')
         return kwargs
 
     def __repr__(self):
@@ -184,6 +167,6 @@ class FeatureChain:
 # 预定义特性（用插件类的 plugin_key 引用，附带默认参数）
 # filename_rule 会根据 feature_from 在 invoke 时动态适配 A/P 前缀
 # zip 的打包粒度由插件根据上下文（album/photo）自动推导，无需 level 参数
-Feature.export_pdf = PluginFeature(Img2pdfPlugin.plugin_key, pdf_dir='./', filename_rule='Atitle')
-Feature.export_zip = PluginFeature(ZipPlugin.plugin_key, zip_dir='./', filename_rule='Ptitle')
-Feature.export_long_img = PluginFeature(LongImgPlugin.plugin_key, img_dir='./', filename_rule='Pid')
+Feature.export_pdf = PluginFeature(Img2pdfPlugin.plugin_key, pdf_dir='./')
+Feature.export_zip = PluginFeature(ZipPlugin.plugin_key, zip_dir='./')
+Feature.export_long_img = PluginFeature(LongImgPlugin.plugin_key, img_dir='./')

@@ -366,14 +366,17 @@ class JmOption:
                     plugins.setdefault('after_photo', []).append(pinfo)
                     plugin_list.pop(i)
                     jm_log('option.migrate',
-                           f'[zip 插件迁移] level 参数已废弃，打包粒度由所在钩子自动推导。'
-                           f'已自动将 after_album 下的 zip(level={level!r}) 等价迁移到 after_photo。'
-                           f'等价写法：将 zip 插件从 after_album 移至 after_photo 并删除 level 配置项。')
+                           f'[zip 插件迁移] level 参数已过时，建议删除level参数。'
+                           f'你的当前配置为，在本子下载完毕后按章节压缩，建议改为如下的等价新写法：\n'
+                           f'plugins:\n'
+                           f'  after_photo:\n'
+                           f'    - plugin: {pinfo["plugin"]}\n'
+                           f'      kwargs: {pinfo["kwargs"]}\n'
+                           )
                 else:
                     if level != 'photo':
                         jm_log('option.migrate',
-                               f'[zip 插件迁移] level 参数已废弃，已自动移除。'
-                               f'打包粒度由所在钩子自动推导（{group} → {level}）。')
+                               f'[zip 插件迁移] level 参数已过时，你可以直接删除该参数，不会有任何影响')
                     i += 1
 
     def deconstruct(self) -> Dict:

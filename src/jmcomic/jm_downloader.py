@@ -299,16 +299,16 @@ class JmDownloader(DownloadCallback):
         else:
             ExceptionTool.raises(f'不支持的 extra 类型: {type(features)}，请传入 Feature / FeatureChain / list / None')
 
-    def _invoke_features_for(self, when: str, **context):
+    def _invoke_features_for(self, when: str, **kwargs):
         """
         在指定钩子(when)中触发匹配的 Feature。
 
         :param when: 当前钩子名，如 'after_album', 'after_photo'
-        :param context: album, photo, downloader 等上下文
+        :param kwargs: album, photo, downloader 等上下文
         """
         for feature, feature_from in self._feature_list:
-            if feature.should_invoke(when, feature_from):
-                feature.invoke(self.option, feature_from=feature_from, **context)
+            if feature.should_invoke(feature_from, when):
+                feature.invoke(self.option, feature_from=feature_from, when=when, **kwargs)
 
     def raise_if_has_exception(self):
         if not self.has_download_failures:

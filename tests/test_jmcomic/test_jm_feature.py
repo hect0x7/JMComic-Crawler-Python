@@ -31,7 +31,7 @@ class Test_Feature(JmTestConfigurable):
 
     def test_custom_feature(self):
         class MyCustomFeature(Feature):
-            def invoke(self, option, **context):
+            def invoke(self, option, **kwargs):
                 pass
 
         my_feature = MyCustomFeature()
@@ -44,47 +44,45 @@ class Test_Feature(JmTestConfigurable):
         """测试 should_invoke 判断逻辑"""
         # Feature 基类默认在所有钩子中都执行
         class MyFeature(Feature):
-            def invoke(self, option, **context):
+            def invoke(self, option, **kwargs):
                 pass
 
         base = MyFeature()
-        self.assertTrue(base.should_invoke('after_album', 'download_album'))
-        self.assertTrue(base.should_invoke('after_photo', 'download_album'))
+        self.assertTrue(base.should_invoke('download_album', 'after_album'))
+        self.assertTrue(base.should_invoke('download_album', 'after_photo'))
 
         # PluginFeature 根据来源推导执行时机
         pf = Feature.export_pdf
         # download_album → 只在 after_album 执行
-        self.assertTrue(pf.should_invoke('after_album', 'download_album'))
-        self.assertFalse(pf.should_invoke('after_photo', 'download_album'))
+        self.assertTrue(pf.should_invoke('download_album', 'after_album'))
+        self.assertFalse(pf.should_invoke('download_album', 'after_photo'))
         # download_photo → 只在 after_photo 执行
-        self.assertTrue(pf.should_invoke('after_photo', 'download_photo'))
-        self.assertFalse(pf.should_invoke('after_album', 'download_photo'))
+        self.assertTrue(pf.should_invoke('download_photo', 'after_photo'))
+        self.assertFalse(pf.should_invoke('download_photo', 'after_album'))
 
     def test_adapt_kwargs(self):
         """测试 PluginFeature 参数动态适配"""
         # download_album 模式：P前缀 → A前缀, level → album
         pdf = Feature.export_pdf
-        adapted = pdf._adapt_kwargs('download_album')
+        adapted = pdf._adapt_plugin_kwargs('download_album', when)
         self.assertEqual(adapted['filename_rule'], 'Atitle')  # A开头不变
 
         zip_f = Feature.export_zip
-        adapted = zip_f._adapt_kwargs('download_album')
+        adapted = zip_f._adapt_plugin_kwargs('download_album', when)
         self.assertEqual(adapted['filename_rule'], 'Atitle')  # Ptitle → Atitle
-        self.assertEqual(adapted['level'], 'album')  # photo → album
 
         long_img = Feature.export_long_img
-        adapted = long_img._adapt_kwargs('download_album')
+        adapted = long_img._adapt_plugin_kwargs('download_album', when)
         self.assertEqual(adapted['filename_rule'], 'Aid')  # Pid → Aid
 
         # download_photo 模式：A前缀 → P前缀, level → photo
-        adapted = pdf._adapt_kwargs('download_photo')
+        adapted = pdf._adapt_plugin_kwargs('download_photo', when)
         self.assertEqual(adapted['filename_rule'], 'Ptitle')  # Atitle → Ptitle
 
         # 用户显式传入的参数不被动态适配
-        custom = Feature.export_zip(filename_rule='Ptitle', level='photo')
-        adapted = custom._adapt_kwargs('download_album')
+        custom = Feature.export_zip(filename_rule='Ptitle')
+        adapted = custom._adapt_plugin_kwargs('download_album', when)
         self.assertEqual(adapted['filename_rule'], 'Ptitle')  # 用户显式指定，不适配
-        self.assertEqual(adapted['level'], 'photo')  # 用户显式指定，不适配
 
     def test_download_use_feature(self):
         album_id = '438516'
@@ -93,7 +91,7 @@ class Test_Feature(JmTestConfigurable):
         custom_feature_call_count = 0
 
         class MyCounterFeature(Feature):
-            def invoke(self, option, **context):
+            def invoke(self, option, **kwargs):
                 nonlocal custom_feature_call_count
                 custom_feature_call_count += 1
 
@@ -126,9 +124,9 @@ class Test_Feature(JmTestConfigurable):
         album, dler = jmcomic.download_album(album_id, self.option, extra=combo)
 
         # 验证文件是否精确生成
-        # 通过 download_album 注册，动态适配后全部为 album 级别：
+        # 通过 download_album 注册，动态适配后：
         # PDF: Atitle(不变) → [album标题].pdf
-        # ZIP: Ptitle→Atitle, level→album → [album标题].zip
+        # ZIP: Ptitle→Atitle → [album标题].zip
         # PNG: Pid→Aid → [album_id].png
         pdf_name = DirRule.apply_rule_to_filename(album, None, 'Atitle') + '.pdf'
         zip_name = DirRule.apply_rule_to_filename(album, None, 'Atitle') + '.zip'

@@ -7,17 +7,21 @@
 - 导出为 **ZIP**：方便传输和存档
 - 合并为 **长图**：方便一张图看完整个章节
 
-jmcomic 一直通过内置插件（`img2pdf`、`zip`、`long_img`）支持这些功能，但传统方式需要在 YAML 配置文件中编写插件配置，门槛偏高。
-
-从最新版本起，jmcomic 引入了 **Feature（特性）** 机制——一套通用的**下载附加行为系统**，让你用一行代码搞定导出。Feature 不仅能调用插件，还能封装任意自定义逻辑（通知、清理等），并且会根据调用方式自动选择最合理的配置。
-
-内置了三个开箱即用的导出 Feature：
+jmcomic 内置了三个开箱即用的导出 Feature，对应这三种需求：
 
 | Feature | 效果 |
 |---------|------|
 | `Feature.export_pdf` | 下载完自动导出为 PDF |
 | `Feature.export_zip` | 下载完自动打包为 ZIP |
 | `Feature.export_long_img` | 下载完自动拼接为长图 PNG |
+
+
+> 也许你知道，这些功能之前是以插件形式 (JmOptionPlugin) 存在的。
+> 
+> 是的，传统方式需要在 option 配置文件中编写插件配置，门槛偏高。
+> 
+> 因此，从v2.6.19起，jmcomic 引入了上述的 **Feature** 机制，尽可能简化这些最常用的功能，让小白也能用一行代码搞定导出。
+
 
 ## 2. 快速上手
 
@@ -27,17 +31,20 @@ jmcomic 一直通过内置插件（`img2pdf`、`zip`、`long_img`）支持这些
 from jmcomic import download_album, Feature
 
 # 只需要加一个 extra 参数，就能在下载完成后自动导出 PDF
+download_album('123', extra=Feature.export_pdf)
+
+# 如果要传 option 参数，就是如下写法，三个参数
 download_album('123', option, extra=Feature.export_pdf)
 ```
 
-效果：在**当前工作目录**下生成以本子标题命名的 PDF 文件：
+**效果**：在本子下载完以后，额外在**当前工作目录**下生成包含所有本子图片的 PDF 文件：
 
 ```
 ./
-├── [本子标题].pdf       ← 整本合并为 1 个 PDF
+├── [JM123]本子标题.pdf       ← 整本合并为 1 个 PDF，注意pdf文件名的格式，默认包含本子禁漫车号+本子标题
 ```
 
-### 2.2 需要多种导出格式（PDF、ZIP）——直接组合 Feature
+### 2.2 需要多种导出格式（PDF、ZIP等）——直接组合 Feature
 
 用 `+` 号组合，同时导出多种格式：
 
@@ -45,17 +52,28 @@ download_album('123', option, extra=Feature.export_pdf)
 # 下载完后同时导出 PDF 和 ZIP
 download_album('123', option, extra=Feature.export_pdf + Feature.export_zip)
 
-# 也支持列表语法
+# 也支持列表语法，|语法
 download_album('123', option, extra=[Feature.export_pdf, Feature.export_zip])
+download_album('123', option, extra=Feature.export_pdf ｜ Feature.export_zip)
 ```
+
+效果同pdf，会在本子下载完以后，额外在当前工作目录下，生成包含所有本子图片的 PDF 文件和 ZIP 文件：
+
+```
+./
+├── [JM123]本子标题.pdf       ← 整本合并为 1 个 PDF
+├── [JM123]本子标题.zip       ← 整本合并为 1 个 zip 压缩包
+```
+
 
 ### 2.3 自定义参数
 
-像调用函数一样传入自定义参数，可以改变输出目录、命名规则等：
+如果你了解插件配置，可以同样使用Feature传递插件的自定义参数，例如改变输出目录、命名规则等：
 
 ```python
 # 示例 1：指定输出目录和命名规则
 download_album('123', option, extra=Feature.export_pdf(
+    # 下面是自定义参数
     pdf_dir='D:/my_pdfs',          # PDF 保存到 D:/my_pdfs 文件夹
     filename_rule='Ptitle',        # 用章节标题作为文件名
     delete_original_file=True,     # 合并完 PDF 后删除原图
@@ -89,10 +107,10 @@ download_photo('456', option, extra=Feature.export_pdf)
 
 ### 2.5 智能适配规则
 
-内置的导出 Feature 会根据调用的 API **自动适配**参数（命名规则、打包粒度等）：
+内置的导出 Feature 会根据调用的 API **自动适配**参数：
 
-| 调用方式 | Feature.export_pdf | Feature.export_zip | Feature.export_long_img |
-|---------|-------------------|-------------------|----------------------|
+| 调用方式            | Feature.export_pdf | Feature.export_zip | Feature.export_long_img |
+|-----------------|-------------------|-------------------|----------------------|
 | `download_album` | 整本合并为 1 个 PDF<br>`[本子标题].pdf` | 整本打包为 1 个 ZIP<br>`[本子标题].zip` | 所有章节合并为 1 张长图<br>`[本子ID].png` |
 | `download_photo` | 该章节导出为 PDF<br>`[章节标题].pdf` | 该章节打包为 ZIP<br>`[章节标题].zip` | 该章节拼接为长图<br>`[章节ID].png` |
 
@@ -107,12 +125,12 @@ download_photo('456', option, extra=Feature.export_pdf)
 ```yaml
 # option.yml
 plugins:
-  after_album:
-    - plugin: img2pdf
+  after_album: # 整本下载完以后
+    - plugin: img2pdf # 合并pdf
       kwargs:
         pdf_dir: ./output
         filename_rule: Atitle
-    - plugin: zip
+    - plugin: zip # 合并为压缩文件
       kwargs:
         level: album
         zip_dir: ./output
@@ -148,7 +166,7 @@ api.download_album(extra=Feature.export_pdf)
        │
        ├→ download_by_photo_detail(photo)
        │    ├→ before_photo(photo)
-       │    ├→ download images ...
+       │    ├→ download jmcomic images ...      # 下载禁漫图片
        │    └→ after_photo(photo)
        │         └→ _invoke_features_for('after_photo')
        │              └→ pdf.should_invoke('after_photo', 'download_album') → False ✗ 跳过
@@ -156,8 +174,8 @@ api.download_album(extra=Feature.export_pdf)
        └→ after_album(album)
             └→ _invoke_features_for('after_album')
                  └→ pdf.should_invoke('after_album', 'download_album') → True ✓ 执行!
-                      └→ _adapt_kwargs('download_album')
-                           # Atitle 不变, Ptitle→Atitle, Pid→Aid, level→album
+                      └→ _adapt_plugin_kwargs(from, when) # 动态生成插件参数
+                           └→ option.invoke(pdf, kwargs) # 调用pdf插件，传入参数
 ```
 
 > 💡 **关键点**：
@@ -167,15 +185,15 @@ api.download_album(extra=Feature.export_pdf)
 
 ### 自定义 Feature
 
-Feature 基类完全不绑定插件，你可以实现任意逻辑：
+Feature 基类完全不绑定插件，你可以实现任意逻辑，欢迎贡献你的feature到本项目中：
 
 ```python
 from jmcomic import Feature, download_album
 
 class NotifyFeature(Feature):
     """下载完成后发送通知"""
-    def invoke(self, option, **context):
-        album = context.get('album')
+    def invoke(self, option, **kwargs):
+        album = kwargs.get('album')
         if album:
             print(f'下载完成通知: {album.name}')
 
@@ -183,16 +201,3 @@ class NotifyFeature(Feature):
 download_album('123', option, extra=NotifyFeature())
 ```
 
-### 自定义 PluginFeature
-
-如果你注册了自定义插件，也可以创建对应的 PluginFeature：
-
-```python
-from jmcomic import PluginFeature, Feature
-
-# 假设你注册了一个 plugin_key 为 'my_export' 的插件
-Feature.my_export = PluginFeature('my_export', output_dir='./my_output')
-
-# 使用
-download_album('123', option, extra=Feature.my_export)
-```
