@@ -150,7 +150,7 @@ class Test_Feature(JmTestConfigurable):
 
         # 组合下载并导出
         combo = f_pdf + f_zip + f_long_img
-        album, dler = jmcomic.download_album(album_id, self.option, extra=combo)
+        album, _dler = jmcomic.download_album(album_id, self.option, extra=combo)
 
         # 验证文件是否精确生成
         # 通过 download_album 注册，动态适配后默认规则均为：[JM{Aid}]{Atitle}
@@ -174,7 +174,7 @@ class Test_Feature(JmTestConfigurable):
 
         # 测试单个章节的 PDF 导出
         f_pdf = Feature.export_pdf(pdf_dir=export_dir)
-        photo, dler = jmcomic.download_photo(photo_id, self.option, extra=f_pdf)
+        photo, _dler = jmcomic.download_photo(photo_id, self.option, extra=f_pdf)
 
         # 验证文件是否按照 [JM{Pid}]{Ptitle} 规则生成
         rule = '[JM{Pid}]{Ptitle}'
