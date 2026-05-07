@@ -584,7 +584,7 @@ class JmOption:
                        **kwargs,
                        ):
         from .api import download_album
-        download_album(album_id, self, *args, **kwargs)
+        return download_album(album_id, self, *args, **kwargs)
 
     def download_photo(self,
                        photo_id,
@@ -592,7 +592,7 @@ class JmOption:
                        **kwargs,
                        ):
         from .api import download_photo
-        download_photo(photo_id, self, *args, **kwargs)
+        return download_photo(photo_id, self, *args, **kwargs)
 
     # 下面的方法为调用插件提供支持
 
