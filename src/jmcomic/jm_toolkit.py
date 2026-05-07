@@ -350,7 +350,7 @@ class JmcomicText:
         try:
             import zhconv
             return zhconv.convert(s, target)
-        except ImportError as e:
+        except ImportError:
             jm_log('zhconv.error', '繁简转换失败，未安装zhconv，请先使用命令安装: [pip install zhconv]')
             return s
         except Exception as e:

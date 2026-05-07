@@ -280,9 +280,6 @@ class JmHtmlClient(AbstractJmClient):
         photo = self.fetch_detail_entity(photo_id, 'photo')
 
         # 一并获取该章节的所处本子
-        # todo: 可优化，获取章节所在本子，其实不需要等待章节获取完毕后。
-        #  可以直接调用 self.get_album_detail(photo_id)，会重定向返回本子的HTML
-        # (had polished by FutureClientProxy)
         if fetch_album is True:
             photo.from_album = self.get_album_detail(photo.album_id)
 

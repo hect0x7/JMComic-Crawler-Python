@@ -591,7 +591,6 @@ class PrettyFormatter(logging.Formatter):
 def enable_pretty_log():
     """开启带颜色的美化日志"""
     import sys
-    import os as _os
 
     # Windows 需要启用 VT100 ANSI 支持
     if sys.platform == 'win32':

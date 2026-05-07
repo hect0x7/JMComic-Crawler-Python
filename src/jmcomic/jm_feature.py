@@ -58,15 +58,15 @@ class Feature:
     # ---- 组合运算符，统一返回 FeatureChain ----
 
     def __add__(self, other):
-        return FeatureChain._combine(self, other)
+        return FeatureChain.combine(self, other)
 
     def __or__(self, other):
-        return FeatureChain._combine(self, other)
+        return FeatureChain.combine(self, other)
 
     def __and__(self, other):
-        return FeatureChain._combine(self, other)
+        return FeatureChain.combine(self, other)
 
-    def _to_list(self):
+    def to_list(self):
         return [self]
 
 
@@ -122,7 +122,7 @@ class PluginFeature(Feature):
         filename_rule
         """
         kwargs = self.kwargs.copy()
-        kwargs.setdefault('filename_rule', '[JM{Aid}]{Atitle}' if feature_from == 'download_album' else '[JM{Pid}]{Ptitle}')
+        kwargs.setdefault('filename_rule', '[JM{Aid}]{Atitle}' if when == 'after_album' else '[JM{Pid}]{Ptitle}')
         return kwargs
 
     def __repr__(self):
@@ -139,19 +139,19 @@ class FeatureChain:
         self._features = features
 
     @classmethod
-    def _combine(cls, left, right):
-        return cls(left._to_list() + right._to_list())
+    def combine(cls, left, right):
+        return cls(left.to_list() + right.to_list())
 
     def __add__(self, other):
-        return FeatureChain._combine(self, other)
+        return FeatureChain.combine(self, other)
 
     def __or__(self, other):
-        return FeatureChain._combine(self, other)
+        return FeatureChain.combine(self, other)
 
     def __and__(self, other):
-        return FeatureChain._combine(self, other)
+        return FeatureChain.combine(self, other)
 
-    def _to_list(self):
+    def to_list(self):
         return list(self._features)
 
     def __repr__(self):

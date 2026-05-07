@@ -82,7 +82,7 @@ class JmDownloader(DownloadCallback):
         self.download_failed_image: List[Tuple[JmImageDetail, BaseException]] = []
         self.download_failed_photo: List[Tuple[JmPhotoDetail, BaseException]] = []
         # Feature 特性列表: [(feature, feature_from), ...]
-        self._feature_list: list = []
+        self._feature_list: List[Tuple] = []
 
     def download_album(self, album_id):
         album = self.client.get_album_detail(album_id)
@@ -292,7 +292,7 @@ class JmDownloader(DownloadCallback):
             for f in features:
                 self.add_features(f, feature_from)
         elif isinstance(features, FeatureChain):
-            for f in features._features:
+            for f in features.to_list():
                 self._feature_list.append((f, feature_from))
         elif isinstance(features, Feature):
             self._feature_list.append((features, feature_from))
