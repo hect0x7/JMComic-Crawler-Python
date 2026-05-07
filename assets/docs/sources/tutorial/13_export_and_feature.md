@@ -39,7 +39,7 @@ download_album('123', option, extra=Feature.export_pdf)
 
 **效果**：在本子下载完以后，额外在**当前工作目录**下生成包含所有本子图片的 PDF 文件：
 
-```
+```text
 ./
 ├── [JM123]本子标题.pdf       ← 整本合并为 1 个 PDF，注意pdf文件名的格式，默认包含本子禁漫车号+本子标题
 ```
@@ -59,7 +59,7 @@ download_album('123', option, extra=Feature.export_pdf | Feature.export_zip)
 
 效果同pdf，会在本子下载完以后，额外在当前工作目录下，生成包含所有本子图片的 PDF 文件和 ZIP 文件：
 
-```
+```text
 ./
 ├── [JM123]本子标题.pdf       ← 整本合并为 1 个 PDF
 ├── [JM123]本子标题.zip       ← 整本合并为 1 个 zip 压缩包
@@ -78,12 +78,14 @@ download_album('123', option, extra=Feature.export_pdf(
     filename_rule='Atitle',        # 用本子标题作为文件名
     delete_original_file=True,     # 合并完 PDF 后删除原图
 ))
+```
 
 > 💡 **小白必读：命名规则（filename_rule）的小知识**
 > - `A` 开头的占位符（如 `Atitle`, `Aid`）代表 **Album (本子)**，适用于 `download_album`。
 > - `P` 开头的占位符（如 `Ptitle`, `Pid`）代表 **Photo (章节)**，适用于 `download_photo`。
 > - 如果在下载整本（Album）时强行使用章节级（Photo）的规则，程序会因为不知道该用哪一章的标题而报错。
 
+```python
 # 示例 2：全都要——ZIP 存盘 + 长图阅读
 combo = (
     Feature.export_zip(zip_dir='D:/zips')
@@ -103,7 +105,7 @@ download_photo('456', option, extra=Feature.export_pdf)
 
 效果：在当前工作目录下生成以章节标题命名的 PDF：
 
-```
+```text
 ./
 ├── [章节标题].pdf       ← 该章节导出为 1 个 PDF
 ```
@@ -147,20 +149,20 @@ plugins:
 
 ### 类层次
 
-```
+```text
 Feature (基类)
   ├── PluginFeature     ← 封装插件调用，参数根据来源自适应
   └── 你的自定义 Feature  ← 继承 Feature，实现任意逻辑
 ```
 
 - **Feature 基类**：通用的附加行为抽象，不绑定任何具体实现。默认在所有生命周期钩子中执行。
-- **PluginFeature**：Feature 的子类，专门封装 jmcomic 插件。除了调用插件之外，还会根据调用来源动态适配 `filename_rule`、`level` 等参数。
+- **PluginFeature**：Feature 的子类，专门封装 jmcomic 插件。除了调用插件之外，还会根据调用来源动态适配 `filename_rule` 参数；ZIP 的打包粒度则由插件在运行时根据上下文自动推导。
 
 ### 执行流程
 
 Feature **自然嵌入到 downloader 的生命周期钩子**中自动触发：
 
-```
+```text
 api.download_album(extra=Feature.export_pdf)
   │
   ├→ dler.add_features(pdf, 'download_album')   # 注册: [(pdf, 'download_album')]
@@ -186,7 +188,7 @@ api.download_album(extra=Feature.export_pdf)
 > 💡 **关键点**：
 >
 > - **执行时机**：`PluginFeature` 根据注册来源自动推导（`download_album` → `after_album`，`download_photo` → `after_photo`）。自定义 Feature 默认在所有钩子都会执行，你可以覆写 `should_invoke` 来控制。
-> - **参数自适应**：`PluginFeature` 的 `filename_rule` 前缀（A/P）和 `level`（album/photo）会根据来源动态适配。用户显式传入的参数不会被覆盖。
+> - **参数自适应**：`PluginFeature` 的 `filename_rule` 前缀（A/P）会根据来源动态适配。ZIP 的打包粒度由插件根据上下文自动推导。用户显式传入的参数不会被覆盖。
 
 ### 自定义 Feature
 
