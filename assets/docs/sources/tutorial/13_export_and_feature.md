@@ -1,4 +1,4 @@
-# Feature 机制——下载附加行为
+# 教程：下载后转为 PDF / ZIP / 长图
 
 ## 1. 需求场景
 
@@ -37,16 +37,12 @@ download_album('123', extra=Feature.export_pdf)
 download_album('123', option, extra=Feature.export_pdf)
 ```
 
-**效果**：在本子下载完以后，额外在**当前工作目录**下生成包含所有本子图片的 PDF 文件：
+**效果**：在本子下载完以后，默认在**下载根目录**下生成包含所有本子图片的 PDF 文件。如果你没有自定义过option，下载根目录就是你的工作目录（即你运行python脚本或cli的目录）。如果你配置过option，会放在dir_rule.base_dir下面。
 
 ```text
 ./
 ├── [JM123]本子标题.pdf       ← 整本合并为 1 个 PDF，注意pdf文件名的格式，默认包含本子禁漫车号+本子标题
 ```
-
-> 💡 **小白提示：当前工作目录在哪？**
->
-> 默认情况下，文件会直接出现在你**运行 Python 脚本的那个文件夹里**。如果你不知道具体是哪，可以看后面的【自定义参数】章节，手动指定你想保存到的文件夹。
 
 ### 2.2 需要多种导出格式（PDF、ZIP等）——直接组合 Feature
 
@@ -61,7 +57,7 @@ download_album('123', option, extra=[Feature.export_pdf, Feature.export_zip])
 download_album('123', option, extra=Feature.export_pdf | Feature.export_zip)
 ```
 
-效果同pdf，会在本子下载完以后，额外在当前工作目录下，生成包含所有本子图片的 PDF 文件和 ZIP 文件：
+效果同pdf，会在本子下载完以后，额外在对应的下载目录下，生成包含所有本子图片的 PDF 文件和 ZIP 文件：
 
 ```text
 ./
@@ -85,9 +81,10 @@ download_album('123', option, extra=Feature.export_pdf(
 ```
 
 > 💡 **小白必读：命名规则（filename_rule）的小知识**
-> - `A` 开头的占位符（如 `Atitle`, `Aid`）代表 **Album (本子)**，适用于 `download_album`。
-> - `P` 开头的占位符（如 `Ptitle`, `Pid`）代表 **Photo (章节)**，适用于 `download_photo`。
-> - 如果在下载整本（Album）时强行使用章节级（Photo）的规则，程序会因为不知道该用哪一章的标题而报错。
+> - `A` 开头的占位符（如 `Atitle`, `Aid`）代表 **Album (本子)**。
+> - `P` 开头的占位符（如 `Ptitle`, `Pid`）代表 **Photo (章节)**。
+> - `download_photo` （下载单章）时，由于程序既知道当前章节，也知道它属于哪个本子，所以 **`Pxxx` 和 `Axxx` 都可以用**。
+> - `download_album` （下载整本）时，由于是按本子合并的，程序没有具体的“当前章节”，此时 **只能用 `Axxx`，不能用 `Pxxx`**，否则会报错。
 
 ```python
 # 示例 2：全都要——ZIP 存盘 + 长图阅读
@@ -107,7 +104,7 @@ from jmcomic import download_photo, Feature
 download_photo('456', option, extra=Feature.export_pdf)
 ```
 
-效果：在当前工作目录下生成以章节标题命名的 PDF：
+效果：在对应的下载目录下生成以章节标题命名的 PDF：
 
 ```text
 ./
@@ -122,12 +119,12 @@ download_photo('456', option, extra=Feature.export_pdf)
 
 | 调用方式            | Feature.export_pdf | Feature.export_zip | Feature.export_long_img |
 |-----------------|-------------------|-------------------|----------------------|
-| `download_album` | 整本合并为 1 个 PDF<br>`[本子标题].pdf` | 整本打包为 1 个 ZIP<br>`[本子标题].zip` | 所有章节合并为 1 张长图<br>`[本子ID].png` |
-| `download_photo` | 该章节导出为 PDF<br>`[章节标题].pdf` | 该章节打包为 ZIP<br>`[章节标题].zip` | 该章节拼接为长图<br>`[章节ID].png` |
+| `download_album` | 整本合并为 1 个 PDF<br>`[JM本子号]本子标题.pdf` | 整本打包为 1 个 ZIP<br>`[JM本子号]本子标题.zip` | 所有章节合并为 1 张长图<br>`[JM本子号]本子标题.png` |
+| `download_photo` | 该章节导出为 PDF<br>`[JM章节号]章节标题.pdf` | 该章节打包为 ZIP<br>`[JM章节号]章节标题.zip` | 该章节拼接为长图<br>`[JM章节号]章节标题.png` |
 
 当你显式传入参数时（如 `filename_rule='Ptitle'`），**你的配置优先**，不会被自适应覆盖。
 
-> 💡 **提示**：更多可选参数（如加密密码 `encrypt`、后缀名 `suffix` 等），参考 [Plugin 插件参数大全](./6_plugin.md#参数)。
+> 💡 **提示**：更多可选参数（如加密密码 `encrypt`、后缀名 `suffix` 等），参考 [Plugin 插件参数大全](../option_file_syntax.md#3-option插件配置项)。
 
 ## 3. 传统写法（YAML 插件配置）
 

@@ -13,12 +13,12 @@ def catch_exception(func):
             detail: JmBaseEntity = args[0]
             if detail.is_image():
                 detail: JmImageDetail
-                jm_log('image.failed', f'图片下载失败: [{detail.download_url}], 异常: [{e}]')
+                jm_log('image.failed', f'图片下载失败: [{detail.download_url}], 异常: [{e}]', e)
                 self.download_failed_image.append((detail, e))
 
             elif detail.is_photo():
                 detail: JmPhotoDetail
-                jm_log('photo.failed', f'章节下载失败: [{detail.id}], 异常: [{e}]')
+                jm_log('photo.failed', f'章节下载失败: [{detail.id}], 异常: [{e}]', e)
                 self.download_failed_photo.append((detail, e))
 
             raise e
@@ -54,14 +54,14 @@ class DownloadCallback:
                f'章节下载完成: [{photo.id}] ({photo.album_id}[{photo.index}/{len(photo.from_album)}])')
 
     def before_image(self, image: JmImageDetail, img_save_path):
-        if image.exists:
+        if image.exists and image.cache:
             jm_log('image.before',
                    f'图片已存在: {image.tag} ← [{img_save_path}]'
                    )
-        else:
-            jm_log('image.before',
-                   f'图片准备下载: {image.tag}, [{image.img_url}] → [{img_save_path}]'
-                   )
+            return
+        jm_log('image.before',
+               f'图片准备下载: {image.tag}, [{image.img_url}] → [{img_save_path}]'
+               )
 
     def after_image(self, image: JmImageDetail, img_save_path):
         jm_log('image.after',
@@ -125,6 +125,7 @@ class JmDownloader(DownloadCallback):
 
         image.save_path = img_save_path
         image.exists = file_exists(img_save_path)
+        image.cache = self.option.decide_download_cache(image)
 
         self.before_image(image, img_save_path)
 
@@ -132,11 +133,10 @@ class JmDownloader(DownloadCallback):
             return
 
         # let option decide use_cache and decode_image
-        use_cache = self.option.decide_download_cache(image)
         decode_image = self.option.decide_download_image_decode(image)
 
         # skip download
-        if use_cache is True and image.exists:
+        if image.cache and image.exists:
             return
 
         self.client.download_by_image_detail(
@@ -311,7 +311,8 @@ class JmDownloader(DownloadCallback):
                 try:
                     feature.invoke(self.option, feature_from=feature_from, when=when, **kwargs)
                 except Exception as e:
-                    jm_log('downloader.feature.exception', f'Feature执行失败: [{feature}], 来源: [{feature_from}], 异常: [{e}]')
+                    jm_log('downloader.feature.exception', f'Feature执行失败: [{feature}], 来源: [{feature_from}], 异常: [{e}]',
+                           e)
 
     def raise_if_has_exception(self):
         if not self.has_download_failures:

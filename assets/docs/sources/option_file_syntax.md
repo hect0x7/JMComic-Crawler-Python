@@ -236,15 +236,15 @@ plugins:
         filename_rule: Atitle # 压缩文件的命名规则
         # 请注意⚠ [https://github.com/hect0x7/JMComic-Crawler-Python/issues/223#issuecomment-2045227527]
         # filename_rule和所在钩子有对应关系
-        # 如果配置在 after_photo 下, filename_rule只能写 Pxxx
-        # 如果配置在 after_album 下, filename_rule只能写 Axxx
+        # 如果配置在 after_photo 下, filename_rule 可以写 Pxxx 和Axxx
+        # 如果配置在 after_album 下, filename_rule 只能写 Axxx，不能写 Pxxx
 
         # zip插件也支持dir_rule配置项，可以替代旧版本的zip_dir和filename_rule
         # 请注意⚠ 使用此配置项会使filename_rule，zip_dir，suffix三个配置项无效，与这三个配置项同时存在时仅会使用dir_rule
         # 示例如下:
         # dir_rule: # 新配置项，可取代旧的zip_dir和filename_rule
-        #   base_dir: D:/jmcomic-zip
-        #   rule: 'Bd / {Atitle} / [{Pid}]-{Ptitle}.zip'  # 设置压缩文件夹规则，中间Atitle表示创建一层文件夹，名称是本子标题。[{Pid}]-{Ptitle}.zip 表示压缩文件的命名规则(需显式写出后缀名)
+        #   base_dir: D:/jmcomic-download/
+        #   rule: 'Bd / zip / JM{Aid}-{Atitle}.zip'  # 设置压缩文件夹规则，Bd指代base_dir，中间zip表示在{base_dir}下创建一个名为zip的文件夹，JM{Aid}-{Atitle}.zip 表示压缩文件的命名规则(需显式写出后缀名)
 
         delete_original_file: true # 压缩成功后，删除所有原文件和文件夹
         

@@ -1,4 +1,4 @@
-from . import *
+from test_jmcomic import *
 
 
 class Test_Feature(JmTestConfigurable):
@@ -65,26 +65,48 @@ class Test_Feature(JmTestConfigurable):
         when = 'after_album'
         
         pdf = Feature.export_pdf
-        adapted = pdf._adapt_plugin_kwargs('download_album', when)
+        adapted = pdf._adapt_plugin_kwargs(self.option, 'download_album', when)
         self.assertEqual(adapted['filename_rule'], '[JM{Aid}]{Atitle}')
 
         zip_f = Feature.export_zip
-        adapted = zip_f._adapt_plugin_kwargs('download_album', when)
+        adapted = zip_f._adapt_plugin_kwargs(self.option, 'download_album', when)
         self.assertEqual(adapted['filename_rule'], '[JM{Aid}]{Atitle}')
 
         long_img = Feature.export_long_img
-        adapted = long_img._adapt_plugin_kwargs('download_album', when)
+        adapted = long_img._adapt_plugin_kwargs(self.option, 'download_album', when)
         self.assertEqual(adapted['filename_rule'], '[JM{Aid}]{Atitle}')
 
         # download_photo 模式
         when = 'after_photo'
-        adapted = pdf._adapt_plugin_kwargs('download_photo', when)
+        adapted = pdf._adapt_plugin_kwargs(self.option, 'download_photo', when)
         self.assertEqual(adapted['filename_rule'], '[JM{Pid}]{Ptitle}')
 
         # 用户显式传入的参数不被动态适配 (通过 kwargs 机制自带)
         custom = Feature.export_zip(filename_rule='Ptitle')
-        adapted = custom._adapt_plugin_kwargs('download_album', when)
+        adapted = custom._adapt_plugin_kwargs(self.option, 'download_album', when)
         self.assertEqual(adapted['filename_rule'], 'Ptitle')  # 用户显式指定，不被 setdefault 覆盖
+
+    def test_dynamic_base_dir(self):
+        """测试不指定导出目录时，自动适配为 option.dir_rule.base_dir"""
+        self.option.dir_rule.base_dir = './custom_base'
+        when = 'after_album'
+
+        # 1. PDF
+        adapted = Feature.export_pdf._adapt_plugin_kwargs(self.option, 'download_album', when)
+        self.assertEqual(adapted['pdf_dir'], './custom_base')
+
+        # 2. ZIP
+        adapted = Feature.export_zip._adapt_plugin_kwargs(self.option, 'download_album', when)
+        self.assertEqual(adapted['zip_dir'], './custom_base')
+
+        # 3. LongImg
+        adapted = Feature.export_long_img._adapt_plugin_kwargs(self.option, 'download_album', when)
+        self.assertEqual(adapted['img_dir'], './custom_base')
+
+        # 4. 如果显式指定了，则不应被覆盖
+        custom_pdf = Feature.export_pdf(pdf_dir='./explicit_dir')
+        adapted = custom_pdf._adapt_plugin_kwargs(self.option, 'download_album', when)
+        self.assertEqual(adapted['pdf_dir'], './explicit_dir')
 
     def test_download_use_feature(self):
         album_id = '438516'

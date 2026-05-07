@@ -107,7 +107,7 @@ class PluginFeature(Feature):
         ExceptionTool.require_true(pclass is not None, f'PluginFeature 引用了未注册的插件: {self.plugin_key}, from {feature_from}, when {when}')
 
         # 根据 feature_from 动态适配参数
-        plugin_kwargs: dict = self._adapt_plugin_kwargs(feature_from, when)
+        plugin_kwargs: dict = self._adapt_plugin_kwargs(option, feature_from, when)
 
         option.invoke_plugin(
             pclass=pclass,
@@ -116,13 +116,22 @@ class PluginFeature(Feature):
             pinfo={'plugin': self.plugin_key, 'kwargs': plugin_kwargs},
         )
 
-    def _adapt_plugin_kwargs(self, feature_from: str, when: str) -> dict:
+    def _adapt_plugin_kwargs(self, option: JmOption, feature_from: str, when: str) -> dict:
         """
         根据feature_from和when动态确定以下插件参数:
         filename_rule
         """
         kwargs = self.kwargs.copy()
         kwargs.setdefault('filename_rule', '[JM{Aid}]{Atitle}' if when == 'after_album' else '[JM{Pid}]{Ptitle}')
+
+        # 动态适配导出目录：当且仅当用户未自定义目录时，根据插件类型自动将 dir 导向 option.dir_rule.base_dir
+        if self.plugin_key == 'zip':
+            kwargs.setdefault('zip_dir', option.dir_rule.base_dir)
+        elif self.plugin_key == 'img2pdf':
+            kwargs.setdefault('pdf_dir', option.dir_rule.base_dir)
+        elif self.plugin_key == 'long_img':
+            kwargs.setdefault('img_dir', option.dir_rule.base_dir)
+
         return kwargs
 
     def __repr__(self):
@@ -159,6 +168,6 @@ class FeatureChain:
 
 
 # 内置的 PluginFeature
-Feature.export_pdf = PluginFeature(Img2pdfPlugin.plugin_key, pdf_dir='./')
-Feature.export_zip = PluginFeature(ZipPlugin.plugin_key, zip_dir='./')
-Feature.export_long_img = PluginFeature(LongImgPlugin.plugin_key, img_dir='./')
+Feature.export_pdf = PluginFeature(Img2pdfPlugin.plugin_key)
+Feature.export_zip = PluginFeature(ZipPlugin.plugin_key)
+Feature.export_long_img = PluginFeature(LongImgPlugin.plugin_key)

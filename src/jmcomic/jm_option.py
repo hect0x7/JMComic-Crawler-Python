@@ -91,7 +91,7 @@ class DirRule:
                 path = parser(album, photo, rule)
             except BaseException as e:
                 # noinspection PyUnboundLocalVariable
-                jm_log('dir_rule', f'路径规则"{rule}"的解析出错: {e}, album={album}, photo={photo}')
+                jm_log('dir_rule', f'路径规则"{rule}"的解析出错: {e}, album={album}, photo={photo}', e)
                 raise e
             if parser != self.parse_bd_rule:
                 # 根据配置 normalize_zh 进行繁简体统一
@@ -580,19 +580,19 @@ class JmOption:
 
     def download_album(self,
                        album_id,
-                       downloader=None,
-                       callback=None,
+                       *args,
+                       **kwargs,
                        ):
         from .api import download_album
-        download_album(album_id, self, downloader, callback)
+        download_album(album_id, self, *args, **kwargs)
 
     def download_photo(self,
                        photo_id,
-                       downloader=None,
-                       callback=None
+                       *args,
+                       **kwargs,
                        ):
         from .api import download_photo
-        download_photo(photo_id, self, downloader, callback)
+        download_photo(photo_id, self, *args, **kwargs)
 
     # 下面的方法为调用插件提供支持
 
@@ -684,13 +684,13 @@ class JmOption:
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
     def handle_plugin_unexpected_error(self, e, pinfo: dict, kwargs: dict, _plugin, pclass):
         msg = str(e)
-        jm_log('plugin.error', f'插件 [{pclass.plugin_key}]，运行遇到未捕获异常，异常信息: [{msg}]')
+        jm_log('plugin.error', f'插件 [{pclass.plugin_key}]，运行遇到未捕获异常，异常信息: [{msg}]', e)
         raise e
 
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
     def handle_plugin_jmcomic_exception(self, e, pinfo: dict, kwargs: dict, _plugin, pclass):
         msg = str(e)
-        jm_log('plugin.exception', f'插件 [{pclass.plugin_key}] 调用失败，异常信息: [{msg}]')
+        jm_log('plugin.exception', f'插件 [{pclass.plugin_key}] 调用失败，异常信息: [{msg}]', e)
         raise e
 
     # noinspection PyMethodMayBeStatic
