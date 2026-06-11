@@ -43,7 +43,7 @@ class CacheRegistry:
             return
 
         elif isinstance(cache, bool):
-            if cache is False:
+            if not cache:
                 return
             else:
                 cache = cls.level_option
@@ -298,7 +298,7 @@ class JmOption:
 
         # log
         log = dic.pop('log', True)
-        if log is False:
+        if not log:
             disable_jm_log()
         elif log == 'pretty':
             enable_pretty_log()
@@ -594,6 +594,33 @@ class JmOption:
         from .api import download_photo
         return download_photo(photo_id, self, *args, **kwargs)
 
+    async def new_jm_async_client(self, cache=None, **kwargs) -> AsyncJmcomicClient:
+        """
+        通过 Option 配置创建异步客户端。
+        从 REGISTRY_ASYNC_CLIENT 注册表查找实现类（配置项: client.async_impl），
+        其内部实现逻辑与同步版本的 new_jm_client 保持一致。
+
+        缓存：与同步版本 new_jm_client 相同，依据 client.cache 配置决定是否启用缓存
+        （默认 None 即为不缓存），并通过 CacheRegistry.enable_client_cache_on_condition 下发配置。
+        """
+        async_impl = self.client.get('async_impl', 'async_api') or 'async_api'
+        clazz = JmModuleConfig.async_client_impl_class(async_impl)
+        client = clazz(self, **kwargs)
+
+        # 启用缓存（与同步版本保持一致）：默认不缓存，由 client.cache 配置决定
+        cache = cache if cache is not None else self.client.cache
+        CacheRegistry.enable_client_cache_on_condition(self, client, cache)
+        await client.setup()
+        return client
+
+    async def download_album_async(self, album_id, *args, **kwargs):
+        from .api import download_album_async
+        return await download_album_async(album_id, self, *args, **kwargs)
+
+    async def download_photo_async(self, photo_id, *args, **kwargs):
+        from .api import download_photo_async
+        return await download_photo_async(photo_id, self, *args, **kwargs)
+
     # 下面的方法为调用插件提供支持
 
     def call_all_plugin(self, group: str, safe=None, **extra):
@@ -637,7 +664,7 @@ class JmOption:
             plugin: JmOptionPlugin = pclass.build(self)
 
             # 设置日志开关
-            if pinfo.get('log', True) is not True:
+            if not pinfo.get('log', True):
                 plugin.log_enable = False
 
             jm_log('plugin.invoke', f'调用插件: [{pclass.plugin_key}]')

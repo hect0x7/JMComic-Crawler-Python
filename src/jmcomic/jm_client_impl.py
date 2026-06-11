@@ -277,15 +277,15 @@ class JmHtmlClient(AbstractJmClient):
                          fetch_album=True,
                          fetch_scramble_id=True,
                          ) -> JmPhotoDetail:
-        photo = self.fetch_detail_entity(photo_id, 'photo')
+        photo: JmPhotoDetail = self.fetch_detail_entity(photo_id, 'photo')
 
         # 一并获取该章节的所处本子
-        if fetch_album is True:
+        if fetch_album:
             photo.from_album = self.get_album_detail(photo.album_id)
 
         return photo
 
-    def fetch_detail_entity(self, jmid, prefix):
+    def fetch_detail_entity(self, jmid, prefix) -> DetailType:
         # 参数校验
         jmid = JmcomicText.parse_to_jm_id(jmid)
 
@@ -298,6 +298,8 @@ class JmHtmlClient(AbstractJmClient):
 
         if prefix == 'photo':
             return JmcomicText.analyse_jm_photo_html(resp.text)
+
+        raise ValueError(f"不支持的 prefix 类型: {prefix}")
 
     def search(self,
                search_query: str,
@@ -476,7 +478,9 @@ class JmHtmlClient(AbstractJmClient):
         请求如果失败，统一由该方法抛出异常
         """
         if msg is None:
-            msg_tail = '' if JmModuleConfig.FLAG_DUMP_HTML_ON_REGEX_ERROR else '，可通过设置 JmModuleConfig.FLAG_DUMP_HTML_ON_REGEX_ERROR = True 将响应文本保存到文件'
+            msg_tail = '' if JmModuleConfig.FLAG_DUMP_HTML_ON_REGEX_ERROR else ('，可通过设置 '
+                                                                                'JmModuleConfig.FLAG_DUMP_HTML_ON_REGEX_ERROR = '
+                                                                                'True 将响应文本保存到文件')
             msg = f"请求失败，" \
                   f"响应状态码为{resp.status_code}，" \
                   f"URL=[{resp.url}]，" \
@@ -701,7 +705,7 @@ class JmApiClient(AbstractJmClient):
 
         return scramble_id
 
-    def fetch_detail_entity(self, jmid, clazz):
+    def fetch_detail_entity(self, jmid, clazz: Type[DetailType]) -> DetailType:
         """
         Fetches a JM entity (album or chapter) by its JM ID and returns it as an instance of `clazz`.
         
@@ -734,7 +738,7 @@ class JmApiClient(AbstractJmClient):
         请求scramble_id
         """
         photo_id: str = JmcomicText.parse_to_jm_id(photo_id)
-        resp = self.req_api(
+        resp = self.req_api(self.append_params_to_url(
             self.API_SCRAMBLE,
             params={
                 'id': photo_id,
@@ -743,7 +747,7 @@ class JmApiClient(AbstractJmClient):
                 'app_img_shunt': '1',
                 'express': 'off',
                 'v': time_stamp(),
-            },
+            }),
             require_success=False,
         )
 
@@ -1162,6 +1166,7 @@ class PhotoConcurrentFetcherProxy(JmcomicClient):
             self.future_dict[cache_key] = future
             return future
 
+    # noinspection PyTypeChecker
     def get_photo_detail(self, photo_id, fetch_album=True, fetch_scramble_id=True) -> JmPhotoDetail:
         photo_id = JmcomicText.parse_to_jm_id(photo_id)
         client: JmcomicClient = self.client
@@ -1197,6 +1202,7 @@ class PhotoConcurrentFetcherProxy(JmcomicClient):
         for i, f in enumerate(futures):
             if f is None:
                 continue
+            # noinspection PyUnresolvedReferences
             results[i] = f.result()
 
         # compose

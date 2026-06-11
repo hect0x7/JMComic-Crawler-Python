@@ -24,7 +24,7 @@ def setup_default_jm_logger():
         jm_logger.setLevel(logging.INFO)
 
 
-def default_jm_logging(topic: str, msg, e: Exception = None):
+def default_jm_logging(topic: str, msg, e: BaseException | None = None):
     # 支持 jm_log('topic', e) 的简写
     if isinstance(msg, BaseException):
         e = msg
@@ -98,11 +98,11 @@ class JmMagicConstants:
     SCRAMBLE_421926 = 421926  # 2023-02-08后改了图片切割算法
 
     # 移动端API密钥
-    APP_TOKEN_SECRET = '18comicAPP'
+    APP_TOKEN_SECRET = '185Hcomic3PAPP7R'
     APP_TOKEN_SECRET_2 = '18comicAPPContent'
     APP_DATA_SECRET = '185Hcomic3PAPP7R'
     API_DOMAIN_SERVER_SECRET = 'diosfjckwpqpdfjkvnqQjsik'
-    APP_VERSION = '2.0.21'
+    APP_VERSION = '2.0.26'
 
 
 # 模块级别共用配置
@@ -153,11 +153,10 @@ class JmModuleConfig:
 
     # 移动端API域名
     DOMAIN_API_LIST = shuffled('''
-    www.cdnhjk.net
-    www.cdngwc.cc
-    www.cdngwc.net
-    www.cdngwc.club
-    www.cdnhjk.cc
+    www.cdnaspa.club
+    www.cdnaspa.vip
+    www.cdnplaystation6.cc
+    www.cdnplaystation6.vip
     ''')
 
     DOMAIN_API_UPDATED_LIST = None
@@ -166,6 +165,7 @@ class JmModuleConfig:
     API_URL_DOMAIN_SERVER_LIST = shuffled('''
     https://rup4a04-c01.tos-ap-southeast-1.bytepluses.com/newsvr-2025.txt
     https://rup4a04-c02.tos-cn-hongkong.bytepluses.com/newsvr-2025.txt
+    https://rup4a04-c03.tos-cn-beijing.bytepluses.com.cn/newsvr-2025.txt
     ''')
 
     APP_HEADERS_TEMPLATE = {
@@ -220,6 +220,8 @@ class JmModuleConfig:
 
     # 客户端注册表
     REGISTRY_CLIENT = {}
+    # 异步客户端注册表（对应 REGISTRY_CLIENT，由 AsyncJmcomicClient 子类注册）
+    REGISTRY_ASYNC_CLIENT = {}
     # 插件注册表
     REGISTRY_PLUGIN = {}
     # 异常监听器
@@ -305,6 +307,18 @@ class JmModuleConfig:
         if clazz is None:
             from .jm_toolkit import ExceptionTool
             ExceptionTool.raises(f'not found client impl class for key: "{client_key}"')
+
+        return clazz
+
+    @classmethod
+    def async_client_impl_class(cls, client_key: str):
+        """异步客户端类查找，对应 client_impl_class"""
+        clazz_dict = cls.REGISTRY_ASYNC_CLIENT
+
+        clazz = clazz_dict.get(client_key, None)
+        if clazz is None:
+            from .jm_toolkit import ExceptionTool
+            ExceptionTool.raises(f'not found async client impl class for key: "{client_key}"')
 
         return clazz
 
@@ -409,7 +423,7 @@ class JmModuleConfig:
         return ts, token, tokenparam
 
     @classmethod
-    def jm_log(cls, topic: str, msg, e: Exception = None):
+    def jm_log(cls, topic: str, msg, e: BaseException | None = None):
         if cls.FLAG_ENABLE_JM_LOG:
             executor = cls.EXECUTOR_LOG
             if e is None:
@@ -480,6 +494,7 @@ class JmModuleConfig:
                 }
             },
             'impl': None,
+            'async_impl': 'async_api',  # 异步客户端实现类型
             'retry_times': 5,
         },
         'plugins': {
@@ -547,6 +562,14 @@ class JmModuleConfig:
         cls.REGISTRY_CLIENT[client_class.client_key] = client_class
 
     @classmethod
+    def register_async_client(cls, client_class):
+        """注册异步客户端类，对标 register_client"""
+        from .jm_toolkit import ExceptionTool
+        ExceptionTool.require_true(getattr(client_class, 'client_key', None) is not None,
+                                   f'未配置client_key, class: {client_class}')
+        cls.REGISTRY_ASYNC_CLIENT[client_class.client_key] = client_class
+
+    @classmethod
     def register_exception_listener(cls, etype, listener):
         cls.REGISTRY_EXCEPTION_LISTENER[etype] = listener
 
@@ -561,15 +584,15 @@ class PrettyFormatter(logging.Formatter):
     """带 ANSI 颜色的日志格式化器，按 topic 前缀分配颜色"""
 
     TOPIC_COLORS = {
-        'album':  '\033[1;36m',  # 青色加粗 — 本子级别
-        'photo':  '\033[36m',    # 青色 — 章节级别
-        'image':  '\033[2;37m',  # 暗灰 — 图片级别（弱化）
-        'plugin': '\033[35m',    # 紫色 — 插件
-        'req':    '\033[33m',    # 黄色 — 网络请求
-        'api':    '\033[34m',    # 蓝色 — API
+        'album': '\033[1;36m',  # 青色加粗 — 本子级别
+        'photo': '\033[36m',  # 青色 — 章节级别
+        'image': '\033[2;37m',  # 暗灰 — 图片级别（弱化）
+        'plugin': '\033[35m',  # 紫色 — 插件
+        'req': '\033[33m',  # 黄色 — 网络请求
+        'api': '\033[34m',  # 蓝色 — API
     }
-    ERROR_COLOR = '\033[1;31m'   # 红色加粗
-    WARN_COLOR = '\033[33m'      # 黄色
+    ERROR_COLOR = '\033[1;31m'  # 红色加粗
+    WARN_COLOR = '\033[33m'  # 黄色
     RESET = '\033[0m'
 
     def __init__(self):
@@ -592,6 +615,7 @@ class PrettyFormatter(logging.Formatter):
         return f'{color}{formatted}{self.RESET}' if color else formatted
 
 
+# noinspection PyUnresolvedReferences
 def enable_pretty_log():
     """开启带颜色的美化日志"""
     import sys
@@ -610,4 +634,3 @@ def enable_pretty_log():
     handler.setFormatter(PrettyFormatter())
     jm_logger.addHandler(handler)
     jm_logger.setLevel(logging.INFO)
-

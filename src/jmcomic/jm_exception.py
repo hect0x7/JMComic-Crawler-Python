@@ -1,4 +1,5 @@
 # 该文件存放jmcomic的异常机制设计和实现
+from typing import NoReturn
 from .jm_entity import *
 
 
@@ -67,6 +68,7 @@ class PartialDownloadFailedException(JmcomicException):
     def downloader(self):
         return self.from_context(ExceptionTool.CONTEXT_KEY_DOWNLOADER)
 
+
 class ExceptionTool:
     """
     抛异常的工具
@@ -83,9 +85,9 @@ class ExceptionTool:
     @classmethod
     def raises(cls,
                msg: str,
-               context: dict = None,
+               context: dict | None = None,
                etype: Optional[Type[Exception]] = None,
-               ):
+               ) -> NoReturn:
         """
         抛出异常
 
@@ -112,7 +114,7 @@ class ExceptionTool:
                      msg: str,
                      html: str,
                      pattern: Pattern,
-                     ):
+                     ) -> NoReturn:
         # 当 flag 开启时，将匹配失败的响应文本持久化到文件，方便debug
         if JmModuleConfig.FLAG_DUMP_HTML_ON_REGEX_ERROR:
             dump_path = cls.dump_html_to_file(html, msg)
@@ -133,7 +135,7 @@ class ExceptionTool:
                     msg: str,
                     resp,
                     etype=ResponseUnexpectedException
-                    ):
+                    ) -> NoReturn:
         cls.raises(
             msg, {
                 cls.CONTEXT_KEY_RESP: resp
@@ -145,7 +147,7 @@ class ExceptionTool:
     def raise_missing(cls,
                       resp,
                       jmid: str,
-                      ):
+                      ) -> NoReturn:
         """
         抛出本子/章节的异常
         :param resp: 响应对象

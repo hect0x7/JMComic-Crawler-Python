@@ -222,6 +222,7 @@ jmv 350234 -y
     Actions：网页上直接输入本子id就能下载（[教程：使用GitHub Actions下载禁漫本子](./assets/docs/sources/tutorial/1_github_actions.md)）
   - 命令行：无需写Python代码，简单易用（[教程：使用命令行下载禁漫本子](./assets/docs/sources/tutorial/2_command_line.md)）
   - Python代码：最本质、最强大的使用方式，需要你有一定的python编程基础
+- **支持 Async 和 Sync 两套 API**
 - 支持**网页端**和**移动端**两种客户端实现，可通过配置切换（**移动端不限ip兼容性好，网页端限制ip地区但效率高**）
 - 支持**自动重试和域名切换**机制
 - **多线程下载**（可细化到一图一线程，效率极高）

@@ -221,7 +221,7 @@ class JmImageDetail(JmBaseEntity, Downloadable):
         self.img_file_name: str = img_file_name  # without suffix
         self.img_file_suffix: str = img_file_suffix
 
-        self.from_photo: Optional[JmPhotoDetail] = from_photo
+        self.from_photo: 'JmPhotoDetail' = from_photo  # type: ignore
         self.query_params: Optional[str] = query_params
         self.index = index  # 从1开始
 
@@ -320,7 +320,7 @@ class JmPhotoDetail(DetailEntity, Downloadable):
         self._series_id: int = int(series_id)
 
         self._author: Optional[str] = author
-        self.from_album: Optional[JmAlbumDetail] = from_album
+        self.from_album: JmAlbumDetail = from_album  # type: ignore
         self.index = self.album_index
 
         # 下面的属性和图片url有关
@@ -668,9 +668,9 @@ class JmSearchPage(JmPageContent):
     def wrap_single_album(cls, album: JmAlbumDetail) -> 'JmSearchPage':
         page = JmSearchPage([(
             album.album_id, {
-                'name': album.name,
-                'tags': album.tags,
-            }
+            'name': album.name,
+            'tags': album.tags,
+        }
         )], 1)
         setattr(page, 'album', album)
         return page
@@ -702,3 +702,6 @@ class JmFavoritePage(JmPageContent):
         for folder_info in self.folder_list:
             fid, fname = folder_info['FID'], folder_info['name']
             yield fid, fname
+
+
+DetailType = TypeVar('DetailType', bound='DetailEntity')

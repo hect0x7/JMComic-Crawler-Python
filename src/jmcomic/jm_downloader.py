@@ -68,14 +68,14 @@ class DownloadCallback:
                f'图片下载完成: {image.tag}, [{image.img_url}] → [{img_save_path}]')
 
 
-class JmDownloader(DownloadCallback):
+class BaseDownloader(DownloadCallback):
     """
-    JmDownloader = JmOption + 调度逻辑
+    不含 I/O 调度的公共基类，负责回调、钩子、Features 注册等无 I/O 通用逻辑。
     """
 
-    def __init__(self, option: JmOption) -> None:
+    def __init__(self, option: JmOption):
         self.option = option
-        self.client = option.build_jm_client()
+        self.client = None
         # 下载成功的记录dict
         self.download_success_dict: Dict[JmAlbumDetail, Dict[JmPhotoDetail, List[Tuple[str, JmImageDetail]]]] = {}
         # 下载失败的记录list
@@ -84,98 +84,6 @@ class JmDownloader(DownloadCallback):
         # Feature 特性列表: [(feature, feature_from), ...]
         self._feature_list: List[Tuple] = []
 
-    def download_album(self, album_id):
-        album = self.client.get_album_detail(album_id)
-        self.download_by_album_detail(album)
-        return album
-
-    def download_by_album_detail(self, album: JmAlbumDetail):
-        self.before_album(album)
-        if album.skip:
-            return
-        self.execute_on_condition(
-            iter_objs=album,
-            apply=self.download_by_photo_detail,
-            count_batch=self.option.decide_photo_batch_count(album)
-        )
-        self.after_album(album)
-
-    def download_photo(self, photo_id):
-        photo = self.client.get_photo_detail(photo_id)
-        self.download_by_photo_detail(photo)
-        return photo
-
-    @catch_exception
-    def download_by_photo_detail(self, photo: JmPhotoDetail):
-        self.client.check_photo(photo)
-
-        self.before_photo(photo)
-        if photo.skip:
-            return
-        self.execute_on_condition(
-            iter_objs=photo,
-            apply=self.download_by_image_detail,
-            count_batch=self.option.decide_image_batch_count(photo)
-        )
-        self.after_photo(photo)
-
-    @catch_exception
-    def download_by_image_detail(self, image: JmImageDetail):
-        img_save_path = self.option.decide_image_filepath(image)
-
-        image.save_path = img_save_path
-        image.exists = file_exists(img_save_path)
-        image.cache = self.option.decide_download_cache(image)
-
-        self.before_image(image, img_save_path)
-
-        if image.skip:
-            return
-
-        # let option decide use_cache and decode_image
-        decode_image = self.option.decide_download_image_decode(image)
-
-        # skip download
-        if image.cache and image.exists:
-            return
-
-        self.client.download_by_image_detail(
-            image,
-            img_save_path,
-            decode_image=decode_image,
-        )
-
-        self.after_image(image, img_save_path)
-
-    def execute_on_condition(self,
-                             iter_objs: DetailEntity,
-                             apply: Callable,
-                             count_batch: int,
-                             ):
-        """
-        调度本子/章节的下载
-        """
-        iter_objs = self.do_filter(iter_objs)
-        count_real = len(iter_objs)
-
-        if count_real == 0:
-            return
-
-        if count_batch >= count_real:
-            # 一个图/章节 对应 一个线程
-            multi_thread_launcher(
-                iter_objs=iter_objs,
-                apply_each_obj_func=apply,
-            )
-        else:
-            # 创建batch个线程的线程池
-            thread_pool_executor(
-                iter_objs=iter_objs,
-                apply_each_obj_func=apply,
-                max_workers=count_batch,
-            )
-
-    # noinspection PyMethodMayBeStatic
     def do_filter(self, detail: DetailEntity):
         """
         该方法可用于过滤本子/章节，默认不会做过滤。
@@ -330,6 +238,113 @@ class JmDownloader(DownloadCallback):
             {'downloader': self},
             PartialDownloadFailedException,
         )
+
+
+class JmDownloader(BaseDownloader):
+    """
+    JmDownloader = BaseDownloader + 同步 I/O 调度逻辑
+    """
+
+    def __init__(self, option: JmOption):
+        super().__init__(option)
+        self.client = self.create_client()
+
+    def create_client(self):
+        """
+        创建该downloader使用的client。
+        """
+        return self.option.build_jm_client()
+
+    def download_album(self, album_id):
+        album = self.client.get_album_detail(album_id)
+        self.download_by_album_detail(album)
+        return album
+
+    def download_by_album_detail(self, album: JmAlbumDetail):
+        self.before_album(album)
+        if album.skip:
+            return
+        self.execute_on_condition(
+            iter_objs=album,
+            apply=self.download_by_photo_detail,
+            count_batch=self.option.decide_photo_batch_count(album)
+        )
+        self.after_album(album)
+
+    def download_photo(self, photo_id):
+        photo = self.client.get_photo_detail(photo_id)
+        self.download_by_photo_detail(photo)
+        return photo
+
+    @catch_exception
+    def download_by_photo_detail(self, photo: JmPhotoDetail):
+        self.client.check_photo(photo)
+
+        self.before_photo(photo)
+        if photo.skip:
+            return
+        self.execute_on_condition(
+            iter_objs=photo,
+            apply=self.download_by_image_detail,
+            count_batch=self.option.decide_image_batch_count(photo)
+        )
+        self.after_photo(photo)
+
+    @catch_exception
+    def download_by_image_detail(self, image: JmImageDetail):
+        img_save_path = self.option.decide_image_filepath(image)
+
+        image.save_path = img_save_path
+        image.exists = file_exists(img_save_path)
+        image.cache = self.option.decide_download_cache(image)
+
+        self.before_image(image, img_save_path)
+
+        if image.skip:
+            return
+
+        # let option decide use_cache and decode_image
+        decode_image = self.option.decide_download_image_decode(image)
+
+        # skip download
+        if image.cache and image.exists:
+            return
+
+        self.client.download_by_image_detail(
+            image,
+            img_save_path,
+            decode_image=decode_image,
+        )
+
+        self.after_image(image, img_save_path)
+
+    def execute_on_condition(self,
+                             iter_objs: DetailEntity,
+                             apply: Callable,
+                             count_batch: int,
+                             ):
+        """
+        调度本子/章节的下载
+        """
+        iter_objs = self.do_filter(iter_objs)
+        count_real = len(iter_objs)
+
+        if count_real == 0:
+            return
+
+        if count_batch >= count_real:
+            # 一个图/章节 对应 一个线程
+            multi_thread_launcher(
+                iter_objs=iter_objs,
+                apply_each_obj_func=apply,
+            )
+        else:
+            # 创建batch个线程的线程池
+            thread_pool_executor(
+                iter_objs=iter_objs,
+                apply_each_obj_func=apply,
+                max_workers=count_batch,
+            )
 
     # 下面是对with语法的支持
 

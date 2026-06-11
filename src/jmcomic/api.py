@@ -1,3 +1,5 @@
+import asyncio
+
 from .jm_downloader import *
 
 __DOWNLOAD_API_RET = Tuple[JmAlbumDetail, JmDownloader]
@@ -138,3 +140,108 @@ def create_option_by_str(text: str, mode=None):
 
 
 create_option = create_option_by_file
+
+
+def new_async_downloader(option=None, downloader=None):
+    from .jm_async_downloader import JmAsyncDownloader
+    if option is None:
+        option = JmModuleConfig.option_class().default()
+
+    if downloader is None:
+        downloader = JmAsyncDownloader
+
+    return downloader(option)
+
+
+async def download_album_async(jm_album_id,
+                               option=None,
+                               downloader=None,
+                               callback=None,
+                               check_exception=True,
+                               extra=None,
+                               ):
+    """
+    异步下载一个本子（album），包含其所有的章节（photo）。
+
+    - 支持批量下载（当 jm_album_id 为可迭代对象时）
+    - 返回 (album, downloader) 元组
+    """
+    if not isinstance(jm_album_id, (str, int)):
+        return await download_batch_async(download_album_async,
+                                          jm_album_id,
+                                          option,
+                                          downloader,
+                                          extra=extra
+                                          )
+
+    async with new_async_downloader(option, downloader) as dler:
+        dler.add_features(extra, 'download_album')
+        album = await dler.download_album(jm_album_id)
+
+        if callback is not None:
+            callback(album, dler)
+        if check_exception:
+            dler.raise_if_has_exception()
+
+        return album, dler
+
+
+async def download_photo_async(jm_photo_id,
+                               option=None,
+                               downloader=None,
+                               callback=None,
+                               check_exception=True,
+                               extra=None,
+                               ):
+    """
+    异步下载一个章节（photo）。
+    """
+    if not isinstance(jm_photo_id, (str, int)):
+        return await download_batch_async(download_photo_async,
+                                          jm_photo_id,
+                                          option,
+                                          downloader,
+                                          extra=extra
+                                          )
+
+    async with new_async_downloader(option, downloader) as dler:
+        dler.add_features(extra, 'download_photo')
+        photo = await dler.download_photo(jm_photo_id)
+
+        if callback is not None:
+            callback(photo, dler)
+        if check_exception:
+            dler.raise_if_has_exception()
+
+        return photo, dler
+
+
+async def download_batch_async(download_api,
+                               jm_id_iter,
+                               option=None,
+                               downloader=None,
+                               **kwargs,
+                               ):
+    """
+    异步批量下载 album / photo。
+    - 容错机制：单个 album/photo 失败不会中止整批，也不会丢失其它已完成结果。
+    """
+    if option is None:
+        option = JmModuleConfig.option_class().default()
+
+    jm_ids = list(dict.fromkeys(JmcomicText.parse_to_jm_id(jmid) for jmid in jm_id_iter))
+
+    results = await asyncio.gather(
+        *(download_api(jmid, option, downloader, **kwargs) for jmid in jm_ids),
+        return_exceptions=True,
+    )
+
+    # 失败不抛出，但要记录，便于排查
+    result_set = set()
+    for jmid, r in zip(jm_ids, results):
+        if isinstance(r, BaseException):
+            jm_log('async.batch.failed', f'批量下载失败: [{jmid}], 异常: [{r}]', r)
+        else:
+            result_set.add(r)
+
+    return result_set

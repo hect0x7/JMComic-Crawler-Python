@@ -1,0 +1,49 @@
+name: Async Benchmark
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -e .
+
+    - name: Run Performance Benchmark
+      env:
+        PYTHONPATH: ${{ github.workspace }}/src
+        no_proxy: '*'
+      run: python usage/benchmark_async_vs_sync.py
+
+    - name: Publish Report to Step Summary
+      if: always()
+      run: |
+        if [ -f PERFORMANCE_REPORT.md ]; then
+          cat PERFORMANCE_REPORT.md >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ PERFORMANCE_REPORT.md not generated" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Upload Benchmark Report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-report
+        path: PERFORMANCE_REPORT.md
