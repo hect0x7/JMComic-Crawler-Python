@@ -53,3 +53,4 @@ jobs:
       with:
         name: benchmark-report
         path: PERFORMANCE_REPORT.md
+        if-no-files-found: warn

@@ -278,7 +278,7 @@ async def run_benchmark():
     with open('PERFORMANCE_REPORT.md', 'w', encoding='utf-8') as f:
         f.write(report)
 
-    print(f'\n✅ 评测完成，报告已生成: PERFORMANCE_REPORT.md')
+    print('\n✅ 评测完成，报告已生成: PERFORMANCE_REPORT.md')
     print(f'Query    Sync={avgs["sq"]:.4f}s  Async={avgs["aq"]:.4f}s')
     print(f'Download Sync={avgs["sd"]:.4f}s  Async={avgs["ad"]:.4f}s')
 

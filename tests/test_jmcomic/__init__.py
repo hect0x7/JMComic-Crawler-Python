@@ -145,6 +145,7 @@ class JmAsyncTestConfigurable(JmTestConfigurable):
             cls._loop.run_until_complete(cls.async_client.close())
             cls.async_client = None
         if cls._loop:
+            cls._asyncio.set_event_loop(None)
             cls._loop.close()
             cls._loop = None
         super().tearDownClass()

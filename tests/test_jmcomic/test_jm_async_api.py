@@ -5,6 +5,7 @@ Async API 行为一致性测试 (参考 test_jm_api.py)
 确保与 sync 版 download_album / download_photo / download_batch 行为一致。
 """
 
+import asyncio
 from test_jmcomic import *
 from jmcomic import (
     download_album_async, download_photo_async, download_batch_async,

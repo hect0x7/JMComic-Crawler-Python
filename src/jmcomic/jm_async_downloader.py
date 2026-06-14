@@ -37,8 +37,13 @@ class JmAsyncDownloader(BaseDownloader):
                  ) -> None:
         super().__init__(option)
         # 提取图片并发配置
-        image_concurrency = image_concurrency or option.download.threading.image
-        photo_concurrency = photo_concurrency or option.download.threading.photo
+        image_concurrency = int(image_concurrency or option.download.threading.image)
+        if image_concurrency <= 0:
+            raise ValueError(f"image_concurrency must be > 0, got {image_concurrency}")
+            
+        photo_concurrency = int(photo_concurrency or option.download.threading.photo)
+        if photo_concurrency <= 0:
+            raise ValueError(f"photo_concurrency must be > 0, got {photo_concurrency}")
 
         self._image_concurrency = image_concurrency
         self._image_semaphore = asyncio.Semaphore(image_concurrency)

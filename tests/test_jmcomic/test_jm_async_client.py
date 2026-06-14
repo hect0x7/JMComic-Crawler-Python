@@ -6,6 +6,7 @@ Async Client API 对称性测试 —— 对标 test_jm_client.py
 """
 
 from test_jmcomic import *
+import asyncio
 
 
 class Test_Async_Client(JmAsyncTestConfigurable):
@@ -98,6 +99,7 @@ class Test_Async_Client(JmAsyncTestConfigurable):
             },
         }
 
+        elist = []
         for expected_id, params in cases.items():
             try:
                 sync_page = self.sync_api_client.search_site(**params)
@@ -106,9 +108,16 @@ class Test_Async_Client(JmAsyncTestConfigurable):
                 async_first_aid = int(async_page[0][0])
                 self.assert_sync_async_equal(sync_first_aid, async_first_aid,
                                              f'search_params[{expected_id}].first_aid')
-            except Exception:
-                # 与 sync 原测试一致：网络/排名波动时不阻塞
-                pass
+            except Exception as e:
+                elist.append(e)
+
+        if len(elist) == 0:
+            return
+
+        for e in elist:
+            print(e)
+
+        raise AssertionError(elist)
 
     def test_async_ranking(self):
         """对标 test_ranking：month_ranking diff"""
