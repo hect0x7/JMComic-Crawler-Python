@@ -1,5 +1,6 @@
-import logging
+from __future__ import annotations
 
+import logging
 from common import time_stamp, field_cache, ProxyBuilder
 
 jm_logger = logging.getLogger('jmcomic')
