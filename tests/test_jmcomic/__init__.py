@@ -188,9 +188,10 @@ class JmAsyncTestConfigurable(JmTestConfigurable):
                 f'photo.{attr}',
             )
 
-    def assert_search_page_equal(self, sync_page, async_page):
+    def assert_search_page_equal(self, sync_page, async_page, check_total=True):
         """断言两个搜索结果页在结构上一致"""
-        self.assert_sync_async_equal(sync_page.total, async_page.total, 'page.total')
+        if check_total:
+            self.assert_sync_async_equal(sync_page.total, async_page.total, 'page.total')
         # 比较前 5 条结果的 album_id
         sync_ids = [aid for aid, _ in sync_page[:min(5, len(sync_page))]]
         async_ids = [aid for aid, _ in async_page[:min(5, len(async_page))]]

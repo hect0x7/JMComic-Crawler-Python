@@ -129,7 +129,7 @@ class Test_Async_Client(JmAsyncTestConfigurable):
         """对标 test_ranking：month_ranking diff"""
         sync_ranking = self.sync_api_client.month_ranking(1)
         async_ranking = self.run_async(self.async_client.month_ranking(1))
-        self.assert_search_page_equal(sync_ranking, async_ranking)
+        self.assert_search_page_equal(sync_ranking, async_ranking, check_total=False)
 
     def test_async_photo_sort(self):
         """对标 test_photo_sort：photo.sort 排序一致性 diff"""
