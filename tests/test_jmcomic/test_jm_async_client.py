@@ -258,12 +258,19 @@ class Test_Async_Client(JmAsyncTestConfigurable):
 
     # ===== diff 标记测试 =====
 
-    def test_async_search_gen_not_supported(self):
-        """diff 标记：async 不支持 search_gen（sync 独有功能，已知限制）"""
-        self.assertFalse(
-            hasattr(self.async_client, 'search_gen'),
-            'async client 不应有 search_gen（sync 独有功能）'
-        )
+    def test_async_search_generator(self):
+        """测试异步生成器 search_gen 的使用 (包含 asend)"""
+        async def run():
+            gen = self.async_client.search_gen('MANA')
+            # 触发第一页
+            page1 = await gen.asend(None)
+            self.assertGreater(page1.total, 0)
+
+            # 使用 asend 翻页
+            page2 = await gen.asend({'page': 2})
+            self.assertGreater(page2.total, 0)
+
+        self.run_async(run())
 
     def test_async_download_cover_not_supported(self):
         """diff 标记：async client 无独立 download_album_cover"""
