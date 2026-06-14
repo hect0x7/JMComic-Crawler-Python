@@ -311,7 +311,9 @@ class AsyncJmApiClient(AsyncJmcomicClient):
         核心的 API 请求封装方法。
         处理参数拼装、请求发送与重试，并返回统一的 JmApiResp 响应对象。
         """
-        await self.setup()
+        # /setting 是 setup() 内部初始化调用的接口，跳过 setup 防止 asyncio.Lock 不可重入死锁
+        if url != '/setting':
+            await self.setup()
 
         # 构建 headers 和时间戳
         headers, ts = self._build_api_headers(url)

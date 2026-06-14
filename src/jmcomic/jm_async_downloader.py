@@ -36,12 +36,12 @@ class JmAsyncDownloader(BaseDownloader):
                  decode_worker: int | None = None,
                  ) -> None:
         super().__init__(option)
-        # 提取图片并发配置
-        image_concurrency = int(image_concurrency or option.download.threading.image)
+        # 提取图片并发配置（使用 is None 判断，避免 0 被 or 静默替换为默认值）
+        image_concurrency = int(image_concurrency if image_concurrency is not None else option.download.threading.image)
         if image_concurrency <= 0:
             raise ValueError(f"image_concurrency must be > 0, got {image_concurrency}")
-            
-        photo_concurrency = int(photo_concurrency or option.download.threading.photo)
+
+        photo_concurrency = int(photo_concurrency if photo_concurrency is not None else option.download.threading.photo)
         if photo_concurrency <= 0:
             raise ValueError(f"photo_concurrency must be > 0, got {photo_concurrency}")
 

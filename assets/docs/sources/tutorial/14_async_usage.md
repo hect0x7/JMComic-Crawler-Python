@@ -52,7 +52,7 @@ asyncio.run(main())
 
 ```python
 # 离开代码块时会自动清理并断开连接
-async with op.new_jm_async_client() as cl:
+async with JmOption.default().new_jm_async_client() as cl:
     album = await cl.get_album_detail(123)
 ```
 
