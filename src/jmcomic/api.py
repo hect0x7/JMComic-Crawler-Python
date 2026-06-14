@@ -124,7 +124,7 @@ def create_option_by_file(filepath):
 
 
 def create_option_by_env(env_name='JM_OPTION_PATH'):
-    from .cl import get_env
+    from .cli import get_env
 
     filepath = get_env(env_name, None)
     ExceptionTool.require_true(filepath is not None,
