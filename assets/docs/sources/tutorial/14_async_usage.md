@@ -6,21 +6,21 @@
 
 ## 1. 异步下载本子/章节
 
-你可以直接使用最高层的封装方法来进行异步下载：
+你可以直接使用以下方法来进行异步下载：
 
 ```python
 import asyncio
 import jmcomic
 
 async def main():
-    # 异步下载本子
+    # 异步下载单个本子
     await jmcomic.download_album_async('438696')
     
     # 异步下载单章节
     await jmcomic.download_photo_async('438696')
     
-    # 批量异步下载（替代同步版传递 list）
-    await jmcomic.download_batch_async(['123', '456'])
+    # 批量异步下载（直接传递包含 ID 的列表或迭代器即可，内部会自动同时下载）
+    await jmcomic.download_album_async(['123', '456'])
 
 if __name__ == '__main__':
     asyncio.run(main())
@@ -46,7 +46,28 @@ asyncio.run(main())
 
 ## 3. 异步获取实体类，并发请求
 
-使用 `asyncio.gather` 可以极大地加速网络请求：
+### 💡 关于 async with 和自动初始化
+
+当你使用异步客户端时，推荐直接搭配 `async with` 上下文管理器来使用：
+
+```python
+# 离开代码块时会自动清理并断开连接
+async with op.new_jm_async_client() as cl:
+    album = await cl.get_album_detail(123)
+```
+
+客户端会在你真正发起网络请求时自动初始化：
+
+- **结合 `async with`**：当进入 `async with` 作用域时，客户端会自动完成域名解析、联通性检查等必要的初始化工作，并在离开时安全释放连接。
+- **单独使用**：如果你不想使用 `async with`，而是直接调用 `cl = op.new_jm_async_client()`，那么在第一次发起真实的请求（比如 `get_album_detail`）时，客户端也会自动检测并先执行一遍初始化。
+
+无论哪种写法都只会初始化一次，你不需要自己去调用任何初始化代码，直接用就行。
+
+---
+
+### 并发请求示例
+
+使用 `asyncio.gather` 可以并发执行网络请求：
 
 ```python
 import asyncio
@@ -55,108 +76,93 @@ from jmcomic import JmOption, AsyncJmApiClient
 async def main():
     op = JmOption.default()
     
-    # 异步获取客户端对象
-    cl: AsyncJmApiClient = await op.new_jm_async_client()
-    
-    # 示例：使用async并发获取本子详情
-    album_id_list = [123, 456]
-    album_list = await asyncio.gather(
-        *(cl.get_album_detail(aid) for aid in album_id_list)
-    )
-    
-    # 打印结果
-    for aid, album in zip(album_id_list, album_list):
-        print(f'[JM{aid}] 本子详情: {album}')
+    # 同步获取客户端对象，并通过上下文管理器自动管理生命周期
+    async with op.new_jm_async_client() as cl:
+        # 示例：使用 async 并发获取本子详情
+        album_id_list = [123, 456]
+        album_list = await asyncio.gather(
+            *(cl.get_album_detail(aid) for aid in album_id_list)
+        )
         
-    # 获取章节实体类
-    photo = await cl.get_photo_detail('212214')
-    print(photo.name)
+        # 打印结果
+        for aid, album in zip(album_id_list, album_list):
+            print(f'[JM{aid}] 本子详情: {album}')
+            
+        # 获取章节实体类
+        photo = await cl.get_photo_detail('212214')
+        print(photo.name)
 
 asyncio.run(main())
 ```
 
 ## 4. 异步异常处理示例
 
-异步调用的异常机制与同步完全一致，同样可以通过捕获 `JmcomicException` 及各类派生异常进行兜底：
+异步调用的异常机制与同步完全一致，同样可以通过捕获 `JmcomicException` 及各类派生异常进行处理：
 
 ```python
 import asyncio
 from jmcomic import JmOption, MissingAlbumPhotoException, JsonResolveFailException, RequestRetryAllFailException, JmcomicException
 
 async def main():
-    cl = await JmOption.default().new_jm_async_client()
-
-    try:
-        album = await cl.get_album_detail('99999999')
-    except MissingAlbumPhotoException as e:
-        print(f'id={e.error_jmid}的本子不存在')
-    except JsonResolveFailException as e:
-        print(f'解析json失败: {e.resp.status_code}')
-    except RequestRetryAllFailException:
-        print(f'请求失败，重试次数耗尽')
-    except JmcomicException as e:
-        print(f'遇到兜底异常: {e}')
+    async with JmOption.default().new_jm_async_client() as cl:
+        try:
+            album = await cl.get_album_detail('99999999')
+        except MissingAlbumPhotoException as e:
+            print(f'id={e.error_jmid}的本子不存在')
+        except JsonResolveFailException as e:
+            print(f'解析json失败: {e.resp.status_code}')
+        except RequestRetryAllFailException:
+            print(f'请求失败，重试次数耗尽')
+        except JmcomicException as e:
+            print(f'遇到异常: {e}')
 
 asyncio.run(main())
 ```
 
 ## 5. 异步搜索本子
 
-使用 `search` 方法获取搜索分页数据。注意，异步方法目前未提供 `_gen` 生成器封装，需要手动管理页码遍历。
-
-```python
-import asyncio
-from jmcomic import JmOption, JmSearchPage
-
-async def main():
-    cl = await JmOption.default().new_jm_async_client()
-
-    # 查询，类似于网页上的【站内搜索】
-    page: JmSearchPage = await cl.search(
-        search_query='+MANA +无修正', 
-        page=1, 
-        main_tag=0, 
-        order_by='mr', 
-        time='a', 
-        category='doujin', 
-        sub_category=None
-    )
-    
-    print(f'结果总数: {page.total}, 分页大小: {page.page_size}，页数: {page.page_count}')
-
-    for album_id, title in page.iter_id_title():
-        print(f'[{album_id}]: {title}')
-
-asyncio.run(main())
-```
-
-## 6. 异步获取收藏夹
-
-获取收藏夹同样支持分页，可以传入指定的 `folder_id`。
+由于搜索结果通常有多页，推荐使用 `search_gen` 异步生成器。配合 `async for`，客户端会自动处理翻页逻辑并逐页获取数据：
 
 ```python
 import asyncio
 from jmcomic import JmOption
 
 async def main():
-    cl = await JmOption.default().new_jm_async_client()
-    # 异步登录
-    await cl.login('用户名', '密码')
+    async with JmOption.default().new_jm_async_client() as cl:
+        # async for 会帮你自动加载下一页，一页一页往下搜
+        async for page in cl.search_gen('+MANA +无修正'):
+            print(f'当前获取到了第 {page.page} 页，本页数据量: {page.page_size}')
+            
+            for album_id, title in page.iter_id_title():
+                print(f'[{album_id}]: {title}')
 
-    # 获取特定收藏夹的单页
-    page = await cl.favorite_folder(
-        page=1,
-        order_by='mr', # JmMagicConstants.ORDER_BY_LATEST
-        folder_id='0'  # 收藏夹id
-    )
-    
-    # 遍历本页结果
-    for aid, atitle in page.iter_id_title():
-        print(aid, atitle)
-        
-    # 打印当前帐号的所有收藏夹信息
-    for folder_id, folder_name in page.iter_folder_id_name():
-        print(f'收藏夹id: {folder_id}, 收藏夹名称: {folder_name}')
+asyncio.run(main())
+```
+
+如果只需要第一页的数据，依然可以直接调用基础的 `await cl.search(...)` 方法。
+
+## 6. 异步获取收藏夹
+
+获取收藏夹的用法和搜索非常像，同样支持使用异步生成器 `favorite_folder_gen` 自动翻页获取整个收藏夹的内容：
+
+```python
+import asyncio
+from jmcomic import JmOption
+
+async def main():
+    async with JmOption.default().new_jm_async_client() as cl:
+        # 先登录
+        await cl.login('你的用户名', '你的密码')
+
+        # 使用 async for 遍历整个收藏夹的所有页
+        async for page in cl.favorite_folder_gen(folder_id='0'):
+            # 遍历本页的所有本子
+            for aid, atitle in page.iter_id_title():
+                print(aid, atitle)
+                
+            # 同时支持获取当前账号下的所有收藏夹目录信息
+            for folder_id, folder_name in page.iter_folder_id_name():
+                print(f'收藏夹id: {folder_id}, 名称: {folder_name}')
 
 asyncio.run(main())
 ```
@@ -170,18 +176,17 @@ import asyncio
 from jmcomic import JmOption
 
 async def main():
-    cl = await JmOption.default().new_jm_async_client()
-
-    # 获取全部时间、全部分类下，按观看数排序的第一页本子
-    page = await cl.categories_filter(
-        page=1,
-        time='a',        # JmMagicConstants.TIME_ALL
-        category='all',  # JmMagicConstants.CATEGORY_ALL
-        order_by='mv',   # JmMagicConstants.ORDER_BY_VIEW
-    )
-    
-    for aid, atitle in page:
-        print(aid, atitle)
+    async with JmOption.default().new_jm_async_client() as cl:
+        # 获取全部时间、全部分类下，按观看数排序的第一页本子
+        page = await cl.categories_filter(
+            page=1,
+            time='a',        # JmMagicConstants.TIME_ALL
+            category='all',  # JmMagicConstants.CATEGORY_ALL
+            order_by='mv',   # JmMagicConstants.ORDER_BY_VIEW
+        )
+        
+        for aid, atitle in page:
+            print(aid, atitle)
 
 asyncio.run(main())
 ```

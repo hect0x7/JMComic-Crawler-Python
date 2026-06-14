@@ -268,18 +268,18 @@ class JmImageClient:
 
         resp.require_success()
 
-        self.save_image_resp(decode_image, img_save_path, img_url, resp, scramble_id)
+        return self.save_image_resp(decode_image, img_save_path, img_url, resp, scramble_id)
 
     # noinspection PyMethodMayBeStatic
     def save_image_resp(self, decode_image, img_save_path, img_url, resp, scramble_id):
-        resp.transfer_to(img_save_path, scramble_id, decode_image, img_url)
+        return resp.transfer_to(img_save_path, scramble_id, decode_image, img_url)
 
     def download_by_image_detail(self,
                                  image: JmImageDetail,
                                  img_save_path,
                                  decode_image=True,
                                  ):
-        self.download_image(
+        return self.download_image(
             image.download_url,
             img_save_path,
             int(image.scramble_id),
@@ -740,6 +740,70 @@ class AsyncJmcomicClient:
                            ):
         return await self.search(search_query, page, 4, order_by, time, category, sub_category)
 
+    async def do_page_iter(self, params: dict, page: int, get_page_method):
+        from math import inf
+        from typing import Optional, Dict
+
+        def update(value: Optional[Dict], page: int, page_content):
+            if value is None:
+                return page + 1, page_content.page_count
+
+            ExceptionTool.require_true(isinstance(value, dict), 'require dict params')
+
+            # 根据外界传递的参数，更新params和page
+            page = value.get('page', page)
+            params.update(value)
+
+            return page, inf
+
+        total = inf
+        while page <= total:
+            params['page'] = page
+            page_content = await get_page_method(**params)
+            value = yield page_content
+            page, total = update(value, page, page_content)
+
+    async def search_gen(self,
+                         search_query: str,
+                         main_tag=0,
+                         page: int = 1,
+                         order_by: str = JmMagicConstants.ORDER_BY_LATEST,
+                         time: str = JmMagicConstants.TIME_ALL,
+                         category: str = JmMagicConstants.CATEGORY_ALL,
+                         sub_category: Optional[str] = None,
+                         ):
+        """
+        异步搜索结果的生成器。
+        使用示例:
+        ```
+        async for page in client.search_gen('无修正'):
+            pass
+        ```
+        同时支持外界 asend 参数改变搜索的设定:
+        ```
+        gen = client.search_gen('MANA')
+        page_1 = await gen.asend(None)
+        page_3 = await gen.asend({'page': 3})
+        ```
+        """
+        params = {
+            'search_query': search_query,
+            'main_tag': main_tag,
+            'order_by': order_by,
+            'time': time,
+            'category': category,
+            'sub_category': sub_category,
+        }
+
+        aiter = self.do_page_iter(params, page, self.search)
+        value = None
+        while True:
+            try:
+                page_content = await aiter.asend(value)
+                value = yield page_content
+            except StopAsyncIteration:
+                break
+
     # -- JmCategoryClient --
 
     async def categories_filter(self,
@@ -785,6 +849,30 @@ class AsyncJmcomicClient:
                               ) -> JmFavoritePage:
         raise NotImplementedError
 
+    async def favorite_folder_gen(self,
+                                  page=1,
+                                  order_by=JmMagicConstants.ORDER_BY_LATEST,
+                                  folder_id='0',
+                                  username='',
+                                  ):
+        """
+        见 search_gen
+        """
+        params = {
+            'order_by': order_by,
+            'folder_id': folder_id,
+            'username': username,
+        }
+
+        aiter = self.do_page_iter(params, page, self.favorite_folder)
+        value = None
+        while True:
+            try:
+                page_content = await aiter.asend(value)
+                value = yield page_content
+            except StopAsyncIteration:
+                break
+
     async def add_favorite_album(self, album_id, folder_id='0'):
         raise NotImplementedError
 
@@ -818,6 +906,7 @@ class AsyncJmcomicClient:
         raise NotImplementedError
 
     async def __aenter__(self):
+        await self.setup()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):

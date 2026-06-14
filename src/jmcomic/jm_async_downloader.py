@@ -67,7 +67,7 @@ class JmAsyncDownloader(BaseDownloader):
         异步下载整个本子。
         对齐 sync JmDownloader.download_by_album_detail 的回调链路。
         """
-        self.before_album(album)
+        await self.before_album(album)
         if album.skip:
             return
 
@@ -80,7 +80,7 @@ class JmAsyncDownloader(BaseDownloader):
             photo_tasks = [self._safe_download_photo(photo) for photo in photos]
             await asyncio.gather(*photo_tasks)
 
-        self.after_album(album)
+        await self.after_album(album)
 
     async def _safe_download_photo(self, photo: JmPhotoDetail):
         """包装 download_by_photo_detail，对齐 sync @catch_exception 的异常记录"""
@@ -107,7 +107,7 @@ class JmAsyncDownloader(BaseDownloader):
         async with self._photo_semaphore:
             await self.client.check_photo(photo)
 
-            self.before_photo(photo)
+            await self.before_photo(photo)
             if photo.skip:
                 return
 
@@ -123,7 +123,7 @@ class JmAsyncDownloader(BaseDownloader):
                 ]
                 await asyncio.gather(*download_tasks)
 
-            self.after_photo(photo)
+            await self.after_photo(photo)
 
     async def _safe_download_image(self, image: JmImageDetail):
         """
@@ -146,7 +146,7 @@ class JmAsyncDownloader(BaseDownloader):
         image.exists = os.path.exists(img_save_path)
         image.cache = self.option.decide_download_cache(image)
 
-        self.before_image(image, img_save_path)
+        await self.before_image(image, img_save_path)
         if image.skip:
             return
 
@@ -191,7 +191,7 @@ class JmAsyncDownloader(BaseDownloader):
                     need_convert,
                 )
 
-        self.after_image(image, img_save_path)
+        await self.after_image(image, img_save_path)
 
     # ======================================================================
     # 磁盘写入（在线程池中执行）
@@ -226,14 +226,38 @@ class JmAsyncDownloader(BaseDownloader):
     # 生命周期
     # ======================================================================
 
+    async def before_album(self, album: JmAlbumDetail):
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(self._decode_pool, super().before_album, album)
+
+    async def after_album(self, album: JmAlbumDetail):
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(self._decode_pool, super().after_album, album)
+
+    async def before_photo(self, photo: JmPhotoDetail):
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(self._decode_pool, super().before_photo, photo)
+
+    async def after_photo(self, photo: JmPhotoDetail):
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(self._decode_pool, super().after_photo, photo)
+
+    async def before_image(self, image: JmImageDetail, img_save_path: str):
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(self._decode_pool, super().before_image, image, img_save_path)
+
+    async def after_image(self, image: JmImageDetail, img_save_path: str):
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(self._decode_pool, super().after_image, image, img_save_path)
+
     def shutdown(self):
         """关闭解密线程池"""
         self._decode_pool.shutdown(wait=False)
 
     async def __aenter__(self):
         # 创建并独占一个 async client（含 AsyncSession）。
-        # 把本下载器的实际图片并发透传给 client，使 AsyncSession 句柄池大小与之对齐。
-        self.client = await self.option.new_jm_async_client(max_clients=self._image_concurrency)
+        self.client = self.option.new_jm_async_client(max_clients=self._image_concurrency)
+        await self.client.setup()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):

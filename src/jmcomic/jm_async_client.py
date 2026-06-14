@@ -77,6 +77,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
 
         # 接收并保存额外的会话级元数据参数
         self._meta_kwargs = kwargs
+        self._has_setup = False
 
     # ======================================================================
     # 域名管理
@@ -310,7 +311,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
         核心的 API 请求封装方法。
         处理参数拼装、请求发送与重试，并返回统一的 JmApiResp 响应对象。
         """
-        await self._ensure_session()
+        await self.setup()
 
         # 构建 headers 和时间戳
         headers, ts = self._build_api_headers(url)
@@ -492,7 +493,10 @@ class AsyncJmApiClient(AsyncJmcomicClient):
                      category: str,
                      sub_category: str | None,
                      ) -> JmSearchPage:
-        """发起全局搜索请求，提取并包装为搜索结果分页对象"""
+        """
+        发起全局搜索请求，提取并包装为搜索结果分页对象。
+        注意：移动端暂不支持 category 和 sub_category。
+        """
         # 缓存检查
         cache_key = ('search', search_query, page, main_tag, order_by, time)
         # noinspection PyTypeChecker
@@ -533,7 +537,10 @@ class AsyncJmApiClient(AsyncJmcomicClient):
                                 order_by: str,
                                 sub_category: str | None = None,
                                 ) -> JmCategoryPage:
-        """获取指定分类下的图集列表数据"""
+        """
+        获取指定分类下的图集列表数据。
+        注意：移动端不支持 sub_category。
+        """
         o = f'{order_by}_{time}' if time != JmMagicConstants.TIME_ALL else order_by
         params = {
             'page': page,
@@ -584,7 +591,10 @@ class AsyncJmApiClient(AsyncJmcomicClient):
         return JmPageTool.parse_api_to_favorite_page(resp.model_data)
 
     async def add_favorite_album(self, album_id, folder_id='0'):
-        """将指定图集加入用户的收藏夹"""
+        """
+        将指定图集加入用户的收藏夹。
+        注意：移动端没有提供 folder_id 参数。
+        """
         # 服务端实现上使用带 body 的 GET 请求方式
         resp = await self.req_api('/favorite', data={'aid': album_id})
         data = resp.model_data
@@ -612,7 +622,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
         """
         异步下载指定 URL 的图片原始字节数据。
         """
-        await self._ensure_session()
+        await self.setup()
         headers = {**JmModuleConfig.APP_HEADERS_TEMPLATE, **JmModuleConfig.APP_HEADERS_IMAGE}
 
         last_error = None
@@ -686,6 +696,9 @@ class AsyncJmApiClient(AsyncJmcomicClient):
         异步初始化入口，应在使用前调用。
         __aenter__ 会自动调用此方法。
         """
+        if self._has_setup:
+            return
+
         await self._ensure_session()
 
         cls = self.__class__
@@ -702,6 +715,8 @@ class AsyncJmApiClient(AsyncJmcomicClient):
                 if JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES and JmModuleConfig.APP_COOKIES:
                     # noinspection PyUnresolvedReferences
                     self._session.cookies.update(JmModuleConfig.APP_COOKIES)
+
+        self._has_setup = True
 
     # ======================================================================
     # 生命周期

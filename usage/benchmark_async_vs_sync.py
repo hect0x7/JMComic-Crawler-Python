@@ -85,11 +85,13 @@ def new_option(name: str) -> tuple[JmOption, str]:
 
 
 def clean_download_dir(base_dir: str):
-    """清空下载目录下的所有子目录"""
+    """清空下载目录下的所有内容"""
     for item in os.listdir(base_dir):
         item_path = os.path.join(base_dir, item)
         if os.path.isdir(item_path):
             shutil.rmtree(item_path)
+        elif os.path.isfile(item_path) or os.path.islink(item_path):
+            os.remove(item_path)
 
 
 # ================================================================
@@ -116,11 +118,13 @@ def run_sync_download(option: JmOption, album: JmAlbumDetail, base_dir: str) -> 
     """同步下载评测"""
     start = time.time()
     try:
+        dler = JmDownloader(option)
         for rep in range(CI_REPEAT):
             if rep > 0:
                 clean_download_dir(base_dir)
+                dler.download_failed_image.clear()
+                dler.download_failed_photo.clear()
 
-            dler = JmDownloader(option)
             if LIMIT_IMAGES is not None:
                 orig_filter = dler.do_filter
                 dler.do_filter = lambda objs: (
@@ -143,11 +147,17 @@ async def run_async_query(option: JmOption) -> tuple[float | None, JmAlbumDetail
     """异步查询评测"""
     start = time.time()
     try:
-        async with await option.new_jm_async_client() as client:
+        async with option.new_jm_async_client() as client:
             album = None
+            sem = asyncio.Semaphore(CONCURRENCY)
+
+            async def _check(photo):
+                async with sem:
+                    await client.check_photo(photo)
+
             for _ in range(CI_REPEAT):
                 album = await client.get_album_detail(ALBUM_ID)
-                await asyncio.gather(*(client.check_photo(photo) for photo in album))
+                await asyncio.gather(*(_check(photo) for photo in album))
             return time.time() - start, album
     except Exception as e:
         print(f'  ❌ Async Query 失败: {e}')

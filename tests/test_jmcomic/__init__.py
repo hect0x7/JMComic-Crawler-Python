@@ -132,7 +132,8 @@ class JmAsyncTestConfigurable(JmTestConfigurable):
 
         # 创建 async client 并就绪
         async def _create_async_client():
-            client = await cls.option.new_jm_async_client()
+            client = cls.option.new_jm_async_client()
+            await client.setup()
             # 为 async client 开启缓存（对齐 sync 的 cache='level_option'）
             client.set_cache_dict({})
             return client

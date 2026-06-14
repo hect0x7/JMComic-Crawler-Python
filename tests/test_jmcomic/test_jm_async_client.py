@@ -193,7 +193,7 @@ class Test_Async_Client(JmAsyncTestConfigurable):
     def test_async_cache_on_off(self):
         """专门测试：async 缓存开启/关闭行为"""
         loop = asyncio.new_event_loop()
-        client: AsyncJmcomicClient = loop.run_until_complete(self.option.new_jm_async_client())
+        client: AsyncJmcomicClient = self.option.new_jm_async_client()
 
         try:
             loop.run_until_complete(client.setup())
@@ -234,18 +234,18 @@ class Test_Async_Client(JmAsyncTestConfigurable):
             # cache=True → 应开启（对齐 sync 的 CacheRegistry.enable_client_cache_on_condition）
             opt = self.new_option()
             opt.client.src_dict['cache'] = True
-            client_on = loop.run_until_complete(opt.new_jm_async_client())
+            client_on = opt.new_jm_async_client()
             self.assertIsNotNone(client_on.get_cache_dict(), 'cache=True 应开启缓存')
 
             # cache=False → 应关闭
             opt2 = self.new_option()
             opt2.client.src_dict['cache'] = False
-            client_off = loop.run_until_complete(opt2.new_jm_async_client())
+            client_off = opt2.new_jm_async_client()
             self.assertIsNone(client_off.get_cache_dict(), 'cache=False 应关闭缓存')
 
             # 默认 → 应关闭（默认配置 cache=None）
             opt3 = JmOption.default()
-            client_default = loop.run_until_complete(opt3.new_jm_async_client())
+            client_default = opt3.new_jm_async_client()
             self.assertIsNone(client_default.get_cache_dict(), '默认配置应关闭缓存')
         finally:
             if client_on is not None:

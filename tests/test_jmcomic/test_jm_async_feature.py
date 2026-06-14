@@ -44,7 +44,7 @@ class Test_Async_Feature(JmAsyncTestConfigurable):
 
         # 核心断言：触发次数一致
         self.assert_sync_async_equal(sync_count, async_count, 'feature.invoke_count (album)')
-        self.assertGreater(sync_count, 0, 'album(438516) 有 1 章，应至少触发 1 次')
+        self.assertGreater(sync_count, 0, 'album(438516) 有 1 章, 应至少触发 1 次')
 
         # ===== download_photo 场景 =====
         sync_photo_count = 0
@@ -54,7 +54,10 @@ class Test_Async_Feature(JmAsyncTestConfigurable):
                 nonlocal sync_photo_count
                 sync_photo_count += 1
 
-        jmcomic.download_photo(album_id, self.option, extra=SyncPhotoCounter())
+        # 提取真实 photo_id 传入，避免直接传入 album_id 的偶合性依赖
+        photo_id = str(self.sync_api_client.get_album_detail(album_id)[0].photo_id)
+
+        jmcomic.download_photo(photo_id, self.option, extra=SyncPhotoCounter())
 
         async_photo_count = 0
 
@@ -63,7 +66,7 @@ class Test_Async_Feature(JmAsyncTestConfigurable):
                 nonlocal async_photo_count
                 async_photo_count += 1
 
-        asyncio.run(download_photo_async(album_id, self.option, extra=AsyncPhotoCounter()))
+        asyncio.run(download_photo_async(photo_id, self.option, extra=AsyncPhotoCounter()))
 
         self.assert_sync_async_equal(sync_photo_count, async_photo_count, 'feature.invoke_count (photo)')
         self.assertEqual(sync_photo_count, 1, 'download_photo 应触发 1 次')

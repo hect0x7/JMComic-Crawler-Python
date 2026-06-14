@@ -17,6 +17,7 @@
 
 - [快速上手(GitHub README)](https://github.com/hect0x7/JMComic-Crawler-Python/tree/master?tab=readme-ov-file#%E5%BF%AB%E9%80%9F%E4%B8%8A%E6%89%8B)
 - [常用类和方法演示](tutorial/0_common_usage.md)
+- [Async API用法](tutorial/14_async_usage.md)
 - [下载后转为 PDF / ZIP / 长图](tutorial/13_export_and_feature.md)
 - [option配置以及插件写法](./option_file_syntax.md)
 

@@ -594,7 +594,7 @@ class JmOption:
         from .api import download_photo
         return download_photo(photo_id, self, *args, **kwargs)
 
-    async def new_jm_async_client(self, cache=None, **kwargs) -> AsyncJmcomicClient:
+    def new_jm_async_client(self, cache=None, **kwargs) -> AsyncJmcomicClient:
         """
         通过 Option 配置创建异步客户端。
         从 REGISTRY_ASYNC_CLIENT 注册表查找实现类（配置项: client.async_impl），
@@ -610,7 +610,6 @@ class JmOption:
         # 启用缓存（与同步版本保持一致）：默认不缓存，由 client.cache 配置决定
         cache = cache if cache is not None else self.client.cache
         CacheRegistry.enable_client_cache_on_condition(self, client, cache)
-        await client.setup()
         return client
 
     async def download_album_async(self, album_id, *args, **kwargs):
