@@ -314,6 +314,8 @@ class AsyncJmApiClient(AsyncJmcomicClient):
         # /setting 是 setup() 内部初始化调用的接口，跳过 setup 防止 asyncio.Lock 不可重入死锁
         if url != '/setting':
             await self.setup()
+        else:
+            await self._ensure_session()
 
         # 构建 headers 和时间戳
         headers, ts = self._build_api_headers(url)
