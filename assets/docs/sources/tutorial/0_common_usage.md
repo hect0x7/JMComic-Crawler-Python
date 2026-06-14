@@ -29,7 +29,7 @@ from jmcomic import *
 # 1. 在调用下载api前，通过创建和使用option对象，可以定制化下载行为。
 # 推荐使用配置文件的方式来创建option对象，
 # 你可以配置很多东西，比如代理、cookies、下载规则等等。
-# 配置文件的语法参考: https://jmcomic.readthedocs.io/en/latest/option_file_syntax/
+# 配置文件的语法参考: https://jmcomic.readthedocs.io/zh-cn/latest/option_file_syntax/
 option = create_option_by_file('op.yml')  # 通过配置文件来创建option对象
 
 # 2. 调用下载api，把option作为参数传递 

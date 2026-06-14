@@ -15,7 +15,7 @@ JmOption.default().to_file('./option.yml') # 创建默认option，导出为optio
 
 ```yaml
 # 开启jmcomic的日志输出，默认为true
-# 对日志有需求的可进一步参考文档 → https://jmcomic.readthedocs.io/en/latest/tutorial/11_log_custom/
+# 对日志有需求的可进一步参考文档 → https://jmcomic.readthedocs.io/zh-cn/latest/tutorial/11_log_custom/
 log: true
 
 # 配置客户端相关
@@ -26,6 +26,10 @@ client:
   #  api - 表示APP端
   # APP端不限ip兼容性好，网页端限制ip地区但效率高
   impl: html
+  
+  # async_impl: 指定异步客户端的底层实现类 (目前仅有: async_api)
+  # 注意: 配置此项不会自动开启异步下载，你必须在代码中调用 _async 相关方法
+  async_impl: async_api
 
   # domain: 禁漫域名配置，一般无需配置，jmcomic会根据上面的impl自动设置相应域名
   # 该配置项需要和上面的impl结合使用，因为禁漫网页端和APP端使用的是不同域名，

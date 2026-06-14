@@ -59,6 +59,7 @@ nav:
     - tutorial/11_log_custom.md
     - tutorial/12_domain_strategy.md
     - tutorial/13_export_and_feature.md
+    - tutorial/14_async_usage.md
 
 plugins:
   - search

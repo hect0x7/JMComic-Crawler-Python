@@ -112,7 +112,7 @@ rule: Bd / {Aauthor}-{Aid}-{Aoname}
 | `{Aalbum_id}` | str | 同 `{Aid}` | `"248965"` |
 | `{Aname}` | str | 本子名称（原始完整标题） | `"喂我吃吧 老師! [欶瀾漢化組]..."` |
 | `{Atitle}` | str | 同 `{Aname}` | 同上 |
-| `{Aoname}` | str | 提取出的原始短名称 | `"喂我吃吧 老師!"` |
+| `{Aoname}` | str | 提取出的原始名称（去除作者/汉化组等标签） | `"喂我吃吧 老師!"` |
 | `{Aauthor}` | str | 第一作者 | `"BLVEFO9"` |
 | `{Aauthoroname}` | str | `【作者】原始名称` | `"【BLVEFO9】喂我吃吧 老師!"` |
 | `{Aidoname}` | str | `[ID] 原始名称` | `"[248965] 喂我吃吧 老師!"` |
@@ -132,7 +132,7 @@ rule: Bd / {Aauthor}-{Aid}-{Aoname}
 | `{Pphoto_id}` | str | 同 `{Pid}` | `"212214"` |
 | `{Pname}` | str | 章节名称 | `"94 突然打來"` |
 | `{Ptitle}` | str | 同 `{Pname}` | 同上 |
-| `{Poname}` | str | 章节的原始短名称 | `"94 突然打來"` |
+| `{Poname}` | str | 章节的原始名称（去除标签） | `"94 突然打來"` |
 | `{Pauthor}` | str | 章节作者（优先取本子作者） | `"BLVEFO9"` |
 | `{Pauthoroname}` | str | `【作者】章节原始名称` | `"【BLVEFO9】94 突然打來"` |
 | `{Pidoname}` | str | `[ID] 章节原始名称` | `"[212214] 94 突然打來"` |

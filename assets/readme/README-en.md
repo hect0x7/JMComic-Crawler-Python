@@ -149,6 +149,21 @@ b. Set the environment variable `JM_OPTION_PATH` to the option file path (recomm
 jmcomic 123
 ```
 
+### Async API (See [Tutorial 14](../docs/sources/tutorial/14_async_usage.md))
+You can also use `asyncio` for asynchronous downloading:
+
+```python
+import asyncio
+import jmcomic
+
+async def main():
+    await jmcomic.download_album_async('123')
+    await jmcomic.download_photo_async('456')
+
+if __name__ == '__main__':
+    asyncio.run(main())
+```
+
 
 
 ## Advanced Usage
@@ -159,6 +174,7 @@ Please check the documentation homepage → [jmcomic.readthedocs.io (Chinese lan
 
 ## Key Features
 
+- **Supports both Async and Sync APIs**
 - **Bypass Cloudflare anti-bot mechanisms**
 - **Implement the latest decryption logic for the JM APP API (1.6.3)**
 - Multiple usages:
@@ -179,26 +195,10 @@ Please check the documentation homepage → [jmcomic.readthedocs.io (Chinese lan
   - Supports custom callbacks before/after downloading albums/chapters/images
   - Customizable objects: `Downloader` `Option` `Client` `Entities`, etc.
   - Supports custom logging and exception listener mechanics
-  - **Embedded with powerful Plugins** to easily extend features or inject others':
-    - `Login Plugin`
-    - `Hardware usage monitor plugin`
-    - `Filter-new-chapter plugin`
-    - `Zip-files plugin`
-    - `Client proxy plugin`
-    - `Specific image suffix format downloader`
-    - `Send via QQ Mail plugin`
-    - `Log topic filter plugin`
-    - `Auto fetch browser cookies plugin`
-    - `Export favorites to CSV plugin`
-    - `Merge images into PDF plugin`
-    - `Merge images into Long png plugin`
-    - `Local chapter web-viewer plugin`
-    - `Subscribe album update plugin`
-    - `Skip small chapters plugin`
-    - `Duplicate detection and deletion plugin`
-    - `Path string replacement plugin`
-    - `Advanced retry plugin`
-    - `Download cover plugin`
+  - **Embedded with powerful core Plugins** to easily extend features or inject others':
+    - `Login Plugin`, `Filter-new-chapter plugin`, `Export favorites to CSV plugin`
+    - `Merge images into PDF plugin`, `Merge images into Long png plugin`
+    - `Zip-files plugin`, `Auto fetch browser cookies plugin`, `Subscribe album update plugin`, etc.
 
 ## Prerequisites
 
