@@ -28,6 +28,8 @@ jobs:
         run: pip install jmcomic -U
 
       - name: 执行搜索并生成纯文本HTML
+        env:
+          JM_OPTION_PATH: ""   # 🔑 清空环境变量，防止库自动加载配置文件
         run: |
           python - << 'EOF'
           import jmcomic
@@ -37,11 +39,11 @@ jobs:
           keyword = "${{ github.event.inputs.keyword }}"
           page = int("${{ github.event.inputs.page }}")
 
-          # ===== ✅ 修复：使用 create_option 直接传入字典（不要用 create_option_by_file） =====
+          # ===== 强制使用网页端客户端 =====
           option = jmcomic.create_option(
               {
                   "client": {
-                      "impl": "html"  # 使用网页端客户端，支持搜索功能
+                      "impl": "html"
                   }
               }
           )
@@ -52,7 +54,7 @@ jobs:
           print(f"🔍 正在搜索: {keyword}, 第 {page} 页...")
           result = client.search_album(keyword, page=page)
 
-          # ===== 生成纯文本 HTML（不含任何图片引用） =====
+          # ===== 生成纯文本 HTML =====
           html = f'''<!DOCTYPE html>
           <html>
           <head>
@@ -141,7 +143,6 @@ jobs:
           </html>
           '''
 
-          # ===== 写入 HTML 文件 =====
           with open('search_result.html', 'w', encoding='utf-8') as f:
               f.write(html)
 
