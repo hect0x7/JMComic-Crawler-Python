@@ -1,4 +1,4 @@
-name: 🔍 searchBook
+name: 🔍 搜索禁漫本子（纯文本）
 
 on:
   workflow_dispatch:
@@ -37,14 +37,11 @@ jobs:
           keyword = "${{ github.event.inputs.keyword }}"
           page = int("${{ github.event.inputs.page }}")
 
-          # ===== 🔑 关键修改：直接构造 JmHtmlClient =====
-          # 从 jmcomic 导入网页端客户端类
-          from jmcomic import JmHtmlClient, JmOption
-
-          # 创建默认配置，然后强行使用网页端客户端
-          option = JmOption.default()
-          client = JmHtmlClient(option)  # 直接构造网页端客户端
-          print(f"✅ 强制使用网页端客户端: {type(client).__name__}")
+          # ===== 🔑 从配置文件加载配置 =====
+          # 配置文件 option.yml 必须存在于仓库根目录
+          option = jmcomic.create_option_by_file("./option.yml")
+          client = option.build_jm_client()
+          print(f"✅ 使用的客户端类型: {type(client).__name__}")
 
           # ===== 执行搜索 =====
           print(f"🔍 正在搜索: {keyword}, 第 {page} 页...")
