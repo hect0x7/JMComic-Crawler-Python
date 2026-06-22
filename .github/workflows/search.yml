@@ -37,12 +37,11 @@ jobs:
           keyword = "${{ github.event.inputs.keyword }}"
           page = int("${{ github.event.inputs.page }}")
 
-          # ===== 强制使用网页端客户端（JmHtmlClient） =====
-          # 通过配置文件指定使用网页端
+          # ===== ✅ 修复：使用 create_option 直接传入字典（不要用 create_option_by_file） =====
           option = jmcomic.create_option(
               {
                   "client": {
-                      "impl": "html"  # 使用网页端，而不是移动端（app）
+                      "impl": "html"  # 使用网页端客户端，支持搜索功能
                   }
               }
           )
@@ -53,7 +52,7 @@ jobs:
           print(f"🔍 正在搜索: {keyword}, 第 {page} 页...")
           result = client.search_album(keyword, page=page)
 
-          # ===== 生成纯文本 HTML =====
+          # ===== 生成纯文本 HTML（不含任何图片引用） =====
           html = f'''<!DOCTYPE html>
           <html>
           <head>
