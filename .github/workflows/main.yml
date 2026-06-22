@@ -1,0 +1,153 @@
+name: 🔍 searchBook
+
+on:
+  workflow_dispatch:
+    inputs:
+      keyword:
+        description: '输入搜索关键词（例如：orukoa）'
+        required: true
+        default: 'orukoa'
+      page:
+        description: '搜索页码（默认第1页）'
+        required: false
+        default: '1'
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 安装 jmcomic
+        run: pip install jmcomic -U
+
+      - name: 执行搜索并生成纯文本HTML
+        run: |
+          python - << 'EOF'
+          import jmcomic
+          import os
+
+          # ===== 获取输入参数 =====
+          keyword = "${{ github.event.inputs.keyword }}"
+          page = int("${{ github.event.inputs.page }}")
+
+          # ===== 🔑 关键修改：直接构造 JmHtmlClient =====
+          # 从 jmcomic 导入网页端客户端类
+          from jmcomic import JmHtmlClient, JmOption
+
+          # 创建默认配置，然后强行使用网页端客户端
+          option = JmOption.default()
+          client = JmHtmlClient(option)  # 直接构造网页端客户端
+          print(f"✅ 强制使用网页端客户端: {type(client).__name__}")
+
+          # ===== 执行搜索 =====
+          print(f"🔍 正在搜索: {keyword}, 第 {page} 页...")
+          result = client.search_album(keyword, page=page)
+
+          # ===== 生成纯文本 HTML =====
+          html = f'''<!DOCTYPE html>
+          <html>
+          <head>
+              <meta charset="UTF-8">
+              <title>搜索结果: {keyword}</title>
+              <style>
+                  body {{ font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; background: #f5f5f5; }}
+                  h1 {{ color: #222; border-bottom: 3px solid #28a745; padding-bottom: 10px; }}
+                  .summary {{ color: #666; margin-bottom: 20px; }}
+                  .album {{ background: white; padding: 14px 18px; margin: 10px 0; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); display: flex; align-items: center; gap: 16px; }}
+                  .album:hover {{ box-shadow: 0 2px 10px rgba(0,0,0,0.15); }}
+                  .id {{ background: #28a745; color: white; padding: 4px 14px; border-radius: 20px; font-weight: bold; font-size: 14px; min-width: 70px; text-align: center; }}
+                  .info {{ flex: 1; }}
+                  .title {{ font-size: 17px; font-weight: 500; color: #1a1a1a; }}
+                  .title a {{ color: #1a1a1a; text-decoration: none; }}
+                  .title a:hover {{ color: #28a745; }}
+                  .meta {{ font-size: 13px; color: #888; margin-top: 4px; display: flex; gap: 16px; flex-wrap: wrap; }}
+                  .meta span {{ background: #f0f0f0; padding: 1px 10px; border-radius: 12px; }}
+                  .copy-btn {{ padding: 4px 14px; background: #e8e8e8; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }}
+                  .copy-btn:hover {{ background: #ccc; }}
+                  .no-result {{ padding: 50px; text-align: center; color: #999; font-size: 18px; }}
+                  .footer {{ margin-top: 30px; color: #aaa; font-size: 12px; text-align: center; border-top: 1px solid #ddd; padding-top: 16px; }}
+              </style>
+          </head>
+          <body>
+              <h1>🔍 搜索结果: "{keyword}"</h1>
+              <div class="summary">📄 第 {page} 页 · 共找到 {len(result)} 个本子</div>
+          '''
+
+          if not result:
+              html += '<div class="no-result">😅 没有找到相关本子，请换一个关键词试试</div>'
+          else:
+              for album in result:
+                  album_id = album.album_id
+                  title = album.name or f"本子 {album_id}"
+                  author = album.author or "未知"
+                  try:
+                      likes = album.like_count if hasattr(album, 'like_count') and album.like_count else "N/A"
+                  except:
+                      likes = "N/A"
+                  try:
+                      views = album.view_count if hasattr(album, 'view_count') and album.view_count else "N/A"
+                  except:
+                      views = "N/A"
+
+                  html += f'''
+                  <div class="album">
+                      <div class="id">JM{album_id}</div>
+                      <div class="info">
+                          <div class="title">
+                              <a href="https://18comic.vip/album/{album_id}/" target="_blank">{title}</a>
+                          </div>
+                          <div class="meta">
+                              <span>✍️ {author}</span>
+                              <span>👀 {views}</span>
+                              <span>❤️ {likes}</span>
+                          </div>
+                      </div>
+                      <button class="copy-btn" onclick="copyId('{album_id}')">📋 复制ID</button>
+                  </div>
+                  '''
+
+          html += f'''
+              <div class="footer">
+                  💡 点击标题可打开详情页 · 点击"复制ID"复制本子ID，然后去下载工作流使用<br>
+                  生成时间: {os.popen('date -u "+%Y-%m-%d %H:%M:%S UTC"').read().strip()}
+              </div>
+
+              <script>
+                  function copyId(id) {{
+                      navigator.clipboard.writeText(id).then(() => {{
+                          const btn = event.target;
+                          const original = btn.textContent;
+                          btn.textContent = '✅ 已复制';
+                          btn.style.background = '#28a745';
+                          btn.style.color = 'white';
+                          setTimeout(() => {{
+                              btn.textContent = original;
+                              btn.style.background = '#e8e8e8';
+                              btn.style.color = 'black';
+                          }}, 1500);
+                      }});
+                  }}
+              </script>
+          </body>
+          </html>
+          '''
+
+          with open('search_result.html', 'w', encoding='utf-8') as f:
+              f.write(html)
+
+          print(f"✅ 搜索完成！共找到 {len(result)} 个本子")
+          print("📄 纯文本 HTML 已生成: search_result.html")
+          EOF
+
+      - name: 上传 HTML 文件
+        uses: actions/upload-artifact@v4
+        with:
+          name: search_${{ github.event.inputs.keyword }}_page${{ github.event.inputs.page }}
+          path: search_result.html
