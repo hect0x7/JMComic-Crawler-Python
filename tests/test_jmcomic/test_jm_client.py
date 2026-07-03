@@ -357,3 +357,45 @@ class Test_Client(JmTestConfigurable):
         This test retrieves the page 1 ranking data from the configured client and writes it to standard output.
         """
         print(self.client.month_ranking(1))
+
+    def test_indexed_entity_slice(self):
+        from collections.abc import Sequence
+        
+        # 获取真实的 JmSearchPage 对象
+        page = self.client.search_site("中文", page=1)
+        empty_page = self.client.search_site("测试很长的不知道什么鬼123", page=1)
+
+        self.assertTrue(isinstance(page, Sequence))
+
+        # 切片越界应该正常截断，不报错
+        items = page[:1000]
+        self.assertEqual(len(items), len(page))
+        self.assertEqual(page[1000:2000], [])
+        
+        self.assertEqual(empty_page[:10], [])
+
+        # 负数切片
+        if len(page) >= 2:
+            rev = page[::-1]
+            self.assertEqual(rev[0], page[-1])
+            self.assertEqual(rev[-1], page[0])
+
+        if len(page) >= 2:
+            self.assertEqual(page[-1], page[len(page) - 1])
+            self.assertEqual(page[-2], page[len(page) - 2])
+        
+        with self.assertRaises(IndexError):
+            _ = page[len(page) + 10]
+        with self.assertRaises(IndexError):
+            _ = page[-(len(page) + 10)]
+
+        res = []
+        for i in page:
+            res.append(i)
+        self.assertEqual(len(res), len(page))
+
+        if len(page) > 0:
+            # JmSearchPage overrides __iter__ to yield different elements than __getitem__
+            # So we take an item from iter() to test __contains__
+            first_item = next(iter(page))
+            self.assertTrue(first_item in page)
