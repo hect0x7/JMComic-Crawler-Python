@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from functools import lru_cache
 
 from common import *
@@ -37,7 +38,7 @@ class JmBaseEntity:
         return False
 
 
-class IndexedEntity:
+class IndexedEntity(Sequence):
     def getindex(self, index: int):
         raise NotImplementedError
 
@@ -46,12 +47,14 @@ class IndexedEntity:
 
     def __getitem__(self, item) -> Any:
         if isinstance(item, slice):
-            start = item.start or 0
-            stop = item.stop or len(self)
-            step = item.step or 1
+            start, stop, step = item.indices(len(self))
             return [self.getindex(index) for index in range(start, stop, step)]
 
         elif isinstance(item, int):
+            if item < 0:
+                item += len(self)
+            if item < 0 or item >= len(self):
+                raise IndexError(f"index {item} out of range")
             return self.getindex(item)
 
         else:
