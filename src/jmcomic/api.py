@@ -30,13 +30,11 @@ def download_batch(download_api,
 
     result = BatchResult()
 
-    def callback(*ret):
-        result.add(ret)
-
     def _safe_download(aid):
         """batch 内部的单任务包装：确保异常被收集而非静默丢失"""
         try:
-            download_api(aid, option, downloader, callback=callback, **kwargs)
+            ret = download_api(aid, option, downloader, **kwargs)
+            result.add(ret)
         except Exception as e:
             jm_log('batch.failed', f'批量下载失败: [{aid}], 异常: [{e}]', e)
             result.failed[str(aid)] = e
