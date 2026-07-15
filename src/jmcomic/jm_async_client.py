@@ -112,9 +112,6 @@ class AsyncJmApiClient(AsyncJmcomicClient):
             if resolved:
                 return resolved
 
-        updated = JmModuleConfig.DOMAIN_API_UPDATED_LIST
-        if updated:
-            return list(updated)
         domain = self.option.client.domain
         if hasattr(domain, 'get'):
             domain_list = domain.get('api', [])
@@ -133,6 +130,20 @@ class AsyncJmApiClient(AsyncJmcomicClient):
 
     def set_domain_list(self, domain_list: list[str]):
         self._domain_list = domain_list
+
+    def update_old_api_domain(self, new_server_list: list[str]):
+        if not new_server_list:
+            return
+
+        if sorted(self._domain_list) != sorted(JmModuleConfig.DOMAIN_API_LIST):
+            return
+
+        old_server_list = self._domain_list
+        self._domain_list = list(new_server_list)
+        jm_log(
+            'api.update_domain.replace',
+            f'替换异步客户端的内置API域名：(old){old_server_list} ---→ (new){self._domain_list}',
+        )
 
     # ======================================================================
     # 缓存
@@ -685,8 +696,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
             return
 
         if JmModuleConfig.DOMAIN_API_UPDATED_LIST is not None:
-            if JmModuleConfig.DOMAIN_API_UPDATED_LIST:
-                self._domain_list = list(JmModuleConfig.DOMAIN_API_UPDATED_LIST)
+            self.update_old_api_domain(JmModuleConfig.DOMAIN_API_UPDATED_LIST)
             return
 
         # 尝试从域名服务器获取最新域名
@@ -709,8 +719,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
                 jm_log('api.update_domain.success',
                        f'获取到最新的API域名: {new_server_list}')
                 JmModuleConfig.DOMAIN_API_UPDATED_LIST = new_server_list
-                if sorted(self._domain_list) == sorted(JmModuleConfig.DOMAIN_API_LIST):
-                    self._domain_list = new_server_list
+                self.update_old_api_domain(new_server_list)
                 return
             except Exception as e:
                 jm_log('api.update_domain.error', f'通过[{url}]自动更新API域名失败: {e}')
@@ -742,8 +751,8 @@ class AsyncJmApiClient(AsyncJmcomicClient):
                 cls._has_setup_domain = True
             else:
                 # 即使已经初始化过域名，也需要将已保存的全局 DOMAIN 赋值到当前 client
-                if JmModuleConfig.DOMAIN_API_UPDATED_LIST:
-                    self._domain_list = list(JmModuleConfig.DOMAIN_API_UPDATED_LIST)
+                if JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN:
+                    self.update_old_api_domain(JmModuleConfig.DOMAIN_API_UPDATED_LIST)
 
             # Cookie 属于 session 状态，每个 client 都需要独立确认。
             if JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES:

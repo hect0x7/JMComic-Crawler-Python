@@ -29,8 +29,8 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
         try:
             client = opt.new_jm_async_client()
             self.assertIsInstance(client, MyAsyncClient)
-            # 域名应回退到默认 API 域名列表（与 sync 行为一致）
-            expected = JmModuleConfig.DOMAIN_API_UPDATED_LIST or JmModuleConfig.DOMAIN_API_LIST
+            # setup 前应回退到默认 API 域名列表（与 sync 构造行为一致）
+            expected = JmModuleConfig.DOMAIN_API_LIST
             self.assertListEqual(client.get_domain_list(), list(expected))
         finally:
             if client is not None:
@@ -105,8 +105,8 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
         client = None
         try:
             client = opt.new_jm_async_client()
-            # 应回退到 DOMAIN_API_UPDATED_LIST 或 DOMAIN_API_LIST（与 sync 行为一致）
-            expected = JmModuleConfig.DOMAIN_API_UPDATED_LIST or JmModuleConfig.DOMAIN_API_LIST
+            # setup 前应回退到默认 API 域名列表（与 sync 构造行为一致）
+            expected = JmModuleConfig.DOMAIN_API_LIST
             self.assertListEqual(client.get_domain_list(), list(expected))
         finally:
             if client is not None:
@@ -114,25 +114,53 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
             loop.close()
 
     def test_async_explicit_domain_list(self):
-        """异步 client 支持显式字符串、列表和元组域名配置"""
-        opt = self.new_option()
-        expected = ['domain-a.example', 'domain-b.example']
+        """setup 仅替换内置域名，保留显式参数和 Option 自定义域名"""
+        old_auto_update = JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN
+        old_require_cookies = JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES
+        old_updated_domains = JmModuleConfig.DOMAIN_API_UPDATED_LIST
+        old_setup_domain = AsyncJmApiClient._has_setup_domain
 
-        clients = [
-            opt.new_jm_async_client(domain_list=expected),
-            opt.new_jm_async_client(domain_list=tuple(expected)),
-            opt.new_jm_async_client(domain_list='domain-a.example\ndomain-b.example'),
-        ]
+        expected = ['domain-a.example', 'domain-b.example']
+        updated = ['updated-domain.example']
+        clients = []
+        default_client = None
+        loop = asyncio.new_event_loop()
         try:
+            JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = True
+            JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES = False
+            JmModuleConfig.DOMAIN_API_UPDATED_LIST = updated
+            AsyncJmApiClient._has_setup_domain = False
+
+            opt = self.new_option()
+            configured_opt = self.new_option()
+            configured_opt.client.src_dict['domain'] = {'api': list(expected)}
+            default_opt = self.new_option()
+            default_opt.client.src_dict['domain'] = {'api': list(JmModuleConfig.DOMAIN_API_LIST)}
+
+            clients = [
+                opt.new_jm_async_client(domain_list=expected),
+                opt.new_jm_async_client(domain_list=tuple(expected)),
+                opt.new_jm_async_client(domain_list='domain-a.example\ndomain-b.example'),
+                configured_opt.new_jm_async_client(),
+            ]
+            default_client = default_opt.new_jm_async_client()
+
             for client in clients:
+                loop.run_until_complete(client.setup())
                 self.assertListEqual(client.get_domain_list(), expected)
+
+            loop.run_until_complete(default_client.setup())
+            self.assertListEqual(default_client.get_domain_list(), updated)
         finally:
-            loop = asyncio.new_event_loop()
-            try:
-                for client in clients:
-                    loop.run_until_complete(client.close())
-            finally:
-                loop.close()
+            for client in clients:
+                loop.run_until_complete(client.close())
+            if default_client is not None:
+                loop.run_until_complete(default_client.close())
+            loop.close()
+            JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = old_auto_update
+            JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES = old_require_cookies
+            JmModuleConfig.DOMAIN_API_UPDATED_LIST = old_updated_domains
+            AsyncJmApiClient._has_setup_domain = old_setup_domain
 
         self.assertRaises(
             TypeError,

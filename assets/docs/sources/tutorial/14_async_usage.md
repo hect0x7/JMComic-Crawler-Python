@@ -187,76 +187,32 @@ asyncio.run(main())
 
 ```python
 import asyncio
-from jmcomic import JmOption
+from jmcomic import JmMagicConstants, JmOption
 
 async def main():
     async with JmOption.default().new_jm_async_client() as cl:
         # 获取全部时间、全部分类下，按观看数排序的第一页本子
         page = await cl.categories_filter(
             page=1,
-            time='a',        # JmMagicConstants.TIME_ALL
-            category='all',  # JmMagicConstants.CATEGORY_ALL
-            order_by='mv',   # JmMagicConstants.ORDER_BY_VIEW
+            time=JmMagicConstants.TIME_ALL,
+            category=JmMagicConstants.CATEGORY_ALL,
+            order_by=JmMagicConstants.ORDER_BY_VIEW,
         )
         
         for aid, atitle in page:
             print(aid, atitle)
 
         async for page in cl.categories_filter_gen(
-            time='a',
-            category='all',
-            order_by='mv',
+            time=JmMagicConstants.TIME_ALL,
+            category=JmMagicConstants.CATEGORY_ALL,
+            order_by=JmMagicConstants.ORDER_BY_VIEW,
         ):
             print(page.page)
 
 asyncio.run(main())
 ```
 
-## 8. 指定异步 API 域名
-
-`new_jm_async_client` 支持通过 `domain_list` 显式覆盖 API 域名。参数可以是字符串序列或多行字符串：
-
-```python
-async with JmOption.default().new_jm_async_client(
-    domain_list=['domain-a.example', 'domain-b.example'],
-) as cl:
-    album = await cl.get_album_detail(123)
-```
-
-异步客户端不支持同步客户端的 `domain_retry_strategy` 参数。异步请求使用客户端内置的域名遍历与重试机制。
-
-## 9. 下载完成回调与 downloader 生命周期
-
-异步下载 API 的 `callback` 同时支持同步函数和异步函数：
-
-```python
-def sync_callback(album, downloader):
-    print(album.id)
-
-async def async_callback(album, downloader):
-    await notify_server(album.id)
-
-await jmcomic.download_album_async(123, callback=sync_callback)
-await jmcomic.download_album_async(456, callback=async_callback)
-```
-
-`download_album_async` 和 `download_photo_async` 是一次性便利 API。返回的 downloader 对象仍可用于读取
-`download_success_dict`、`download_failed_image` 和 `download_failed_photo`，但它持有的客户端和线程池已经关闭，
-不能继续下载。
-
-如果需要使用同一个 downloader 连续下载多个本子或章节，请显式管理 downloader 生命周期：
-
-```python
-from jmcomic import JmOption, new_async_downloader
-
-option = JmOption.default()
-async with new_async_downloader(option) as downloader:
-    await downloader.download_album(123)
-    await downloader.download_album(456)
-    await downloader.download_photo(789)
-```
-
-## 10. 关于 `async_impl` 配置
+## 8. 关于 `async_impl` 配置
 
 注意：仅仅在 `option.yml` 中增加配置**并不能**让代码自动变成异步，你必须要在代码中改为调用 `_async` 相关方法（如上文所示）。
 

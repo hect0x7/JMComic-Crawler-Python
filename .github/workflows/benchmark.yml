@@ -38,7 +38,7 @@ jobs:
         no_proxy: '*'
       run: python usage/benchmark_async_vs_sync.py
 
-    - name: Publish Report to Step Summary
+    - name: Publish Conclusion-first Report
       if: always()
       run: |
         if [ -f PERFORMANCE_REPORT.md ]; then

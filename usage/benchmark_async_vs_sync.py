@@ -321,17 +321,108 @@ async def run_benchmark():
         'mad': avg(mem_download['Async']) / (1024 * 1024),
     }
 
-    # ── 生成 Markdown 报告 ──
-    def perf_line(sync_val, async_val, unit='s', desc='性能'):
-        if sync_val > 0 and async_val > 0:
-            diff = sync_val - async_val
-            pct = abs(diff / sync_val) * 100
-            word = '提升' if diff > 0 else '下降'
-            return f'🏆 结论: **{desc}{word} {pct:.2f}%**（Async {"优于" if diff > 0 else "劣于"} Sync {abs(diff):.4f}{unit}）\n'
-        return '⚠️ 数据不足，无法计算\n'
+    # ── 生成结论优先的 Markdown 报告 ──
+    neutral_threshold = 3.0
+
+    def compare(sync_val, async_val):
+        if sync_val <= 0 or async_val <= 0:
+            return None
+        return (sync_val - async_val) / sync_val * 100
+
+    def time_conclusion(sync_val, async_val):
+        pct = compare(sync_val, async_val)
+        if pct is None:
+            return '⚠️ 数据不足'
+        if abs(pct) < neutral_threshold:
+            return f'➖ 基本持平（差异 {abs(pct):.1f}%）'
+        if pct > 0:
+            return f'🚀 **Async 快 {pct:.1f}%**（约 {sync_val / async_val:.2f}×）'
+        return f'🐢 **Async 慢 {abs(pct):.1f}%**（耗时约为 Sync 的 {async_val / sync_val:.2f}×）'
+
+    def memory_conclusion(sync_val, async_val):
+        pct = compare(sync_val, async_val)
+        if pct is None:
+            return '⚠️ 数据不足'
+        if abs(pct) < neutral_threshold:
+            return f'➖ 基本持平（差异 {abs(pct):.1f}%）'
+        if pct > 0:
+            return f'🧠 **Async 节省 {pct:.1f}% 内存**'
+        return f'📈 **Async 多占 {abs(pct):.1f}% 内存**'
+
+    query_time_pct = compare(avgs['sq'], avgs['aq'])
+    download_time_pct = compare(avgs['sd'], avgs['ad'])
+    time_results = [pct for pct in (query_time_pct, download_time_pct) if pct is not None]
+    wins = sum(pct >= neutral_threshold for pct in time_results)
+    losses = sum(pct <= -neutral_threshold for pct in time_results)
+
+    if len(time_results) < 2:
+        overall = '⚠️ **数据不完整，暂时无法判断 Async 是否具备整体性能优势。**'
+        recommendation = '先检查失败轮次和网络状态，补齐查询与下载两组数据后再做决策。'
+    elif wins == 2:
+        overall = '✅ **Async 在查询和下载两个核心场景均领先，建议优先使用 Async。**'
+        recommendation = '并发查询和批量图片下载均可优先选择 Async；具体资源开销见后置数据。'
+    elif losses == 2:
+        overall = '❌ **Async 在本轮查询和下载中均未体现性能优势。**'
+        recommendation = '暂不建议仅为性能切换到 Async，应结合网络波动和逐轮数据继续观察。'
+    elif wins == 1 and losses == 1:
+        overall = '⚖️ **Async 优势取决于使用场景：查询与下载结果方向相反。**'
+        recommendation = '根据实际主要负载选择实现，不建议只看单项数据做全局替换。'
+    elif wins == 1:
+        overall = '✅ **Async 在一个核心场景明确领先，另一场景与 Sync 基本持平。**'
+        recommendation = 'Async 已具备实际使用价值，可优先用于明确领先的场景。'
+    elif losses == 1:
+        overall = '⚠️ **Async 在一个核心场景落后，另一场景与 Sync 基本持平。**'
+        recommendation = '切换 Async 前应确认主要负载不集中在性能落后的场景。'
+    else:
+        overall = '➖ **Async 与 Sync 的核心耗时基本持平。**'
+        recommendation = '性能不是主要决策因素，可根据调用模型和代码维护成本选择。'
+
+    def value_at(values, index, unit, divisor=1):
+        if index >= len(values):
+            return 'N/A'
+        return f'{values[index] / divisor:.4f}{unit}'
+
+    def round_table(sync_time, async_time, sync_mem, async_mem):
+        count = max(len(sync_time), len(async_time), len(sync_mem), len(async_mem))
+        rows = [
+            '| 轮次 | Sync 耗时 | Async 耗时 | Sync 峰值内存 | Async 峰值内存 |',
+            '| :---: | ---: | ---: | ---: | ---: |',
+        ]
+        for index in range(count):
+            rows.append(
+                f'| {index + 1} '
+                f'| {value_at(sync_time, index, "s")} '
+                f'| {value_at(async_time, index, "s")} '
+                f'| {value_at(sync_mem, index, " MB", 1024 * 1024)} '
+                f'| {value_at(async_mem, index, " MB", 1024 * 1024)} |'
+            )
+        return '\n'.join(rows)
 
     report = (
-        f'# 🔬 Async vs Sync 性能与内存对比报告\n\n'
+        f'# 🚦 Async vs Sync Benchmark\n\n'
+        f'## 一句话结论\n\n'
+        f'> {overall}\n\n'
+        f'## 关键结论\n\n'
+        f'| 维度 | 直接结论 |\n'
+        f'| :--- | :--- |\n'
+        f'| 元数据查询耗时 | {time_conclusion(avgs["sq"], avgs["aq"])} |\n'
+        f'| 图片下载与解密耗时 | {time_conclusion(avgs["sd"], avgs["ad"])} |\n'
+        f'| 查询峰值内存 | {memory_conclusion(avgs["msq"], avgs["maq"])} |\n'
+        f'| 下载峰值内存 | {memory_conclusion(avgs["msd"], avgs["mad"])} |\n\n'
+        f'## 使用建议\n\n'
+        f'{recommendation}\n\n'
+        f'<details>\n'
+        f'<summary><strong>查看完整测试数据、逐轮结果与环境配置</strong></summary>\n\n'
+        f'### 平均数据\n\n'
+        f'| 场景 | Sync 平均耗时 | Async 平均耗时 | Sync 峰值内存均值 | Async 峰值内存均值 |\n'
+        f'| :--- | ---: | ---: | ---: | ---: |\n'
+        f'| 元数据查询 | {avgs["sq"]:.4f}s | {avgs["aq"]:.4f}s | {avgs["msq"]:.2f} MB | {avgs["maq"]:.2f} MB |\n'
+        f'| 图片下载与解密 | {avgs["sd"]:.4f}s | {avgs["ad"]:.4f}s | {avgs["msd"]:.2f} MB | {avgs["mad"]:.2f} MB |\n\n'
+        f'### 查询逐轮数据\n\n'
+        f'{round_table(stats_query["Sync"], stats_query["Async"], mem_query["Sync"], mem_query["Async"])}\n\n'
+        f'### 下载逐轮数据\n\n'
+        f'{round_table(stats_download["Sync"], stats_download["Async"], mem_download["Sync"], mem_download["Async"])}\n\n'
+        f'### 测试环境\n\n'
         f'| 配置项 | 值 |\n'
         f'| :--- | :--- |\n'
         f'| 运行环境 | {"GitHub Actions (CI)" if IS_CI else "本地开发"} |\n'
@@ -340,20 +431,7 @@ async def run_benchmark():
         f'| 并发配置 | {CONCURRENCY} |\n'
         f'| 测试轮次 | {TEST_ROUNDS} 轮 × {CI_REPEAT} 次重复 |\n'
         f'| 缓存策略 | 强制禁用，每轮物理清空 |\n\n'
-        f'## 📊 元数据查询性能（并发={CONCURRENCY}）\n\n'
-        f'| 模式 | 平均耗时 | 物理内存峰值均值 | 状态 |\n'
-        f'| :--- | :--- | :--- | :--- |\n'
-        f'| Sync  Query | {avgs["sq"]:.4f}s | {avgs["msq"]:.2f} MB | {"✅" if avgs["sq"] > 0 else "❌"} |\n'
-        f'| Async Query | {avgs["aq"]:.4f}s | {avgs["maq"]:.2f} MB | {"✅" if avgs["aq"] > 0 else "❌"} |\n\n'
-        f'{perf_line(avgs["sq"], avgs["aq"], "s", "耗时效率")}'
-        f'{perf_line(avgs["msq"], avgs["maq"], " MB", "内存占用")}\n'
-        f'## 📊 图片下载与解密性能（并发={CONCURRENCY}）\n\n'
-        f'| 模式 | 平均耗时 | 物理内存峰值均值 | 状态 |\n'
-        f'| :--- | :--- | :--- | :--- |\n'
-        f'| Sync  Download | {avgs["sd"]:.4f}s | {avgs["msd"]:.2f} MB | {"✅" if avgs["sd"] > 0 else "❌"} |\n'
-        f'| Async Download | {avgs["ad"]:.4f}s | {avgs["mad"]:.2f} MB | {"✅" if avgs["ad"] > 0 else "❌"} |\n\n'
-        f'{perf_line(avgs["sd"], avgs["ad"], "s", "耗时效率")}'
-        f'{perf_line(avgs["msd"], avgs["mad"], " MB", "内存占用")}'
+        f'</details>\n'
     )
 
     with open('PERFORMANCE_REPORT.md', 'w', encoding='utf-8') as f:
