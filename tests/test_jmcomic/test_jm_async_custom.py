@@ -150,6 +150,7 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
         old_auto_update = JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN
         old_require_cookies = JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES
         old_app_cookies = JmModuleConfig.APP_COOKIES
+        old_updated_domains = JmModuleConfig.DOMAIN_API_UPDATED_LIST
         old_setup_domain = AsyncJmApiClient._has_setup_domain
 
         first = None
@@ -159,6 +160,7 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
             JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = False
             JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES = True
             JmModuleConfig.APP_COOKIES = None
+            JmModuleConfig.DOMAIN_API_UPDATED_LIST = []
             AsyncJmApiClient._has_setup_domain = False
 
             first_option = self.new_option()
@@ -183,6 +185,7 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
             JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = old_auto_update
             JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES = old_require_cookies
             JmModuleConfig.APP_COOKIES = old_app_cookies
+            JmModuleConfig.DOMAIN_API_UPDATED_LIST = old_updated_domains
             AsyncJmApiClient._has_setup_domain = old_setup_domain
 
     def test_async_downloader_cleanup_when_setup_fails(self):
@@ -190,6 +193,7 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
         old_auto_update = JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN
         old_require_cookies = JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES
         old_app_cookies = JmModuleConfig.APP_COOKIES
+        old_updated_domains = JmModuleConfig.DOMAIN_API_UPDATED_LIST
         old_setup_domain = AsyncJmApiClient._has_setup_domain
 
         loop = asyncio.new_event_loop()
@@ -198,6 +202,7 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
             JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = False
             JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES = True
             JmModuleConfig.APP_COOKIES = None
+            JmModuleConfig.DOMAIN_API_UPDATED_LIST = []
             AsyncJmApiClient._has_setup_domain = False
 
             option = JmOption.default()
@@ -224,4 +229,5 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
             JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = old_auto_update
             JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES = old_require_cookies
             JmModuleConfig.APP_COOKIES = old_app_cookies
+            JmModuleConfig.DOMAIN_API_UPDATED_LIST = old_updated_domains
             AsyncJmApiClient._has_setup_domain = old_setup_domain
