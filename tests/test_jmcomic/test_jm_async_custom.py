@@ -186,7 +186,7 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
         try:
             JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = False
             JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES = True
-            JmModuleConfig.APP_COOKIES = None
+            JmModuleConfig.APP_COOKIES = {'cached': 'cookie'}
             AsyncJmApiClient._has_setup_domain = False
 
             first_option = self.new_option()
@@ -200,8 +200,7 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
             loop.run_until_complete(second.setup())
 
             self.assertEqual(first._session.cookies.get('custom'), 'cookie')
-            self.assertTrue(second._session.cookies)
-            self.assertTrue(JmModuleConfig.APP_COOKIES)
+            self.assertEqual(second._session.cookies.get('cached'), 'cookie')
         finally:
             if first is not None:
                 loop.run_until_complete(first.close())

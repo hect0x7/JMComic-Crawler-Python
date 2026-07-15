@@ -154,10 +154,11 @@ class JmModuleConfig:
 
     # 移动端API域名
     DOMAIN_API_LIST = shuffled('''
-    www.cdnaspa.club
-    www.cdnaspa.vip
-    www.cdnplaystation6.cc
-    www.cdnplaystation6.vip
+    www.cdnhjk.net
+    www.cdngwc.cc
+    www.cdngwc.net
+    www.cdngwc.club
+    www.cdnutc.me
     ''')
 
     DOMAIN_API_UPDATED_LIST = None
