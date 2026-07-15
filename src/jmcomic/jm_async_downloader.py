@@ -257,7 +257,18 @@ class JmAsyncDownloader(BaseDownloader):
     async def __aenter__(self):
         # 创建并独占一个 async client（含 AsyncSession）。
         self.client = self.option.new_jm_async_client(max_clients=self._image_concurrency)
-        await self.client.setup()
+        try:
+            await self.client.setup()
+        except BaseException:
+            try:
+                await self.client.close()
+            except BaseException as cleanup_error:
+                jm_log('dler.cleanup.exception',
+                       f'初始化失败后的资源清理也发生异常: {cleanup_error}', cleanup_error)
+            finally:
+                self.client = None
+                self.shutdown()
+            raise
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):

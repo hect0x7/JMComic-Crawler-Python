@@ -14,7 +14,10 @@ import jmcomic
 
 async def main():
     # 异步下载单个本子
-    await jmcomic.download_album_async('438696')
+    album, downloader = await jmcomic.download_album_async('438696')
+
+    # 返回的 downloader 已释放网络连接和线程池，只用于读取下载结果
+    print(downloader.download_failed_image)
     
     # 异步下载单章节
     await jmcomic.download_photo_async('438696')
@@ -62,6 +65,16 @@ async with JmOption.default().new_jm_async_client() as cl:
 - **单独使用**：如果你不想使用 `async with`，而是直接调用 `cl = op.new_jm_async_client()`，那么在第一次发起真实的请求（比如 `get_album_detail`）时，客户端也会自动检测并先执行一遍初始化。
 
 无论哪种写法都只会初始化一次，你不需要自己去调用任何初始化代码，直接用就行。
+
+如果不使用 `async with`，使用完成后需要显式关闭客户端：
+
+```python
+cl = JmOption.default().new_jm_async_client()
+try:
+    album = await cl.get_album_detail(123)
+finally:
+    await cl.close()
+```
 
 ---
 
@@ -169,7 +182,8 @@ asyncio.run(main())
 
 ## 7. 异步分类 / 排行榜
 
-分类和排行榜本质上都是过滤请求，可以使用 `categories_filter` 异步方法获取分页。
+分类和排行榜本质上都是过滤请求，可以使用 `categories_filter` 获取单页，或使用
+`categories_filter_gen` 异步生成器自动翻页。
 
 ```python
 import asyncio
@@ -188,10 +202,61 @@ async def main():
         for aid, atitle in page:
             print(aid, atitle)
 
+        async for page in cl.categories_filter_gen(
+            time='a',
+            category='all',
+            order_by='mv',
+        ):
+            print(page.page)
+
 asyncio.run(main())
 ```
 
-## 8. 关于 `async_impl` 配置
+## 8. 指定异步 API 域名
+
+`new_jm_async_client` 支持通过 `domain_list` 显式覆盖 API 域名。参数可以是字符串序列或多行字符串：
+
+```python
+async with JmOption.default().new_jm_async_client(
+    domain_list=['domain-a.example', 'domain-b.example'],
+) as cl:
+    album = await cl.get_album_detail(123)
+```
+
+异步客户端不支持同步客户端的 `domain_retry_strategy` 参数。异步请求使用客户端内置的域名遍历与重试机制。
+
+## 9. 下载完成回调与 downloader 生命周期
+
+异步下载 API 的 `callback` 同时支持同步函数和异步函数：
+
+```python
+def sync_callback(album, downloader):
+    print(album.id)
+
+async def async_callback(album, downloader):
+    await notify_server(album.id)
+
+await jmcomic.download_album_async(123, callback=sync_callback)
+await jmcomic.download_album_async(456, callback=async_callback)
+```
+
+`download_album_async` 和 `download_photo_async` 是一次性便利 API。返回的 downloader 对象仍可用于读取
+`download_success_dict`、`download_failed_image` 和 `download_failed_photo`，但它持有的客户端和线程池已经关闭，
+不能继续下载。
+
+如果需要使用同一个 downloader 连续下载多个本子或章节，请显式管理 downloader 生命周期：
+
+```python
+from jmcomic import JmOption, new_async_downloader
+
+option = JmOption.default()
+async with new_async_downloader(option) as downloader:
+    await downloader.download_album(123)
+    await downloader.download_album(456)
+    await downloader.download_photo(789)
+```
+
+## 10. 关于 `async_impl` 配置
 
 注意：仅仅在 `option.yml` 中增加配置**并不能**让代码自动变成异步，你必须要在代码中改为调用 `_async` 相关方法（如上文所示）。
 

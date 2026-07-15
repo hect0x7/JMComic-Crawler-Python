@@ -1,8 +1,26 @@
 import asyncio
+import inspect
 
 from .jm_downloader import *
 
 __DOWNLOAD_API_RET = DownloadResult
+
+
+async def _invoke_async_callback(callback, entity, downloader):
+    if callback is None:
+        return None
+
+    is_async_callback = (
+            inspect.iscoroutinefunction(callback)
+            or inspect.iscoroutinefunction(getattr(callback, '__call__', None))
+    )
+    if is_async_callback:
+        return await callback(entity, downloader)
+
+    result = await asyncio.to_thread(callback, entity, downloader)
+    if inspect.isawaitable(result):
+        return await result
+    return result
 
 
 def download_batch(download_api,
@@ -167,7 +185,8 @@ async def download_album_async(jm_album_id,
     异步下载一个本子（album），包含其所有的章节（photo）。
 
     - 支持批量下载（当 jm_album_id 为可迭代对象时）
-    - 返回 (album, downloader) 元组
+    - callback 支持同步函数和异步函数
+    - 返回 (album, downloader) 元组，其中 downloader 的网络和线程池资源已关闭，仅用于读取下载结果
     """
     if not isinstance(jm_album_id, (str, int)):
         return await download_batch_async(download_album_async,
@@ -181,8 +200,7 @@ async def download_album_async(jm_album_id,
         dler.add_features(extra, 'download_album')
         album = await dler.download_album(jm_album_id)
 
-        if callback is not None:
-            callback(album, dler)
+        await _invoke_async_callback(callback, album, dler)
         if check_exception:
             dler.raise_if_has_exception()
 
@@ -198,6 +216,8 @@ async def download_photo_async(jm_photo_id,
                                ):
     """
     异步下载一个章节（photo）。
+    callback 支持同步函数和异步函数。
+    返回的 downloader 已关闭网络和线程池资源，仅用于读取下载结果。
     """
     if not isinstance(jm_photo_id, (str, int)):
         return await download_batch_async(download_photo_async,
@@ -211,8 +231,7 @@ async def download_photo_async(jm_photo_id,
         dler.add_features(extra, 'download_photo')
         photo = await dler.download_photo(jm_photo_id)
 
-        if callback is not None:
-            callback(photo, dler)
+        await _invoke_async_callback(callback, photo, dler)
         if check_exception:
             dler.raise_if_has_exception()
 

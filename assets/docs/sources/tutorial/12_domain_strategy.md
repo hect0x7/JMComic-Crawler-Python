@@ -55,28 +55,10 @@ op = create_option('option.yml')
 cl = op.new_jm_client()
 ```
 
-### 2.2 通过 GitHub 兜底获取域名
+> `get_html_domain_all_via_github` 已废弃。原 GitHub 仓库不再提供禁漫域名，兼容入口目前会转发到
+> `get_html_domain_all`，并将在未来版本移除。
 
-如果连禁漫的发布页本身都被墙了无法访问，可以请求禁漫官方放在 GitHub 的仓库来解析最新域名。
-
-```python
-from jmcomic import *
-
-# 该请求发往 github.com，在大多数常规网络中均能保持连通
-domains = JmModuleConfig.get_html_domain_all_via_github()
-
-op = JmOption.default()
-# 可以结合重试机制，允许失败时轮换多次
-op.client.retry_times = 3
-
-# 应用域名池新建包含该域名的 Client (记得指定 impl='html')
-# 将新建的 client 赋值回 op，使其在后续的下载中生效
-op.client = op.new_jm_client(domain_list=domains, impl='html')
-
-download_album('438696', op)
-```
-
-### 2.3 获取单个跳转域名
+### 2.2 获取单个跳转域名
 
 除了获取全部域名，也可以通过访问永久跳转页获取单个重定向用的新域名。
 

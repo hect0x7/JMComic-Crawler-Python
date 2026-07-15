@@ -5,6 +5,7 @@ Async 自定义 Client 注册对称性测试 —— 对标 test_jm_custom.py
 """
 from test_jmcomic import *
 from jmcomic.jm_async_client import AsyncJmApiClient
+from jmcomic.jm_async_downloader import JmAsyncDownloader
 from jmcomic.jm_client_interface import AsyncJmcomicClient
 import asyncio
 
@@ -111,3 +112,116 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
             if client is not None:
                 loop.run_until_complete(client.close())
             loop.close()
+
+    def test_async_explicit_domain_list(self):
+        """异步 client 支持显式字符串、列表和元组域名配置"""
+        opt = self.new_option()
+        expected = ['domain-a.example', 'domain-b.example']
+
+        clients = [
+            opt.new_jm_async_client(domain_list=expected),
+            opt.new_jm_async_client(domain_list=tuple(expected)),
+            opt.new_jm_async_client(domain_list='domain-a.example\ndomain-b.example'),
+        ]
+        try:
+            for client in clients:
+                self.assertListEqual(client.get_domain_list(), expected)
+        finally:
+            loop = asyncio.new_event_loop()
+            try:
+                for client in clients:
+                    loop.run_until_complete(client.close())
+            finally:
+                loop.close()
+
+        self.assertRaises(
+            TypeError,
+            opt.new_jm_async_client,
+            domain_list=['domain.example', 1],
+        )
+        self.assertRaises(
+            TypeError,
+            opt.new_jm_async_client,
+            domain_retry_strategy=lambda client: client,
+        )
+
+    def test_async_setup_checks_cookies_for_each_session(self):
+        """首个 client 自带 Cookie 时，后续 client 仍应独立初始化 Cookie"""
+        old_auto_update = JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN
+        old_require_cookies = JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES
+        old_app_cookies = JmModuleConfig.APP_COOKIES
+        old_setup_domain = AsyncJmApiClient._has_setup_domain
+
+        first = None
+        second = None
+        loop = asyncio.new_event_loop()
+        try:
+            JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = False
+            JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES = True
+            JmModuleConfig.APP_COOKIES = None
+            AsyncJmApiClient._has_setup_domain = False
+
+            first_option = self.new_option()
+            first_option.client.postman.meta_data.src_dict['cookies'] = {'custom': 'cookie'}
+            second_option = self.new_option()
+            second_option.client.postman.meta_data.src_dict.pop('cookies', None)
+
+            first = first_option.new_jm_async_client()
+            second = second_option.new_jm_async_client()
+            loop.run_until_complete(first.setup())
+            loop.run_until_complete(second.setup())
+
+            self.assertEqual(first._session.cookies.get('custom'), 'cookie')
+            self.assertTrue(second._session.cookies)
+            self.assertTrue(JmModuleConfig.APP_COOKIES)
+        finally:
+            if first is not None:
+                loop.run_until_complete(first.close())
+            if second is not None:
+                loop.run_until_complete(second.close())
+            loop.close()
+            JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = old_auto_update
+            JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES = old_require_cookies
+            JmModuleConfig.APP_COOKIES = old_app_cookies
+            AsyncJmApiClient._has_setup_domain = old_setup_domain
+
+    def test_async_downloader_cleanup_when_setup_fails(self):
+        """真实 AsyncSession 初始化失败时，downloader 应回收 client 和线程池"""
+        old_auto_update = JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN
+        old_require_cookies = JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES
+        old_app_cookies = JmModuleConfig.APP_COOKIES
+        old_setup_domain = AsyncJmApiClient._has_setup_domain
+
+        loop = asyncio.new_event_loop()
+        downloader = None
+        try:
+            JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = False
+            JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES = True
+            JmModuleConfig.APP_COOKIES = None
+            AsyncJmApiClient._has_setup_domain = False
+
+            option = JmOption.default()
+            option.client.src_dict['domain'] = {'api': ['127.0.0.1:1']}
+            option.client.src_dict['retry_times'] = 0
+            option.client.src_dict['timeout'] = 1
+            option.client.postman.meta_data.src_dict['proxies'] = None
+
+            downloader = JmAsyncDownloader(
+                option,
+                image_concurrency=1,
+                photo_concurrency=1,
+                decode_worker=1,
+            )
+            with self.assertRaises(RequestRetryAllFailException):
+                loop.run_until_complete(downloader.__aenter__())
+
+            self.assertIsNone(downloader.client)
+            self.assertTrue(downloader._decode_pool._shutdown)
+        finally:
+            if downloader is not None and not downloader._decode_pool._shutdown:
+                downloader.shutdown()
+            loop.close()
+            JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = old_auto_update
+            JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES = old_require_cookies
+            JmModuleConfig.APP_COOKIES = old_app_cookies
+            AsyncJmApiClient._has_setup_domain = old_setup_domain

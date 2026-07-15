@@ -514,6 +514,7 @@ class JmcomicClient(
         return JmModuleConfig.get_html_domain_all(self.get_root_postman())
 
     def get_html_domain_all_via_github(self):
+        """已废弃，请使用 get_html_domain_all。"""
         return JmModuleConfig.get_html_domain_all_via_github(self.get_root_postman())
 
     # noinspection PyMethodMayBeStatic
@@ -814,6 +815,30 @@ class AsyncJmcomicClient:
                                 sub_category: Optional[str] = None,
                                 ) -> JmCategoryPage:
         raise NotImplementedError
+
+    async def categories_filter_gen(self,
+                                    page: int = 1,
+                                    time: str = JmMagicConstants.TIME_ALL,
+                                    category: str = JmMagicConstants.CATEGORY_ALL,
+                                    order_by: str = JmMagicConstants.ORDER_BY_LATEST,
+                                    sub_category: Optional[str] = None,
+                                    ):
+        """异步分类结果生成器，支持通过 asend 动态更新分页参数。"""
+        params = {
+            'time': time,
+            'category': category,
+            'order_by': order_by,
+            'sub_category': sub_category,
+        }
+
+        aiter = self.do_page_iter(params, page, self.categories_filter)
+        value = None
+        while True:
+            try:
+                page_content = await aiter.asend(value)
+                value = yield page_content
+            except StopAsyncIteration:
+                break
 
     async def month_ranking(self,
                             page: int = 1,

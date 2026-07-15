@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from typing import Sequence
 from urllib.parse import urlencode
 
 from curl_cffi.requests import AsyncSession
@@ -51,12 +52,15 @@ class AsyncJmApiClient(AsyncJmcomicClient):
     _SENTINEL = object()
 
     # 类级别初始化标记与锁，防止并发更新域名
-    _has_setup_domain_and_cookies = False
+    _has_setup_domain = False
     _setup_lock = asyncio.Lock()
 
-    def __init__(self, option: JmOption, max_clients=None, **kwargs):
+    def __init__(self, option: JmOption, max_clients=None, domain_list=None, **kwargs):
+        if 'domain_retry_strategy' in kwargs:
+            raise TypeError('Async client does not support domain_retry_strategy')
+
         self.option = option
-        self._domain_list = self._resolve_domain_list()
+        self._domain_list = self._resolve_domain_list(domain_list)
         retry_times = option.client.get('retry_times')
         self._retry_times = retry_times if retry_times is not None else 5
         self._timeout = option.client.get('timeout', 30) or 30
@@ -84,22 +88,44 @@ class AsyncJmApiClient(AsyncJmcomicClient):
     # 域名管理
     # ======================================================================
 
-    def _resolve_domain_list(self) -> list[str]:
+    @staticmethod
+    def _normalize_domain_list(domain_list) -> list[str]:
+        if isinstance(domain_list, str):
+            return [domain.strip() for domain in domain_list.splitlines() if domain.strip()]
+
+        if isinstance(domain_list, Sequence):
+            result = []
+            for domain in domain_list:
+                if not isinstance(domain, str):
+                    raise TypeError(f'domain must be str, got {type(domain)}')
+                domain = domain.strip()
+                if domain:
+                    result.append(domain)
+            return result
+
+        raise TypeError('domain_list must be str, Sequence[str], or None')
+
+    def _resolve_domain_list(self, domain_list=None) -> list[str]:
         """解析并返回可用的 API 域名列表"""
+        if domain_list is not None:
+            resolved = self._normalize_domain_list(domain_list)
+            if resolved:
+                return resolved
+
         updated = JmModuleConfig.DOMAIN_API_UPDATED_LIST
         if updated:
             return list(updated)
         domain = self.option.client.domain
         if hasattr(domain, 'get'):
             domain_list = domain.get('api', [])
-        elif isinstance(domain, list):
-            domain_list = domain
-        elif isinstance(domain, str):
-            domain_list = [d.strip() for d in domain.split('\n') if d.strip()]
         else:
-            domain_list = []
-        if domain_list:
-            return domain_list
+            domain_list = domain
+
+        if domain_list is not None:
+            resolved = self._normalize_domain_list(domain_list)
+            if resolved:
+                return resolved
+
         return list(JmModuleConfig.DOMAIN_API_LIST)
 
     def get_domain_list(self) -> list[str]:
@@ -708,20 +734,22 @@ class AsyncJmApiClient(AsyncJmcomicClient):
 
         cls = self.__class__
         async with cls._setup_lock:
-            if not cls._has_setup_domain_and_cookies:
+            if self._has_setup:
+                return
+
+            if not cls._has_setup_domain:
                 await self.auto_update_domain()
-                if JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES:
-                    await self.ensure_have_cookies()
-                cls._has_setup_domain_and_cookies = True
+                cls._has_setup_domain = True
             else:
-                # 即使已经初始化过域名和 cookie，也需要将已保存的全局 DOMAIN 和 COOKIES 赋值到当前 client
+                # 即使已经初始化过域名，也需要将已保存的全局 DOMAIN 赋值到当前 client
                 if JmModuleConfig.DOMAIN_API_UPDATED_LIST:
                     self._domain_list = list(JmModuleConfig.DOMAIN_API_UPDATED_LIST)
-                if JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES and JmModuleConfig.APP_COOKIES:
-                    # noinspection PyUnresolvedReferences
-                    self._session.cookies.update(JmModuleConfig.APP_COOKIES)
 
-        self._has_setup = True
+            # Cookie 属于 session 状态，每个 client 都需要独立确认。
+            if JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES:
+                await self.ensure_have_cookies()
+
+            self._has_setup = True
 
     # ======================================================================
     # 生命周期

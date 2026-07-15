@@ -370,37 +370,21 @@ class JmModuleConfig:
     @classmethod
     def get_html_domain_all_via_github(cls,
                                        postman=None,
-                                       template='https://jmcmomic.github.io/go/{}.html',
-                                       index_range=(300, 309)
+                                       *deprecated_args,
+                                       **deprecated_kwargs,
                                        ):
         """
-        通过禁漫官方的github号的repo获取最新的禁漫域名
-        https://github.com/jmcmomic/jmcmomic.github.io
+        已废弃：原 GitHub 仓库不再提供禁漫域名。
+        为保持兼容，当前转发到 get_html_domain_all；该方法将在未来版本移除。
         """
-        postman = postman or cls.new_postman(headers={
-            'authority': 'github.com',
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 '
-                          'Safari/537.36'
-        })
-        domain_set = set()
-
-        def fetch_domain(url):
-            resp = postman.get(url, allow_redirects=False)
-            text = resp.text
-            from .jm_toolkit import JmcomicText
-            for domain in JmcomicText.analyse_jm_pub_html(text):
-                if domain.startswith('jm365'):
-                    continue
-                domain_set.add(domain)
-
-        from common import multi_thread_launcher
-
-        multi_thread_launcher(
-            iter_objs=[template.format(i) for i in range(*index_range)],
-            apply_each_obj_func=fetch_domain,
+        import warnings
+        warnings.warn(
+            'get_html_domain_all_via_github is deprecated because the GitHub repository no longer provides '
+            'JMComic domains; use get_html_domain_all instead.',
+            DeprecationWarning,
+            stacklevel=2,
         )
-
-        return domain_set
+        return cls.get_html_domain_all(postman)
 
     @classmethod
     def new_html_headers(cls, domain='18comic.vip'):

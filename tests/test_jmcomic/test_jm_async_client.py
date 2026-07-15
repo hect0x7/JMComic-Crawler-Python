@@ -278,6 +278,23 @@ class Test_Async_Client(JmAsyncTestConfigurable):
 
         self.run_async(run())
 
+    def test_async_categories_filter_generator(self):
+        """测试异步分类生成器 categories_filter_gen（包含 asend）"""
+        async def run():
+            gen = self.async_client.categories_filter_gen(
+                category=JmMagicConstants.CATEGORY_ALL,
+                order_by=JmMagicConstants.ORDER_BY_LATEST,
+            )
+
+            page1 = await gen.asend(None)
+            self.assertGreater(len(page1), 0)
+
+            page2 = await gen.asend({'page': 2})
+            self.assertGreater(len(page2), 0)
+            await gen.aclose()
+
+        self.run_async(run())
+
     def test_async_download_cover_not_supported(self):
         """diff 标记：async client 无独立 download_album_cover"""
         self.assertFalse(

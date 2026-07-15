@@ -1,4 +1,5 @@
 from .jm_client_impl import *
+from typing import Optional, Sequence, Union
 
 
 class CacheRegistry:
@@ -594,7 +595,11 @@ class JmOption:
         from .api import download_photo
         return download_photo(photo_id, self, *args, **kwargs)
 
-    def new_jm_async_client(self, cache=None, **kwargs) -> AsyncJmcomicClient:
+    def new_jm_async_client(self,
+                            cache=None,
+                            domain_list: Optional[Union[str, Sequence[str]]] = None,
+                            **kwargs,
+                            ) -> AsyncJmcomicClient:
         """
         通过 Option 配置创建异步客户端。
         从 REGISTRY_ASYNC_CLIENT 注册表查找实现类（配置项: client.async_impl），
@@ -603,9 +608,15 @@ class JmOption:
         缓存：与同步版本 new_jm_client 相同，依据 client.cache 配置决定是否启用缓存
         （默认 None 即为不缓存），并通过 CacheRegistry.enable_client_cache_on_condition 下发配置。
         """
+        if 'domain_retry_strategy' in kwargs:
+            raise TypeError('Async client does not support domain_retry_strategy')
+
         async_impl = self.client.get('async_impl', 'async_api') or 'async_api'
         clazz = JmModuleConfig.async_client_impl_class(async_impl)
-        client = clazz(self, **kwargs)
+        if domain_list is None:
+            client = clazz(self, **kwargs)
+        else:
+            client = clazz(self, domain_list=domain_list, **kwargs)
 
         # 启用缓存（与同步版本保持一致）：默认不缓存，由 client.cache 配置决定
         cache = cache if cache is not None else self.client.cache
