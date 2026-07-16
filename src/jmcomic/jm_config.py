@@ -103,7 +103,7 @@ class JmMagicConstants:
     APP_TOKEN_SECRET_2 = '18comicAPPContent'
     APP_DATA_SECRET = '185Hcomic3PAPP7R'
     API_DOMAIN_SERVER_SECRET = 'diosfjckwpqpdfjkvnqQjsik'
-    APP_VERSION = '2.0.26'
+    APP_VERSION = '2.0.28'
 
 
 # 模块级别共用配置
@@ -158,7 +158,6 @@ class JmModuleConfig:
     www.cdngwc.cc
     www.cdngwc.net
     www.cdngwc.club
-    www.cdnutc.me
     ''')
 
     DOMAIN_API_UPDATED_LIST = None
