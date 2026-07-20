@@ -19,6 +19,7 @@
 [![GitHub latest releases](https://img.shields.io/github/v/release/hect0x7/JMComic-Crawler-Python?color=blue&label=version)](https://github.com/hect0x7/JMComic-Crawler-Python/releases/latest)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/jmcomic?style=flat&color=hotpink)](https://pepy.tech/projects/jmcomic)
 [![Licence](https://img.shields.io/github/license/hect0x7/JMComic-Crawler-Python?color=red)](https://github.com/hect0x7/JMComic-Crawler-Python)
+[![Used by](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fhect0x7%2Fhect0x7%2Fused-by%2Fmanifest.json&query=%24.public_dependents&label=used%20by&color=6f42c1&style=flat)](https://github.com/hect0x7/JMComic-Crawler-Python/network/dependents)
 
 </div>
 
@@ -256,6 +257,16 @@ jmv 350234 -y
   * `jmcomic`: `jmcomic` パッケージ
 * `tests`: テスト環境（`unittest`を利用した構成）
 * `usage`: 使い方・使用例を実装したスクリプト類
+
+## jmcomic を使用しているプロジェクト
+
+<a href="https://github.com/hect0x7/hect0x7/tree/used-by">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/ja-dark.svg" />
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/ja-light.svg" />
+    <img width="100%" alt="jmcomic を使用しているプロジェクト" src="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/ja-light.svg" />
+  </picture>
+</a>
 
 ## 特別な感謝
 
