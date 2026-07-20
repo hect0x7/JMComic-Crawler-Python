@@ -268,7 +268,7 @@ jmv 350234 -y
 
 ## used by 项目
 
-<a href="https://github.com/hect0x7/hect0x7/tree/used-by">
+<a href="https://github.com/hect0x7/JMComic-Crawler-Python/network/dependents">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/zh-CN-dark.svg" />
     <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/zh-CN-light.svg" />
