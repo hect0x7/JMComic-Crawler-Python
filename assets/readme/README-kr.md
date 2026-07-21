@@ -258,34 +258,6 @@ jmv 350234 -y
 * `tests`: 유닛 테스트 패키지 구조, 자동화 테스트
 * `usage`: 실사용 시 참조하면 좋은 활용 구조
 
-## Star History
-
-### JMComic-Crawler-Python
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history-JMComic-Crawler-Python-dark.svg" />
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history-JMComic-Crawler-Python.svg" />
-  <img width="100%" alt="JMComic-Crawler-Python Star History" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history-JMComic-Crawler-Python.svg" />
-</picture>
-
-### jmcomic 생태계
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history-dark.svg" />
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history.svg" />
-  <img width="100%" alt="jmcomic 생태계 Star History" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history.svg" />
-</picture>
-
-## jmcomic을 사용하는 프로젝트
-
-<a href="https://github.com/hect0x7/hect0x7/tree/used-by">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/ko-dark.svg" />
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/ko-light.svg" />
-    <img width="100%" alt="jmcomic을 사용하는 프로젝트" src="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/ko-light.svg" />
-  </picture>
-</a>
-
 ## 이하 프로젝트들에 감사드립니다.
 
 ### 이미지 복구/분할 알고리즘 & JM 모바일 API 호환
@@ -297,3 +269,21 @@ jmv 350234 -y
     <img alt="Repo Card" src="https://github-readme-stats.vercel.app/api/pin/?username=tonquer&repo=JMComic-qt" />
   </picture>
 </a>
+
+## jmcomic을 사용하는 프로젝트
+
+<a href="https://github.com/hect0x7/hect0x7/tree/used-by">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/ko-dark.svg" />
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/ko-light.svg" />
+    <img width="100%" alt="jmcomic을 사용하는 프로젝트" src="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/ko-light.svg" />
+  </picture>
+</a>
+
+## Star History
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history-dark.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history.svg" />
+  <img width="100%" alt="jmcomic 생태계 Star History" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history.svg" />
+</picture>

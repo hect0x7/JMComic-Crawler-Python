@@ -263,34 +263,6 @@ Please check the documentation homepage → [jmcomic.readthedocs.io (Chinese lan
 * `tests`: Unit tests relying on `unittest`
 * `usage`: Examples of usage implementations
 
-## Star History
-
-### JMComic-Crawler-Python
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history-JMComic-Crawler-Python-dark.svg" />
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history-JMComic-Crawler-Python.svg" />
-  <img width="100%" alt="JMComic-Crawler-Python Star History" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history-JMComic-Crawler-Python.svg" />
-</picture>
-
-### jmcomic Ecosystem
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history-dark.svg" />
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history.svg" />
-  <img width="100%" alt="jmcomic Ecosystem Star History" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history.svg" />
-</picture>
-
-## Projects using jmcomic
-
-<a href="https://github.com/hect0x7/hect0x7/tree/used-by">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/en-dark.svg" />
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/en-light.svg" />
-    <img width="100%" alt="Projects using jmcomic" src="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/en-light.svg" />
-  </picture>
-</a>
-
 ## Acknowledgments
 
 ### Image Segmentation logic + JM Mobile APIs Support
@@ -302,3 +274,21 @@ Please check the documentation homepage → [jmcomic.readthedocs.io (Chinese lan
     <img alt="Repo Card" src="https://github-readme-stats.vercel.app/api/pin/?username=tonquer&repo=JMComic-qt" />
   </picture>
 </a>
+
+## Projects using jmcomic
+
+<a href="https://github.com/hect0x7/hect0x7/tree/used-by">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/en-dark.svg" />
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/en-light.svg" />
+    <img width="100%" alt="Projects using jmcomic" src="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/en-light.svg" />
+  </picture>
+</a>
+
+## Star History
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history-dark.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history.svg" />
+  <img width="100%" alt="jmcomic Ecosystem Star History" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history.svg" />
+</picture>
