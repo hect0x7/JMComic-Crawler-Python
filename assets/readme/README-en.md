@@ -263,6 +263,24 @@ Please check the documentation homepage → [jmcomic.readthedocs.io (Chinese lan
 * `tests`: Unit tests relying on `unittest`
 * `usage`: Examples of usage implementations
 
+## Star History
+
+### JMComic-Crawler-Python
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history-JMComic-Crawler-Python-dark.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history-JMComic-Crawler-Python.svg" />
+  <img width="100%" alt="JMComic-Crawler-Python Star History" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history-JMComic-Crawler-Python.svg" />
+</picture>
+
+### jmcomic Ecosystem
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history-dark.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history.svg" />
+  <img width="100%" alt="jmcomic Ecosystem Star History" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history.svg" />
+</picture>
+
 ## Projects using jmcomic
 
 <a href="https://github.com/hect0x7/hect0x7/tree/used-by">

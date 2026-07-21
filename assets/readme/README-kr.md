@@ -258,6 +258,24 @@ jmv 350234 -y
 * `tests`: 유닛 테스트 패키지 구조, 자동화 테스트
 * `usage`: 실사용 시 참조하면 좋은 활용 구조
 
+## Star History
+
+### JMComic-Crawler-Python
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history-JMComic-Crawler-Python-dark.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history-JMComic-Crawler-Python.svg" />
+  <img width="100%" alt="JMComic-Crawler-Python Star History" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history-JMComic-Crawler-Python.svg" />
+</picture>
+
+### jmcomic 생태계
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history-dark.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history.svg" />
+  <img width="100%" alt="jmcomic 생태계 Star History" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history.svg" />
+</picture>
+
 ## jmcomic을 사용하는 프로젝트
 
 <a href="https://github.com/hect0x7/hect0x7/tree/used-by">
