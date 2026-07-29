@@ -3,7 +3,43 @@ from __future__ import annotations
 import logging
 from common import time_stamp, field_cache, ProxyBuilder
 
+from .jm_task_context import JM_TASK_CONTEXT, get_jm_task_context
+
 jm_logger = logging.getLogger('jmcomic')
+
+
+def _task_context_prefix(context) -> str:
+    if not isinstance(context, dict):
+        return ''
+
+    def safe_text(value):
+        return str(value).replace('\r', '\\r').replace('\n', '\\n')
+
+    fields = []
+    task_id = context.get('task_id')
+    if task_id is not None:
+        fields.append(f'task_id={safe_text(task_id)}')
+
+    download_type = context.get('download_type')
+    jm_id = context.get('jm_id')
+    if download_type is not None and jm_id is not None:
+        fields.append(f'{safe_text(download_type)}={safe_text(jm_id)}')
+    elif download_type is not None:
+        fields.append(f'download_type={safe_text(download_type)}')
+    elif jm_id is not None:
+        fields.append(f'jm_id={safe_text(jm_id)}')
+
+    return f'[{" ".join(fields)}] ' if fields else ''
+
+
+class JmLogFormatter(logging.Formatter):
+    """Format the stable correlation fields from a JM task context."""
+
+    def format(self, record):
+        record.jm_task_context_prefix = _task_context_prefix(
+            getattr(record, JM_TASK_CONTEXT.name, None)
+        )
+        return super().format(record)
 
 
 def shuffled(lines):
@@ -19,7 +55,11 @@ def setup_default_jm_logger():
     if not jm_logger.handlers:
         import sys
         handler = logging.StreamHandler(sys.stdout)
-        formatter = logging.Formatter('[%(asctime)s] [%(threadName)s]:【%(topic)s】%(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+        formatter = JmLogFormatter(
+            '[%(asctime)s] [%(threadName)s]:'
+            '%(jm_task_context_prefix)s【%(topic)s】%(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S',
+        )
         handler.setFormatter(formatter)
         jm_logger.addHandler(handler)
         jm_logger.setLevel(logging.INFO)
@@ -30,7 +70,10 @@ def default_jm_logging(topic: str, msg, e: BaseException | None = None):
     if isinstance(msg, BaseException):
         e = msg
         msg = str(msg)
-    extra = {'topic': topic}
+    extra = {
+        'topic': topic,
+        JM_TASK_CONTEXT.name: get_jm_task_context(),
+    }
     if e is not None:
         jm_logger.error(msg, extra=extra, exc_info=e)
     else:
@@ -103,7 +146,7 @@ class JmMagicConstants:
     APP_TOKEN_SECRET_2 = '18comicAPPContent'
     APP_DATA_SECRET = '185Hcomic3PAPP7R'
     API_DOMAIN_SERVER_SECRET = 'diosfjckwpqpdfjkvnqQjsik'
-    APP_VERSION = '2.0.28'
+    APP_VERSION = '2.0.30'
 
 
 # 模块级别共用配置
@@ -565,8 +608,8 @@ jm_log = JmModuleConfig.jm_log
 disable_jm_log = JmModuleConfig.disable_jm_log
 
 
-class PrettyFormatter(logging.Formatter):
-    """带 ANSI 颜色的日志格式化器，按 topic 前缀分配颜色"""
+class PrettyFormatter(JmLogFormatter):
+    """带 ANSI 颜色的日志格式化器，按 topic 前缀分配颜色。"""
 
     TOPIC_COLORS = {
         'album': '\033[1;36m',  # 青色加粗 — 本子级别
@@ -581,7 +624,10 @@ class PrettyFormatter(logging.Formatter):
     RESET = '\033[0m'
 
     def __init__(self):
-        super().__init__(fmt='[%(asctime)s] %(message)s', datefmt='%H:%M:%S')
+        super().__init__(
+            fmt='[%(asctime)s] %(jm_task_context_prefix)s%(message)s',
+            datefmt='%H:%M:%S',
+        )
 
     def format(self, record):
         topic = getattr(record, 'topic', '')
@@ -590,7 +636,6 @@ class PrettyFormatter(logging.Formatter):
         elif record.levelno >= logging.WARNING:
             color = self.WARN_COLOR
         else:
-            # 按 topic 前缀匹配颜色
             color = next(
                 (c for prefix, c in self.TOPIC_COLORS.items()
                  if topic.startswith(prefix)),

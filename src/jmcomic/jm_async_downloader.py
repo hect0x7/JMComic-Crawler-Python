@@ -16,6 +16,7 @@ from .jm_downloader import BaseDownloader
 from .jm_entity import JmAlbumDetail, JmPhotoDetail, JmImageDetail
 from .jm_toolkit import JmImageTool
 from .jm_config import jm_log
+from .jm_task_context import bind_jm_task_context
 from .jm_option import JmOption
 
 
@@ -55,6 +56,14 @@ class JmAsyncDownloader(BaseDownloader):
     # ======================================================================
     # 核心下载流程 — 对齐 sync JmDownloader
     # ======================================================================
+
+    async def _run_in_decode_pool(self, func, *args):
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            self._decode_pool,
+            bind_jm_task_context(func),
+            *args,
+        )
 
     async def download_album(self, album_id) -> JmAlbumDetail:
         """对齐 sync JmDownloader.download_album"""
@@ -162,10 +171,8 @@ class JmAsyncDownloader(BaseDownloader):
             img_bytes = img_resp.content
 
             # 提交到线程池解密并保存
-            loop = asyncio.get_running_loop()
             if decode_image and image.scramble_id:
-                await loop.run_in_executor(
-                    self._decode_pool,
+                await self._run_in_decode_pool(
                     self._decode_and_save,
                     img_bytes,
                     int(image.scramble_id),
@@ -183,8 +190,7 @@ class JmAsyncDownloader(BaseDownloader):
                 if qi != -1:
                     img_url = img_url[:qi]
                 need_convert = suffix_not_equal(img_url, img_save_path)
-                await loop.run_in_executor(
-                    self._decode_pool,
+                await self._run_in_decode_pool(
                     self._save_raw,
                     img_bytes,
                     img_save_path,
@@ -227,28 +233,22 @@ class JmAsyncDownloader(BaseDownloader):
     # ======================================================================
 
     async def before_album(self, album: JmAlbumDetail):
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(self._decode_pool, super().before_album, album)
+        await self._run_in_decode_pool(super().before_album, album)
 
     async def after_album(self, album: JmAlbumDetail):
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(self._decode_pool, super().after_album, album)
+        await self._run_in_decode_pool(super().after_album, album)
 
     async def before_photo(self, photo: JmPhotoDetail):
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(self._decode_pool, super().before_photo, photo)
+        await self._run_in_decode_pool(super().before_photo, photo)
 
     async def after_photo(self, photo: JmPhotoDetail):
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(self._decode_pool, super().after_photo, photo)
+        await self._run_in_decode_pool(super().after_photo, photo)
 
     async def before_image(self, image: JmImageDetail, img_save_path: str):
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(self._decode_pool, super().before_image, image, img_save_path)
+        await self._run_in_decode_pool(super().before_image, image, img_save_path)
 
     async def after_image(self, image: JmImageDetail, img_save_path: str):
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(self._decode_pool, super().after_image, image, img_save_path)
+        await self._run_in_decode_pool(super().after_image, image, img_save_path)
 
     def shutdown(self):
         """关闭解密线程池"""

@@ -1,5 +1,7 @@
 from threading import Lock
 
+from .jm_task_context import bind_jm_task_context
+
 from .jm_client_interface import *
 
 
@@ -1159,7 +1161,7 @@ class PhotoConcurrentFetcherProxy(JmcomicClient):
 
             # after future done, remove it from future_dict.
             # cache depends on self.client instead of self.future_dict
-            future = self.FutureWrapper(self.executors.submit(task),
+            future = self.FutureWrapper(self.executors.submit(bind_jm_task_context(task)),
                                         after_done_callback=lambda: self.future_dict.pop(cache_key, None)
                                         )
 

@@ -2,19 +2,21 @@
 
 
 
-## 自定义下载前后的回调函数
+## 自定义下载事件的回调函数
 
 ```python
-def custom_download_callback():
+def custom_download_event_callback():
     """
-    该函数演示自定义下载时的回调函数
+    该函数演示如何自定义下载事件的回调函数。
+    公开下载 API 不接收 callback 参数；需要响应下载事件时，请自定义 Downloader。
     """
 
     # jmcomic的下载功能由 JmModuleConfig.CLASS_DOWNLOADER 这个类来负责执行
-    # 这个类默认是 JmDownloader，继承了DownloadCallback
-    # 你可以写一个自定义类，继承JmDownloader，覆盖属于DownloadCallback的方法，来实现自定义回调
+    # 这个类默认是 JmDownloader，继承了 DownloadCallback
+    # DownloadCallback 定义了 Downloader 内部各类下载事件的回调方法
+    # 你可以继承 JmDownloader 并覆盖相应方法来响应事件
     class MyDownloader(JmDownloader):
-        # 覆盖 album 下载完成后的回调
+        # 覆盖 album 下载完成事件的回调函数
         def after_album(self, album: JmAlbumDetail):
             print(f'album下载完毕: {album}')
             pass

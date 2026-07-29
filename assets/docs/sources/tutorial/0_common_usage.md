@@ -109,7 +109,7 @@ except JmcomicException as e:
 # 而JmDownloader有对应字段记录了这些线程发生的异常
 # 使用check_exception=True参数可以使downloader主动检查是否存在下载异常
 # 如果有，则当前线程会主动上抛一个PartialDownloadFailedException异常
-# 该参数主要用于主动检查部分下载失败的情况，
+# 该参数主要用于主动检查部分下载失败的情况，（仅对单个本子/章节 ID 生效，传入多个 ID 时不生效。多个 ID 的场景见下）
 # 因为非当前线程抛出的异常（比如下载章节的线程和下载图片的线程），这些线程如果抛出异常，
 # 当前线程是感知不到的，try-catch下载方法download_album不能捕获到其他线程发生的异常。
 try:
@@ -117,6 +117,12 @@ try:
 except PartialDownloadFailedException as e:
     downloader: JmDownloader = e.downloader
     print(f'下载出现部分失败, 下载失败的章节: {downloader.download_failed_photo}, 下载失败的图片: {downloader.download_failed_image}')
+
+# 多 ID 下载不会因为某一项失败而中断，请检查 BatchResult.failed。
+# 如果需要在批量失败时抛异常或重试，建议自行封装 download_batch。
+result = download_album([123, 456, 789])
+for album_id, error in result.failed.items():
+    print(f'本子 {album_id} 下载失败: {error}')
 ```
 
 

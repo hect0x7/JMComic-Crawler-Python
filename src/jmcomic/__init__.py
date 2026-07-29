@@ -2,8 +2,9 @@
 # 被依赖方 <--- 使用方
 # config <--- entity <--- toolkit <--- client <--- option <--- downloader
 
-__version__ = '2.7.2'
+__version__ = '2.7.3'
 
+from .jm_task_context import *
 from .api import *
 from .jm_plugin import *
 from .jm_feature import *

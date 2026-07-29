@@ -155,12 +155,12 @@ Feature (基类)
   └── 你的自定义 Feature  ← 继承 Feature，实现任意逻辑
 ```
 
-- **Feature 基类**：通用的附加行为抽象，不绑定任何具体实现。默认在所有生命周期钩子中执行。
+- **Feature 基类**：通用的附加行为抽象，不绑定任何具体实现。默认在所有生命周期事件中执行。
 - **PluginFeature**：Feature 的子类，专门封装 jmcomic 插件。除了调用插件之外，还会根据调用来源动态适配 `filename_rule` 参数；ZIP 的打包粒度则由插件在运行时根据上下文自动推导。
 
 ### 执行流程
 
-Feature **自然嵌入到 downloader 的生命周期钩子**中自动触发：
+Feature **自然嵌入到 downloader 的生命周期事件**中自动触发：
 
 ```text
 api.download_album(extra=Feature.export_pdf)
@@ -187,7 +187,7 @@ api.download_album(extra=Feature.export_pdf)
 
 > 💡 **关键点**：
 >
-> - **执行时机**：`PluginFeature` 根据注册来源自动推导（`download_album` → `after_album`，`download_photo` → `after_photo`）。自定义 Feature 默认在所有钩子都会执行，你可以覆写 `should_invoke` 来控制。
+> - **执行时机**：`PluginFeature` 根据注册来源自动推导（`download_album` → `after_album`，`download_photo` → `after_photo`）。自定义 Feature 默认在所有事件都会执行，你可以覆写 `should_invoke` 来控制。
 > - **参数自适应**：`PluginFeature` 的 `filename_rule` 前缀（A/P）会根据来源动态适配。ZIP 的打包粒度由插件根据上下文自动推导。用户显式传入的参数不会被覆盖。
 
 ### 自定义 Feature
@@ -207,4 +207,3 @@ class NotifyFeature(Feature):
 # 使用
 download_album('123', option, extra=NotifyFeature())
 ```
-

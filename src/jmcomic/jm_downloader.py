@@ -1,6 +1,7 @@
 from typing import NamedTuple
 
 from .jm_option import *
+from .jm_task_context import bind_jm_task_context
 
 
 def catch_exception(func):
@@ -365,6 +366,8 @@ class JmDownloader(BaseDownloader):
 
         if count_real == 0:
             return
+
+        apply = bind_jm_task_context(apply)
 
         if count_batch >= count_real:
             # 一个图/章节 对应 一个线程

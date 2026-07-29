@@ -3,6 +3,7 @@
 """
 
 from .jm_option import *
+from .jm_task_context import bind_jm_task_context, get_jm_task_context
 
 
 class PluginValidationException(Exception):
@@ -26,6 +27,11 @@ class JmOptionPlugin:
         :param kwargs: 给插件的参数
         """
         raise NotImplementedError
+
+    @property
+    def jm_task_context(self) -> dict:
+        """Return the current invocation's isolated task-context snapshot."""
+        return get_jm_task_context()
 
     @classmethod
     def build(cls, option: JmOption) -> 'JmOptionPlugin':
@@ -672,7 +678,7 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
         # 一个收藏夹一个线程，导出收藏夹数据到文件
         multi_thread_launcher(
             iter_objs=folders.items(),
-            apply_each_obj_func=self.handle_folder,
+            apply_each_obj_func=bind_jm_task_context(self.handle_folder),
         )
 
         if not self.zip_enable:
