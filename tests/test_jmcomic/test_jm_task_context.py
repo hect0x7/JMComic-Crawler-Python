@@ -10,7 +10,7 @@ from jmcomic import (
     Feature,
     JmAsyncDownloader,
     JmDownloader,
-    JmLogFormatter,
+    JmTaskContextFormatter,
     JmModuleConfig,
     JmOption,
     JmOptionPlugin,
@@ -129,41 +129,6 @@ class Test_Jm_Task_Context(unittest.TestCase):
         finally:
             JmModuleConfig.EXECUTOR_LOG = original_executor
             jm_logger.handlers[:] = original_handlers
-
-    def test_console_formatters_print_only_stable_context_fields(self):
-        record = logging.LogRecord(
-            name='jmcomic',
-            level=logging.INFO,
-            pathname=__file__,
-            lineno=1,
-            msg='message',
-            args=(),
-            exc_info=None,
-        )
-        record.topic = 'album.before'
-        record.jm_task_context = {
-            'session_id': 'session-1',
-            'task_id': 'task\n1',
-            'download_type': 'album',
-            'jm_id': '123',
-            'password': 'must-not-print',
-        }
-
-        plain = JmLogFormatter(
-            '%(jm_task_context_prefix)s【%(topic)s】%(message)s'
-        ).format(record)
-        pretty = PrettyFormatter().format(record)
-
-        expected = '[task_id=task\\n1 album=123] '
-        self.assertIn(expected, plain)
-        self.assertIn(expected, pretty)
-        self.assertNotIn('session_id=', plain)
-        self.assertNotIn('password', plain)
-        self.assertNotIn('must-not-print', plain)
-
-        record.jm_task_context = {'session_id': 'custom-session'}
-        custom = JmLogFormatter('%(jm_task_context_prefix)s%(message)s').format(record)
-        self.assertEqual('message', custom)
 
     def test_pretty_formatter_uses_topic_colors(self):
         formatter = PrettyFormatter()

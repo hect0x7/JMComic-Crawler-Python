@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+
 from common import time_stamp, field_cache, ProxyBuilder
 
 from .jm_task_context import JM_TASK_CONTEXT, get_jm_task_context
@@ -8,37 +9,36 @@ from .jm_task_context import JM_TASK_CONTEXT, get_jm_task_context
 jm_logger = logging.getLogger('jmcomic')
 
 
-def _task_context_prefix(context) -> str:
-    if not isinstance(context, dict):
-        return ''
-
-    def safe_text(value):
-        return str(value).replace('\r', '\\r').replace('\n', '\\n')
-
-    fields = []
-    task_id = context.get('task_id')
-    if task_id is not None:
-        fields.append(f'task_id={safe_text(task_id)}')
-
-    download_type = context.get('download_type')
-    jm_id = context.get('jm_id')
-    if download_type is not None and jm_id is not None:
-        fields.append(f'{safe_text(download_type)}={safe_text(jm_id)}')
-    elif download_type is not None:
-        fields.append(f'download_type={safe_text(download_type)}')
-    elif jm_id is not None:
-        fields.append(f'jm_id={safe_text(jm_id)}')
-
-    return f'[{" ".join(fields)}] ' if fields else ''
-
-
-class JmLogFormatter(logging.Formatter):
+class JmTaskContextFormatter(logging.Formatter):
     """Format the stable correlation fields from a JM task context."""
 
+    @staticmethod
+    def _task_context_prefix(context) -> str:
+        if not isinstance(context, dict):
+            return ''
+
+        fields = []
+        task_id = context.get('task_id')
+        if task_id is None:
+            # 没有 task_id 时，默认不打印 task_context，保持日志简洁
+            return ''
+        fields.append(f'task_id={task_id}')
+
+        # 内置字段
+        download_type = context.get('download_type')
+        jm_id = context.get('jm_id')
+        if download_type is not None and jm_id is not None:
+            fields.append(f'{download_type}={jm_id}')
+        elif download_type is not None:
+            fields.append(f'download_type={download_type}')
+        elif jm_id is not None:
+            fields.append(f'jm_id={jm_id}')
+
+        return f'[{"; ".join(fields)}] ' if fields else ''
+
     def format(self, record):
-        record.jm_task_context_prefix = _task_context_prefix(
-            getattr(record, JM_TASK_CONTEXT.name, None)
-        )
+        # noinspection PyTypeChecker
+        record.jm_task_context_prefix = self._task_context_prefix(getattr(record, JM_TASK_CONTEXT.name, None))
         return super().format(record)
 
 
@@ -55,11 +55,7 @@ def setup_default_jm_logger():
     if not jm_logger.handlers:
         import sys
         handler = logging.StreamHandler(sys.stdout)
-        formatter = JmLogFormatter(
-            '[%(asctime)s] [%(threadName)s]:'
-            '%(jm_task_context_prefix)s【%(topic)s】%(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S',
-        )
+        formatter = JmTaskContextFormatter(JmModuleConfig.VAR_LOG_FMT, datefmt='%Y-%m-%d %H:%M:%S')
         handler.setFormatter(formatter)
         jm_logger.addHandler(handler)
         jm_logger.setLevel(logging.INFO)
@@ -302,6 +298,8 @@ class JmModuleConfig:
     # 当发生 oserror: [Errno 36] File name too long 时，
     # 把文件名限制在指定个字符以内
     VAR_FILE_NAME_LENGTH_LIMIT = 100
+    # 日志格式
+    VAR_LOG_FMT = '[%(asctime)s] [%(threadName)s]:%(jm_task_context_prefix)s【%(topic)s】%(message)s'  # 默认不打印
 
     @classmethod
     def downloader_class(cls):
@@ -608,7 +606,7 @@ jm_log = JmModuleConfig.jm_log
 disable_jm_log = JmModuleConfig.disable_jm_log
 
 
-class PrettyFormatter(JmLogFormatter):
+class PrettyFormatter(JmTaskContextFormatter):
     """带 ANSI 颜色的日志格式化器，按 topic 前缀分配颜色。"""
 
     TOPIC_COLORS = {

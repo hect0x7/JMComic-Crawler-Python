@@ -2,7 +2,7 @@ from test_jmcomic import *
 from io import StringIO
 from unittest.mock import patch
 
-from jmcomic.cl import JmcomicUI, JmViewUI
+from jmcomic.cli import JmcomicUI, JmViewUI
 
 
 class Test_Cli(JmTestConfigurable):
