@@ -140,7 +140,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
             args=(),
             exc_info=None,
         )
-        record.topic = 'album.start'
+        record.topic = 'album.before'
         record.jm_task_context = {
             'session_id': 'session-1',
             'task_id': 'task\n1',
@@ -188,7 +188,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
             'jm_id': '1',
         }
         self.assertTrue(formatter.format(
-            make_record('album.start', task_context)
+            make_record('album.before', task_context)
         ).startswith(formatter.TOPIC_COLORS['album']))
         self.assertTrue(formatter.format(
             make_record('image.before', task_context)
@@ -201,7 +201,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
             make_record('image.warning', task_context, logging.WARNING)
         ).startswith(formatter.WARN_COLOR))
 
-    def test_public_downloads_log_start_with_task_context(self):
+    def test_public_downloads_add_task_context_to_downloader_logs(self):
         class FakeSyncDownloader:
 
             def __init__(self, _option):
@@ -217,6 +217,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
                 pass
 
             def download_album(self, album_id):
+                jm_log('album.before', 'message')
                 return album_id
 
             def raise_if_has_exception(self):
@@ -237,6 +238,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
                 pass
 
             async def download_photo(self, photo_id):
+                jm_log('photo.before', 'message')
                 return photo_id
 
             def raise_if_has_exception(self):
@@ -261,7 +263,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
             jm_logger.handlers[:] = original_handlers
 
         self.assertEqual(
-            ['album.start', 'photo.start'],
+            ['album.before', 'photo.before'],
             [record.topic for record in handler.records],
         )
         self.assertEqual(

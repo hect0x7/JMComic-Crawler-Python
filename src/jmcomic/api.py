@@ -90,7 +90,6 @@ def download_album(jm_album_id,
         return download_batch(download_album, jm_album_id, option, downloader, extra=extra)
 
     with jm_task_context(download_type='album', jm_id=str(jm_album_id)):
-        jm_log('album.start', f'开始下载本子: [{jm_album_id}]')
         with new_downloader(option, downloader) as dler:
             # 注册 Feature 及来源，由 downloader 在 after_album 钩子中自动执行
             dler.add_features(extra, 'download_album')
@@ -118,7 +117,6 @@ def download_photo(jm_photo_id,
         return download_batch(download_photo, jm_photo_id, option, downloader, extra=extra)
 
     with jm_task_context(download_type='photo', jm_id=str(jm_photo_id)):
-        jm_log('photo.start', f'开始下载章节: [{jm_photo_id}]')
         with new_downloader(option, downloader) as dler:
             # 注册 Feature 及来源，由 downloader 在 after_photo 钩子中自动执行
             dler.add_features(extra, 'download_photo')
@@ -197,7 +195,6 @@ async def download_album_async(jm_album_id,
                                           )
 
     with jm_task_context(download_type='album', jm_id=str(jm_album_id)):
-        jm_log('album.start', f'开始下载本子: [{jm_album_id}]')
         async with new_async_downloader(option, downloader) as dler:
             dler.add_features(extra, 'download_album')
             album = await dler.download_album(jm_album_id)
@@ -230,7 +227,6 @@ async def download_photo_async(jm_photo_id,
                                           )
 
     with jm_task_context(download_type='photo', jm_id=str(jm_photo_id)):
-        jm_log('photo.start', f'开始下载章节: [{jm_photo_id}]')
         async with new_async_downloader(option, downloader) as dler:
             dler.add_features(extra, 'download_photo')
             photo = await dler.download_photo(jm_photo_id)
