@@ -94,7 +94,15 @@ with jm_task_context(task_id='task-1'): # 设置这三个本子的任务id为 ta
 
 > jmcomic 使用 [ContextVar](https://docs.python.org/3/library/contextvars.html) 把上下文传播到库内部创建的下载线程或async task里。你设置的task_id其实就是上下文里的一个字段
 
-接下来给 `jm_logger` 添加一个 Handler。每当 jmcomic 产生一条日志，Handler 都可以从 `record.jm_task_context` 中取出它所属的 `task_id`，从而按任务收集日志。完整代码如下：
+最直接的效果是，默认终端日志会自动显示任务 ID：
+
+```text
+[2026-01-01 12:00:00] [MainThread]:[task_id=task-1; album=123] 【album.after】本子下载完成: [123]
+```
+
+接下来你可以实现更高级的功能，比如收集任务对应的日志：
+
+给 `jm_logger` 添加一个 Handler。每当 jmcomic 产生一条日志，Handler 都可以从 `record.jm_task_context` 中取出它所属的 `task_id`，从而按任务收集日志。完整代码如下：
 
 ```python
 import logging
@@ -130,6 +138,8 @@ with jm_task_context(task_id=task_id):  # 任务id
 | `task_id` | 你传入的类型；本例需可哈希，建议使用 `str` | 由你通过 `jm_task_context` 设置 | 你的一次下载任务标识                                                            | `task-1` |
 | `download_type` | `str`  | jmcomic 自动设置 | 你使用的download入口函数类型，例如 download_album -> album                         | `album` / `photo` |
 | `jm_id` | `str`  | jmcomic 自动设置 | 你使用的download入口函数的入参，例如 download_album(123) -> 123。传入多个 ID 时，每个 ID 都在各自隔离的上下文中记录对应的 `jm_id`，并继承同一个 `task_id`。 | `123` |
+
+> 默认终端日志仅在 `task_id` 有值时显示任务上下文，并一同显示 `download_type` 和 `jm_id`。未设置 `task_id` 时，上下文仍会正常传递，但不会显示在默认日志中。
 
 你也可以放入其他对象到任务上下文里，比如放入一个局部queue用来收集日志。在 jm_task_context 方法里传入即可 `jm_task_context(**fields)`
 
