@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 from test_jmcomic import *
 
 
-class Test_Api_Contract(unittest.TestCase):
+class Test_Api(JmTestConfigurable):
 
     def test_callback_is_not_public_download_api(self):
         for download_api in (
@@ -38,9 +38,6 @@ class Test_Api_Contract(unittest.TestCase):
 
             self.assertIs(actual, expected)
             self.assertNotIn('check_exception', batch.call_args.kwargs)
-
-
-class Test_Api(JmTestConfigurable):
 
     def test_download_photo_by_id(self):
         """
