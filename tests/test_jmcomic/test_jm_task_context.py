@@ -10,7 +10,6 @@ from jmcomic import (
     Feature,
     JmAsyncDownloader,
     JmDownloader,
-    JmTaskContextFormatter,
     JmModuleConfig,
     JmOption,
     JmOptionPlugin,

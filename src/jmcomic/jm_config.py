@@ -9,7 +9,7 @@ from .jm_task_context import JM_TASK_CONTEXT, get_jm_task_context
 jm_logger = logging.getLogger('jmcomic')
 
 
-class JmTaskContextFormatter(logging.Formatter):
+class JmLogFormatter(logging.Formatter):
     """Format the stable correlation fields from a JM task context."""
 
     @staticmethod
@@ -55,7 +55,7 @@ def setup_default_jm_logger():
     if not jm_logger.handlers:
         import sys
         handler = logging.StreamHandler(sys.stdout)
-        formatter = JmTaskContextFormatter(JmModuleConfig.VAR_LOG_FMT, datefmt='%Y-%m-%d %H:%M:%S')
+        formatter = JmLogFormatter(JmModuleConfig.VAR_LOG_FMT, datefmt='%Y-%m-%d %H:%M:%S')
         handler.setFormatter(formatter)
         jm_logger.addHandler(handler)
         jm_logger.setLevel(logging.INFO)
@@ -606,7 +606,7 @@ jm_log = JmModuleConfig.jm_log
 disable_jm_log = JmModuleConfig.disable_jm_log
 
 
-class PrettyFormatter(JmTaskContextFormatter):
+class PrettyFormatter(JmLogFormatter):
     """带 ANSI 颜色的日志格式化器，按 topic 前缀分配颜色。"""
 
     TOPIC_COLORS = {

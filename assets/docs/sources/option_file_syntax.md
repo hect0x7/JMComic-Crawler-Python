@@ -186,8 +186,8 @@ plugins:
     
     # v2.5.0 引入的插件
     # 可以启动一个服务器，可以在浏览器上查看本子
-    # 基于flask框架，需要安装额外库: [pip install plugin_jm_server]
-    # 源码：https://github.com/hect0x7/plugin-jm-server
+    # 基于flask框架，需要安装额外库: [pip install jm-view-server]
+    # 源码：https://github.com/hect0x7/jm-view-server
     - plugin: jm_server 
       kwargs:
         password: '3333' # 服务器访问密码
