@@ -174,6 +174,28 @@ download_album(aid_list, option)
 
 可参考discussions: https://github.com/hect0x7/JMComic-Crawler-Python/discussions/235
 
+### 一键导出全部收藏夹
+
+下面的代码不会下载图片，只会把帐号中的全部收藏夹导出为 CSV，并生成 `favorites.zip`：
+
+```python
+from jmcomic import JmOption, FavoriteFolderExportPlugin
+
+USERNAME = '你的禁漫帐号'
+PASSWORD = '你的禁漫密码'
+
+option = JmOption.default()
+option.build_jm_client().login(USERNAME, PASSWORD)
+
+FavoriteFolderExportPlugin(option).invoke(
+    save_dir='./',
+    zip_enable=True,
+    zip_filepath='./favorites.zip',
+)
+```
+
+### 获取并遍历收藏夹
+
 ```python
 from jmcomic import *
 
