@@ -213,6 +213,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
         original_handlers = jm_logger.handlers[:]
         jm_logger.handlers[:] = [handler]
         try:
+            jm_log('plugin.usage_log.log', 'unrelated background log')
             with jm_task_context(session_id='session-1', task_id='task-1'):
                 download_album(
                     '123',
@@ -227,9 +228,14 @@ class Test_Jm_Task_Context(unittest.TestCase):
         finally:
             jm_logger.handlers[:] = original_handlers
 
+        task_records = [
+            record
+            for record in handler.records
+            if (getattr(record, JM_TASK_CONTEXT.name, None) or {}).get('session_id') == 'session-1'
+        ]
         self.assertEqual(
             ['album.before', 'photo.before'],
-            [record.topic for record in handler.records],
+            [record.topic for record in task_records],
         )
         self.assertEqual(
             {
@@ -238,7 +244,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
                 'download_type': 'album',
                 'jm_id': '123',
             },
-            handler.records[0].jm_task_context,
+            task_records[0].jm_task_context,
         )
         self.assertEqual(
             {
@@ -247,7 +253,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
                 'download_type': 'photo',
                 'jm_id': '456',
             },
-            handler.records[1].jm_task_context,
+            task_records[1].jm_task_context,
         )
 
     def test_plugin_invocation_can_read_current_task_context(self):
