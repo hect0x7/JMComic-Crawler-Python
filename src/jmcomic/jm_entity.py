@@ -651,6 +651,102 @@ class JmPageContent(JmBaseEntity, IndexedEntity):
         return True
 
 
+class JmAlbumComment(JmBaseEntity):
+    """
+    本子评论实体。
+
+    ``raw_data`` 始终为 ``AdvancedDict``。
+
+    网页端字段说明：
+    - ``likes``：评论分页 HTML 不提供，值为 ``None``。
+    - ``user_id``：仅头像地址包含数字用户 ID 时可解析，否则为 ``None``。
+    - ``album_id``：评论 DOM 缺少本子链接时为 ``None``。
+    """
+
+    def __init__(self, raw_data):
+        self.raw_data = AdvancedDict.wrap(raw_data or {})
+        data = self.raw_data
+
+        self.comment_id = data.get('CID')
+        self.album_id = data.get('AID')
+        self.user_id = data.get('UID')
+        parent_comment_id = data.get('parent_CID')
+        self.parent_comment_id = None if str(parent_comment_id) == '0' else parent_comment_id
+        self.content = data.get('content')
+        self.username = data.get('username')
+        self.nickname = data.get('nickname')
+        is_spoiler = data.get('is_spoiler')
+        if is_spoiler is None:
+            is_spoiler = str(data.get('spoiler')) == '2'
+        elif not isinstance(is_spoiler, bool):
+            is_spoiler = str(is_spoiler).lower() in {'1', '2', 'true'}
+        self.is_spoiler = is_spoiler
+        self.created_at = data.get('addtime')
+
+        likes = data.get('likes')
+        if likes is None:
+            self.likes = None
+        else:
+            try:
+                self.likes = int(likes)
+            except (TypeError, ValueError):
+                self.likes = None
+
+        self.replies = [
+            JmAlbumComment(reply)
+            for reply in data.get('replys', []) or []
+        ]
+
+
+class JmAlbumCommentPage(JmBaseEntity, IndexedEntity):
+    """
+    本子评论分页。
+
+    ``total`` 是全部分页的主评论总数；``comment_count`` 是当前页主评论
+    加所有层级回评的数量；``len(page)`` 只统计当前页主评论。
+    ``raw_data`` 始终为 ``AdvancedDict``。
+    """
+
+    def __init__(self,
+                 content: List[JmAlbumComment],
+                 total: Optional[int] = None,
+                 raw_html: Optional[str] = None,
+                 raw_data=None,
+                 ):
+        self.content = content
+        self.total = total
+        self.raw_html = raw_html
+        self.raw_data = AdvancedDict.wrap(raw_data or {})
+
+    @property
+    def page_size(self) -> int:
+        return 10
+
+    @property
+    def page_count(self) -> Optional[int]:
+        if self.total is None:
+            return None
+
+        return (self.total + self.page_size - 1) // self.page_size
+
+    @property
+    def comment_count(self) -> int:
+        def count_comment(comment):
+            return 1 + sum(count_comment(reply) for reply in comment.replies)
+
+        return sum(count_comment(comment) for comment in self.content)
+
+    def __len__(self):
+        return len(self.content)
+
+    def getindex(self, index: int) -> JmAlbumComment:
+        return self.content[index]
+
+    @classmethod
+    def is_page(cls):
+        return True
+
+
 class JmSearchPage(JmPageContent):
 
     @property

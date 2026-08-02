@@ -170,6 +170,47 @@ for aid, atitle, tag_list in page.iter_id_title_tag():  # 使用page的iter_id_t
 download_album(aid_list, option)
 ```
 
+## 获取本子评论
+
+```python
+from jmcomic import JmOption, JmAlbumCommentPage, JmAlbumComment
+
+client = JmOption.default().new_jm_client(impl='api')
+
+# 获取第一页评论
+page: JmAlbumCommentPage = client.album_pagination('123456')
+comment: JmAlbumComment
+
+print('本页评论数:', len(page))
+print('本页评论数（含回评）:', page.comment_count)
+print('本子的评论总数:', page.total)
+print('总页数:', page.page_count)
+
+# page对象可以直接遍历
+for comment in page:
+    print('用户:', comment.nickname or comment.username)
+    print('内容:', comment.content)
+    print('是否剧透:', comment.is_spoiler)
+
+    # 回评也是评论对象
+    for reply in comment.replies:
+        print('回评用户:', reply.nickname or reply.username)
+        print('回评内容:', reply.content)
+        print('回评是否剧透:', reply.is_spoiler)
+
+# gen 方法支持自动循环获取评论分页，直到结束
+for page in client.album_pagination_gen('123456'):
+    print('本页主评论数:', len(page))
+    print('本页评论数（含回评）:', page.comment_count)
+    print('主评论总数:', page.total)
+    print('总页数:', page.page_count)
+
+    for comment in page:
+        print('用户:', comment.nickname or comment.username)
+        print('内容:', comment.content)
+        print('是否剧透:', comment.is_spoiler)
+```
+
 ## 获取收藏夹
 
 可参考discussions: https://github.com/hect0x7/JMComic-Crawler-Python/discussions/235
