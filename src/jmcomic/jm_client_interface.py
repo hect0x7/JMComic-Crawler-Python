@@ -144,6 +144,7 @@ class JmApiResp(JmJsonResp):
 # album-comment
 class JmAlbumCommentResp(JmJsonResp):
 
+    @property
     def is_success(self) -> bool:
         return super().is_success and self.json()['err'] is False
 
@@ -218,6 +219,55 @@ class JmUserClient:
         :param comment_id: 被回复评论的id
         :param originator:
         :returns: JmAcResp 对象
+        """
+        raise NotImplementedError
+
+    def album_pagination(self,
+                         jm_id: str,
+                         page=1,
+                         series=1,
+                         with_ad_wcm=1,
+                         need_total=True,
+                         ) -> JmAlbumCommentPage:
+        """
+        获取本子评论分页。
+
+        推荐直接遍历评论页，并通过 ``comment.replies`` 读取回评：
+
+        ```
+        def show_comment(comment, indent=''):
+            print(
+                indent,
+                comment.nickname or comment.username,
+                comment.content,
+                '剧透' if comment.is_spoiler else '非剧透',
+            )
+            for reply in comment.replies:
+                show_comment(reply, indent + '  ')
+
+        comment_page = client.album_pagination('123456', page=1)
+        print(comment_page.total)          # 全部分页的主评论总数
+        print(comment_page.comment_count)  # 当前页主评论 + 所有层级回评
+        for comment in comment_page:
+            show_comment(comment)
+        ```
+
+        返回字段说明：
+
+        - ``page.total``：全部分页的主评论总数。
+        - ``page.comment_count``：当前页主评论加所有层级回评的数量。
+        - ``len(page)``：当前页主评论数量，不包含回评。
+        - ``comment.raw_data``、``page.raw_data``：统一为 ``AdvancedDict``。
+        - HTML 客户端的 ``comment.likes`` 固定为 ``None``。
+        - HTML 客户端的 ``comment.user_id`` 仅在头像地址包含数字 ID 时可用。
+        - HTML 客户端的 ``comment.album_id`` 在评论 DOM 缺少本子链接时为 ``None``。
+
+        :param jm_id: album_id/photo_id
+        :param page: 页码，从 1 开始
+        :param series: 网页端评论区的系列标记，API 端忽略
+        :param with_ad_wcm: 网页端广告标记，API 端忽略
+        :param need_total: 网页端是否额外请求本子详情以获取评论总数；API 端忽略
+        :return: JmAlbumCommentPage
         """
         raise NotImplementedError
 
@@ -556,6 +606,52 @@ class JmcomicClient(
         }
 
         yield from self.do_page_iter(params, page, self.favorite_folder)
+
+    def album_pagination_gen(self,
+                             jm_id: str,
+                             page=1,
+                             series=1,
+                             with_ad_wcm=1,
+                             need_total=True,
+                             ) -> Generator[JmAlbumCommentPage, None, None]:
+        """
+        逐页获取本子评论。
+
+        ```
+        for comment_page in client.album_pagination_gen('123456'):
+            for comment in comment_page:
+                print(comment.content, comment.is_spoiler, len(comment.replies))
+        ```
+        """
+        first_page = True
+        total = None
+        while True:
+            comment_page = self.album_pagination(
+                jm_id,
+                page=page,
+                series=series,
+                with_ad_wcm=with_ad_wcm,
+                need_total=need_total if first_page else False,
+            )
+
+            if first_page:
+                total = comment_page.total
+                first_page = False
+            else:
+                comment_page.total = total
+
+            yield comment_page
+
+            if comment_page.page_count is not None:
+                if page >= comment_page.page_count:
+                    break
+            elif not any(
+                int(match.group(1)) == page + 1
+                for match in JmcomicText.pattern_html_comment_next_page.finditer(comment_page.raw_html or '')
+            ):
+                break
+
+            page += 1
 
     def search_gen(self,
                    search_query: str,
@@ -910,6 +1006,56 @@ class AsyncJmcomicClient:
                             **kwargs,
                             ) -> JmAlbumCommentResp:
         raise NotImplementedError
+
+    async def album_pagination(self,
+                               jm_id: str,
+                               page=1,
+                               series=1,
+                               with_ad_wcm=1,
+                               need_total=True,
+                               ) -> JmAlbumCommentPage:
+        """
+        获取本子评论分页。
+
+        异步客户端使用移动端 API，返回值与同步 JmApiClient 一致；
+        ``series`` 和 ``with_ad_wcm`` 仅用于保持同步/异步签名一致。
+        """
+        raise NotImplementedError
+
+    async def album_pagination_gen(self,
+                                   jm_id: str,
+                                   page=1,
+                                   series=1,
+                                   with_ad_wcm=1,
+                                   need_total=True,
+                                   ):
+        """异步逐页获取本子评论。"""
+        first_page = True
+        total = None
+        while True:
+            comment_page = await self.album_pagination(
+                jm_id,
+                page=page,
+                series=series,
+                with_ad_wcm=with_ad_wcm,
+                need_total=need_total if first_page else False,
+            )
+
+            if first_page:
+                total = comment_page.total
+                first_page = False
+            else:
+                comment_page.total = total
+
+            yield comment_page
+
+            if comment_page.page_count is not None:
+                if page >= comment_page.page_count:
+                    break
+            elif not comment_page:
+                break
+
+            page += 1
 
     # -- 域名 / 缓存管理 --
 

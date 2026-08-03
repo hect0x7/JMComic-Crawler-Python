@@ -65,11 +65,11 @@
   </tr>
   <tr>
     <td align="center">
-        <a href="https://github.com/hect0x7/plugin-jm-server">
+        <a href="https://github.com/hect0x7/jm-view-server">
           <picture>
-            <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-plugin-jm-server-dark.svg" />
-            <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-plugin-jm-server.svg" />
-            <img alt="Repo Card" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-plugin-jm-server.svg" />
+            <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jm-view-server-dark.svg" />
+            <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jm-view-server.svg" />
+            <img alt="Repo Card" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jm-view-server.svg" />
           </picture>
         </a>
     </td>

@@ -109,7 +109,7 @@ except JmcomicException as e:
 # 而JmDownloader有对应字段记录了这些线程发生的异常
 # 使用check_exception=True参数可以使downloader主动检查是否存在下载异常
 # 如果有，则当前线程会主动上抛一个PartialDownloadFailedException异常
-# 该参数主要用于主动检查部分下载失败的情况，
+# 该参数主要用于主动检查部分下载失败的情况，（仅对单个本子/章节 ID 生效，传入多个 ID 时不生效。多个 ID 的场景见下）
 # 因为非当前线程抛出的异常（比如下载章节的线程和下载图片的线程），这些线程如果抛出异常，
 # 当前线程是感知不到的，try-catch下载方法download_album不能捕获到其他线程发生的异常。
 try:
@@ -117,6 +117,12 @@ try:
 except PartialDownloadFailedException as e:
     downloader: JmDownloader = e.downloader
     print(f'下载出现部分失败, 下载失败的章节: {downloader.download_failed_photo}, 下载失败的图片: {downloader.download_failed_image}')
+
+# 多 ID 下载不会因为某一项失败而中断，请检查 BatchResult.failed。
+# 如果需要在批量失败时抛异常、重试或拿到更详细信息，建议自行封装一个批量下载方法。
+result = download_album([123, 456, 789])
+for album_id, error in result.failed.items():
+    print(f'本子 {album_id} 下载失败: {error}')
 ```
 
 
@@ -164,9 +170,72 @@ for aid, atitle, tag_list in page.iter_id_title_tag():  # 使用page的iter_id_t
 download_album(aid_list, option)
 ```
 
+## 获取本子评论
+
+```python
+from jmcomic import JmOption, JmAlbumCommentPage, JmAlbumComment
+
+client = JmOption.default().new_jm_client(impl='api')
+
+# 获取第一页评论
+page: JmAlbumCommentPage = client.album_pagination('123456')
+
+print('本页评论数:', len(page))
+print('本页评论数（含回评）:', page.comment_count)
+print('本子的评论总数:', page.total)
+print('总页数:', page.page_count)
+
+# page对象可以直接遍历评论，评论类型是JmAlbumComment
+comment: JmAlbumComment
+for comment in page:
+    print('用户:', comment.nickname or comment.username)
+    print('内容:', comment.content)
+    print('是否剧透:', comment.is_spoiler)
+
+    # 回评也是评论对象
+    for reply in comment.replies:
+        print('回评用户:', reply.nickname or reply.username)
+        print('回评内容:', reply.content)
+        print('回评是否剧透:', reply.is_spoiler)
+
+# gen 方法支持自动循环获取评论分页，直到结束
+for page in client.album_pagination_gen('123456'):
+    print('本页主评论数:', len(page))
+    print('本页评论数（含回评）:', page.comment_count)
+    print('主评论总数:', page.total)
+    print('总页数:', page.page_count)
+
+    for comment in page:
+        print('用户:', comment.nickname or comment.username)
+        print('内容:', comment.content)
+        print('是否剧透:', comment.is_spoiler)
+```
+
 ## 获取收藏夹
 
 可参考discussions: https://github.com/hect0x7/JMComic-Crawler-Python/discussions/235
+
+### 一键导出全部收藏夹
+
+下面的代码不会下载图片，只会把帐号中的全部收藏夹导出为 CSV，并生成 `favorites.zip`：
+
+```python
+from jmcomic import JmOption, FavoriteFolderExportPlugin
+
+USERNAME = '你的禁漫帐号'
+PASSWORD = '你的禁漫密码'
+
+option = JmOption.default()
+option.build_jm_client().login(USERNAME, PASSWORD)
+
+FavoriteFolderExportPlugin(option).invoke(
+    save_dir='./',
+    zip_enable=True,
+    zip_filepath='./favorites.zip',
+)
+```
+
+### 获取并遍历收藏夹
 
 ```python
 from jmcomic import *

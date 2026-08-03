@@ -71,6 +71,60 @@ class Test_Async_Client(JmAsyncTestConfigurable):
         )
         self.assertGreater(async_album.comment_count, 0, 'comment_count 应 > 0')
 
+    def test_async_album_pagination(self):
+        """测试异步评论分页与生成器。"""
+        album_id = '302820'
+
+        async def run():
+            comment_gen = self.async_client.album_pagination_gen(album_id)
+            page_1 = await comment_gen.__anext__()
+            page_2 = await comment_gen.__anext__()
+            await comment_gen.aclose()
+
+            self.assertTrue(list(page_1))
+            self.assertTrue(list(page_2))
+            self.assertEqual(page_1.total, page_2.total)
+            self.assertIsInstance(page_1.raw_data, AdvancedDict)
+            self.assertGreaterEqual(page_1.comment_count, len(page_1))
+
+            comment = page_1[0]
+            self.assertIsInstance(comment, JmAlbumComment)
+            self.assertIsInstance(comment.raw_data, AdvancedDict)
+            self.assertIsInstance(comment.is_spoiler, bool)
+            self.assertTrue(all(
+                isinstance(reply, JmAlbumComment)
+                for reply in comment.replies
+            ))
+
+        self.run_async(run())
+
+    def test_async_album_pagination_without_total(self):
+        """没有评论总数时，异步生成器继续读取到空页。"""
+        responses = iter([
+            JmAlbumCommentPage([JmAlbumComment({'CID': '1'})]),
+            JmAlbumCommentPage([JmAlbumComment({'CID': '2'})]),
+            JmAlbumCommentPage([]),
+        ])
+        original_album_pagination = self.async_client.album_pagination
+
+        async def fake_album_pagination(*args, **kwargs):
+            return next(responses)
+
+        self.async_client.album_pagination = fake_album_pagination
+
+        async def run():
+            pages = [
+                page
+                async for page in self.async_client.album_pagination_gen('123456')
+            ]
+            self.assertEqual(len(pages), 3)
+            self.assertEqual([len(page) for page in pages], [1, 1, 0])
+
+        try:
+            self.run_async(run())
+        finally:
+            self.async_client.album_pagination = original_album_pagination
+
     def test_async_get_detail(self):
         """对标 test_get_detail：album + photo 联合 diff"""
         album_id = 400222

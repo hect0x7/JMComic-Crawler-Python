@@ -5,6 +5,6 @@ Pillow
 psutil
 pycryptodome
 requests
-plugin_jm_server
+jm-view-server
 zhconv
 img2pdf

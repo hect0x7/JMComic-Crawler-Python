@@ -18,7 +18,7 @@ from .jm_client_interface import (
 )
 from .jm_entity import (
     JmAlbumDetail, JmPhotoDetail, JmSearchPage, JmCategoryPage,
-    JmFavoritePage, DetailType
+    JmFavoritePage, DetailType, JmAlbumCommentPage
 )
 from .jm_config import JmModuleConfig, JmMagicConstants, time_stamp, jm_log
 from .jm_toolkit import (
@@ -47,6 +47,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
     API_CHAPTER = '/chapter'
     API_SCRAMBLE = '/chapter_view_template'
     API_FAVORITE = '/favorite'
+    API_FORUM = '/forum'
 
     # 缓存未命中标记
     _SENTINEL = object()
@@ -632,6 +633,24 @@ class AsyncJmApiClient(AsyncJmcomicClient):
         )
         return JmPageTool.parse_api_to_favorite_page(resp.model_data)
 
+    async def album_pagination(self,
+                               jm_id: str,
+                               page=1,
+                               series=1,
+                               with_ad_wcm=1,
+                               need_total=True,
+                               ) -> JmAlbumCommentPage:
+        """获取本子评论分页，返回 ``list`` 和 ``total``。"""
+        resp = await self.req_api(
+            self.API_FORUM,
+            params={
+                'mode': 'all',
+                'page': page,
+                'aid': JmcomicText.parse_to_jm_id(jm_id),
+            },
+        )
+        return JmPageTool.parse_api_to_album_comment_page(resp.model_data)
+
     async def add_favorite_album(self, album_id, folder_id='0'):
         """
         将指定图集加入用户的收藏夹。
@@ -652,7 +671,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
                             comment_id=None,
                             **kwargs,
                             ) -> JmAlbumCommentResp:
-        """提交图集评论内容"""
+        """提交本子评论内容"""
         # 移动端 API 没有评论接口，此方法仅为接口完整性保留
         raise NotImplementedError('移动端 API 不支持评论功能，请使用网页端 JmHtmlClient')
 

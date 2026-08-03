@@ -1,7 +1,43 @@
+import asyncio
+import inspect
+from unittest.mock import AsyncMock, patch
+
 from test_jmcomic import *
 
 
 class Test_Api(JmTestConfigurable):
+
+    def test_callback_is_not_public_download_api(self):
+        for download_api in (
+                download_album,
+                download_photo,
+                download_album_async,
+                download_photo_async,
+        ):
+            parameters = inspect.signature(download_api).parameters
+            self.assertNotIn('callback', parameters)
+            self.assertEqual(
+                parameters['check_exception'].kind,
+                inspect.Parameter.KEYWORD_ONLY,
+            )
+
+    def test_multi_id_shortcuts_do_not_forward_check_exception(self):
+        for download_api in (download_album, download_photo):
+            expected = BatchResult()
+            with patch('jmcomic.api.download_batch', return_value=expected) as batch:
+                actual = download_api(['123', '456'], check_exception=False)
+
+            self.assertIs(actual, expected)
+            self.assertNotIn('check_exception', batch.call_args.kwargs)
+
+        for download_api in (download_album_async, download_photo_async):
+            expected = BatchResult()
+            batch = AsyncMock(return_value=expected)
+            with patch('jmcomic.api.download_batch_async', new=batch):
+                actual = asyncio.run(download_api(['123', '456'], check_exception=False))
+
+            self.assertIs(actual, expected)
+            self.assertNotIn('check_exception', batch.call_args.kwargs)
 
     def test_download_photo_by_id(self):
         """

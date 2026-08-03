@@ -1,5 +1,7 @@
 from threading import Lock
 
+from .jm_task_context import bind_jm_task_context
+
 from .jm_client_interface import *
 
 
@@ -240,6 +242,7 @@ class JmHtmlClient(AbstractJmClient):
 
     API_SEARCH = '/search/photos'
     API_CATEGORY = '/albums'
+    API_ALBUM_PAGINATION = '/ajax/album_pagination'
 
     def add_favorite_album(self,
                            album_id,
@@ -526,9 +529,36 @@ class JmHtmlClient(AbstractJmClient):
         resp = self.post('/ajax/album_comment', data=data)
 
         ret = JmAlbumCommentResp(resp)
+        ret.require_success()
         jm_log('album.comment', f'{video_id}: [{comment}] ← ({ret.model().cid})')
 
         return ret
+
+    def album_pagination(self,
+                         jm_id: str,
+                         page=1,
+                         series=1,
+                         with_ad_wcm=1,
+                         need_total=True,
+                         ) -> JmAlbumCommentPage:
+        resp = self.post(
+            self.API_ALBUM_PAGINATION,
+            data={
+                'video_id': JmcomicText.parse_to_jm_id(jm_id),
+                'page': page,
+                'series': series,
+                'with_ad_wcm': with_ad_wcm,
+            }
+        )
+
+        ret = JmJsonResp(resp)
+        ret.require_success()
+        comment_page = JmPageTool.parse_html_to_album_comment_page(ret.model())
+        if need_total:
+            album = self.get_album_detail(jm_id)
+            comment_page.total = album.comment_count
+
+        return comment_page
 
     @classmethod
     def require_resp_success_else_raise(cls, resp, url: str):
@@ -608,6 +638,7 @@ class JmApiClient(AbstractJmClient):
     API_CHAPTER = '/chapter'
     API_SCRAMBLE = '/chapter_view_template'
     API_FAVORITE = '/favorite'
+    API_FORUM = '/forum'
 
     def search(self,
                search_query: str,
@@ -853,6 +884,33 @@ class JmApiClient(AbstractJmClient):
         )
 
         return JmPageTool.parse_api_to_favorite_page(resp.model_data)
+
+    def album_comment(self,
+                      video_id,
+                      comment,
+                      originator='',
+                      status='true',
+                      comment_id=None,
+                      **kwargs,
+                      ) -> JmAlbumCommentResp:
+        raise NotImplementedError('移动端 API 不支持评论功能，请使用网页端 JmHtmlClient')
+
+    def album_pagination(self,
+                         jm_id: str,
+                         page=1,
+                         series=1,
+                         with_ad_wcm=1,
+                         need_total=True,
+                         ) -> JmAlbumCommentPage:
+        resp = self.req_api(
+            self.API_FORUM,
+            params={
+                'mode': 'all',
+                'page': page,
+                'aid': JmcomicText.parse_to_jm_id(jm_id),
+            },
+        )
+        return JmPageTool.parse_api_to_album_comment_page(resp.model_data)
 
     def add_favorite_album(self,
                            album_id,
@@ -1159,7 +1217,7 @@ class PhotoConcurrentFetcherProxy(JmcomicClient):
 
             # after future done, remove it from future_dict.
             # cache depends on self.client instead of self.future_dict
-            future = self.FutureWrapper(self.executors.submit(task),
+            future = self.FutureWrapper(self.executors.submit(bind_jm_task_context(task)),
                                         after_done_callback=lambda: self.future_dict.pop(cache_key, None)
                                         )
 

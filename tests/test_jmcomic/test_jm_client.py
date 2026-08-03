@@ -222,6 +222,147 @@ class Test_Client(JmTestConfigurable):
                 aid,
             )
 
+    def test_album_pagination(self):
+        album_id = '302820'
+        api_client = self.option.new_jm_client(impl='api')
+        html_client = self.option.new_jm_client(impl='html')
+
+        api_gen = api_client.album_pagination_gen(album_id)
+        api_page = next(api_gen)
+        api_page_2 = next(api_gen)
+        api_gen.close()
+
+        html_page = None
+        failed_domains = []
+        for domain in html_client.get_html_domain_all():
+            html_client.set_domain_list([domain])
+            try:
+                html_page = html_client.album_pagination(album_id, page=1)
+                break
+            except Exception as e:
+                failed_domains.append((domain, e))
+                continue
+
+        for domain, error in failed_domains:
+            print(f'本子评论请求失败，域名: {domain}, 异常: {error}')
+        self.assertIsNotNone(
+            html_page,
+            f'所有网页域名均无法获取本子评论，失败域名: {failed_domains}',
+        )
+        api_comments = list(api_page)
+        html_comments = list(html_page)
+
+        self.assertTrue(api_comments)
+        self.assertTrue(list(api_page_2))
+        self.assertTrue(html_comments)
+        self.assertIsInstance(api_page.raw_data, AdvancedDict)
+        self.assertIsInstance(html_page.raw_data, AdvancedDict)
+        self.assertGreaterEqual(api_page.comment_count, len(api_page))
+        self.assertGreaterEqual(html_page.comment_count, len(html_page))
+        self.assertGreater(api_page.total, 0)
+        self.assertGreater(html_page.total, 0)
+        self.assertEqual(api_page.total, api_page_2.total)
+
+        html_gen_without_total = html_client.album_pagination_gen(
+            album_id,
+            page=1,
+            need_total=False,
+        )
+        html_page_without_total = next(html_gen_without_total)
+        html_page_2_without_total = next(html_gen_without_total)
+        html_gen_without_total.close()
+
+        self.assertTrue(list(html_page_2_without_total))
+        self.assertIsNone(html_page_without_total.total)
+        self.assertIsNone(html_page_without_total.page_count)
+        self.assertIsNone(html_page_2_without_total.total)
+        self.assertIsNone(html_page_2_without_total.page_count)
+
+        for comment in (api_comments[0], html_comments[0]):
+            self.assertIsInstance(comment.raw_data, AdvancedDict)
+            self.assertTrue(comment.comment_id)
+            self.assertEqual(str(comment.album_id), album_id)
+            self.assertIsInstance(comment.content, str)
+            self.assertIsInstance(comment.is_spoiler, bool)
+
+        api_comments_by_cid = {
+            str(comment.comment_id): comment
+            for comment in api_comments
+        }
+        html_comments_by_cid = {
+            str(comment.comment_id): comment
+            for comment in html_comments
+        }
+        common_cids = api_comments_by_cid.keys() & html_comments_by_cid.keys()
+        self.assertTrue(common_cids)
+
+        checked_reply = False
+        api_pages = {1: api_page, 2: api_page_2}
+        for reply_page_number in range(1, 6):
+            candidate_api_page = api_pages.get(reply_page_number)
+            if candidate_api_page is None:
+                candidate_api_page = api_client.album_pagination(
+                    album_id,
+                    page=reply_page_number,
+                )
+            candidate_html_page = (
+                html_page_without_total
+                if reply_page_number == 1
+                else html_client.album_pagination(
+                    album_id,
+                    page=reply_page_number,
+                    need_total=False,
+                )
+            )
+            html_reply_comments = {
+                str(comment.comment_id): comment
+                for comment in candidate_html_page
+            }
+            for api_comment in candidate_api_page:
+                api_replies = api_comment.replies
+                html_comment = html_reply_comments.get(str(api_comment.comment_id))
+                if not api_replies or html_comment is None:
+                    continue
+
+                html_replies = html_comment.replies
+                if not html_replies:
+                    continue
+
+                api_replies_by_cid = {
+                    str(reply.comment_id): reply
+                    for reply in api_replies
+                }
+                html_replies_by_cid = {
+                    str(reply.comment_id): reply
+                    for reply in html_replies
+                }
+                common_reply_cids = api_replies_by_cid.keys() & html_replies_by_cid.keys()
+                if not common_reply_cids:
+                    continue
+
+                reply_cid = next(iter(common_reply_cids))
+                api_reply = api_replies_by_cid[reply_cid]
+                html_reply = html_replies_by_cid[reply_cid]
+                self.assertEqual(str(html_reply.comment_id), reply_cid)
+                self.assertEqual(str(api_reply.comment_id), reply_cid)
+                self.assertIsInstance(api_reply.raw_data, AdvancedDict)
+                self.assertIsInstance(html_reply.raw_data, AdvancedDict)
+                self.assertIsInstance(api_reply.content, str)
+                self.assertFalse(api_reply.content.startswith('<div'))
+                self.assertEqual(
+                    str(html_reply.parent_comment_id),
+                    str(api_comment.comment_id),
+                )
+                self.assertGreater(candidate_api_page.comment_count, len(candidate_api_page))
+                self.assertGreater(candidate_html_page.comment_count, len(candidate_html_page))
+                checked_reply = True
+                break
+
+            if checked_reply:
+                break
+
+        self.assertTrue(checked_reply, 'API/HTML 前 5 页没有可对照的回评')
+
     def test_get_detail(self):
         client = self.client
 

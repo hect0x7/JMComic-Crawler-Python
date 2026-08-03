@@ -17,6 +17,7 @@ Feature 用于封装复杂、高级的功能特性，例如pdf导出插件，以
     download_album(id, option, extra=Feature.export_pdf + Feature.export_zip)
 """
 from .jm_plugin import *
+from .jm_task_context import get_jm_task_context
 
 
 class Feature:
@@ -32,6 +33,11 @@ class Feature:
     export_pdf: 'PluginFeature'
     export_zip: 'PluginFeature'
     export_long_img: 'PluginFeature'
+
+    @property
+    def jm_task_context(self) -> dict:
+        """Return the current invocation's isolated task-context snapshot."""
+        return get_jm_task_context()
 
     def should_invoke(self, feature_from: str, when: str) -> bool:
         """

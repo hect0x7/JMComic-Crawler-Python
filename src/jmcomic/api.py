@@ -1,26 +1,18 @@
 import asyncio
-import inspect
 
 from .jm_downloader import *
+from .jm_task_context import bind_jm_task_context, jm_task_context
 
 __DOWNLOAD_API_RET = DownloadResult
 
 
-async def _invoke_async_callback(callback, entity, downloader):
-    if callback is None:
-        return None
-
-    is_async_callback = (
-            inspect.iscoroutinefunction(callback)
-            or inspect.iscoroutinefunction(getattr(callback, '__call__', None))
-    )
-    if is_async_callback:
-        return await callback(entity, downloader)
-
-    result = await asyncio.to_thread(callback, entity, downloader)
-    if inspect.isawaitable(result):
-        return await result
-    return result
+def _download_type(download_api) -> str:
+    name = getattr(download_api, '__name__', download_api.__class__.__name__)
+    if name.endswith('_async'):
+        name = name[:-6]
+    if name.startswith('download_'):
+        name = name[9:]
+    return name
 
 
 def download_batch(download_api,
@@ -48,21 +40,24 @@ def download_batch(download_api,
 
     result = BatchResult()
 
+    download_type = _download_type(download_api)
+
     def _safe_download(aid):
         """batch 内部的单任务包装：确保异常被收集而非静默丢失"""
-        try:
-            ret = download_api(aid, option, downloader, **kwargs)
-            result.add(ret)
-        except Exception as e:
-            jm_log('batch.failed', f'批量下载失败: [{aid}], 异常: [{e}]', e)
-            result.failed[str(aid)] = e
+        with jm_task_context(download_type=download_type, jm_id=str(aid)):
+            try:
+                ret = download_api(aid, option, downloader, **kwargs)
+                result.add(ret)
+            except Exception as e:
+                jm_log('batch.failed', f'批量下载失败: [{aid}], 异常: [{e}]', e)
+                result.failed[str(aid)] = e
 
     multi_thread_launcher(
         iter_objs=set(
             JmcomicText.parse_to_jm_id(jmid)
             for jmid in jm_id_iter
         ),
-        apply_each_obj_func=_safe_download,
+        apply_each_obj_func=bind_jm_task_context(_safe_download),
         wait_finish=True
     )
 
@@ -72,7 +67,7 @@ def download_batch(download_api,
 def download_album(jm_album_id,
                    option=None,
                    downloader=None,
-                   callback=None,
+                   *,
                    check_exception=True,
                    extra=None,
                    ) -> Union[__DOWNLOAD_API_RET, Set[__DOWNLOAD_API_RET]]:
@@ -84,8 +79,9 @@ def download_album(jm_album_id,
     :param jm_album_id: 本子的禁漫车号
     :param option: 下载选项
     :param downloader: 下载器类
-    :param callback: 返回值回调函数，可以拿到 album 和 downloader
-    :param check_exception: 是否检查异常, 如果为True，会检查downloader是否有下载异常，并上抛PartialDownloadFailedException
+    :param check_exception: 仅当 jm_album_id 是单个 ID 时生效。为 True 时检查 downloader 中的部分下载失败，
+                            并上抛 PartialDownloadFailedException。多 ID 调用会转交 download_batch，此参数不生效；
+                            请检查 BatchResult.failed，或自行封装 download_batch 实现所需的批量异常策略。
     :param extra: 下载特性（Feature），下载时动态挂载的附加行为上下文。会自动根据上下文（如 album/photo 来源）自适应参数行为。支持单个 Feature、FeatureChain、或列表
     :return: 对于的本子实体类，下载器（如果是上述的批量情况，返回值为download_batch的返回值）
     """
@@ -93,41 +89,42 @@ def download_album(jm_album_id,
     if not isinstance(jm_album_id, (str, int)):
         return download_batch(download_album, jm_album_id, option, downloader, extra=extra)
 
-    with new_downloader(option, downloader) as dler:
-        # 注册 Feature 及来源，由 downloader 在 after_album 钩子中自动执行
-        dler.add_features(extra, 'download_album')
-        album = dler.download_album(jm_album_id)
+    with jm_task_context(download_type='album', jm_id=str(jm_album_id)):
+        with new_downloader(option, downloader) as dler:
+            # 注册 Feature 及来源，由 downloader 在 after_album 钩子中自动执行
+            dler.add_features(extra, 'download_album')
+            album = dler.download_album(jm_album_id)
 
-        if callback is not None:
-            callback(album, dler)
-        if check_exception:
-            dler.raise_if_has_exception()
-        return DownloadResult(album, dler)
+            if check_exception:
+                dler.raise_if_has_exception()
+            return DownloadResult(album, dler)
 
 
 def download_photo(jm_photo_id,
                    option=None,
                    downloader=None,
-                   callback=None,
+                   *,
                    check_exception=True,
                    extra=None,
                    ):
     """
-    下载一个章节（photo），参数同 download_album
+    下载一个章节（photo），参数同 download_album。
+
+    check_exception 仅当 jm_photo_id 是单个 ID 时生效。多 ID 场景请检查
+    BatchResult.failed，或自行封装 download_batch 处理批量异常。
     """
     if not isinstance(jm_photo_id, (str, int)):
         return download_batch(download_photo, jm_photo_id, option, downloader, extra=extra)
 
-    with new_downloader(option, downloader) as dler:
-        # 注册 Feature 及来源，由 downloader 在 after_photo 钩子中自动执行
-        dler.add_features(extra, 'download_photo')
-        photo = dler.download_photo(jm_photo_id)
+    with jm_task_context(download_type='photo', jm_id=str(jm_photo_id)):
+        with new_downloader(option, downloader) as dler:
+            # 注册 Feature 及来源，由 downloader 在 after_photo 钩子中自动执行
+            dler.add_features(extra, 'download_photo')
+            photo = dler.download_photo(jm_photo_id)
 
-        if callback is not None:
-            callback(photo, dler)
-        if check_exception:
-            dler.raise_if_has_exception()
-        return DownloadResult(photo, dler)
+            if check_exception:
+                dler.raise_if_has_exception()
+            return DownloadResult(photo, dler)
 
 
 def new_downloader(option=None, downloader=None) -> JmDownloader:
@@ -177,7 +174,7 @@ def new_async_downloader(option=None, downloader=None):
 async def download_album_async(jm_album_id,
                                option=None,
                                downloader=None,
-                               callback=None,
+                               *,
                                check_exception=True,
                                extra=None,
                                ):
@@ -185,8 +182,9 @@ async def download_album_async(jm_album_id,
     异步下载一个本子（album），包含其所有的章节（photo）。
 
     - 支持批量下载（当 jm_album_id 为可迭代对象时）
-    - callback 支持同步函数和异步函数
     - 返回 (album, downloader) 元组，其中 downloader 的网络和线程池资源已关闭，仅用于读取下载结果
+    - check_exception 仅当 jm_album_id 是单个 ID 时生效。多 ID 场景请检查 BatchResult.failed，
+      或自行封装 download_batch_async 处理批量异常
     """
     if not isinstance(jm_album_id, (str, int)):
         return await download_batch_async(download_album_async,
@@ -196,28 +194,29 @@ async def download_album_async(jm_album_id,
                                           extra=extra
                                           )
 
-    async with new_async_downloader(option, downloader) as dler:
-        dler.add_features(extra, 'download_album')
-        album = await dler.download_album(jm_album_id)
+    with jm_task_context(download_type='album', jm_id=str(jm_album_id)):
+        async with new_async_downloader(option, downloader) as dler:
+            dler.add_features(extra, 'download_album')
+            album = await dler.download_album(jm_album_id)
 
-        await _invoke_async_callback(callback, album, dler)
-        if check_exception:
-            dler.raise_if_has_exception()
+            if check_exception:
+                dler.raise_if_has_exception()
 
-        return DownloadResult(album, dler)
+            return DownloadResult(album, dler)
 
 
 async def download_photo_async(jm_photo_id,
                                option=None,
                                downloader=None,
-                               callback=None,
+                               *,
                                check_exception=True,
                                extra=None,
                                ):
     """
     异步下载一个章节（photo）。
-    callback 支持同步函数和异步函数。
     返回的 downloader 已关闭网络和线程池资源，仅用于读取下载结果。
+    check_exception 仅当 jm_photo_id 是单个 ID 时生效。多 ID 场景请检查
+    BatchResult.failed，或自行封装 download_batch_async 处理批量异常。
     """
     if not isinstance(jm_photo_id, (str, int)):
         return await download_batch_async(download_photo_async,
@@ -227,15 +226,15 @@ async def download_photo_async(jm_photo_id,
                                           extra=extra
                                           )
 
-    async with new_async_downloader(option, downloader) as dler:
-        dler.add_features(extra, 'download_photo')
-        photo = await dler.download_photo(jm_photo_id)
+    with jm_task_context(download_type='photo', jm_id=str(jm_photo_id)):
+        async with new_async_downloader(option, downloader) as dler:
+            dler.add_features(extra, 'download_photo')
+            photo = await dler.download_photo(jm_photo_id)
 
-        await _invoke_async_callback(callback, photo, dler)
-        if check_exception:
-            dler.raise_if_has_exception()
+            if check_exception:
+                dler.raise_if_has_exception()
 
-        return DownloadResult(photo, dler)
+            return DownloadResult(photo, dler)
 
 
 async def download_batch_async(download_api,
@@ -253,9 +252,14 @@ async def download_batch_async(download_api,
         option = JmModuleConfig.option_class().default()
 
     jm_ids = list(dict.fromkeys(JmcomicText.parse_to_jm_id(jmid) for jmid in jm_id_iter))
+    download_type = _download_type(download_api)
+
+    async def _download_one(jmid):
+        with jm_task_context(download_type=download_type, jm_id=str(jmid)):
+            return await download_api(jmid, option, downloader, **kwargs)
 
     results = await asyncio.gather(
-        *(download_api(jmid, option, downloader, **kwargs) for jmid in jm_ids),
+        *(_download_one(jmid) for jmid in jm_ids),
         return_exceptions=True,
     )
 
@@ -263,7 +267,8 @@ async def download_batch_async(download_api,
     result = BatchResult()
     for jmid, r in zip(jm_ids, results):
         if isinstance(r, BaseException):
-            jm_log('async.batch.failed', f'批量下载失败: [{jmid}], 异常: [{r}]', r)
+            with jm_task_context(download_type=download_type, jm_id=str(jmid)):
+                jm_log('async.batch.failed', f'批量下载失败: [{jmid}], 异常: [{r}]', r)
             result.failed[str(jmid)] = r
         else:
             result.add(r)

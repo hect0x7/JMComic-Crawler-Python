@@ -2,13 +2,19 @@ from test_jmcomic import *
 from io import StringIO
 from unittest.mock import patch
 
-from jmcomic.cl import JmcomicUI, JmViewUI
+from jmcomic.cli import JmcomicUI, JmViewUI
 
 
 class Test_Cli(JmTestConfigurable):
     """测试 CLI 命令 (jmcomic + jmv)"""
 
     album_id = '350234'
+
+    def test_cl_deprecated(self):
+        with self.assertWarnsRegex(DeprecationWarning, r'removed in version 2\.7\.4'):
+            from jmcomic.cl import JmcomicUI as DeprecatedJmcomicUI
+
+        self.assertIs(DeprecatedJmcomicUI, JmcomicUI)
 
     # ========== jmcomic 命令测试 ==========
 

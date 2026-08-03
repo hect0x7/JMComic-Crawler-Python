@@ -1,6 +1,6 @@
 # command-line
 
-::: jmcomic.cl
+::: jmcomic.cli
     options:
       members:
       - JmcomicUI

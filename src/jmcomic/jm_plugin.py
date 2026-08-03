@@ -3,6 +3,7 @@
 """
 
 from .jm_option import *
+from .jm_task_context import bind_jm_task_context, get_jm_task_context
 
 
 class PluginValidationException(Exception):
@@ -26,6 +27,11 @@ class JmOptionPlugin:
         :param kwargs: 给插件的参数
         """
         raise NotImplementedError
+
+    @property
+    def jm_task_context(self) -> dict:
+        """Return the current invocation's isolated task-context snapshot."""
+        return get_jm_task_context()
 
     @classmethod
     def build(cls, option: JmOption) -> 'JmOptionPlugin':
@@ -672,7 +678,7 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
         # 一个收藏夹一个线程，导出收藏夹数据到文件
         multi_thread_launcher(
             iter_objs=folders.items(),
-            apply_each_obj_func=self.handle_folder,
+            apply_each_obj_func=bind_jm_task_context(self.handle_folder),
         )
 
         if not self.zip_enable:
@@ -992,21 +998,34 @@ class JmServerPlugin(JmOptionPlugin):
             if self.running:
                 return
 
-            # 服务器的代码位于一个独立库：plugin_jm_server，需要独立安装
-            # 源代码仓库：https://github.com/hect0x7/plugin-jm-server
+            # 服务器的代码位于独立库 jm-view-server，需要独立安装
+            # 源代码仓库：https://github.com/hect0x7/jm-view-server
             try:
                 # noinspection PyUnresolvedReferences
-                import plugin_jm_server
-                self.log(f'当前使用plugin_jm_server版本: {plugin_jm_server.__version__}')
-            except ImportError:
-                self.warning_lib_not_install('plugin_jm_server')
-                return
+                import jm_view_server as jm_server_lib
+            except ModuleNotFoundError as e:
+                if e.name != 'jm_view_server':
+                    raise
+
+                try:
+                    # 兼容尚未迁移的 plugin_jm_server <= 0.2.3
+                    # noinspection PyUnresolvedReferences
+                    import plugin_jm_server as jm_server_lib
+                except ModuleNotFoundError as legacy_error:
+                    if legacy_error.name != 'plugin_jm_server':
+                        raise
+                    self.warning_lib_not_install('jm-view-server')
+                    return
+
+                self.log('检测到旧包 plugin_jm_server，建议升级到 jm-view-server', 'warning')
+
+            self.log(f'当前使用 jm-view-server 版本: {jm_server_lib.__version__}')
 
             # 核心函数，启动服务器，会阻塞当前线程
             def blocking_run_server():
                 self.server_thread = current_thread()
                 self.enter_wait_list()
-                server = plugin_jm_server.JmServer(base_dir, password, **kwargs)
+                server = jm_server_lib.JmServer(base_dir, password, **kwargs)
                 # run方法会阻塞当前线程直到flask退出
                 server.run(**run)
 
