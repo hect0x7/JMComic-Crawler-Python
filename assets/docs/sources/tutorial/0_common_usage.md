@@ -119,7 +119,7 @@ except PartialDownloadFailedException as e:
     print(f'下载出现部分失败, 下载失败的章节: {downloader.download_failed_photo}, 下载失败的图片: {downloader.download_failed_image}')
 
 # 多 ID 下载不会因为某一项失败而中断，请检查 BatchResult.failed。
-# 如果需要在批量失败时抛异常或重试，建议自行封装 download_batch。
+# 如果需要在批量失败时抛异常、重试或拿到更详细信息，建议自行封装一个批量下载方法。
 result = download_album([123, 456, 789])
 for album_id, error in result.failed.items():
     print(f'本子 {album_id} 下载失败: {error}')
@@ -179,14 +179,14 @@ client = JmOption.default().new_jm_client(impl='api')
 
 # 获取第一页评论
 page: JmAlbumCommentPage = client.album_pagination('123456')
-comment: JmAlbumComment
 
 print('本页评论数:', len(page))
 print('本页评论数（含回评）:', page.comment_count)
 print('本子的评论总数:', page.total)
 print('总页数:', page.page_count)
 
-# page对象可以直接遍历
+# page对象可以直接遍历评论，评论类型是JmAlbumComment
+comment: JmAlbumComment
 for comment in page:
     print('用户:', comment.nickname or comment.username)
     print('内容:', comment.content)

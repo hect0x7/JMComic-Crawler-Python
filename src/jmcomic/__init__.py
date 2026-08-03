@@ -10,8 +10,6 @@ from .jm_plugin import *
 from .jm_feature import *
 from .jm_async_client import AsyncJmApiClient
 from .jm_async_downloader import JmAsyncDownloader
-from .jm_client_interface import AsyncJmcomicClient
-from .api import download_album_async, download_photo_async, download_batch_async
 
 # 下面进行注册组件（客户端、插件）
 gb = dict(filter(lambda pair: isinstance(pair[1], type), globals().items()))
