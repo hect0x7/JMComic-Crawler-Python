@@ -233,15 +233,22 @@ class Test_Client(JmTestConfigurable):
         api_gen.close()
 
         html_page = None
+        failed_domains = []
         for domain in html_client.get_html_domain_all():
             html_client.set_domain_list([domain])
             try:
                 html_page = html_client.album_pagination(album_id, page=1)
                 break
-            except Exception:
+            except Exception as e:
+                failed_domains.append((domain, e))
                 continue
 
-        self.assertIsNotNone(html_page, '所有网页域名均无法获取本子评论')
+        for domain, error in failed_domains:
+            print(f'本子评论请求失败，域名: {domain}, 异常: {error}')
+        self.assertIsNotNone(
+            html_page,
+            f'所有网页域名均无法获取本子评论，失败域名: {failed_domains}',
+        )
         api_comments = list(api_page)
         html_comments = list(html_page)
 

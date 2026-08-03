@@ -1049,7 +1049,10 @@ class AsyncJmcomicClient:
 
             yield comment_page
 
-            if comment_page.page_count is None or page >= comment_page.page_count:
+            if comment_page.page_count is not None:
+                if page >= comment_page.page_count:
+                    break
+            elif not comment_page:
                 break
 
             page += 1

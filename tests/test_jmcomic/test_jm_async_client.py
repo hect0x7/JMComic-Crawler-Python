@@ -98,6 +98,33 @@ class Test_Async_Client(JmAsyncTestConfigurable):
 
         self.run_async(run())
 
+    def test_async_album_pagination_without_total(self):
+        """没有评论总数时，异步生成器继续读取到空页。"""
+        responses = iter([
+            JmAlbumCommentPage([JmAlbumComment({'CID': '1'})]),
+            JmAlbumCommentPage([JmAlbumComment({'CID': '2'})]),
+            JmAlbumCommentPage([]),
+        ])
+        original_album_pagination = self.async_client.album_pagination
+
+        async def fake_album_pagination(*args, **kwargs):
+            return next(responses)
+
+        self.async_client.album_pagination = fake_album_pagination
+
+        async def run():
+            pages = [
+                page
+                async for page in self.async_client.album_pagination_gen('123456')
+            ]
+            self.assertEqual(len(pages), 3)
+            self.assertEqual([len(page) for page in pages], [1, 1, 0])
+
+        try:
+            self.run_async(run())
+        finally:
+            self.async_client.album_pagination = original_album_pagination
+
     def test_async_get_detail(self):
         """对标 test_get_detail：album + photo 联合 diff"""
         album_id = 400222

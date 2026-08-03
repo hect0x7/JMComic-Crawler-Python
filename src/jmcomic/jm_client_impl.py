@@ -553,7 +553,7 @@ class JmHtmlClient(AbstractJmClient):
 
         ret = JmJsonResp(resp)
         ret.require_success()
-        comment_page = JmPageTool.parse_html_to_album_comment_page(ret.model(), page)
+        comment_page = JmPageTool.parse_html_to_album_comment_page(ret.model())
         if need_total:
             album = self.get_album_detail(jm_id)
             comment_page.total = album.comment_count
@@ -910,7 +910,7 @@ class JmApiClient(AbstractJmClient):
                 'aid': JmcomicText.parse_to_jm_id(jm_id),
             },
         )
-        return JmPageTool.parse_api_to_album_comment_page(resp.model_data, page)
+        return JmPageTool.parse_api_to_album_comment_page(resp.model_data)
 
     def add_favorite_album(self,
                            album_id,

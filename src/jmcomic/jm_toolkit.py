@@ -1,3 +1,6 @@
+from html.parser import HTMLParser
+from urllib.parse import unquote, urlparse
+
 from PIL import Image
 
 from .jm_exception import *
@@ -439,6 +442,144 @@ class JmcomicText:
 JmcomicText.dsl_replacer.add_dsl_and_replacer(r'\$\{(.*?)\}', JmcomicText.match_os_env)
 
 
+class HtmlTextParser(HTMLParser):
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.parts = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag.lower() == 'br':
+            self.parts.append('\n')
+
+    def handle_data(self, data):
+        self.parts.append(data)
+
+
+class CommentParser(HTMLParser):
+    void_elements = {
+        'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+        'link', 'meta', 'param', 'source', 'track', 'wbr',
+    }
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.stack = []
+        self.comments = []
+        self.comment_stack = []
+
+    def _inside_class(self, class_name):
+        for frame in reversed(self.stack):
+            if class_name in frame['classes']:
+                return True
+            if frame['is_comment_root']:
+                return False
+        return False
+
+    def _start_comment(self, attrs):
+        parent = self.comment_stack[-1] if self.comment_stack else None
+        comment = {
+            'CID': (attrs.get('data-cid') or '').strip('{}'),
+            'AID': None,
+            'UID': None,
+            'parent_CID': parent['CID'] if parent is not None else None,
+            'content_parts': [],
+            'username': None,
+            'nickname_parts': [],
+            'is_spoiler': False,
+            'addtime_parts': [],
+            'likes': None,
+            'replys': [],
+        }
+        self.comment_stack.append(comment)
+
+    def _finish_comment(self):
+        comment = self.comment_stack.pop()
+        comment['content'] = ''.join(comment.pop('content_parts')).strip()
+        comment['nickname'] = ''.join(comment.pop('nickname_parts')).strip()
+        comment['addtime'] = ''.join(comment.pop('addtime_parts')).strip()
+        if self.comment_stack:
+            self.comment_stack[-1]['replys'].append(comment)
+        else:
+            self.comments.append(comment)
+
+    def handle_starttag(self, tag, attrs):
+        tag = tag.lower()
+        attrs = dict(attrs)
+        classes = set((attrs.get('class') or '').split())
+        is_comment_root = (
+                'timeline' in classes
+                and attrs.get('data-cid') is not None
+        )
+        self.stack.append({
+            'tag': tag,
+            'classes': classes,
+            'is_comment_root': is_comment_root,
+        })
+
+        if is_comment_root:
+            self._start_comment(attrs)
+
+        if not self.comment_stack:
+            if tag in self.void_elements:
+                self.stack.pop()
+            return
+
+        comment = self.comment_stack[-1]
+
+        if 'disclose' in classes:
+            comment['is_spoiler'] = True
+
+        if tag == 'br' and self._inside_class('timeline-content'):
+            comment['content_parts'].append('\n')
+
+        if tag == 'a':
+            path = urlparse(attrs.get('href') or '').path
+            if self._inside_class('timeline-left') and '/user/' in path:
+                username = path.split('/user/', 1)[1].split('/', 1)[0]
+                comment['username'] = unquote(username)
+            if self._inside_class('timeline-ft') and '/photo/' in path:
+                comment['AID'] = path.split('/photo/', 1)[1].split('/', 1)[0]
+
+        if tag == 'img':
+            path = urlparse(attrs.get('src') or '').path
+            if self._inside_class('timeline-left') and '/media/users/' in path:
+                filename = path.split('/media/users/', 1)[1].split('/', 1)[0]
+                user_id = filename.rsplit('.', 1)[0]
+                if user_id.isdigit():
+                    comment['UID'] = user_id
+
+        if tag in self.void_elements:
+            self.stack.pop()
+
+    def handle_endtag(self, tag):
+        tag = tag.lower()
+        for index in range(len(self.stack) - 1, -1, -1):
+            if self.stack[index]['tag'] != tag:
+                continue
+
+            closing_frames = self.stack[index:]
+            del self.stack[index:]
+            for frame in reversed(closing_frames):
+                if not frame['is_comment_root']:
+                    continue
+                self._finish_comment()
+            return
+
+    def handle_data(self, data):
+        if not self.comment_stack:
+            return
+
+        comment = self.comment_stack[-1]
+
+        if self._inside_class('timeline-username'):
+            comment['nickname_parts'].append(data)
+        if self._inside_class('timeline-date'):
+            comment['addtime_parts'].append(data)
+        if self._inside_class('timeline-content'):
+            comment['content_parts'].append(data)
+
+
 class PatternTool:
 
     @classmethod
@@ -472,148 +613,6 @@ class PatternTool:
 
 
 class JmPageTool:
-    from html.parser import HTMLParser
-
-    class HtmlTextParser(HTMLParser):
-
-        def __init__(self):
-            super().__init__(convert_charrefs=True)
-            self.parts = []
-
-        def handle_starttag(self, tag, attrs):
-            if tag.lower() == 'br':
-                self.parts.append('\n')
-
-        def handle_data(self, data):
-            self.parts.append(data)
-
-    class CommentParser(HTMLParser):
-        void_elements = {
-            'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
-            'link', 'meta', 'param', 'source', 'track', 'wbr',
-        }
-
-        def __init__(self):
-            super().__init__(convert_charrefs=True)
-            self.stack = []
-            self.comments = []
-            self.comment_stack = []
-
-        def _inside_class(self, class_name):
-            for frame in reversed(self.stack):
-                if class_name in frame['classes']:
-                    return True
-                if frame['is_comment_root']:
-                    return False
-            return False
-
-        def _start_comment(self, attrs):
-            parent = self.comment_stack[-1] if self.comment_stack else None
-            comment = {
-                'CID': (attrs.get('data-cid') or '').strip('{}'),
-                'AID': None,
-                'UID': None,
-                'parent_CID': parent['CID'] if parent is not None else None,
-                'content_parts': [],
-                'username': None,
-                'nickname_parts': [],
-                'is_spoiler': False,
-                'addtime_parts': [],
-                'likes': None,
-                'replys': [],
-            }
-            self.comment_stack.append(comment)
-
-        def _finish_comment(self):
-            comment = self.comment_stack.pop()
-            comment['content'] = ''.join(comment.pop('content_parts')).strip()
-            comment['nickname'] = ''.join(comment.pop('nickname_parts')).strip()
-            comment['addtime'] = ''.join(comment.pop('addtime_parts')).strip()
-            if self.comment_stack:
-                self.comment_stack[-1]['replys'].append(comment)
-            else:
-                self.comments.append(comment)
-
-        def handle_starttag(self, tag, attrs):
-            from urllib.parse import unquote, urlparse
-
-            tag = tag.lower()
-            attrs = dict(attrs)
-            classes = set((attrs.get('class') or '').split())
-            is_comment_root = (
-                'timeline' in classes
-                and attrs.get('data-cid') is not None
-            )
-            self.stack.append({
-                'tag': tag,
-                'classes': classes,
-                'is_comment_root': is_comment_root,
-            })
-
-            if is_comment_root:
-                self._start_comment(attrs)
-
-            if not self.comment_stack:
-                if tag in self.void_elements:
-                    self.stack.pop()
-                return
-
-            comment = self.comment_stack[-1]
-
-            if 'disclose' in classes:
-                comment['is_spoiler'] = True
-
-            if tag == 'br' and self._inside_class('timeline-content'):
-                comment['content_parts'].append('\n')
-
-            if tag == 'a':
-                path = urlparse(attrs.get('href') or '').path
-                if self._inside_class('timeline-left') and '/user/' in path:
-                    username = path.split('/user/', 1)[1].split('/', 1)[0]
-                    comment['username'] = unquote(username)
-                if self._inside_class('timeline-ft') and '/photo/' in path:
-                    comment['AID'] = path.split('/photo/', 1)[1].split('/', 1)[0]
-
-            if tag == 'img':
-                path = urlparse(attrs.get('src') or '').path
-                if self._inside_class('timeline-left') and '/media/users/' in path:
-                    filename = path.split('/media/users/', 1)[1].split('/', 1)[0]
-                    user_id = filename.rsplit('.', 1)[0]
-                    if user_id.isdigit():
-                        comment['UID'] = user_id
-
-            if tag in self.void_elements:
-                self.stack.pop()
-
-        def handle_endtag(self, tag):
-            tag = tag.lower()
-            for index in range(len(self.stack) - 1, -1, -1):
-                if self.stack[index]['tag'] != tag:
-                    continue
-
-                closing_frames = self.stack[index:]
-                del self.stack[index:]
-                for frame in reversed(closing_frames):
-                    if not frame['is_comment_root']:
-                        continue
-                    self._finish_comment()
-                return
-
-        def handle_data(self, data):
-            if not self.comment_stack:
-                return
-
-            comment = self.comment_stack[-1]
-
-            if self._inside_class('timeline-username'):
-                comment['nickname_parts'].append(data)
-            if self._inside_class('timeline-date'):
-                comment['addtime_parts'].append(data)
-            if self._inside_class('timeline-content'):
-                comment['content_parts'].append(data)
-
-    del HTMLParser
-
     # 用来缩减html的长度
     pattern_html_search_shorten_for = compile(r'<div class="well well-sm">([\s\S]*)<div class="row">')
 
@@ -799,10 +798,10 @@ class JmPageTool:
         return JmFavoritePage(content, folder_list, total)
 
     @classmethod
-    def parse_api_to_album_comment_page(cls, data: AdvancedDict, page=1) -> JmAlbumCommentPage:
+    def parse_api_to_album_comment_page(cls, data: AdvancedDict) -> JmAlbumCommentPage:
         def parse_comment(item):
             item_data = getattr(item, 'src_dict', item) or {}
-            parser = cls.HtmlTextParser()
+            parser = HtmlTextParser()
             parser.feed(item_data.get('content') or '')
             parser.close()
             comment = JmAlbumComment(item)
@@ -832,9 +831,9 @@ class JmPageTool:
         )
 
     @classmethod
-    def parse_html_to_album_comment_page(cls, data: AdvancedDict, page=1) -> JmAlbumCommentPage:
+    def parse_html_to_album_comment_page(cls, data: AdvancedDict) -> JmAlbumCommentPage:
         raw_html = data.code or ''
-        parser = cls.CommentParser()
+        parser = CommentParser()
         parser.feed(raw_html)
         parser.close()
         content = [JmAlbumComment(item) for item in parser.comments]

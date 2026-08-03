@@ -649,7 +649,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
                 'aid': JmcomicText.parse_to_jm_id(jm_id),
             },
         )
-        return JmPageTool.parse_api_to_album_comment_page(resp.model_data, page)
+        return JmPageTool.parse_api_to_album_comment_page(resp.model_data)
 
     async def add_favorite_album(self, album_id, folder_id='0'):
         """
