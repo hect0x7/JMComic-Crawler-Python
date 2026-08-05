@@ -27,7 +27,7 @@ on:
 
       IMAGE_QUALITY:
         type: number
-        description: 图片质量（1-99开启原地压缩，100不压缩）
+        description: 图片质量（1-99开启；PDF模式会转为JPEG，100不压缩）
         default: 100
         required: false
 

@@ -44,38 +44,55 @@ def get_id_set(env_name, given):
     return aid_set
 
 
-def compress_image_in_place(filepath, quality):
+def compress_image_in_place(filepath, quality, convert_to_jpeg=False):
+    target_path = filepath
     temp_path = f'{filepath}.jmcomic-compress.tmp'
     original_size = os.path.getsize(filepath)
 
     try:
         with Image.open(filepath) as image:
             image_format = image.format
+            image_info = image.info.copy()
             save_kwargs = {}
 
-            if image_format in {'JPEG', 'JPG'}:
+            if convert_to_jpeg and image_format in {'PNG', 'WEBP'}:
+                image_format = 'JPEG'
+                target_path = os.path.splitext(filepath)[0] + '.jpg'
+                if image.mode not in {'RGB', 'L'}:
+                    if image.mode in {'RGBA', 'LA'} or 'transparency' in image_info:
+                        image = image.convert('RGBA')
+                        background = Image.new('RGB', image.size, 'white')
+                        background.paste(image, mask=image.getchannel('A'))
+                        image = background
+                    else:
+                        image = image.convert('RGB')
+                save_kwargs.update(quality=quality, optimize=True)
+            elif image_format in {'JPEG', 'JPG'}:
                 save_kwargs.update(quality=quality, optimize=True)
             elif image_format == 'WEBP':
                 save_kwargs.update(quality=quality)
             elif image_format == 'PNG':
-                save_kwargs.update(optimize=True)
+                return image_format, None, None, False, filepath
             else:
-                return None
+                return image_format, None, None, False, filepath
 
             for key in ('exif', 'icc_profile'):
-                value = image.info.get(key)
+                value = image_info.get(key)
                 if value is not None:
                     save_kwargs[key] = value
 
             image.save(temp_path, format=image_format, **save_kwargs)
 
         compressed_size = os.path.getsize(temp_path)
-        if compressed_size >= original_size:
+        if target_path == filepath and compressed_size >= original_size:
             os.remove(temp_path)
-            return original_size, compressed_size, False
+            return image_format, original_size, compressed_size, False, filepath
 
-        os.replace(temp_path, filepath)
-        return original_size, compressed_size, True
+        os.replace(temp_path, target_path)
+        if target_path != filepath:
+            os.remove(filepath)
+
+        return image_format, original_size, compressed_size, True, target_path
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
@@ -84,15 +101,24 @@ def compress_image_in_place(filepath, quality):
 class WorkflowImageCompressPlugin(JmOptionPlugin):
     plugin_key = 'workflow_image_compress'
 
-    def invoke(self, image, quality, **kwargs):
-        result = compress_image_in_place(image.save_path, quality)
-        if result is None:
+    def invoke(self, image, quality, convert_to_jpeg=False, **kwargs):
+        old_path = image.save_path
+        image_format, original_size, compressed_size, replaced, new_path = compress_image_in_place(
+            old_path,
+            quality,
+            convert_to_jpeg,
+        )
+
+        if original_size is None:
+            self.log(f'跳过不支持质量压缩的图片格式: {image_format}, {old_path}')
             return
 
-        original_size, compressed_size, replaced = result
+        if new_path != old_path:
+            image.save_path = new_path
+
         action = '压缩完成' if replaced else '压缩后未变小，保留原图'
         self.log(
-            f'{action}: {image.save_path}, '
+            f'{action}: {new_path}, '
             f'{original_size / 1024:.1f}KB → {compressed_size / 1024:.1f}KB'
         )
 
@@ -138,6 +164,9 @@ def cover_option_config(option: JmOption):
     if suffix is not None:
         option.download.image.suffix = fix_suffix(suffix)
 
+    pdf_option = env('PDF_OPTION', None)
+    convert_to_jpeg = bool(pdf_option and pdf_option != '否')
+
     try:
         image_quality = int(env('IMAGE_QUALITY', '100'))
     except ValueError:
@@ -154,10 +183,10 @@ def cover_option_config(option: JmOption):
             'plugin': WorkflowImageCompressPlugin.plugin_key,
             'kwargs': {
                 'quality': image_quality,
+                'convert_to_jpeg': convert_to_jpeg,
             },
         })
 
-    pdf_option = env('PDF_OPTION', None)
     if pdf_option and pdf_option != '否':
         call_when = 'after_album' if pdf_option == '是 | 本子维度合并pdf' else 'after_photo'
         
