@@ -1,3 +1,7 @@
+import os
+
+from PIL import Image
+
 from jmcomic import *
 from jmcomic.cli import JmcomicUI
 
@@ -40,6 +44,59 @@ def get_id_set(env_name, given):
     return aid_set
 
 
+def compress_image_in_place(filepath, quality):
+    temp_path = f'{filepath}.jmcomic-compress.tmp'
+    original_size = os.path.getsize(filepath)
+
+    try:
+        with Image.open(filepath) as image:
+            image_format = image.format
+            save_kwargs = {}
+
+            if image_format in {'JPEG', 'JPG'}:
+                save_kwargs.update(quality=quality, optimize=True)
+            elif image_format == 'WEBP':
+                save_kwargs.update(quality=quality)
+            elif image_format == 'PNG':
+                save_kwargs.update(optimize=True)
+            else:
+                return None
+
+            for key in ('exif', 'icc_profile'):
+                value = image.info.get(key)
+                if value is not None:
+                    save_kwargs[key] = value
+
+            image.save(temp_path, format=image_format, **save_kwargs)
+
+        compressed_size = os.path.getsize(temp_path)
+        if compressed_size >= original_size:
+            os.remove(temp_path)
+            return original_size, compressed_size, False
+
+        os.replace(temp_path, filepath)
+        return original_size, compressed_size, True
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+
+class WorkflowImageCompressPlugin(JmOptionPlugin):
+    plugin_key = 'workflow_image_compress'
+
+    def invoke(self, image, quality, **kwargs):
+        result = compress_image_in_place(image.save_path, quality)
+        if result is None:
+            return
+
+        original_size, compressed_size, replaced = result
+        action = '压缩完成' if replaced else '压缩后未变小，保留原图'
+        self.log(
+            f'{action}: {image.save_path}, '
+            f'{original_size / 1024:.1f}KB → {compressed_size / 1024:.1f}KB'
+        )
+
+
 def main():
     album_id_set = get_id_set('JM_ALBUM_IDS', jm_albums)
     photo_id_set = get_id_set('JM_PHOTO_IDS', jm_photos)
@@ -80,6 +137,25 @@ def cover_option_config(option: JmOption):
     suffix = env('IMAGE_SUFFIX', None)
     if suffix is not None:
         option.download.image.suffix = fix_suffix(suffix)
+
+    try:
+        image_quality = int(env('IMAGE_QUALITY', '100'))
+    except ValueError:
+        ExceptionTool.raises('IMAGE_QUALITY 必须是1到100之间的整数')
+
+    ExceptionTool.require_true(
+        1 <= image_quality <= 100,
+        'IMAGE_QUALITY 必须是1到100之间的整数'
+    )
+
+    if image_quality < 100:
+        JmModuleConfig.register_plugin(WorkflowImageCompressPlugin)
+        option.plugins.setdefault('after_image', []).append({
+            'plugin': WorkflowImageCompressPlugin.plugin_key,
+            'kwargs': {
+                'quality': image_quality,
+            },
+        })
 
     pdf_option = env('PDF_OPTION', None)
     if pdf_option and pdf_option != '否':
