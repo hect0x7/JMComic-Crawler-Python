@@ -1,3 +1,4 @@
+import sys
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -5,6 +6,10 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from PIL import Image
+
+project_dir = str(Path(__file__).resolve().parents[2])
+if project_dir not in sys.path:
+    sys.path.insert(0, project_dir)
 
 from usage.workflow_download import (
     WorkflowCompressionStats,
