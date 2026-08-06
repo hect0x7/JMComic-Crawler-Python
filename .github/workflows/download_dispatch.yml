@@ -25,6 +25,12 @@ on:
         default: ''
         required: false
 
+      IMAGE_QUALITY:
+        type: number
+        description: 图片质量（1-99开启；PDF模式会转为JPEG，100不压缩）
+        default: 100
+        required: false
+
       DIR_RULE:
         type: string
         description: 下载文件夹规则（dir_rule.rule）。默认使用配置文件的 'Bd_Aauthor_Atitle_Pindex'。
@@ -83,6 +89,7 @@ jobs:
       ZIP_NAME: ${{ github.event.inputs.ZIP_NAME }}
       UPLOAD_NAME: ${{ github.event.inputs.UPLOAD_NAME }}
       IMAGE_SUFFIX: ${{ github.event.inputs.IMAGE_SUFFIX }}
+      IMAGE_QUALITY: ${{ github.event.inputs.IMAGE_QUALITY }}
       PDF_OPTION: ${{ github.event.inputs.PDF_OPTION }}
       PDF_NAME_RULE: ${{ github.event.inputs.PDF_NAME_RULE }}
 
