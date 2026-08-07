@@ -489,9 +489,12 @@ for suffix, filepath_list in result.manifest.export_filepath_dict.items():
 ```python
 result = download_album('123')
 album, downloader = result
+manifest = result.manifest
 
 print(album.save_path)
-print(result.manifest.image_filepath_list)
+print(manifest.image_filepath_list)
+print(manifest.get_export_filepath_list('pdf'))
+print(album.duration)
 ```
 
 </details>
@@ -521,6 +524,18 @@ for photo in album:
 ```
 
 `used_existing_file` 为 `True`，表示本次直接使用了下载前已经存在的图片。此时记录的是本次检查和处理已有文件的耗时。
+
+`after_image` 插件现在会在两种情况下触发：图片刚下载完成，或命中了本地缓存并直接复用已有文件。被跳过的图片和下载失败的图片不会触发它。
+
+如果你的插件只想处理本次新下载出来的文件，可以显式跳过缓存命中的场景：
+
+```python
+def invoke(self, image, **kwargs):
+    if image.exists and image.cache:
+        return
+
+    process(image.save_path)
+```
 
 需要结构化输出时，可以整理成字典后打印 JSON：
 

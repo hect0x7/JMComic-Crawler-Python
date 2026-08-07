@@ -353,11 +353,13 @@ class ZipPlugin(JmOptionPlugin):
         if level == 'album':
             zip_path = self.decide_filepath(album, None, filename_rule, suffix, zip_dir, dir_rule)
             self.zip_album(album, photo_dict, zip_path, path_to_delete, encrypt)
+            downloader.record_export_filepath(album, zip_path)
 
         elif level == 'photo':
             for photo, image_list in photo_dict.items():
                 zip_path = self.decide_filepath(photo.from_album, photo, filename_rule, suffix, zip_dir, dir_rule)
                 self.zip_photo(photo, image_list, zip_path, path_to_delete, encrypt)
+                downloader.record_export_filepath(photo, zip_path)
 
         else:
             ExceptionTool.raises(f'Not Implemented Zip Level: {level}')
@@ -799,6 +801,7 @@ class Img2pdfPlugin(JmOptionPlugin):
 
         # noinspection PyTypeChecker
         detail: DetailEntity = album or photo
+        downloader.record_export_filepath(detail, pdf_filepath)
 
         # 打印结果
         self.log(f'{detail.alias_cn()}合并PDF成功！'
@@ -881,6 +884,7 @@ class LongImgPlugin(JmOptionPlugin):
             return
         # noinspection PyTypeChecker
         detail: DetailEntity = album or photo
+        downloader.record_export_filepath(detail, long_img_path)
 
         # 打印结果
         self.log(f'{detail.alias_cn()}合并长图成功！'

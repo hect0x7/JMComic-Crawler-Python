@@ -254,9 +254,19 @@ class Test_Async_Client(JmAsyncTestConfigurable):
         """专门测试：async 缓存开启/关闭行为"""
         loop = asyncio.new_event_loop()
         client: AsyncJmcomicClient = self.option.new_jm_async_client()
+        album_detail_request_count = 0
 
         try:
             loop.run_until_complete(client.setup())
+            original_req_api = client.req_api
+
+            async def counted_req_api(url, *args, **kwargs):
+                nonlocal album_detail_request_count
+                if url == client.API_ALBUM and kwargs.get('params') == {'id': '123'}:
+                    album_detail_request_count += 1
+                return await original_req_api(url, *args, **kwargs)
+
+            client.req_api = counted_req_api
 
             # 1. 缓存默认关闭（_cache=None）
             self.assertIsNone(client.get_cache_dict(), '默认 cache 应为 None')
@@ -269,6 +279,9 @@ class Test_Async_Client(JmAsyncTestConfigurable):
             album2 = loop.run_until_complete(client.get_album_detail('123'))
             self.assertIsNot(album1, album2, '缓存开启：同 ID 应返回独立实体')
             self.assertEqual(album1.id, album2.id, '缓存命中前后详情 ID 应一致')
+            self.assertEqual(album1.name, album2.name, '缓存命中前后详情名称应一致')
+            self.assertEqual(album1.tags, album2.tags, '缓存命中前后详情标签应一致')
+            self.assertEqual(album_detail_request_count, 1, '缓存命中时底层 album 详情请求应仅发生一次')
             self.assertEqual(album2.save_path, '', '缓存模板不应携带上一次下载路径')
             self.assertIsNone(album2.duration, '缓存模板不应携带上一次下载耗时')
 

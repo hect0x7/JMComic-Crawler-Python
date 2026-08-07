@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from copy import deepcopy
 from typing import Sequence
 from urllib.parse import urlencode
 
@@ -184,7 +185,6 @@ class AsyncJmApiClient(AsyncJmcomicClient):
                 return
 
             # 提取应用配置中预设的网络通信元数据信息（如代理配置与全局 Headers）
-            from copy import deepcopy
             postman_conf = deepcopy(self.option.client.get('postman', {}))
             meta_data = postman_conf.get('meta_data', {})
             if self._meta_kwargs:
@@ -393,7 +393,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
         cached = self._cache_get(cache_key)
         if cached is not self._SENTINEL:
             # noinspection PyTypeChecker
-            return cached
+            return deepcopy(cached)
 
         url = self.API_ALBUM if issubclass(clazz, JmAlbumDetail) else self.API_CHAPTER
         resp = await self.req_api(url, params={'id': jmid})
@@ -402,7 +402,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
             ExceptionTool.raise_missing(resp, jmid)
 
         result = JmApiAdaptTool.parse_entity(resp.res_data, clazz)
-        self._cache_set(cache_key, result)
+        self._cache_set(cache_key, deepcopy(result))
         return result
 
     async def get_album_detail(self, album_id) -> JmAlbumDetail:

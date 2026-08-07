@@ -1,4 +1,6 @@
+import os
 from typing import NamedTuple
+from time import perf_counter
 
 from .jm_option import *
 from .jm_task_context import bind_jm_task_context
@@ -12,7 +14,8 @@ class DownloadManifest:
         self.export_filepath_dict: Dict[str, List[str]] = {}
 
     def get_export_filepath_list(self, suffix: str) -> List[str]:
-        raise NotImplementedError
+        normalized_suffix = str(suffix).lower().lstrip('.')
+        return self.export_filepath_dict.get(normalized_suffix, [])
 
 
 def catch_exception(func):
@@ -189,15 +192,63 @@ class BaseDownloader(DownloadCallback):
 
     def after_image(self, image: JmImageDetail, img_save_path):
         super().after_image(image, img_save_path)
-        photo = image.from_photo
-        album = photo.from_album
-
-        self.download_success_dict.get(album).get(photo).append((img_save_path, image))
         self.option.call_all_plugin(
             'after_image',
             image=image,
             downloader=self,
         )
+        photo = image.from_photo
+        album = photo.from_album
+        self.download_success_dict.get(album).get(photo).append((image.save_path, image))
+
+    def begin_manifest(self, detail: DetailEntity) -> DownloadManifest:
+        manifest = DownloadManifest()
+        self.manifest_dict[detail] = manifest
+        return manifest
+
+    def resolve_manifest_detail(self, detail: DetailEntity) -> Optional[DetailEntity]:
+        if detail in self.manifest_dict:
+            return detail
+
+        if detail.is_photo() and detail.from_album in self.manifest_dict:
+            return detail.from_album
+
+        return None
+
+    def record_export_filepath(self, detail: DetailEntity, filepath: str) -> None:
+        manifest_detail = self.resolve_manifest_detail(detail)
+        if manifest_detail is None:
+            return
+
+        suffix = os.path.splitext(filepath)[1].lower().lstrip('.')
+        if suffix == '':
+            return
+
+        manifest = self.manifest_dict[manifest_detail]
+        manifest.export_filepath_dict.setdefault(suffix, []).append(filepath)
+
+    def finish_manifest(self, detail: DetailEntity) -> DownloadManifest:
+        manifest = self.manifest_dict[detail]
+        if detail.is_album():
+            success_dict = self.download_success_dict.get(detail, {})
+            success_groups = [
+                success_list
+                for _, success_list in sorted(
+                    success_dict.items(),
+                    key=lambda item: item[0].index,
+                )
+            ]
+        else:
+            success_groups = [
+                self.download_success_dict.get(detail.from_album, {}).get(detail, [])
+            ]
+
+        manifest.image_filepath_list = [
+            image.save_path
+            for success_list in success_groups
+            for _, image in sorted(success_list, key=lambda item: item[1].index)
+        ]
+        return manifest
 
     def add_features(self, features, feature_from: str):
         """
@@ -309,66 +360,80 @@ class JmDownloader(BaseDownloader):
 
     def download_album(self, album_id):
         album = self.client.get_album_detail(album_id)
-        self.download_by_album_detail(album)
+        self.begin_manifest(album)
+        try:
+            self.download_by_album_detail(album)
+        finally:
+            self.finish_manifest(album)
         return album
 
     def download_by_album_detail(self, album: JmAlbumDetail):
-        self.before_album(album)
-        if album.skip:
-            return
-        self.execute_on_condition(
-            iter_objs=album,
-            apply=self.download_by_photo_detail,
-            count_batch=self.option.decide_photo_batch_count(album)
-        )
-        self.after_album(album)
+        started_at = perf_counter()
+        album.save_path = self.option.dir_rule.decide_album_root_dir(album)
+        try:
+            self.before_album(album)
+            if album.skip:
+                return
+            self.execute_on_condition(
+                iter_objs=album,
+                apply=self.download_by_photo_detail,
+                count_batch=self.option.decide_photo_batch_count(album)
+            )
+            self.after_album(album)
+        finally:
+            album.duration = perf_counter() - started_at
 
     def download_photo(self, photo_id):
         photo = self.client.get_photo_detail(photo_id)
-        self.download_by_photo_detail(photo)
+        self.begin_manifest(photo)
+        try:
+            self.download_by_photo_detail(photo)
+        finally:
+            self.finish_manifest(photo)
         return photo
 
     @catch_exception
     def download_by_photo_detail(self, photo: JmPhotoDetail):
-        self.client.check_photo(photo)
-
-        self.before_photo(photo)
-        if photo.skip:
-            return
-        self.execute_on_condition(
-            iter_objs=photo,
-            apply=self.download_by_image_detail,
-            count_batch=self.option.decide_image_batch_count(photo)
-        )
-        self.after_photo(photo)
+        started_at = perf_counter()
+        photo.save_path = self.option.decide_image_save_dir(photo)
+        try:
+            self.client.check_photo(photo)
+            self.before_photo(photo)
+            if photo.skip:
+                return
+            self.execute_on_condition(
+                iter_objs=photo,
+                apply=self.download_by_image_detail,
+                count_batch=self.option.decide_image_batch_count(photo)
+            )
+            self.after_photo(photo)
+        finally:
+            photo.duration = perf_counter() - started_at
 
     @catch_exception
     def download_by_image_detail(self, image: JmImageDetail):
-        img_save_path = self.option.decide_image_filepath(image)
+        started_at = perf_counter()
+        try:
+            img_save_path = self.option.decide_image_filepath(image)
+            image.save_path = img_save_path
+            image.exists = file_exists(img_save_path)
+            image.cache = self.option.decide_download_cache(image)
 
-        image.save_path = img_save_path
-        image.exists = file_exists(img_save_path)
-        image.cache = self.option.decide_download_cache(image)
+            self.before_image(image, img_save_path)
+            if image.skip:
+                return
 
-        self.before_image(image, img_save_path)
+            if not (image.cache and image.exists):
+                decode_image = self.option.decide_download_image_decode(image)
+                self.client.download_by_image_detail(
+                    image,
+                    img_save_path,
+                    decode_image=decode_image,
+                )
 
-        if image.skip:
-            return
-
-        # let option decide use_cache and decode_image
-        decode_image = self.option.decide_download_image_decode(image)
-
-        # skip download
-        if image.cache and image.exists:
-            return
-
-        self.client.download_by_image_detail(
-            image,
-            img_save_path,
-            decode_image=decode_image,
-        )
-
-        self.after_image(image, img_save_path)
+            self.after_image(image, img_save_path)
+        finally:
+            image.duration = perf_counter() - started_at
 
     def execute_on_condition(self,
                              iter_objs: DetailEntity,

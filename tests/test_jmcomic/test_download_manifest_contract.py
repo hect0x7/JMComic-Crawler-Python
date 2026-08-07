@@ -1,7 +1,9 @@
 import asyncio
 import os
+import sys
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from test_jmcomic import *
 from jmcomic.jm_async_client import AsyncJmApiClient
@@ -201,6 +203,421 @@ class Test_Download_Manifest_Public_Contract(unittest.TestCase):
         self.assertIs(unpacked_album, album)
         self.assertIs(unpacked_downloader, downloader)
         self.assertIs(result.manifest, manifest)
+
+    def test_record_export_filepath_uses_top_level_album_manifest(self):
+        album, photo, _ = new_album_photo_images()
+        downloader = BaseDownloader(ContractOption('/tmp'))
+        manifest = downloader.begin_manifest(album)
+
+        downloader.record_export_filepath(photo, '/tmp/album.PDF')
+
+        self.assertIs(downloader.finish_manifest(album), manifest)
+        self.assertEqual(manifest.export_filepath_dict, {'pdf': ['/tmp/album.PDF']})
+
+    def test_record_export_filepath_uses_top_level_photo_manifest(self):
+        _, photo, _ = new_album_photo_images()
+        downloader = BaseDownloader(ContractOption('/tmp'))
+        manifest = downloader.begin_manifest(photo)
+
+        downloader.record_export_filepath(photo, '/tmp/photo.zip')
+
+        self.assertIs(downloader.finish_manifest(photo), manifest)
+        self.assertEqual(manifest.export_filepath_dict, {'zip': ['/tmp/photo.zip']})
+
+
+class Test_Download_Manifest_Export_Contract(unittest.TestCase):
+
+    @staticmethod
+    def new_manifest_downloader(base_dir, top_level='album'):
+        album, photo, image_list = new_album_photo_images()
+        option = ContractOption(base_dir)
+        downloader = BaseDownloader(option)
+        if top_level == 'album':
+            downloader.begin_manifest(album)
+        else:
+            downloader.begin_manifest(photo)
+
+        downloader.download_success_dict[album] = {
+            photo: [
+                (option.decide_image_filepath(image), image)
+                for image in image_list
+            ]
+        }
+        return album, photo, image_list, downloader
+
+    def test_record_export_filepath_groups_real_suffixes(self):
+        with TemporaryDirectory() as temp_dir:
+            album, photo, _, downloader = self.new_manifest_downloader(temp_dir)
+            cbz_path = os.path.join(temp_dir, 'album.cbz')
+            pdf_path = os.path.join(temp_dir, 'photo.PDF')
+            png_path = os.path.join(temp_dir, 'photo.png')
+
+            downloader.record_export_filepath(album, cbz_path)
+            downloader.record_export_filepath(photo, pdf_path)
+            downloader.record_export_filepath(photo, png_path)
+
+            manifest = downloader.manifest_dict[album]
+            self.assertEqual(manifest.export_filepath_dict, {
+                'cbz': [cbz_path],
+                'pdf': [pdf_path],
+                'png': [png_path],
+            })
+
+    def test_record_export_filepath_noops_without_manifest(self):
+        with TemporaryDirectory() as temp_dir:
+            album, _, _ = new_album_photo_images()
+            downloader = BaseDownloader(ContractOption(temp_dir))
+
+            downloader.record_export_filepath(album, os.path.join(temp_dir, 'album.zip'))
+
+            self.assertEqual(downloader.manifest_dict, {})
+
+    def test_record_export_filepath_ignores_paths_without_suffix(self):
+        with TemporaryDirectory() as temp_dir:
+            album, _, _, downloader = self.new_manifest_downloader(temp_dir)
+            manifest = downloader.manifest_dict[album]
+
+            downloader.record_export_filepath(album, os.path.join(temp_dir, 'export'))
+
+            self.assertEqual(manifest.export_filepath_dict, {})
+
+    def test_zip_album_registers_configured_suffix_once_after_success(self):
+        with TemporaryDirectory() as temp_dir:
+            album, _, _, downloader = self.new_manifest_downloader(temp_dir)
+            plugin = ZipPlugin(downloader.option)
+            zip_dir = os.path.join(temp_dir, 'exports')
+            expected_path = plugin.decide_filepath(album, None, 'Aid', 'cbz', os.path.abspath(zip_dir), None)
+            order = []
+            original_record = downloader.record_export_filepath
+
+            def record(detail, filepath):
+                order.append(('record', filepath))
+                return original_record(detail, filepath)
+
+            def fake_zip_album(*args, **kwargs):
+                order.append(('zip_album', expected_path))
+
+            def fake_after_zip(_paths):
+                order.append(('after_zip', None))
+                self.assertEqual(
+                    downloader.manifest_dict[album].export_filepath_dict,
+                    {'cbz': [expected_path]},
+                )
+
+            downloader.record_export_filepath = record
+
+            with patch.object(plugin, 'zip_album', side_effect=fake_zip_album), \
+                    patch.object(plugin, 'after_zip', side_effect=fake_after_zip):
+                plugin.invoke(
+                    downloader=downloader,
+                    album=album,
+                    filename_rule='Aid',
+                    suffix='cbz',
+                    zip_dir=zip_dir,
+                )
+
+            self.assertEqual(order, [
+                ('zip_album', expected_path),
+                ('record', expected_path),
+                ('after_zip', None),
+            ])
+
+    def test_zip_photo_registers_to_album_manifest_once_after_success(self):
+        with TemporaryDirectory() as temp_dir:
+            album, photo, _, downloader = self.new_manifest_downloader(temp_dir)
+            plugin = ZipPlugin(downloader.option)
+            zip_dir = os.path.join(temp_dir, 'exports')
+            expected_path = plugin.decide_filepath(photo.from_album, photo, 'Pid', 'cbz', os.path.abspath(zip_dir), None)
+            order = []
+            original_record = downloader.record_export_filepath
+
+            def record(detail, filepath):
+                order.append(('record', detail, filepath))
+                return original_record(detail, filepath)
+
+            def fake_zip_photo(current_photo, image_list, zip_path, path_to_delete, encrypt):
+                self.assertIs(current_photo, photo)
+                self.assertEqual(zip_path, expected_path)
+                order.append(('zip_photo', current_photo, zip_path))
+
+            def fake_after_zip(_paths):
+                order.append(('after_zip', None, None))
+                self.assertEqual(
+                    downloader.manifest_dict[album].export_filepath_dict,
+                    {'cbz': [expected_path]},
+                )
+
+            downloader.record_export_filepath = record
+
+            with patch.object(plugin, 'zip_photo', side_effect=fake_zip_photo), \
+                    patch.object(plugin, 'after_zip', side_effect=fake_after_zip):
+                plugin.invoke(
+                    downloader=downloader,
+                    album=album,
+                    level='photo',
+                    filename_rule='Pid',
+                    suffix='cbz',
+                    zip_dir=zip_dir,
+                )
+
+            self.assertEqual(order, [
+                ('zip_photo', photo, expected_path),
+                ('record', photo, expected_path),
+                ('after_zip', None, None),
+            ])
+            self.assertEqual(downloader.manifest_dict[album].export_filepath_dict['cbz'].count(expected_path), 1)
+
+    def test_pdf_registers_once_before_optional_deletion(self):
+        with TemporaryDirectory() as temp_dir:
+            album, _, _, downloader = self.new_manifest_downloader(temp_dir)
+            plugin = Img2pdfPlugin(downloader.option)
+            expected_path = plugin.decide_filepath(album, None, 'Aid', 'pdf', temp_dir, None)
+            order = []
+            original_record = downloader.record_export_filepath
+
+            def record(detail, filepath):
+                order.append(('record', filepath))
+                return original_record(detail, filepath)
+
+            def fake_write(pdf_filepath, current_album, current_photo, encrypt):
+                self.assertEqual(pdf_filepath, expected_path)
+                self.assertIs(current_album, album)
+                self.assertIsNone(current_photo)
+                order.append(('write', pdf_filepath))
+                return ['img1.jpg'], ['photo_dir']
+
+            def fake_delete(paths):
+                order.append(('delete', list(paths)))
+                self.assertEqual(
+                    downloader.manifest_dict[album].export_filepath_dict,
+                    {'pdf': [expected_path]},
+                )
+
+            downloader.record_export_filepath = record
+
+            with patch.dict(sys.modules, {'img2pdf': object()}), \
+                    patch.object(plugin, 'write_img_2_pdf', side_effect=fake_write), \
+                    patch.object(plugin, 'execute_deletion', side_effect=fake_delete):
+                plugin.invoke(
+                    album=album,
+                    downloader=downloader,
+                    pdf_dir=temp_dir,
+                    filename_rule='Aid',
+                )
+
+            self.assertEqual(order[0], ('write', expected_path))
+            self.assertEqual(order[1], ('record', expected_path))
+            self.assertEqual(order[2], ('delete', ['img1.jpg', 'photo_dir']))
+            self.assertEqual(downloader.manifest_dict[album].export_filepath_dict['pdf'].count(expected_path), 1)
+
+    def test_pdf_photo_level_registers_photo_detail_once(self):
+        with TemporaryDirectory() as temp_dir:
+            _, photo, _, downloader = self.new_manifest_downloader(temp_dir, top_level='photo')
+            plugin = Img2pdfPlugin(downloader.option)
+            expected_path = plugin.decide_filepath(None, photo, 'Pid', 'pdf', temp_dir, None)
+            order = []
+            original_record = downloader.record_export_filepath
+
+            def record(detail, filepath):
+                order.append(('record', detail, filepath))
+                return original_record(detail, filepath)
+
+            def fake_write(pdf_filepath, current_album, current_photo, encrypt):
+                self.assertEqual(pdf_filepath, expected_path)
+                self.assertIsNone(current_album)
+                self.assertIs(current_photo, photo)
+                order.append(('write', current_photo, pdf_filepath))
+                return ['img1.jpg'], ['photo_dir']
+
+            def fake_delete(paths):
+                order.append(('delete', list(paths)))
+                self.assertEqual(
+                    downloader.manifest_dict[photo].export_filepath_dict,
+                    {'pdf': [expected_path]},
+                )
+
+            downloader.record_export_filepath = record
+
+            with patch.dict(sys.modules, {'img2pdf': object()}), \
+                    patch.object(plugin, 'write_img_2_pdf', side_effect=fake_write), \
+                    patch.object(plugin, 'execute_deletion', side_effect=fake_delete):
+                plugin.invoke(
+                    photo=photo,
+                    downloader=downloader,
+                    pdf_dir=temp_dir,
+                    filename_rule='Pid',
+                )
+
+            self.assertEqual(order[0], ('write', photo, expected_path))
+            self.assertEqual(order[1], ('record', photo, expected_path))
+            self.assertEqual(order[2], ('delete', ['img1.jpg', 'photo_dir']))
+            self.assertEqual(downloader.manifest_dict[photo].export_filepath_dict['pdf'].count(expected_path), 1)
+
+    def test_pdf_missing_library_registers_nothing(self):
+        with TemporaryDirectory() as temp_dir:
+            album, _, _, downloader = self.new_manifest_downloader(temp_dir)
+            plugin = Img2pdfPlugin(downloader.option)
+            original_import = __import__
+
+            def fake_import(name, *args, **kwargs):
+                if name == 'img2pdf':
+                    raise ImportError('img2pdf missing')
+                return original_import(name, *args, **kwargs)
+
+            with patch('builtins.__import__', side_effect=fake_import):
+                with self.assertRaises(PluginValidationException):
+                    plugin.invoke(
+                        album=album,
+                        downloader=downloader,
+                        pdf_dir=temp_dir,
+                        filename_rule='Aid',
+                    )
+
+            self.assertEqual(downloader.manifest_dict[album].export_filepath_dict, {})
+
+    def test_pdf_empty_source_registers_nothing(self):
+        with TemporaryDirectory() as temp_dir:
+            album, _, _, downloader = self.new_manifest_downloader(temp_dir)
+            plugin = Img2pdfPlugin(downloader.option)
+
+            with patch.dict(sys.modules, {'img2pdf': object()}), \
+                    patch.object(plugin, 'write_img_2_pdf', return_value=None), \
+                    patch.object(plugin, 'execute_deletion') as delete_mock:
+                plugin.invoke(
+                    album=album,
+                    downloader=downloader,
+                    pdf_dir=temp_dir,
+                    filename_rule='Aid',
+                )
+
+            self.assertEqual(downloader.manifest_dict[album].export_filepath_dict, {})
+            delete_mock.assert_not_called()
+
+    def test_long_img_registers_once_before_optional_deletion(self):
+        with TemporaryDirectory() as temp_dir:
+            album, _, _, downloader = self.new_manifest_downloader(temp_dir)
+            plugin = LongImgPlugin(downloader.option)
+            expected_path = plugin.decide_filepath(album, None, 'Aid', 'png', temp_dir, None)
+            order = []
+            original_record = downloader.record_export_filepath
+
+            def record(detail, filepath):
+                order.append(('record', filepath))
+                return original_record(detail, filepath)
+
+            def fake_write(long_img_path, current_album, current_photo):
+                self.assertEqual(long_img_path, expected_path)
+                self.assertIs(current_album, album)
+                self.assertIsNone(current_photo)
+                order.append(('write', long_img_path))
+                return ['img1.jpg']
+
+            def fake_delete(paths):
+                order.append(('delete', list(paths)))
+                self.assertEqual(
+                    downloader.manifest_dict[album].export_filepath_dict,
+                    {'png': [expected_path]},
+                )
+
+            downloader.record_export_filepath = record
+
+            with patch.dict(sys.modules, {'PIL': SimpleNamespace(Image=object())}), \
+                    patch.object(plugin, 'write_img_2_long_img', side_effect=fake_write), \
+                    patch.object(plugin, 'execute_deletion', side_effect=fake_delete):
+                plugin.invoke(
+                    album=album,
+                    downloader=downloader,
+                    img_dir=temp_dir,
+                    filename_rule='Aid',
+                )
+
+            self.assertEqual(order[0], ('write', expected_path))
+            self.assertEqual(order[1], ('record', expected_path))
+            self.assertEqual(order[2], ('delete', ['img1.jpg']))
+            self.assertEqual(downloader.manifest_dict[album].export_filepath_dict['png'].count(expected_path), 1)
+
+    def test_long_img_photo_level_registers_photo_detail_once(self):
+        with TemporaryDirectory() as temp_dir:
+            _, photo, _, downloader = self.new_manifest_downloader(temp_dir, top_level='photo')
+            plugin = LongImgPlugin(downloader.option)
+            expected_path = plugin.decide_filepath(None, photo, 'Pid', 'png', temp_dir, None)
+            order = []
+            original_record = downloader.record_export_filepath
+
+            def record(detail, filepath):
+                order.append(('record', detail, filepath))
+                return original_record(detail, filepath)
+
+            def fake_write(long_img_path, current_album, current_photo):
+                self.assertEqual(long_img_path, expected_path)
+                self.assertIsNone(current_album)
+                self.assertIs(current_photo, photo)
+                order.append(('write', current_photo, long_img_path))
+                return ['img1.jpg']
+
+            def fake_delete(paths):
+                order.append(('delete', list(paths)))
+                self.assertEqual(
+                    downloader.manifest_dict[photo].export_filepath_dict,
+                    {'png': [expected_path]},
+                )
+
+            downloader.record_export_filepath = record
+
+            with patch.dict(sys.modules, {'PIL': SimpleNamespace(Image=object())}), \
+                    patch.object(plugin, 'write_img_2_long_img', side_effect=fake_write), \
+                    patch.object(plugin, 'execute_deletion', side_effect=fake_delete):
+                plugin.invoke(
+                    photo=photo,
+                    downloader=downloader,
+                    img_dir=temp_dir,
+                    filename_rule='Pid',
+                )
+
+            self.assertEqual(order[0], ('write', photo, expected_path))
+            self.assertEqual(order[1], ('record', photo, expected_path))
+            self.assertEqual(order[2], ('delete', ['img1.jpg']))
+            self.assertEqual(downloader.manifest_dict[photo].export_filepath_dict['png'].count(expected_path), 1)
+
+    def test_long_img_missing_library_registers_nothing(self):
+        with TemporaryDirectory() as temp_dir:
+            album, _, _, downloader = self.new_manifest_downloader(temp_dir)
+            plugin = LongImgPlugin(downloader.option)
+            original_import = __import__
+
+            def fake_import(name, *args, **kwargs):
+                if name == 'PIL':
+                    raise ImportError('PIL missing')
+                return original_import(name, *args, **kwargs)
+
+            with patch('builtins.__import__', side_effect=fake_import):
+                with self.assertRaises(PluginValidationException):
+                    plugin.invoke(
+                        album=album,
+                        downloader=downloader,
+                        img_dir=temp_dir,
+                        filename_rule='Aid',
+                    )
+
+            self.assertEqual(downloader.manifest_dict[album].export_filepath_dict, {})
+
+    def test_long_img_empty_source_registers_nothing(self):
+        with TemporaryDirectory() as temp_dir:
+            album, _, _, downloader = self.new_manifest_downloader(temp_dir)
+            plugin = LongImgPlugin(downloader.option)
+
+            with patch.dict(sys.modules, {'PIL': SimpleNamespace(Image=object())}), \
+                    patch.object(plugin, 'write_img_2_long_img', return_value=None), \
+                    patch.object(plugin, 'execute_deletion') as delete_mock:
+                plugin.invoke(
+                    album=album,
+                    downloader=downloader,
+                    img_dir=temp_dir,
+                    filename_rule='Aid',
+                )
+
+            self.assertEqual(downloader.manifest_dict[album].export_filepath_dict, {})
+            delete_mock.assert_not_called()
 
 
 class Test_Detail_Cache_Copy_Contract(unittest.TestCase):

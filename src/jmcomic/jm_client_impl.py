@@ -1,3 +1,4 @@
+from copy import deepcopy
 from threading import Lock
 
 from .jm_task_context import bind_jm_task_context
@@ -187,10 +188,10 @@ class AbstractJmClient(
 
                 result = cache.get(key, sentinel)
                 if result is not sentinel:
-                    return result
+                    return deepcopy(result) if isinstance(result, DetailEntity) else result
 
                 result = func(*args, **kwargs)
-                cache[key] = result
+                cache[key] = deepcopy(result) if isinstance(result, DetailEntity) else result
                 return result
 
             setattr(self, func_name, cache_wrapper)
