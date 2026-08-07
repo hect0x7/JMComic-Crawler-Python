@@ -413,3 +413,161 @@ cl = JmApiClient(
     retry_times=1
 )
 ```
+
+
+## 下载结果、完成情况、过程数据的获取
+
+下载完成后，可以直接查看本子或章节的保存目录：
+
+```python
+from jmcomic import download_album, download_photo
+
+album, downloader = download_album('123')
+print('本子保存目录:', album.save_path)
+
+photo, downloader = download_photo('456')
+print('章节保存目录:', photo.save_path)
+```
+
+`album` 和 `photo` 是刚刚下载的本子和章节。`downloader` 是执行下载的对象；只想查看保存目录时，不需要操作它。
+
+<details>
+<summary>查看每个章节和图片的路径</summary>
+
+```python
+album, downloader = download_album('123')
+
+for photo in album:
+    if not photo.save_path:
+        continue
+
+    print('章节目录:', photo.save_path)
+
+    for image in photo:
+        if image.save_path:
+            print('图片文件:', image.save_path)
+```
+
+</details>
+
+<details>
+<summary>一次获取所有图片和导出文件的路径</summary>
+
+不想逐个遍历章节时，可以查看本次下载的文件清单：
+
+```python
+result = download_album('123')
+
+for filepath in result.manifest.image_filepath_list:
+    print(filepath)
+```
+
+列表包含刚下载的图片和本地已经存在、无需重复下载的图片，顺序就是阅读顺序。
+
+使用 PDF、ZIP 或长图导出功能时，也可以从文件清单中获取生成文件：
+
+```python
+from jmcomic import Feature, download_album
+
+result = download_album(
+    '123',
+    extra=Feature.export_pdf + Feature.export_zip,
+)
+
+pdf_list = result.manifest.get_export_filepath_list('pdf')
+zip_list = result.manifest.get_export_filepath_list('zip')
+
+for suffix, filepath_list in result.manifest.export_filepath_dict.items():
+    for filepath in filepath_list:
+        print(suffix, filepath)
+```
+
+同一种格式可能生成多个文件，所以得到的是列表；没有生成对应格式时，得到空列表。
+
+需要同时使用本子信息和文件清单时，可以这样写：
+
+```python
+result = download_album('123')
+album, downloader = result
+
+print(album.save_path)
+print(result.manifest.image_filepath_list)
+```
+
+</details>
+
+<details>
+<summary>查看本子、章节和图片的耗时</summary>
+
+`duration` 记录处理时间，单位为秒：
+
+```python
+album, downloader = download_album('123')
+
+print(f'本子耗时: {album.duration:.2f} 秒')
+
+for photo in album:
+    if photo.duration is None:
+        continue
+
+    print(f'章节 {photo.id}: {photo.duration:.2f} 秒')
+
+    for image in photo:
+        if image.duration is None:
+            continue
+
+        used_existing_file = image.exists and image.cache
+        print(image.filename, image.duration, used_existing_file)
+```
+
+`used_existing_file` 为 `True`，表示本次直接使用了下载前已经存在的图片。此时记录的是本次检查和处理已有文件的耗时。
+
+需要结构化输出时，可以整理成字典后打印 JSON：
+
+```python
+import json
+
+info = {
+    'id': album.id,
+    'save_path': album.save_path,
+    'duration': album.duration,
+    'photo_list': [
+        {
+            'id': photo.id,
+            'save_path': photo.save_path,
+            'duration': photo.duration,
+            'image_list': [
+                {
+                    'filepath': image.save_path,
+                    'duration': image.duration,
+                    'used_existing_file': image.exists and image.cache,
+                }
+                for image in photo
+                if image.duration is not None
+            ],
+        }
+        for photo in album
+        if photo.duration is not None
+    ],
+}
+
+print(json.dumps(info, ensure_ascii=False, indent=2))
+```
+
+</details>
+
+<details>
+<summary>反复查询同一个本子时开启 Client 缓存</summary>
+
+```python
+from jmcomic import JmOption
+
+client = JmOption.default().new_jm_client(cache=True)
+
+album_1 = client.get_album_detail('123')
+album_2 = client.get_album_detail('123')
+```
+
+两次查询得到的本子内容相同，但可以分别修改，互不影响。自定义 album 或 photo 实体时，其中的字段需要支持 Python 的 `deepcopy`；使用 jmcomic 自带实体时不用处理。
+
+</details>

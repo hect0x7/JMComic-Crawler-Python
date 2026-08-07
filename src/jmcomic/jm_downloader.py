@@ -4,6 +4,17 @@ from .jm_option import *
 from .jm_task_context import bind_jm_task_context
 
 
+class DownloadManifest:
+    """一次顶层下载产生的聚合文件清单。"""
+
+    def __init__(self):
+        self.image_filepath_list: List[str] = []
+        self.export_filepath_dict: Dict[str, List[str]] = {}
+
+    def get_export_filepath_list(self, suffix: str) -> List[str]:
+        raise NotImplementedError
+
+
 def catch_exception(func):
     from functools import wraps
 
@@ -84,6 +95,8 @@ class BaseDownloader(DownloadCallback):
         # 下载失败的记录list
         self.download_failed_image: List[Tuple[JmImageDetail, BaseException]] = []
         self.download_failed_photo: List[Tuple[JmPhotoDetail, BaseException]] = []
+        # 每次顶层下载对应的聚合清单
+        self.manifest_dict: Dict[DetailEntity, DownloadManifest] = {}
         # Feature 特性列表: [(feature, feature_from), ...]
         self._feature_list: List[Tuple] = []
 
@@ -252,6 +265,10 @@ class DownloadResult(NamedTuple):
     """
     detail: DetailEntity
     downloader: BaseDownloader
+
+    @property
+    def manifest(self) -> DownloadManifest:
+        return self.downloader.manifest_dict[self.detail]
 
 
 class BatchResult(set):

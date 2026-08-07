@@ -13,6 +13,7 @@ class Downloadable:
         self.exists: bool = False
         self.skip = False
         self.cache = True
+        self.duration: Optional[float] = None
 
 
 class JmBaseEntity:

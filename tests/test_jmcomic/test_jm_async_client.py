@@ -264,8 +264,13 @@ class Test_Async_Client(JmAsyncTestConfigurable):
             # 开启缓存
             client.set_cache_dict({})
             album1 = loop.run_until_complete(client.get_album_detail('123'))
+            album1.save_path = '/tmp/album-123'
+            album1.duration = 1.0
             album2 = loop.run_until_complete(client.get_album_detail('123'))
-            self.assertIs(album1, album2, '缓存开启：同 ID 应返回同一对象（对象引用相同）')
+            self.assertIsNot(album1, album2, '缓存开启：同 ID 应返回独立实体')
+            self.assertEqual(album1.id, album2.id, '缓存命中前后详情 ID 应一致')
+            self.assertEqual(album2.save_path, '', '缓存模板不应携带上一次下载路径')
+            self.assertIsNone(album2.duration, '缓存模板不应携带上一次下载耗时')
 
             # 2. 关闭缓存
             client.set_cache_dict(None)
@@ -278,7 +283,8 @@ class Test_Async_Client(JmAsyncTestConfigurable):
             album4 = loop.run_until_complete(client.get_album_detail('123'))
             self.assertEqual(len(new_cache), 1, '新缓存应有 1 条记录')
             album5 = loop.run_until_complete(client.get_album_detail('123'))
-            self.assertIs(album4, album5, '重新开启缓存后应命中')
+            self.assertIsNot(album4, album5, '重新开启缓存后应返回独立实体')
+            self.assertEqual(album4.id, album5.id, '重新开启缓存后应命中相同详情数据')
 
         finally:
             loop.run_until_complete(client.close())
