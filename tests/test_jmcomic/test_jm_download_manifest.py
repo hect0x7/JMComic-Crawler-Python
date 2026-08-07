@@ -158,7 +158,7 @@ class ContractAsyncDownloader(JmAsyncDownloader):
         return detail
 
 
-class Test_Download_Manifest_Public_Contract(unittest.TestCase):
+class Test_Download_Manifest(unittest.TestCase):
 
     def test_downloadable_defaults(self):
         album, photo, image_list = new_album_photo_images()
@@ -224,8 +224,6 @@ class Test_Download_Manifest_Public_Contract(unittest.TestCase):
         self.assertIs(downloader.finish_manifest(photo), manifest)
         self.assertEqual(manifest.export_filepath_dict, {'zip': ['/tmp/photo.zip']})
 
-
-class Test_Download_Manifest_Export_Contract(unittest.TestCase):
 
     @staticmethod
     def new_manifest_downloader(base_dir, top_level='album'):
@@ -620,8 +618,6 @@ class Test_Download_Manifest_Export_Contract(unittest.TestCase):
             delete_mock.assert_not_called()
 
 
-class Test_Detail_Cache_Copy_Contract(unittest.TestCase):
-
     def test_sync_detail_cache_returns_clean_copy(self):
         class CachedClient(AbstractJmClient):
             func_to_cache = ['fetch_detail_entity']
@@ -694,8 +690,6 @@ class Test_Detail_Cache_Copy_Contract(unittest.TestCase):
 
         asyncio.run(run_test())
 
-
-class Test_Sync_Download_Manifest_Contract(unittest.TestCase):
 
     def new_downloader(self, base_dir, image_count=1):
         album, photo, image_list = new_album_photo_images(image_count)
@@ -799,8 +793,6 @@ class Test_Sync_Download_Manifest_Contract(unittest.TestCase):
             self.assertEqual(image_list[0].save_path, final_path)
             self.assertEqual(downloader.manifest_dict[album].image_filepath_list, [final_path])
 
-
-class Test_Async_Download_Manifest_Contract(unittest.TestCase):
 
     def test_cache_hit_paths_durations_after_image_and_manifest(self):
         async def run_test(temp_dir):
