@@ -386,9 +386,12 @@ class Test_Client(JmTestConfigurable):
         for args in cases:
             photo = cl.get_photo_detail(*args)
             if ans is None:
-                ans = id(photo)
+                ans = photo
             else:
-                self.assertEqual(ans, id(photo))
+                self.assertIsNot(ans, photo)
+                self.assertEqual(ans.id, photo.id)
+                self.assertEqual(ans.name, photo.name)
+                self.assertEqual(ans.tags, photo.tags)
 
     def test_search_generator(self):
         JmModuleConfig.FLAG_DECODE_URL_WHEN_LOGGING = False
@@ -404,23 +407,6 @@ class Test_Client(JmTestConfigurable):
             break
 
     def test_cache_level(self):
-        def get(cl):
-            return cl.get_album_detail('123')
-
-        def assertEqual(first_cl, second_cl, msg):
-            self.assertEqual(
-                get(first_cl),
-                get(second_cl),
-                msg,
-            )
-
-        def assertNotEqual(first_cl, second_cl, msg):
-            return self.assertNotEqual(
-                get(first_cl),
-                get(second_cl),
-                msg,
-            )
-
         cases = [
             (
                 True,
@@ -439,17 +425,22 @@ class Test_Client(JmTestConfigurable):
             c4 = op.new_jm_client(cache=arg4)
             c5 = op.new_jm_client(cache=False)
 
-            # c1 == c2
-            # c3 == c4
-            # c1 != c3
-            assertEqual(c1, c2, 'equals in same option level')
-            assertNotEqual(c3, c4, 'not equals in client level')
-            assertNotEqual(c1, c3, 'not equals in different level')
-
-            # c5 != c1, c2, c3, c4
-            obj = get(c5)
-            self.assertNotEqual(obj, get(c1))
-            self.assertNotEqual(obj, get(c3))
+            self.assertIs(
+                c1.get_cache_dict(),
+                c2.get_cache_dict(),
+                'clients in the same option level should share a cache dict',
+            )
+            self.assertIsNot(
+                c3.get_cache_dict(),
+                c4.get_cache_dict(),
+                'clients in the client level should use separate cache dicts',
+            )
+            self.assertIsNot(
+                c1.get_cache_dict(),
+                c3.get_cache_dict(),
+                'different cache levels should not share a cache dict',
+            )
+            self.assertIsNone(c5.get_cache_dict(), 'cache=False should disable caching')
 
         for case in cases:
             run(*case)
