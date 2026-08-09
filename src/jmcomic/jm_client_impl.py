@@ -244,6 +244,7 @@ class JmHtmlClient(AbstractJmClient):
     API_SEARCH = '/search/photos'
     API_CATEGORY = '/albums'
     API_ALBUM_PAGINATION = '/ajax/album_pagination'
+    API_FORUM = '/ajax/forum_more'
 
     def add_favorite_album(self,
                            album_id,
@@ -554,12 +555,27 @@ class JmHtmlClient(AbstractJmClient):
 
         ret = JmJsonResp(resp)
         ret.require_success()
-        comment_page = JmPageTool.parse_html_to_album_comment_page(ret.model())
+        comment_page = JmPageTool.parse_html_to_album_comment_page(ret.model(), page)
         if need_total:
             album = self.get_album_detail(jm_id)
             comment_page.total = album.comment_count
 
         return comment_page
+
+    def forum_pagination(self,
+                         page=1,
+                         with_ad_wcm=1,
+                         ) -> JmAlbumCommentPage:
+        resp = self.post(
+            self.API_FORUM,
+            data={
+                'page': page,
+                'with_ad_wcm': with_ad_wcm,
+            },
+        )
+        ret = JmJsonResp(resp)
+        ret.require_success()
+        return JmPageTool.parse_html_to_album_comment_page(ret.model(), page)
 
     @classmethod
     def require_resp_success_else_raise(cls, resp, url: str):
@@ -911,7 +927,20 @@ class JmApiClient(AbstractJmClient):
                 'aid': JmcomicText.parse_to_jm_id(jm_id),
             },
         )
-        return JmPageTool.parse_api_to_album_comment_page(resp.model_data)
+        return JmPageTool.parse_api_to_album_comment_page(resp.model_data, page)
+
+    def forum_pagination(self,
+                         page=1,
+                         with_ad_wcm=1,
+                         ) -> JmAlbumCommentPage:
+        resp = self.req_api(
+            self.API_FORUM,
+            params={
+                'mode': 'all',
+                'page': page,
+            },
+        )
+        return JmPageTool.parse_api_to_album_comment_page(resp.model_data, page)
 
     def add_favorite_album(self,
                            album_id,

@@ -258,6 +258,9 @@ class Test_Client(JmTestConfigurable):
         self.assertTrue(api_comments)
         self.assertTrue(list(api_page_2))
         self.assertTrue(html_comments)
+        self.assertEqual(api_page.page_number, 1)
+        self.assertEqual(api_page_2.page_number, 2)
+        self.assertEqual(html_page.page_number, 1)
         self.assertIsInstance(api_page.raw_data, AdvancedDict)
         self.assertIsInstance(html_page.raw_data, AdvancedDict)
         self.assertGreaterEqual(api_page.comment_count, len(api_page))
@@ -280,6 +283,34 @@ class Test_Client(JmTestConfigurable):
         self.assertIsNone(html_page_without_total.page_count)
         self.assertIsNone(html_page_2_without_total.total)
         self.assertIsNone(html_page_2_without_total.page_count)
+        self.assertEqual(html_page_without_total.page_number, 1)
+        self.assertEqual(html_page_2_without_total.page_number, 2)
+
+        api_forum_gen = api_client.forum_pagination_gen(page=1)
+        api_forum_page = next(api_forum_gen)
+        api_forum_page_2 = next(api_forum_gen)
+        api_forum_gen.close()
+
+        html_forum_gen = html_client.forum_pagination_gen(page=1, with_ad_wcm=1)
+        html_forum_page = next(html_forum_gen)
+        html_forum_page_2 = next(html_forum_gen)
+        html_forum_gen.close()
+
+        self.assertTrue(list(api_forum_page))
+        self.assertTrue(list(api_forum_page_2))
+        self.assertTrue(list(html_forum_page))
+        self.assertTrue(list(html_forum_page_2))
+        self.assertEqual(api_forum_page.page_number, 1)
+        self.assertEqual(api_forum_page_2.page_number, 2)
+        self.assertEqual(html_forum_page.page_number, 1)
+        self.assertEqual(html_forum_page_2.page_number, 2)
+        self.assertGreater(api_forum_page.total, 0)
+        self.assertIsNone(html_forum_page.total)
+        self.assertIsNone(html_forum_page.page_count)
+        self.assertIsInstance(api_forum_page.raw_data, AdvancedDict)
+        self.assertIsInstance(html_forum_page.raw_data, AdvancedDict)
+        self.assertTrue(any(comment.album_id for comment in html_forum_page))
+        self.assertTrue(any(comment.user_id for comment in html_forum_page))
 
         for comment in (api_comments[0], html_comments[0]):
             self.assertIsInstance(comment.raw_data, AdvancedDict)
@@ -287,6 +318,8 @@ class Test_Client(JmTestConfigurable):
             self.assertEqual(str(comment.album_id), album_id)
             self.assertIsInstance(comment.content, str)
             self.assertIsInstance(comment.is_spoiler, bool)
+            self.assertIn(str(comment.comment_id), str(comment))
+            self.assertIn(comment.content, str(comment))
 
         api_comments_by_cid = {
             str(comment.comment_id): comment

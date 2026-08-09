@@ -3,6 +3,7 @@
 ## 1. 需求场景
 
 下载本子后，很多用户有进一步导出的需求：
+
 - 导出为 **PDF**：方便在电子阅读器上查看
 - 导出为 **ZIP**：方便传输和存档
 - 合并为 **长图**：方便一张图看完整个章节
@@ -111,7 +112,7 @@ download_photo('456', option, extra=Feature.export_pdf)
 ├── [JM{Pid}]章节标题.pdf       ← 该章节导出为 1 个 PDF
 ```
 
-> 💡 **提示**：同一个 Feature，通过 `download_album` 和 `download_photo` 调用时会自动适配不同的导出行为，详见下方 [智能适配规则](#25-智能适配规则)。
+> 💡 **提示**：同一个 Feature，通过 `download_album` 和 `download_photo` 调用时会自动适配不同的导出行为，详见下方 [智能适配规则](#25)。
 
 ### 2.5 智能适配规则
 
@@ -124,7 +125,7 @@ download_photo('456', option, extra=Feature.export_pdf)
 
 当你显式传入参数时（如 `filename_rule='Ptitle'`），**你的配置优先**，不会被自适应覆盖。
 
-> 💡 **提示**：更多可选参数（如加密密码 `encrypt`、后缀名 `suffix` 等），参考 [Plugin 插件参数大全](../option_file_syntax.md#3-option插件配置项)。
+> 💡 **提示**：更多可选参数（如加密密码 `encrypt`、后缀名 `suffix` 等），参考 [Plugin 插件参数大全](../option_file_syntax.md#3-option)。
 
 ## 3. 传统写法（YAML 插件配置）
 

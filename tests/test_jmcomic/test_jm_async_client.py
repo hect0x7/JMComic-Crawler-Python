@@ -83,6 +83,8 @@ class Test_Async_Client(JmAsyncTestConfigurable):
 
             self.assertTrue(list(page_1))
             self.assertTrue(list(page_2))
+            self.assertEqual(page_1.page_number, 1)
+            self.assertEqual(page_2.page_number, 2)
             self.assertEqual(page_1.total, page_2.total)
             self.assertIsInstance(page_1.raw_data, AdvancedDict)
             self.assertGreaterEqual(page_1.comment_count, len(page_1))
@@ -91,10 +93,24 @@ class Test_Async_Client(JmAsyncTestConfigurable):
             self.assertIsInstance(comment, JmAlbumComment)
             self.assertIsInstance(comment.raw_data, AdvancedDict)
             self.assertIsInstance(comment.is_spoiler, bool)
+            self.assertIn(str(comment.comment_id), str(comment))
+            self.assertIn(comment.content, str(comment))
             self.assertTrue(all(
                 isinstance(reply, JmAlbumComment)
                 for reply in comment.replies
             ))
+
+            forum_gen = self.async_client.forum_pagination_gen(page=1)
+            forum_page_1 = await forum_gen.__anext__()
+            forum_page_2 = await forum_gen.__anext__()
+            await forum_gen.aclose()
+
+            self.assertTrue(list(forum_page_1))
+            self.assertTrue(list(forum_page_2))
+            self.assertEqual(forum_page_1.page_number, 1)
+            self.assertEqual(forum_page_2.page_number, 2)
+            self.assertGreater(forum_page_1.total, 0)
+            self.assertIsInstance(forum_page_1.raw_data, AdvancedDict)
 
         self.run_async(run())
 

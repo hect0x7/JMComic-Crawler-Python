@@ -15,7 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 from .jm_downloader import BaseDownloader, record_download_duration
 from .jm_entity import JmAlbumDetail, JmPhotoDetail, JmImageDetail
 from .jm_toolkit import JmImageTool
-from .jm_config import jm_log
+from .jm_config import JmModuleConfig, jm_log
 from .jm_task_context import bind_jm_task_context
 from .jm_option import JmOption
 
@@ -52,6 +52,18 @@ class JmAsyncDownloader(BaseDownloader):
 
         # 解密线程池（CPU 密集操作卸载）
         self._decode_pool = ThreadPoolExecutor(max_workers=decode_worker, thread_name_prefix='jm-async-decode')
+
+    @classmethod
+    def use(cls, *args, **kwargs):
+        before_class = JmModuleConfig.async_downloader_class()
+        JmModuleConfig.CLASS_ASYNC_DOWNLOADER = cls
+        after_class = JmModuleConfig.async_downloader_class()
+        jm_log(
+            'async_downloader.use',
+            f'替换 Async Downloader class: '
+            f'[{before_class.__module__}.{before_class.__qualname__}] -> '
+            f'[{after_class.__module__}.{after_class.__qualname__}]'
+        )
 
     # ======================================================================
     # 核心下载流程 — 对齐 sync JmDownloader

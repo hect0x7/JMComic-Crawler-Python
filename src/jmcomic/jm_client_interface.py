@@ -232,7 +232,7 @@ class JmUserClient:
         """
         获取本子评论分页。
 
-        推荐直接遍历评论页，并通过 ``comment.replies`` 读取回评：
+        推荐直接遍历评论页，并通过 comment.replies 读取回评：
 
         ```
         def show_comment(comment, indent=''):
@@ -254,19 +254,36 @@ class JmUserClient:
 
         返回字段说明：
 
-        - ``page.total``：全部分页的主评论总数。
-        - ``page.comment_count``：当前页主评论加所有层级回评的数量。
-        - ``len(page)``：当前页主评论数量，不包含回评。
-        - ``comment.raw_data``、``page.raw_data``：统一为 ``AdvancedDict``。
-        - HTML 客户端的 ``comment.likes`` 固定为 ``None``。
-        - HTML 客户端的 ``comment.user_id`` 仅在头像地址包含数字 ID 时可用。
-        - HTML 客户端的 ``comment.album_id`` 在评论 DOM 缺少本子链接时为 ``None``。
+        - page.total：全部分页的主评论总数。
+        - page.comment_count：当前页主评论加所有层级回评的数量。
+        - len(page)：当前页主评论数量，不包含回评。
+        - comment.raw_data、page.raw_data：统一为 AdvancedDict。
+        - HTML 客户端的 comment.likes 固定为 None。
+        - HTML 客户端的 comment.user_id 仅在头像地址包含数字 ID 时可用。
+        - HTML 客户端的 comment.album_id 在评论 DOM 缺少本子链接时为 None。
 
         :param jm_id: album_id/photo_id
         :param page: 页码，从 1 开始
         :param series: 网页端评论区的系列标记，API 端忽略
         :param with_ad_wcm: 网页端广告标记，API 端忽略
         :param need_total: 网页端是否额外请求本子详情以获取评论总数；API 端忽略
+        :return: JmAlbumCommentPage
+        """
+        raise NotImplementedError
+
+    def forum_pagination(self,
+                         page=1,
+                         with_ad_wcm=1,
+                         ) -> JmAlbumCommentPage:
+        """
+        获取全站评论分页。
+
+        HTML 客户端使用 /ajax/forum_more；API 客户端使用不带 aid 的 /forum。
+        HTML 客户端不提供评论总数，page.total 和 page.page_count 为 None；
+        API 客户端返回全站主评论总数。
+
+        :param page: 页码，从 1 开始
+        :param with_ad_wcm: 网页端广告标记，API 端忽略
         :return: JmAlbumCommentPage
         """
         raise NotImplementedError
@@ -653,6 +670,29 @@ class JmcomicClient(
 
             page += 1
 
+    def forum_pagination_gen(self,
+                             page=1,
+                             with_ad_wcm=1,
+                             ) -> Generator[JmAlbumCommentPage, None, None]:
+        """逐页获取全站评论；HTML 客户端遇到服务端重复返回的末页时停止。"""
+        previous_comment_ids = None
+        while True:
+            comment_page = self.forum_pagination(
+                page=page,
+                with_ad_wcm=with_ad_wcm,
+            )
+            comment_ids = tuple(comment.comment_id for comment in comment_page)
+            if not comment_ids or comment_ids == previous_comment_ids:
+                break
+
+            yield comment_page
+
+            if comment_page.page_count is not None and page >= comment_page.page_count:
+                break
+
+            previous_comment_ids = comment_ids
+            page += 1
+
     def search_gen(self,
                    search_query: str,
                    main_tag=0,
@@ -1018,7 +1058,18 @@ class AsyncJmcomicClient:
         获取本子评论分页。
 
         异步客户端使用移动端 API，返回值与同步 JmApiClient 一致；
-        ``series`` 和 ``with_ad_wcm`` 仅用于保持同步/异步签名一致。
+        series 和 with_ad_wcm 仅用于保持同步、异步方法签名一致。
+        """
+        raise NotImplementedError
+
+    async def forum_pagination(self,
+                               page=1,
+                               with_ad_wcm=1,
+                               ) -> JmAlbumCommentPage:
+        """
+        异步获取全站评论分页。
+
+        with_ad_wcm 仅用于保持同步、异步方法签名一致。
         """
         raise NotImplementedError
 
@@ -1055,6 +1106,29 @@ class AsyncJmcomicClient:
             elif not comment_page:
                 break
 
+            page += 1
+
+    async def forum_pagination_gen(self,
+                                   page=1,
+                                   with_ad_wcm=1,
+                                   ):
+        """异步逐页获取全站评论。"""
+        previous_comment_ids = None
+        while True:
+            comment_page = await self.forum_pagination(
+                page=page,
+                with_ad_wcm=with_ad_wcm,
+            )
+            comment_ids = tuple(comment.comment_id for comment in comment_page)
+            if not comment_ids or comment_ids == previous_comment_ids:
+                break
+
+            yield comment_page
+
+            if comment_page.page_count is not None and page >= comment_page.page_count:
+                break
+
+            previous_comment_ids = comment_ids
             page += 1
 
     # -- 域名 / 缓存管理 --

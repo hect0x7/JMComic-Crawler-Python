@@ -555,7 +555,15 @@ class JmDownloader(BaseDownloader):
         """
         让本类替换JmModuleConfig.CLASS_DOWNLOADER
         """
+        before_class = JmModuleConfig.downloader_class()
         JmModuleConfig.CLASS_DOWNLOADER = cls
+        after_class = JmModuleConfig.downloader_class()
+        jm_log(
+            'downloader.use',
+            f'替换 Downloader class: '
+            f'[{before_class.__module__}.{before_class.__qualname__}] -> '
+            f'[{after_class.__module__}.{after_class.__qualname__}]'
+        )
 
 
 class DoNotDownloadImage(JmDownloader):

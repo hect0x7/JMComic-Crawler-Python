@@ -11,7 +11,7 @@ class Downloadable:
     def __init__(self):
         self.save_path: str = ''  # 下载保存路径
         self.exists: bool = False  # 下载前，目标是否已存在
-        self.skip = False  # 扩展字段，表示是否要跳过下载，jmcomic内只有插件会主动设置此字段来跳过下载
+        self.skip = False  # 是否跳过本次下载，可供外界控制
         self.cache = True  # 下载前目标已存在时，是否使用缓存，如果 exists and cache 都是 True，会跳过下载
         self.duration: Optional[float] = None  # 下载耗时，单位：秒
 
@@ -658,12 +658,12 @@ class JmAlbumComment(JmBaseEntity):
     """
     本子评论实体。
 
-    ``raw_data`` 始终为 ``AdvancedDict``。
+    raw_data 始终为 AdvancedDict。
 
     网页端字段说明：
-    - ``likes``：评论分页 HTML 不提供，值为 ``None``。
-    - ``user_id``：仅头像地址包含数字用户 ID 时可解析，否则为 ``None``。
-    - ``album_id``：评论 DOM 缺少本子链接时为 ``None``。
+    - likes：评论分页 HTML 不提供，值为 None。
+    - user_id：优先读取评论节点的用户 ID，否则尝试从头像地址解析。
+    - album_id：从评论中的本子或章节链接解析，链接缺失时为 None。
     """
 
     def __init__(self, raw_data):
@@ -700,24 +700,33 @@ class JmAlbumComment(JmBaseEntity):
             for reply in data.get('replys', []) or []
         ]
 
+    def __str__(self):
+        author = self.nickname or self.username or ''
+        spoiler = '（剧透）' if self.is_spoiler else ''
+        return f'[{self.comment_id}] {author}{spoiler}: {self.content or ""}'
+
+    __repr__ = __str__
+
 
 class JmAlbumCommentPage(JmBaseEntity, IndexedEntity):
     """
     本子评论分页。
 
-    ``total`` 是全部分页的主评论总数；``comment_count`` 是当前页主评论
-    加所有层级回评的数量；``len(page)`` 只统计当前页主评论。
-    ``raw_data`` 始终为 ``AdvancedDict``。
+    total 是全部分页的主评论总数；comment_count 是当前页主评论
+    加所有层级回评的数量；len(page) 只统计当前页主评论。
+    page_number 是当前页码；raw_data 始终为 AdvancedDict。
     """
 
     def __init__(self,
                  content: List[JmAlbumComment],
                  total: Optional[int] = None,
+                 page_number: Optional[int] = None,
                  raw_html: Optional[str] = None,
                  raw_data=None,
                  ):
         self.content = content
         self.total = total
+        self.page_number = page_number
         self.raw_html = raw_html
         self.raw_data = AdvancedDict.wrap(raw_data or {})
 

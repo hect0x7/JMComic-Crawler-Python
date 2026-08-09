@@ -172,12 +172,11 @@ create_option = create_option_by_file
 
 
 def new_async_downloader(option=None, downloader=None):
-    from .jm_async_downloader import JmAsyncDownloader
     if option is None:
         option = JmModuleConfig.option_class().default()
 
     if downloader is None:
-        downloader = JmAsyncDownloader
+        downloader = JmModuleConfig.async_downloader_class()
 
     return downloader(option)
 

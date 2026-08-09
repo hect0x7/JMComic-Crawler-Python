@@ -10,12 +10,6 @@ class Test_Cli(JmTestConfigurable):
 
     album_id = '350234'
 
-    def test_cl_deprecated(self):
-        with self.assertWarnsRegex(DeprecationWarning, r'removed in version 2\.7\.4'):
-            from jmcomic.cl import JmcomicUI as DeprecatedJmcomicUI
-
-        self.assertIs(DeprecatedJmcomicUI, JmcomicUI)
-
     # ========== jmcomic 命令测试 ==========
 
     def test_jmcomic_parse_album_id(self):

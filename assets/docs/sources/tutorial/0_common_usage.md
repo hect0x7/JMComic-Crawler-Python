@@ -176,45 +176,64 @@ for aid, atitle, tag_list in page.iter_id_title_tag():  # 使用page的iter_id_t
 download_album(aid_list, option)
 ```
 
-## 获取本子评论
+## 获取评论
+
+目前支持获取两种评论：
+
+| 评论类型 | 说明 | 获取一页的方法 | 自动翻页的方法 |
+| --- | --- | --- | --- |
+| 本子评论 | 获取指定本子下的评论和回评 | `album_pagination` | `album_pagination_gen` |
+| 全站评论 | 获取全站最新发布的评论，可通过 `comment.album_id` 知道评论来自哪个本子 | `forum_pagination` | `forum_pagination_gen` |
+
+评论页可以直接遍历，评论对象也可以直接打印，格式为 `[评论ID] 用户（剧透）: 内容`。
+
+### 获取本子评论
+
+`album_pagination` 获取指定本子的一页评论。
 
 ```python
-from jmcomic import JmOption, JmAlbumCommentPage, JmAlbumComment
+from jmcomic import JmOption, JmAlbumComment
 
 client = JmOption.default().new_jm_client(impl='api')
+page = client.album_pagination('123456')
 
-# 获取第一页评论
-page: JmAlbumCommentPage = client.album_pagination('123456')
-
-print('本页评论数:', len(page))
-print('本页评论数（含回评）:', page.comment_count)
-print('本子的评论总数:', page.total)
-print('总页数:', page.page_count)
-
-# page对象可以直接遍历评论，评论类型是JmAlbumComment
-comment: JmAlbumComment
+print(f'第 {page.page_number}/{page.page_count} 页，当前页一共 {len(page)} 条主评论，整本一共 {page.total} 条主评论')
 for comment in page:
-    print('用户:', comment.nickname or comment.username)
-    print('内容:', comment.content)
-    print('是否剧透:', comment.is_spoiler)
-
-    # 回评也是评论对象
+    comment: JmAlbumComment # 评论是实体类
+    print(
+        f'评论ID: {comment.comment_id} | 用户ID: {comment.user_id} | 用户: {comment.nickname or comment.username} | '
+        f'是否剧透: {comment.is_spoiler} | 点赞数: {comment.likes} | 发布时间: {comment.created_at}\n内容: {comment.content}'
+    )
     for reply in comment.replies:
-        print('回评用户:', reply.nickname or reply.username)
-        print('回评内容:', reply.content)
-        print('回评是否剧透:', reply.is_spoiler)
+        reply: JmAlbumComment # 回评也是相同的实体类
+        print('  └─', reply)
 
-# gen 方法支持自动循环获取评论分页，直到结束
+# 需要连续获取分页时，使用生成器：
 for page in client.album_pagination_gen('123456'):
-    print('本页主评论数:', len(page))
-    print('本页评论数（含回评）:', page.comment_count)
-    print('主评论总数:', page.total)
-    print('总页数:', page.page_count)
-
+    print(f'\n第 {page.page_number} 页')
     for comment in page:
-        print('用户:', comment.nickname or comment.username)
-        print('内容:', comment.content)
-        print('是否剧透:', comment.is_spoiler)
+        print(comment)
+```
+
+### 获取全站评论
+
+`forum_pagination` 获取一页全站评论。
+
+> [!NOTE]
+> html 端不提供 `total`（全部分页的主评论总数）和 `page_count`（总页数），这两个字段都为 `None`，api端则有值。
+
+```python
+page = client.forum_pagination(page=1)
+
+print(f'第 {page.page_number}/{page.page_count} 页，当前页一共 {len(page)} 条主评论，全站一共 {page.total} 条主评论')
+for comment in page:
+    print(f'本子 {comment.album_id} | {comment}')
+
+# 全站评论同样支持生成器
+for page in client.forum_pagination_gen(page=1):
+    print(f'\n第 {page.page_number} 页')
+    for comment in page:
+        print(f'本子 {comment.album_id} | {comment}')
 ```
 
 ## 获取收藏夹
