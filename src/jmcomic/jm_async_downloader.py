@@ -174,40 +174,43 @@ class JmAsyncDownloader(BaseDownloader):
         if image.skip:
             return
 
-        if not (image.cache and image.exists):
-            decode_image = self.option.decide_download_image_decode(image)
+        if image.cache and image.exists:
+            await self.after_image(image, img_save_path)
+            return
 
-            # 异步下载图片（受 image semaphore 限流，并将解密写盘过程也锁入信号量范围内，防大字节积压）
-            async with self._image_semaphore:
-                img_resp = await self.client.get_jm_image(image.download_url)
-                img_bytes = img_resp.content
+        decode_image = self.option.decide_download_image_decode(image)
 
-                # 提交到线程池解密并保存
-                if decode_image and image.scramble_id:
-                    await self._run_in_decode_pool(
-                        self._decode_and_save,
-                        img_bytes,
-                        int(image.scramble_id),
-                        int(image.aid),
-                        image.img_file_name,
-                        img_save_path,
-                    )
-                else:
-                    # 不解密保存。对齐 sync transfer_to(decode_image=False)：
-                    # 当目标后缀与原图后缀不一致时，需经 PIL 做格式转换。
-                    # 与 sync 一致：比较后缀前先剥离 url 的 ?query 部分，避免 query 干扰后缀判定。
-                    from common import suffix_not_equal
-                    img_url = image.download_url
-                    qi = img_url.find('?')
-                    if qi != -1:
-                        img_url = img_url[:qi]
-                    need_convert = suffix_not_equal(img_url, img_save_path)
-                    await self._run_in_decode_pool(
-                        self._save_raw,
-                        img_bytes,
-                        img_save_path,
-                        need_convert,
-                    )
+        # 异步下载图片（受 image semaphore 限流，并将解密写盘过程也锁入信号量范围内，防大字节积压）
+        async with self._image_semaphore:
+            img_resp = await self.client.get_jm_image(image.download_url)
+            img_bytes = img_resp.content
+
+            # 提交到线程池解密并保存
+            if decode_image and image.scramble_id:
+                await self._run_in_decode_pool(
+                    self._decode_and_save,
+                    img_bytes,
+                    int(image.scramble_id),
+                    int(image.aid),
+                    image.img_file_name,
+                    img_save_path,
+                )
+            else:
+                # 不解密保存。对齐 sync transfer_to(decode_image=False)：
+                # 当目标后缀与原图后缀不一致时，需经 PIL 做格式转换。
+                # 与 sync 一致：比较后缀前先剥离 url 的 ?query 部分，避免 query 干扰后缀判定。
+                from common import suffix_not_equal
+                img_url = image.download_url
+                qi = img_url.find('?')
+                if qi != -1:
+                    img_url = img_url[:qi]
+                need_convert = suffix_not_equal(img_url, img_save_path)
+                await self._run_in_decode_pool(
+                    self._save_raw,
+                    img_bytes,
+                    img_save_path,
+                    need_convert,
+                )
 
         await self.after_image(image, img_save_path)
 

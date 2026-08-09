@@ -10,12 +10,14 @@ from .jm_task_context import bind_jm_task_context, get_jm_task_context, jm_task_
 
 def record_download_duration(context_key: str, clock=None):
     def decorator(func):
+        # 装饰时只解析一次参数名，关键字调用无需在每次执行时重复 inspect。
         entity_param = tuple(inspect.signature(func).parameters)[1]
 
         def get_time():
             return perf_counter() if clock is None else clock()
 
         def get_entity(args, kwargs):
+            # 常规位置参数走快路径；只有关键字调用才按参数名取值。
             if len(args) > 1:
                 return args[1]
             return kwargs[entity_param]
@@ -25,12 +27,14 @@ def record_download_duration(context_key: str, clock=None):
             async def async_wrapper(*args, **kwargs):
                 entity = get_entity(args, kwargs)
                 detail_call = isinstance(entity, Downloadable)
+                # 顶层 ID 下载负责完整耗时，内部 detail 调用复用同一个计时上下文。
                 if detail_call and get_jm_task_context().get(context_key) is not None:
                     return await func(*args, **kwargs)
 
                 started_at = get_time()
                 with jm_task_context(**{context_key: started_at}):
                     result = await func(*args, **kwargs)
+                    # detail 入口直接记录传入实体；ID 入口记录下载后返回的实体。
                     detail = entity if detail_call else result
                     detail.duration = get_time() - started_at
                     return result
@@ -41,12 +45,14 @@ def record_download_duration(context_key: str, clock=None):
         def wrapper(*args, **kwargs):
             entity = get_entity(args, kwargs)
             detail_call = isinstance(entity, Downloadable)
+            # 顶层 ID 下载负责完整耗时，内部 detail 调用复用同一个计时上下文。
             if detail_call and get_jm_task_context().get(context_key) is not None:
                 return func(*args, **kwargs)
 
             started_at = get_time()
             with jm_task_context(**{context_key: started_at}):
                 result = func(*args, **kwargs)
+                # detail 入口直接记录传入实体；ID 入口记录下载后返回的实体。
                 detail = entity if detail_call else result
                 detail.duration = get_time() - started_at
                 return result
@@ -490,13 +496,16 @@ class JmDownloader(BaseDownloader):
         if image.skip:
             return
 
-        if not (image.cache and image.exists):
-            decode_image = self.option.decide_download_image_decode(image)
-            self.client.download_by_image_detail(
-                image,
-                img_save_path,
-                decode_image=decode_image,
-            )
+        if image.cache and image.exists:
+            self.after_image(image, img_save_path)
+            return
+
+        decode_image = self.option.decide_download_image_decode(image)
+        self.client.download_by_image_detail(
+            image,
+            img_save_path,
+            decode_image=decode_image,
+        )
 
         self.after_image(image, img_save_path)
 
