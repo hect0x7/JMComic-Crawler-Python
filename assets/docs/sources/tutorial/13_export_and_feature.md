@@ -176,18 +176,18 @@ api.download_album(extra=Feature.export_pdf)
        │    ├→ download jmcomic images ...      # 下载禁漫图片
        │    └→ after_photo(photo)
        │         └→ _invoke_features_for('after_photo')
-       │              └→ pdf.should_invoke('after_photo', 'download_album') → False ✗ 跳过
+       │              └→ pdf.should_invoke('after_photo') → False ✗ 跳过
        │
        └→ after_album(album)
             └→ _invoke_features_for('after_album')
-                 └→ pdf.should_invoke('after_album', 'download_album') → True ✓ 执行!
-                      └→ _adapt_plugin_kwargs(from, when) # 动态生成插件参数
+                 └→ pdf.should_invoke('after_album') → True ✓ 执行!
+                      └→ _adapt_plugin_kwargs(option, when) # 动态生成插件参数
                            └→ option.invoke(pdf, kwargs) # 调用pdf插件，传入参数
 ```
 
 > 💡 **关键点**：
 >
-> - **执行时机**：`PluginFeature` 根据注册来源自动推导（`download_album` → `after_album`，`download_photo` → `after_photo`）。自定义 Feature 默认在所有事件都会执行，你可以覆写 `should_invoke` 来控制。
+> - **执行时机**：`PluginFeature` 根据 `TaskContext` 中的 `download_type` 判断当前顶层下载类型。自定义 Feature 默认在所有事件都会执行，你可以覆写 `should_invoke` 来控制。
 > - **参数自适应**：`PluginFeature` 的 `filename_rule` 前缀（A/P）会根据来源动态适配。ZIP 的打包粒度由插件根据上下文自动推导。用户显式传入的参数不会被覆盖。
 
 ### 自定义 Feature

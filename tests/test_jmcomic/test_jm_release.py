@@ -132,6 +132,20 @@ class Test_Release(unittest.TestCase):
         self.assertIn("softprops/action-gh-release@v2", workflow)
         self.assertIn("pypa/gh-action-pypi-publish@release/v1", workflow)
 
+    def test_release_workflows_build_before_creating_release(self):
+        for filename in ("release.yml", "release_auto.yml"):
+            with self.subTest(filename=filename):
+                workflow = (PROJECT_ROOT / ".github" / "workflows" / filename).read_text(encoding="utf-8")
+
+                self.assertLess(workflow.index("- name: Build\n"), workflow.index("- name: Create Release\n"))
+
+    def test_test_workflows_watch_development_requirements(self):
+        for filename in ("test_api.yml", "test_html.yml"):
+            with self.subTest(filename=filename):
+                workflow = (PROJECT_ROOT / ".github" / "workflows" / filename).read_text(encoding="utf-8")
+
+                self.assertIn("      - '.github/requirements-dev.txt'", workflow)
+
     def test_contributing_allows_only_formal_release_prs_to_master(self):
         contributing = (PROJECT_ROOT / ".github" / "CONTRIBUTING.md").read_text(encoding="utf-8")
 

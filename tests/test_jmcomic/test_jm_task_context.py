@@ -286,7 +286,6 @@ class Test_Jm_Task_Context(unittest.TestCase):
 
             def download_album(self, _album_id):
                 detail = Detail()
-                self.manifest_dict[detail] = DownloadManifest()
                 observed_contexts.append(get_jm_task_context())
                 return detail
 
@@ -327,7 +326,6 @@ class Test_Jm_Task_Context(unittest.TestCase):
 
                 async def download_photo(self, _photo_id):
                     detail = Detail()
-                    self.manifest_dict[detail] = DownloadManifest()
                     return detail
 
                 def raise_if_has_exception(self):

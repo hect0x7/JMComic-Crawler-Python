@@ -9,6 +9,7 @@ on:
     paths:
       - 'src/**/*.py'
       - 'tests/**/*.py'
+      - '.github/requirements-dev.txt'
       - '.github/workflows/test_html.yml'
       - 'assets/option/option_test_html.yml'
 

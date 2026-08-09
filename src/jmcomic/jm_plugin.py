@@ -801,7 +801,8 @@ class Img2pdfPlugin(JmOptionPlugin):
 
         # noinspection PyTypeChecker
         detail: DetailEntity = album or photo
-        downloader.record_export_filepath(detail, pdf_filepath)
+        if downloader is not None:
+            downloader.record_export_filepath(detail, pdf_filepath)
 
         # 打印结果
         self.log(f'{detail.alias_cn()}合并PDF成功！'
@@ -884,7 +885,8 @@ class LongImgPlugin(JmOptionPlugin):
             return
         # noinspection PyTypeChecker
         detail: DetailEntity = album or photo
-        downloader.record_export_filepath(detail, long_img_path)
+        if downloader is not None:
+            downloader.record_export_filepath(detail, long_img_path)
 
         # 打印结果
         self.log(f'{detail.alias_cn()}合并长图成功！'

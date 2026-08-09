@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from test_jmcomic import *
 from jmcomic.jm_async_client import AsyncJmApiClient
+from jmcomic.jm_downloader import record_download_duration
 
 
 def new_album_photo_images(image_count=1):
@@ -213,6 +214,46 @@ class Test_Download_Manifest(unittest.TestCase):
         manifest.duration = 2.5
 
         self.assertEqual(result.duration, 2.5)
+
+    def test_duration_decorator_accepts_keyword_entity_arguments(self):
+        album, photo, _ = new_album_photo_images()
+        sync_times = iter((10.0, 12.5))
+        async_times = iter((20.0, 24.0))
+
+        class Downloader:
+
+            @record_download_duration('album_started_at', clock=lambda: next(sync_times))
+            def download_album(self, album_id):
+                return album
+
+            @record_download_duration('photo_started_at', clock=lambda: next(async_times))
+            async def download_photo(self, photo_id):
+                return photo
+
+        downloader = Downloader()
+
+        self.assertIs(downloader.download_album(album_id='123'), album)
+        self.assertEqual(album.duration, 2.5)
+        self.assertIs(asyncio.run(downloader.download_photo(photo_id='456')), photo)
+        self.assertEqual(photo.duration, 4.0)
+
+    def test_export_plugins_allow_omitting_downloader(self):
+        _, photo, _ = new_album_photo_images()
+        option = ContractOption('/tmp')
+
+        cases = (
+            (Img2pdfPlugin, 'img2pdf', 'decide_filepath', 'write_img_2_pdf', '/tmp/photo.pdf', (['/tmp/1.jpg'], ['/tmp/photo'])),
+            (LongImgPlugin, 'PIL', 'decide_filepath', 'write_img_2_long_img', '/tmp/photo.png', ['/tmp/1.jpg']),
+        )
+        for plugin_class, module_name, filepath_method, write_method, output_path, write_result in cases:
+            with self.subTest(plugin=plugin_class.plugin_key):
+                plugin = plugin_class(option)
+                fake_module = SimpleNamespace(Image=object())
+                with patch.dict(sys.modules, {module_name: fake_module}), \
+                        patch.object(plugin, filepath_method, return_value=output_path), \
+                        patch.object(plugin, write_method, return_value=write_result), \
+                        patch.object(plugin, 'log'):
+                    plugin.invoke(photo=photo)
 
     def test_record_export_filepath_uses_top_level_album_manifest(self):
         album, photo, _ = new_album_photo_images()

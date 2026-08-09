@@ -10,13 +10,20 @@ from .jm_task_context import bind_jm_task_context, get_jm_task_context, jm_task_
 
 def record_download_duration(context_key: str, clock=None):
     def decorator(func):
+        entity_param = tuple(inspect.signature(func).parameters)[1]
+
         def get_time():
             return perf_counter() if clock is None else clock()
+
+        def get_entity(args, kwargs):
+            if len(args) > 1:
+                return args[1]
+            return kwargs[entity_param]
 
         if inspect.iscoroutinefunction(func):
             @wraps(func)
             async def async_wrapper(*args, **kwargs):
-                entity = args[1]
+                entity = get_entity(args, kwargs)
                 detail_call = isinstance(entity, Downloadable)
                 if detail_call and get_jm_task_context().get(context_key) is not None:
                     return await func(*args, **kwargs)
@@ -32,7 +39,7 @@ def record_download_duration(context_key: str, clock=None):
 
         @wraps(func)
         def wrapper(*args, **kwargs):
-            entity = args[1]
+            entity = get_entity(args, kwargs)
             detail_call = isinstance(entity, Downloadable)
             if detail_call and get_jm_task_context().get(context_key) is not None:
                 return func(*args, **kwargs)
