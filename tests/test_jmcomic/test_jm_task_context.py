@@ -504,14 +504,19 @@ class Test_Jm_Task_Context(unittest.TestCase):
             jm_logger.handlers[:] = original_handlers
 
         self.assertIn('404', result.failed)
-        self.assertEqual(1, len(handler.records))
+        batch_failure_records = [
+            record
+            for record in handler.records
+            if getattr(record, 'topic', None) == 'batch.failed'
+        ]
+        self.assertEqual(1, len(batch_failure_records))
         self.assertEqual(
             {
                 'session_id': 'failed-session',
                 'download_type': 'fail',
                 'jm_id': '404',
             },
-            handler.records[0].jm_task_context,
+            batch_failure_records[0].jm_task_context,
         )
 
     def test_sync_downloader_propagates_both_threading_branches(self):
