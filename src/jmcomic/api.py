@@ -17,17 +17,7 @@ def _download_type(download_api) -> str:
 
 
 def _finish_download_result(detail, dler, task_started_at):
-    manifest = dler.manifest_dict.get(detail)
-    if manifest is None:
-        begin_manifest = getattr(dler, 'begin_manifest', None)
-        finish_manifest = getattr(dler, 'finish_manifest', None)
-        if callable(begin_manifest) and callable(finish_manifest):
-            begin_manifest(detail)
-            manifest = finish_manifest(detail)
-        else:
-            manifest = DownloadManifest()
-            dler.manifest_dict[detail] = manifest
-
+    manifest = dler.manifest_dict[detail]
     manifest.duration = perf_counter() - task_started_at
     return DownloadResult(detail, dler)
 

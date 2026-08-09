@@ -267,7 +267,8 @@ class BaseDownloader(DownloadCallback):
     def record_export_filepath(self, detail: DetailEntity, filepath: str) -> None:
         manifest_detail = self.resolve_manifest_detail(detail)
         if manifest_detail is None:
-            return
+            from .jm_toolkit import ExceptionTool
+            ExceptionTool.raises(f'当前实体没有活动的下载清单: {detail}')
 
         suffix = os.path.splitext(filepath)[1].lower().lstrip('.')
         if suffix == '':

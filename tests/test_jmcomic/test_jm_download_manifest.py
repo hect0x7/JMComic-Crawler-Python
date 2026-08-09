@@ -312,14 +312,13 @@ class Test_Download_Manifest(unittest.TestCase):
                 'png': [png_path],
             })
 
-    def test_record_export_filepath_noops_without_manifest(self):
+    def test_record_export_filepath_rejects_missing_manifest(self):
         with TemporaryDirectory() as temp_dir:
             album, _, _ = new_album_photo_images()
             downloader = BaseDownloader(ContractOption(temp_dir))
 
-            downloader.record_export_filepath(album, os.path.join(temp_dir, 'album.zip'))
-
-            self.assertEqual(downloader.manifest_dict, {})
+            with self.assertRaisesRegex(JmcomicException, '没有活动的下载清单'):
+                downloader.record_export_filepath(album, os.path.join(temp_dir, 'album.zip'))
 
     def test_record_export_filepath_ignores_paths_without_suffix(self):
         with TemporaryDirectory() as temp_dir:

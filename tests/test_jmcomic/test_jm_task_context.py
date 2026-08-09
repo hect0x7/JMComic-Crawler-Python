@@ -168,10 +168,22 @@ class Test_Jm_Task_Context(unittest.TestCase):
         ).startswith(formatter.WARN_COLOR))
 
     def test_public_downloads_add_task_context_to_downloader_logs(self):
-        class FakeSyncDownloader:
+        class AlbumDetail:
+            duration = None
 
-            def __init__(self, _option):
-                self.manifest_dict = {}
+            @staticmethod
+            def is_album():
+                return True
+
+        class PhotoDetail:
+            duration = None
+            from_album = object()
+
+            @staticmethod
+            def is_album():
+                return False
+
+        class FakeSyncDownloader(BaseDownloader):
 
             def __enter__(self):
                 return self
@@ -179,21 +191,16 @@ class Test_Jm_Task_Context(unittest.TestCase):
             def __exit__(self, *_args):
                 pass
 
-            def add_features(self, *_args):
-                pass
+            def download_album(self, _album_id):
+                detail = AlbumDetail()
+                self.begin_manifest(detail)
+                try:
+                    jm_log('album.before', 'message')
+                finally:
+                    self.finish_manifest(detail)
+                return detail
 
-            def download_album(self, album_id):
-                jm_log('album.before', 'message')
-                self.manifest_dict[album_id] = DownloadManifest()
-                return album_id
-
-            def raise_if_has_exception(self):
-                pass
-
-        class FakeAsyncDownloader:
-
-            def __init__(self, _option):
-                self.manifest_dict = {}
+        class FakeAsyncDownloader(BaseDownloader):
 
             async def __aenter__(self):
                 return self
@@ -201,16 +208,14 @@ class Test_Jm_Task_Context(unittest.TestCase):
             async def __aexit__(self, *_args):
                 pass
 
-            def add_features(self, *_args):
-                pass
-
-            async def download_photo(self, photo_id):
-                jm_log('photo.before', 'message')
-                self.manifest_dict[photo_id] = DownloadManifest()
-                return photo_id
-
-            def raise_if_has_exception(self):
-                pass
+            async def download_photo(self, _photo_id):
+                detail = PhotoDetail()
+                self.begin_manifest(detail)
+                try:
+                    jm_log('photo.before', 'message')
+                finally:
+                    self.finish_manifest(detail)
+                return detail
 
         handler = ListHandler()
         original_handlers = jm_logger.handlers[:]
@@ -270,10 +275,11 @@ class Test_Jm_Task_Context(unittest.TestCase):
         class Detail:
             duration = 99.0
 
-        class FakeDownloader:
+            @staticmethod
+            def is_album():
+                return True
 
-            def __init__(self, _option):
-                self.manifest_dict = {}
+        class FakeDownloader(BaseDownloader):
 
             def __enter__(self):
                 return self
@@ -281,16 +287,14 @@ class Test_Jm_Task_Context(unittest.TestCase):
             def __exit__(self, *_args):
                 clock['now'] = 20.0
 
-            def add_features(self, *_args):
-                pass
-
             def download_album(self, _album_id):
                 detail = Detail()
-                observed_contexts.append(get_jm_task_context())
+                self.begin_manifest(detail)
+                try:
+                    observed_contexts.append(get_jm_task_context())
+                finally:
+                    self.finish_manifest(detail)
                 return detail
-
-            def raise_if_has_exception(self):
-                pass
 
         with patch('jmcomic.api.perf_counter', side_effect=lambda: clock['now'], create=True):
             result = download_album('123', option=object(), downloader=FakeDownloader)
@@ -308,11 +312,13 @@ class Test_Jm_Task_Context(unittest.TestCase):
 
             class Detail:
                 duration = 99.0
+                from_album = object()
 
-            class FakeDownloader:
+                @staticmethod
+                def is_album():
+                    return False
 
-                def __init__(self, _option):
-                    self.manifest_dict = {}
+            class FakeDownloader(BaseDownloader):
 
                 async def __aenter__(self):
                     observed_contexts.append(get_jm_task_context())
@@ -321,15 +327,11 @@ class Test_Jm_Task_Context(unittest.TestCase):
                 async def __aexit__(self, *_args):
                     clock['now'] = 130.0
 
-                def add_features(self, *_args):
-                    pass
-
                 async def download_photo(self, _photo_id):
                     detail = Detail()
+                    self.begin_manifest(detail)
+                    self.finish_manifest(detail)
                     return detail
-
-                def raise_if_has_exception(self):
-                    pass
 
             with patch('jmcomic.api.perf_counter', side_effect=lambda: clock['now'], create=True):
                 result = await download_photo_async('456', option=object(), downloader=FakeDownloader)
