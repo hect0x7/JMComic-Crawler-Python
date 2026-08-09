@@ -13,6 +13,12 @@ download_photo(438696)
 
 # 同时下载多个本子
 download_album([123, 456, 789])
+
+# 查看本子/章节下载位置和耗时
+result: DownloadResult = download_album(123)
+album: JmAlbumDetail = result.detail # detail是实体类，download_album 返回 album，download_photo 返回 photo
+print(f'本子-JM{album.id}，下载保存文件夹: {album.save_path}, 下载耗时: {result.duration:.3f}秒')
+# DownloadResult 里还包含大量字段，更多用法请查阅下方章节【下载返回值】
 ```
 
 ## 使用option定制化下载本子
@@ -415,174 +421,156 @@ cl = JmApiClient(
 ```
 
 
-## 下载结果、完成情况、过程数据的获取
+## 下载返回值
 
-下载完成后，可以直接查看本子或章节的保存目录：
+`download_album` 和 `download_photo` 下载完成后，单个 ID 返回 `DownloadResult`，多个 ID 返回 `BatchResult`。
+
+从 `result.detail` 可以取得下载的本子/章节的实体类：
 
 ```python
 from jmcomic import download_album, download_photo
 
-album, downloader = download_album('123')
-print('本子保存目录:', album.save_path)
-
-photo, downloader = download_photo('456')
-print('章节保存目录:', photo.save_path)
-```
-
-`album` 和 `photo` 是刚刚下载的本子和章节。`downloader` 是执行下载的对象；只想查看保存目录时，不需要操作它。
-
-<details>
-<summary>查看每个章节和图片的路径</summary>
-
-```python
-album, downloader = download_album('123')
-
-for photo in album:
-    if not photo.save_path:
-        continue
-
-    print('章节目录:', photo.save_path)
-
-    for image in photo:
-        if image.save_path:
-            print('图片文件:', image.save_path)
-```
-
-</details>
-
-<details>
-<summary>一次获取所有图片和导出文件的路径</summary>
-
-不想逐个遍历章节时，可以查看本次下载的文件清单：
-
-```python
+# 下载本子；result.detail 是本子实体
 result = download_album('123')
+album = result.detail
+print(f'本子实体: {album}')
 
-for filepath in result.manifest.image_filepath_list:
-    print(filepath)
+# 下载章节；result.detail 是章节实体
+result = download_photo('456')
+photo = result.detail
+print(f'章节实体: {photo}')
 ```
 
-列表包含刚下载的图片和本地已经存在、无需重复下载的图片，顺序就是阅读顺序。
+### 获取保存路径和耗时
 
-使用 PDF、ZIP 或长图导出功能时，也可以从文件清单中获取生成文件：
+下载完成后，你通常会关心两件事：文件保存在哪里，以及哪一步比较慢。所有 `duration` 的单位都是秒。
 
-```python
-from jmcomic import Feature, download_album
+| 对象 | `save_path` | `duration`                                           |
+| --- | --- |------------------------------------------------------|
+| 下载结果 `result` | 通过 `result.detail.save_path` 查看 | 从调用下载方法到返回，你总共等了多久                 |
+| 本子 `album` | 本子根目录 | 下载这个本子花了多久，包含获取详情、下载章节和插件   |
+| 章节 `photo` | 章节图片目录 | 下载这个章节花了多久，包含获取详情、下载图片和插件   |
+| 图片 `image` | 图片文件路径 | 下载这张图片花了多久，包含检查缓存、下载、保存和插件 |
 
-result = download_album(
-    '123',
-    extra=Feature.export_pdf + Feature.export_zip,
-)
+> 一次本子下载可能同时处理多个章节，一个章节也可能同时处理多张图片。因此，把所有章节或图片的耗时相加，不会得到本子的耗时，这是正常现象。
 
-pdf_list = result.manifest.get_export_filepath_list('pdf')
-zip_list = result.manifest.get_export_filepath_list('zip')
 
-for suffix, filepath_list in result.manifest.export_filepath_dict.items():
-    for filepath in filepath_list:
-        print(suffix, filepath)
-```
+??? example "完整示例：查看路径、耗时和缓存状态"
 
-同一种格式可能生成多个文件，所以得到的是列表；没有生成对应格式时，得到空列表。
+    ```python
+    from jmcomic import download_album
 
-需要同时使用本子信息和文件清单时，可以这样写：
+    result = download_album('123')
+    album = result.detail
 
-```python
-result = download_album('123')
-album, downloader = result
-manifest = result.manifest
+    # result.duration 是调用下载方法后总共等待的时间
+    print(f'本子目录: {album.save_path}，总共等待: {result.duration:.2f} 秒')
+    print(f'下载本子用了: {album.duration:.2f} 秒')
 
-print(album.save_path)
-print(manifest.image_filepath_list)
-print(manifest.get_export_filepath_list('pdf'))
-print(album.duration)
-```
+    for photo in album:
+        # 查看每个章节的保存目录和处理耗时
+        print(f'章节 {photo.id} 目录: {photo.save_path}，耗时: {photo.duration:.2f} 秒')
 
-</details>
+        for image in photo:
+            # exists 和 cache 都为 True，表示满足缓存复用条件
+            not_download = image.exists and image.cache
+            print(
+                f'图片 {image.filename} 路径: {image.save_path}，'
+                f'耗时: {image.duration:.2f} 秒，是否因存在而跳过下载: {not_download}'
+            )
+    ```
 
-<details>
-<summary>查看本子、章节和图片的耗时</summary>
+    `not_download` 为 `True`，表示目标图片原本存在并且允许使用缓存。
 
-`duration` 记录处理时间，单位为秒：
+### 使用 `manifest` 获取结果文件
 
-```python
-album, downloader = download_album('123')
+相比于遍历实体类， `manifest` 提供了更直接的写法，适合场景：直接取得全部图片路径，以及取得**额外产物**（由插件/Feature产出的 PDF、ZIP、长图）
 
-print(f'本子耗时: {album.duration:.2f} 秒')
+| 想要什么                                   | 推荐写法 |
+|--------------------------------------------| --- |
+| 查看某张图片的路径、耗时和缓存状态         | 遍历实体，读取 `image.save_path` 等字段 |
+| 直接获取所有图片路径（包含命中缓存的图片） | 用`manifest`，`result.manifest.image_filepath_list` |
+| 额外产物（PDF、ZIP 或长图）                | 用`manifest`，`result.manifest.get_export_filepath_list('文件后缀')` |
 
-for photo in album:
-    if photo.duration is None:
-        continue
+??? example "完整示例：获取图片和导出文件"
 
-    print(f'章节 {photo.id}: {photo.duration:.2f} 秒')
+    ```python
+    from jmcomic import Feature, download_album
 
-    for image in photo:
-        if image.duration is None:
-            continue
+    # 下载本子，并使用内置 Feature 导出 PDF、ZIP 和长图
+    result = download_album(
+        '123',
+        extra=Feature.export_pdf + Feature.export_zip + Feature.export_long_img,
+    )
 
-        used_existing_file = image.exists and image.cache
-        print(image.filename, image.duration, used_existing_file)
-```
+    # 本次成功下载或直接复用的图片路径
+    print('图片文件:', result.manifest.image_filepath_list)
 
-`used_existing_file` 为 `True`，表示本次直接使用了下载前已经存在的图片。此时记录的是本次检查和处理已有文件的耗时。
+    # 插件导出的文件按后缀查询，后缀前面的点可以省略
+    pdf_filepath_list = result.manifest.get_export_filepath_list('pdf')
+    zip_filepath_list = result.manifest.get_export_filepath_list('.zip')
+    png_filepath_list = result.manifest.get_export_filepath_list('png')
 
-`after_image` 插件现在会在两种情况下触发：图片刚下载完成，或命中了本地缓存并直接复用已有文件。被跳过的图片和下载失败的图片不会触发它。
+    print('PDF 文件:', pdf_filepath_list)
+    print('ZIP 文件:', zip_filepath_list)
+    print('长图导出文件:', png_filepath_list)
+    ```
 
-如果你的插件只想处理本次新下载出来的文件，可以显式跳过缓存命中的场景：
+### 批量下载的返回值
 
-```python
-def invoke(self, image, **kwargs):
-    if image.exists and image.cache:
-        return
+传入多个 ID 时，返回值是 `BatchResult`。每一项成功下载对应一个 `DownloadResult`，失败任务则记录在 `failed` 中：
 
-    process(image.save_path)
-```
+??? example "完整示例：处理批量下载结果"
 
-需要结构化输出时，可以整理成字典后打印 JSON：
+    ```python
+    from jmcomic import download_album
 
-```python
-import json
+    # 同时下载多个本子
+    batch_result = download_album(['123', '456', '789'])
 
-info = {
-    'id': album.id,
-    'save_path': album.save_path,
-    'duration': album.duration,
-    'photo_list': [
-        {
-            'id': photo.id,
-            'save_path': photo.save_path,
-            'duration': photo.duration,
-            'image_list': [
-                {
-                    'filepath': image.save_path,
-                    'duration': image.duration,
-                    'used_existing_file': image.exists and image.cache,
-                }
-                for image in photo
-                if image.duration is not None
-            ],
-        }
-        for photo in album
-        if photo.duration is not None
-    ],
-}
+    # BatchResult 继承 set，成功结果没有输入顺序保证
+    for result in batch_result:
+        album = result.detail
+        # 通过实体 ID 识别当前结果，不要用遍历位置对应输入列表
+        print(f'JM{album.id} 下载到: {album.save_path}')
 
-print(json.dumps(info, ensure_ascii=False, indent=2))
-```
+    # failed 的键是下载失败的 ID，值是记录失败原因的异常对象
+    for album_id, error in batch_result.failed.items():
+        print(f'JM{album_id} 下载失败: {error}')
 
-</details>
+    # total 是实际处理的不同 ID 数量，重复 ID 不会重复下载
+    print('任务总数:', batch_result.total)
+    print('是否全部成功:', batch_result.all_succeeded)
+    ```
 
-<details>
-<summary>反复查询同一个本子时开启 Client 缓存</summary>
+下载单个 ID 时，请求本子失败会直接抛出异常；如果只有部分章节或图片失败，会在任务结束后汇总抛出 `PartialDownloadFailedException`，此时不会返回 `DownloadResult`。批量下载则继续执行其他任务，并把失败项集中放进 `batch_result.failed`。
 
-```python
-from jmcomic import JmOption
+### 速查表
 
-client = JmOption.default().new_jm_client(cache=True)
+| 你的需求 | 推荐写法 |
+| --- | --- |
+| 查看本子或章节信息 | `result.detail` |
+| 查看本子或章节目录 | `result.detail.save_path` |
+| 查看单张图片路径和状态 | 遍历实体后读取 `image.save_path` 等字段 |
+| 查看图片或章节失败原因 | 捕获 `PartialDownloadFailedException` 后，读取 `e.downloader.download_failed_image` / `download_failed_photo`；列表元素为 `(实体, 异常)` |
+| 获取本次成功图片路径列表 | `result.manifest.image_filepath_list` |
+| 获取已登记的导出文件路径 | `result.manifest.get_export_filepath_list('后缀')` |
+| 查看单个 ID 下载的完整时间 | `result.duration` |
+| 定位本子、章节或图片的内部处理慢点 | 对应实体的 `duration` |
+| 检查批量下载失败项 | `batch_result.failed` |
 
-album_1 = client.get_album_detail('123')
-album_2 = client.get_album_detail('123')
-```
+??? note "兼容旧版本的返回值解包写法"
 
-两次查询得到的本子内容相同，但可以分别修改，互不影响。自定义 album 或 photo 实体时，其中的字段需要支持 Python 的 `deepcopy`；使用 jmcomic 自带实体时不用处理。
+    旧代码可能会把返回值直接解包成两个变量，这种写法仍然可以继续使用：
 
-</details>
+    ```python
+    from jmcomic import download_album
+
+    result = download_album('123')
+
+    # 旧写法：第一个变量是本子实体，第二个变量是下载器
+    album, downloader = result
+
+    # 新代码更推荐直接通过 result.detail 读取本子实体
+    assert album is result.detail
+    ```

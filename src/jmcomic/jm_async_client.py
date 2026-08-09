@@ -559,9 +559,9 @@ class AsyncJmApiClient(AsyncJmcomicClient):
         data = resp.model_data
         if data.get('redirect_aid', None) is not None:
             aid = data.redirect_aid
-            result = JmSearchPage.wrap_single_album(await self.get_album_detail(aid))
+            result = JmSearchPage.wrap_single_album(await self.get_album_detail(aid), page)
         else:
-            result = JmPageTool.parse_api_to_search_page(data)
+            result = JmPageTool.parse_api_to_search_page(data, page)
 
         self._cache_set(cache_key, result)
         return result
@@ -592,7 +592,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
             'o': o,
         }
         resp = await self.req_api(self.API_CATEGORIES_FILTER, params=params)
-        return JmPageTool.parse_api_to_search_page(resp.model_data)
+        return JmPageTool.parse_api_to_search_page(resp.model_data, page)
 
     # month_ranking / week_ranking / day_ranking
     # 继承自 AsyncJmcomicClient 基类
@@ -631,7 +631,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
                 'o': order_by,
             }
         )
-        return JmPageTool.parse_api_to_favorite_page(resp.model_data)
+        return JmPageTool.parse_api_to_favorite_page(resp.model_data, page)
 
     async def album_pagination(self,
                                jm_id: str,

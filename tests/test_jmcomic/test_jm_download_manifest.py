@@ -44,6 +44,7 @@ class ContractOption:
     def __init__(self, base_dir):
         self.base_dir = base_dir
         self.plugin_event_list = []
+        self.context_event_list = []
         self.after_image_callback = None
         self.dir_rule = SimpleNamespace(
             base_dir=base_dir,
@@ -73,6 +74,7 @@ class ContractOption:
 
     def call_all_plugin(self, group, **kwargs):
         self.plugin_event_list.append((group, kwargs))
+        self.context_event_list.append((group, get_jm_task_context()))
         if group == 'after_image' and self.after_image_callback is not None:
             self.after_image_callback(kwargs['image'])
 
@@ -203,6 +205,14 @@ class Test_Download_Manifest(unittest.TestCase):
         self.assertIs(unpacked_album, album)
         self.assertIs(unpacked_downloader, downloader)
         self.assertIs(result.manifest, manifest)
+        self.assertIsNone(result.duration)
+
+        album.duration = 1.25
+        self.assertIsNone(result.duration)
+
+        manifest.duration = 2.5
+
+        self.assertEqual(result.duration, 2.5)
 
     def test_record_export_filepath_uses_top_level_album_manifest(self):
         album, photo, _ = new_album_photo_images()
@@ -718,6 +728,183 @@ class Test_Download_Manifest(unittest.TestCase):
             self.assertIsInstance(album.duration, float)
             self.assertIsInstance(photo.duration, float)
             self.assertIsInstance(image_list[0].duration, float)
+
+    def test_entity_timing_contexts_are_nested_and_do_not_leak(self):
+        with TemporaryDirectory() as temp_dir:
+            album, photo, image_list, option, downloader = self.new_downloader(temp_dir, image_count=2)
+            self.create_cached_images(option, image_list)
+
+            with patch('jmcomic.jm_downloader.perf_counter', side_effect=range(1, 9)):
+                downloader.download_album(album.id)
+
+            context_by_group = {}
+            for group, context in option.context_event_list:
+                context_by_group.setdefault(group, []).append(context)
+
+            self.assertEqual(1, context_by_group['before_album'][0].get('album_started_at'))
+            self.assertEqual(
+                {'album_started_at': 1, 'photo_started_at': 2},
+                context_by_group['before_photo'][0],
+            )
+            self.assertEqual(
+                [3, 5],
+                [context['image_started_at'] for context in context_by_group['before_image']],
+            )
+            self.assertEqual(
+                [2, 2],
+                [context['photo_started_at'] for context in context_by_group['before_image']],
+            )
+            self.assertEqual({}, get_jm_task_context())
+
+    def test_sync_download_album_duration_includes_detail_and_manifest(self):
+        clock = {'now': 10.0}
+        contexts = []
+        album = SimpleNamespace(duration=None)
+        downloader = object.__new__(JmDownloader)
+
+        def get_album_detail(_album_id):
+            contexts.append(get_jm_task_context())
+            clock['now'] = 20.0
+            return album
+
+        def begin_manifest(_album):
+            contexts.append(get_jm_task_context())
+            clock['now'] = 30.0
+
+        def download_by_album_detail(_album):
+            contexts.append(get_jm_task_context())
+            clock['now'] = 40.0
+
+        def finish_manifest(_album):
+            contexts.append(get_jm_task_context())
+            clock['now'] = 50.0
+
+        downloader.client = SimpleNamespace(get_album_detail=get_album_detail)
+        downloader.begin_manifest = begin_manifest
+        downloader.download_by_album_detail = download_by_album_detail
+        downloader.finish_manifest = finish_manifest
+
+        with patch('jmcomic.jm_downloader.perf_counter', side_effect=lambda: clock['now']):
+            result = JmDownloader.download_album(downloader, '123')
+
+        self.assertIs(result, album)
+        self.assertEqual(40.0, album.duration)
+        self.assertEqual([10.0] * 4, [context.get('album_started_at') for context in contexts])
+        self.assertEqual({}, get_jm_task_context())
+
+    def test_sync_download_photo_duration_includes_detail_and_manifest(self):
+        clock = {'now': 10.0}
+        contexts = []
+        photo = SimpleNamespace(duration=None)
+        downloader = object.__new__(JmDownloader)
+
+        def get_photo_detail(_photo_id):
+            contexts.append(get_jm_task_context())
+            clock['now'] = 20.0
+            return photo
+
+        def begin_manifest(_photo):
+            contexts.append(get_jm_task_context())
+            clock['now'] = 30.0
+
+        def download_by_photo_detail(_photo):
+            contexts.append(get_jm_task_context())
+            clock['now'] = 40.0
+
+        def finish_manifest(_photo):
+            contexts.append(get_jm_task_context())
+            clock['now'] = 50.0
+
+        downloader.client = SimpleNamespace(get_photo_detail=get_photo_detail)
+        downloader.begin_manifest = begin_manifest
+        downloader.download_by_photo_detail = download_by_photo_detail
+        downloader.finish_manifest = finish_manifest
+
+        with patch('jmcomic.jm_downloader.perf_counter', side_effect=lambda: clock['now']):
+            result = JmDownloader.download_photo(downloader, '456')
+
+        self.assertIs(result, photo)
+        self.assertEqual(40.0, photo.duration)
+        self.assertEqual([10.0] * 4, [context.get('photo_started_at') for context in contexts])
+        self.assertEqual({}, get_jm_task_context())
+
+    def test_async_download_album_duration_includes_detail_and_manifest(self):
+        async def run_test():
+            clock = {'now': 10.0}
+            contexts = []
+            album = SimpleNamespace(duration=None)
+            downloader = object.__new__(JmAsyncDownloader)
+
+            async def get_album_detail(_album_id):
+                contexts.append(get_jm_task_context())
+                clock['now'] = 20.0
+                return album
+
+            def begin_manifest(_album):
+                contexts.append(get_jm_task_context())
+                clock['now'] = 30.0
+
+            async def download_by_album_detail(_album):
+                contexts.append(get_jm_task_context())
+                clock['now'] = 40.0
+
+            def finish_manifest(_album):
+                contexts.append(get_jm_task_context())
+                clock['now'] = 50.0
+
+            downloader.client = SimpleNamespace(get_album_detail=get_album_detail)
+            downloader.begin_manifest = begin_manifest
+            downloader.download_by_album_detail = download_by_album_detail
+            downloader.finish_manifest = finish_manifest
+
+            with patch('jmcomic.jm_downloader.perf_counter', side_effect=lambda: clock['now']):
+                result = await JmAsyncDownloader.download_album(downloader, '123')
+
+            self.assertIs(result, album)
+            self.assertEqual(40.0, album.duration)
+            self.assertEqual([10.0] * 4, [context.get('album_started_at') for context in contexts])
+            self.assertEqual({}, get_jm_task_context())
+
+        asyncio.run(run_test())
+
+    def test_async_download_photo_duration_includes_detail_and_manifest(self):
+        async def run_test():
+            clock = {'now': 10.0}
+            contexts = []
+            photo = SimpleNamespace(duration=None)
+            downloader = object.__new__(JmAsyncDownloader)
+
+            async def get_photo_detail(_photo_id):
+                contexts.append(get_jm_task_context())
+                clock['now'] = 20.0
+                return photo
+
+            def begin_manifest(_photo):
+                contexts.append(get_jm_task_context())
+                clock['now'] = 30.0
+
+            async def download_by_photo_detail(_photo):
+                contexts.append(get_jm_task_context())
+                clock['now'] = 40.0
+
+            def finish_manifest(_photo):
+                contexts.append(get_jm_task_context())
+                clock['now'] = 50.0
+
+            downloader.client = SimpleNamespace(get_photo_detail=get_photo_detail)
+            downloader.begin_manifest = begin_manifest
+            downloader.download_by_photo_detail = download_by_photo_detail
+            downloader.finish_manifest = finish_manifest
+
+            with patch('jmcomic.jm_downloader.perf_counter', side_effect=lambda: clock['now']):
+                result = await JmAsyncDownloader.download_photo(downloader, '456')
+
+            self.assertIs(result, photo)
+            self.assertEqual(40.0, photo.duration)
+            self.assertEqual([10.0] * 4, [context.get('photo_started_at') for context in contexts])
+            self.assertEqual({}, get_jm_task_context())
+
+        asyncio.run(run_test())
 
     def test_cache_hit_triggers_after_image_and_success_record(self):
         with TemporaryDirectory() as temp_dir:

@@ -1,3 +1,6 @@
+import asyncio
+from types import SimpleNamespace
+
 from test_jmcomic import *
 
 
@@ -470,6 +473,44 @@ class Test_Client(JmTestConfigurable):
         ):
             self.print_page(page)
             break
+
+    def test_page_number(self):
+        search_page = JmPageTool.parse_api_to_search_page(
+            AdvancedDict.wrap({'total': '0', 'content': []}),
+            page_number=3,
+        )
+        favorite_page = JmPageTool.parse_api_to_favorite_page(
+            AdvancedDict.wrap({'total': '0', 'list': [], 'folder_list': []}),
+            page_number=4,
+        )
+        album = SimpleNamespace(album_id='123', name='album', tags=['tag'])
+        single_album_page = JmSearchPage.wrap_single_album(album, page_number=5)
+
+        self.assertEqual(search_page.page_number, 3)
+        self.assertEqual(favorite_page.page_number, 4)
+        self.assertEqual(single_album_page.page_number, 5)
+
+    def test_page_number_in_sync_generator(self):
+        def get_page(page):
+            return JmSearchPage([], 100, page)
+
+        generator = JmcomicClient.do_page_iter(None, {}, 1, get_page)
+
+        self.assertEqual(next(generator).page_number, 1)
+        self.assertEqual(generator.send({'page': 3}).page_number, 3)
+
+    def test_page_number_in_async_generator(self):
+        async def run():
+            async def get_page(page):
+                return JmSearchPage([], 100, page)
+
+            generator = AsyncJmcomicClient.do_page_iter(None, {}, 1, get_page)
+
+            self.assertEqual((await generator.asend(None)).page_number, 1)
+            self.assertEqual((await generator.asend({'page': 3})).page_number, 3)
+            await generator.aclose()
+
+        asyncio.run(run())
 
     @staticmethod
     def print_page(page):

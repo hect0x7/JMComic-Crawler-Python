@@ -9,11 +9,11 @@ from .jm_config import *
 class Downloadable:
 
     def __init__(self):
-        self.save_path: str = ''
-        self.exists: bool = False
-        self.skip = False
-        self.cache = True
-        self.duration: Optional[float] = None
+        self.save_path: str = ''  # 下载保存路径
+        self.exists: bool = False  # 下载前，目标是否已存在
+        self.skip = False  # 扩展字段，表示是否要跳过下载，jmcomic内只有插件会主动设置此字段来跳过下载
+        self.cache = True  # 下载前目标已存在时，是否使用缓存，如果 exists and cache 都是 True，会跳过下载
+        self.duration: Optional[float] = None  # 下载耗时，单位：秒
 
 
 class JmBaseEntity:
@@ -582,7 +582,7 @@ class JmAlbumDetail(DetailEntity, Downloadable):
 class JmPageContent(JmBaseEntity, IndexedEntity):
     ContentItem = Tuple[str, Dict[str, Any]]
 
-    def __init__(self, content: List[ContentItem], total: int):
+    def __init__(self, content: List[ContentItem], total: int, page_number: Optional[int] = None):
 
         """
         content:
@@ -591,9 +591,11 @@ class JmPageContent(JmBaseEntity, IndexedEntity):
         ]
         :param content: 分页数据
         :param total: 总结果数
+        :param page_number: 当前页码
         """
         self.content = content
         self.total = total
+        self.page_number = page_number  # 当前页码，独立解析分页内容时可能为空
 
     @property
     def page_count(self) -> int:
@@ -765,13 +767,13 @@ class JmSearchPage(JmPageContent):
         return getattr(self, 'album')
 
     @classmethod
-    def wrap_single_album(cls, album: JmAlbumDetail) -> 'JmSearchPage':
+    def wrap_single_album(cls, album: JmAlbumDetail, page_number: Optional[int] = None) -> 'JmSearchPage':
         page = JmSearchPage([(
             album.album_id, {
             'name': album.name,
             'tags': album.tags,
         }
-        )], 1)
+        )], 1, page_number)
         setattr(page, 'album', album)
         return page
 
@@ -781,14 +783,15 @@ JmCategoryPage = JmSearchPage
 
 class JmFavoritePage(JmPageContent):
 
-    def __init__(self, content, folder_list, total):
+    def __init__(self, content, folder_list, total, page_number: Optional[int] = None):
         """
 
         :param content: 收藏夹一页数据
         :param folder_list: 所有的收藏夹的信息
         :param total: 收藏夹的收藏总数
+        :param page_number: 当前页码
         """
-        super().__init__(content, total)
+        super().__init__(content, total, page_number)
         self.folder_list = folder_list
 
     @property

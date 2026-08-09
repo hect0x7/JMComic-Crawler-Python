@@ -11,9 +11,8 @@ from __future__ import annotations
 import asyncio
 import os
 from concurrent.futures import ThreadPoolExecutor
-from time import perf_counter
 
-from .jm_downloader import BaseDownloader
+from .jm_downloader import BaseDownloader, record_download_duration
 from .jm_entity import JmAlbumDetail, JmPhotoDetail, JmImageDetail
 from .jm_toolkit import JmImageTool
 from .jm_config import jm_log
@@ -66,6 +65,7 @@ class JmAsyncDownloader(BaseDownloader):
             *args,
         )
 
+    @record_download_duration('album_started_at')
     async def download_album(self, album_id) -> JmAlbumDetail:
         """对齐 sync JmDownloader.download_album"""
         album = await self.client.get_album_detail(album_id)
@@ -76,30 +76,27 @@ class JmAsyncDownloader(BaseDownloader):
             self.finish_manifest(album)
         return album
 
+    @record_download_duration('album_started_at')
     async def download_by_album_detail(self, album: JmAlbumDetail):
         """
         异步下载整个本子。
         对齐 sync JmDownloader.download_by_album_detail 的回调链路。
         """
-        started_at = perf_counter()
         album.save_path = self.option.dir_rule.decide_album_root_dir(album)
-        try:
-            await self.before_album(album)
-            if album.skip:
-                return
+        await self.before_album(album)
+        if album.skip:
+            return
 
-            photos = list(self.do_filter(album))
+        photos = list(self.do_filter(album))
 
-            # 即使过滤后 photos 为空，也要执行 after_album（对齐 sync：execute_on_condition
-            # 在 count_real==0 时提前返回，但调用方仍会走到 after_album，触发其插件与 Feature）。
-            if photos:
-                # photo 级并发由 _photo_semaphore 控制（默认 3），包裹整段 photo 下载（见 download_by_photo_detail）。
-                photo_tasks = [self._safe_download_photo(photo) for photo in photos]
-                await asyncio.gather(*photo_tasks)
+        # 即使过滤后 photos 为空，也要执行 after_album（对齐 sync：execute_on_condition
+        # 在 count_real==0 时提前返回，但调用方仍会走到 after_album，触发其插件与 Feature）。
+        if photos:
+            # photo 级并发由 _photo_semaphore 控制（默认 3），包裹整段 photo 下载（见 download_by_photo_detail）。
+            photo_tasks = [self._safe_download_photo(photo) for photo in photos]
+            await asyncio.gather(*photo_tasks)
 
-            await self.after_album(album)
-        finally:
-            album.duration = perf_counter() - started_at
+        await self.after_album(album)
 
     async def _safe_download_photo(self, photo: JmPhotoDetail):
         """包装 download_by_photo_detail，对齐 sync @catch_exception 的异常记录"""
@@ -109,6 +106,7 @@ class JmAsyncDownloader(BaseDownloader):
             jm_log('photo.failed', f'章节下载失败: [{photo.id}], 异常: [{e}]', e)
             self.download_failed_photo.append((photo, e))
 
+    @record_download_duration('photo_started_at')
     async def download_photo(self, photo_id) -> JmPhotoDetail:
         """对齐 sync JmDownloader.download_photo"""
         photo = await self.client.get_photo_detail(photo_id)
@@ -119,39 +117,36 @@ class JmAsyncDownloader(BaseDownloader):
             self.finish_manifest(photo)
         return photo
 
+    @record_download_duration('photo_started_at')
     async def download_by_photo_detail(self, photo: JmPhotoDetail):
         """
         异步下载一个章节的所有图片。
         对齐 sync JmDownloader.download_by_photo_detail 的回调链路。
         """
-        started_at = perf_counter()
         photo.save_path = self.option.decide_image_save_dir(photo)
-        try:
-            # _photo_semaphore 包裹整段 photo 下载（check_photo + 全部图片），
-            # 真正限制「同时下载的章节数」（对齐 sync：每个 photo 占用 photo 线程池一个槽位）。
-            # 章节内图片再由共享的 _image_semaphore 二级限流。
-            async with self._photo_semaphore:
-                await self.client.check_photo(photo)
+        # _photo_semaphore 包裹整段 photo 下载（check_photo + 全部图片），
+        # 真正限制「同时下载的章节数」（对齐 sync：每个 photo 占用 photo 线程池一个槽位）。
+        # 章节内图片再由共享的 _image_semaphore 二级限流。
+        async with self._photo_semaphore:
+            await self.client.check_photo(photo)
 
-                await self.before_photo(photo)
-                if photo.skip:
-                    return
+            await self.before_photo(photo)
+            if photo.skip:
+                return
 
-                images = self.do_filter(photo)
-                image_list = list(images) if images is not None else []
+            images = self.do_filter(photo)
+            image_list = list(images) if images is not None else []
 
-                # 即使过滤后图片为空，也要执行 after_photo（对齐 sync，触发 after_photo 插件与 Feature）。
-                if image_list:
-                    # 直接创建所有下载协程，由 _image_semaphore 实现滑动窗口流控
-                    download_tasks = [
-                        self._safe_download_image(image)
-                        for image in image_list
-                    ]
-                    await asyncio.gather(*download_tasks)
+            # 即使过滤后图片为空，也要执行 after_photo（对齐 sync，触发 after_photo 插件与 Feature）。
+            if image_list:
+                # 直接创建所有下载协程，由 _image_semaphore 实现滑动窗口流控
+                download_tasks = [
+                    self._safe_download_image(image)
+                    for image in image_list
+                ]
+                await asyncio.gather(*download_tasks)
 
-                await self.after_photo(photo)
-        finally:
-            photo.duration = perf_counter() - started_at
+            await self.after_photo(photo)
 
     async def _safe_download_image(self, image: JmImageDetail):
         """
@@ -164,60 +159,57 @@ class JmAsyncDownloader(BaseDownloader):
             jm_log('image.failed', f'图片下载失败: [{image.download_url}], 异常: [{e}]', e)
             self.download_failed_image.append((image, e))
 
+    @record_download_duration('image_started_at')
     async def _download_single_image(self, image: JmImageDetail):
         """
         下载并解密单张图片的完整流程。
         对齐 sync JmDownloader.download_by_image_detail 的逻辑。
         """
-        started_at = perf_counter()
-        try:
-            img_save_path = self.option.decide_image_filepath(image)
-            image.save_path = img_save_path
-            image.exists = os.path.exists(img_save_path)
-            image.cache = self.option.decide_download_cache(image)
+        img_save_path = self.option.decide_image_filepath(image)
+        image.save_path = img_save_path
+        image.exists = os.path.exists(img_save_path)
+        image.cache = self.option.decide_download_cache(image)
 
-            await self.before_image(image, img_save_path)
-            if image.skip:
-                return
+        await self.before_image(image, img_save_path)
+        if image.skip:
+            return
 
-            if not (image.cache and image.exists):
-                decode_image = self.option.decide_download_image_decode(image)
+        if not (image.cache and image.exists):
+            decode_image = self.option.decide_download_image_decode(image)
 
-                # 异步下载图片（受 image semaphore 限流，并将解密写盘过程也锁入信号量范围内，防大字节积压）
-                async with self._image_semaphore:
-                    img_resp = await self.client.get_jm_image(image.download_url)
-                    img_bytes = img_resp.content
+            # 异步下载图片（受 image semaphore 限流，并将解密写盘过程也锁入信号量范围内，防大字节积压）
+            async with self._image_semaphore:
+                img_resp = await self.client.get_jm_image(image.download_url)
+                img_bytes = img_resp.content
 
-                    # 提交到线程池解密并保存
-                    if decode_image and image.scramble_id:
-                        await self._run_in_decode_pool(
-                            self._decode_and_save,
-                            img_bytes,
-                            int(image.scramble_id),
-                            int(image.aid),
-                            image.img_file_name,
-                            img_save_path,
-                        )
-                    else:
-                        # 不解密保存。对齐 sync transfer_to(decode_image=False)：
-                        # 当目标后缀与原图后缀不一致时，需经 PIL 做格式转换。
-                        # 与 sync 一致：比较后缀前先剥离 url 的 ?query 部分，避免 query 干扰后缀判定。
-                        from common import suffix_not_equal
-                        img_url = image.download_url
-                        qi = img_url.find('?')
-                        if qi != -1:
-                            img_url = img_url[:qi]
-                        need_convert = suffix_not_equal(img_url, img_save_path)
-                        await self._run_in_decode_pool(
-                            self._save_raw,
-                            img_bytes,
-                            img_save_path,
-                            need_convert,
-                        )
+                # 提交到线程池解密并保存
+                if decode_image and image.scramble_id:
+                    await self._run_in_decode_pool(
+                        self._decode_and_save,
+                        img_bytes,
+                        int(image.scramble_id),
+                        int(image.aid),
+                        image.img_file_name,
+                        img_save_path,
+                    )
+                else:
+                    # 不解密保存。对齐 sync transfer_to(decode_image=False)：
+                    # 当目标后缀与原图后缀不一致时，需经 PIL 做格式转换。
+                    # 与 sync 一致：比较后缀前先剥离 url 的 ?query 部分，避免 query 干扰后缀判定。
+                    from common import suffix_not_equal
+                    img_url = image.download_url
+                    qi = img_url.find('?')
+                    if qi != -1:
+                        img_url = img_url[:qi]
+                    need_convert = suffix_not_equal(img_url, img_save_path)
+                    await self._run_in_decode_pool(
+                        self._save_raw,
+                        img_bytes,
+                        img_save_path,
+                        need_convert,
+                    )
 
-            await self.after_image(image, img_save_path)
-        finally:
-            image.duration = perf_counter() - started_at
+        await self.after_image(image, img_save_path)
 
     # ======================================================================
     # 磁盘写入（在线程池中执行）

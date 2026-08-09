@@ -197,4 +197,4 @@ class Test_Feature(JmTestConfigurable):
         # 因为在 download_album 的 after_album 阶段，photo 为 None
         with self.assertRaises(AttributeError):
             album = self.client.get_album_detail(album_id)
-            f.invoke(self.option, feature_from='download_album', when='after_album', album=album, photo=None)
+            f.invoke(self.option, when='after_album', album=album, photo=None)

@@ -336,9 +336,9 @@ class JmHtmlClient(AbstractJmClient):
         # 因为如果搜索的是禁漫车号，会直接跳转到本子详情页面
         if resp.redirect_count != 0 and '/album/' in resp.url:
             album = JmcomicText.analyse_jm_album_html(resp.text)
-            return JmSearchPage.wrap_single_album(album)
+            return JmSearchPage.wrap_single_album(album, page)
         else:
-            return JmPageTool.parse_html_to_search_page(resp.text)
+            return JmPageTool.parse_html_to_search_page(resp.text, page)
 
     @classmethod
     def build_search_url(cls, base: str, category: str, sub_category: Optional[str]):
@@ -379,7 +379,7 @@ class JmHtmlClient(AbstractJmClient):
             allow_redirects=True,
         )
 
-        return JmPageTool.parse_html_to_category_page(resp.text)
+        return JmPageTool.parse_html_to_category_page(resp.text, page)
 
     # -- 帐号管理 --
 
@@ -439,7 +439,7 @@ class JmHtmlClient(AbstractJmClient):
             }
         )
 
-        return JmPageTool.parse_html_to_favorite_page(resp.text)
+        return JmPageTool.parse_html_to_favorite_page(resp.text, page)
 
     # noinspection PyTypeChecker
     def get_username_from_cookies(self) -> str:
@@ -673,9 +673,9 @@ class JmApiClient(AbstractJmClient):
         data = resp.model_data
         if data.get('redirect_aid', None) is not None:
             aid = data.redirect_aid
-            return JmSearchPage.wrap_single_album(self.get_album_detail(aid))
+            return JmSearchPage.wrap_single_album(self.get_album_detail(aid), page)
 
-        return JmPageTool.parse_api_to_search_page(data)
+        return JmPageTool.parse_api_to_search_page(data, page)
 
     def categories_filter(self,
                           page: int,
@@ -699,7 +699,7 @@ class JmApiClient(AbstractJmClient):
 
         resp = self.req_api(self.append_params_to_url(self.API_CATEGORIES_FILTER, params))
 
-        return JmPageTool.parse_api_to_search_page(resp.model_data)
+        return JmPageTool.parse_api_to_search_page(resp.model_data, page)
 
     def get_album_detail(self, album_id) -> JmAlbumDetail:
         return self.fetch_detail_entity(album_id,
@@ -884,7 +884,7 @@ class JmApiClient(AbstractJmClient):
             }
         )
 
-        return JmPageTool.parse_api_to_favorite_page(resp.model_data)
+        return JmPageTool.parse_api_to_favorite_page(resp.model_data, page)
 
     def album_comment(self,
                       video_id,

@@ -1,9 +1,52 @@
 import os
+import inspect
+from functools import wraps
 from typing import NamedTuple
 from time import perf_counter
 
 from .jm_option import *
-from .jm_task_context import bind_jm_task_context
+from .jm_task_context import bind_jm_task_context, get_jm_task_context, jm_task_context
+
+
+def record_download_duration(context_key: str, clock=None):
+    def decorator(func):
+        def get_time():
+            return perf_counter() if clock is None else clock()
+
+        if inspect.iscoroutinefunction(func):
+            @wraps(func)
+            async def async_wrapper(*args, **kwargs):
+                entity = args[1]
+                detail_call = isinstance(entity, Downloadable)
+                if detail_call and get_jm_task_context().get(context_key) is not None:
+                    return await func(*args, **kwargs)
+
+                started_at = get_time()
+                with jm_task_context(**{context_key: started_at}):
+                    result = await func(*args, **kwargs)
+                    detail = entity if detail_call else result
+                    detail.duration = get_time() - started_at
+                    return result
+
+            return async_wrapper
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            entity = args[1]
+            detail_call = isinstance(entity, Downloadable)
+            if detail_call and get_jm_task_context().get(context_key) is not None:
+                return func(*args, **kwargs)
+
+            started_at = get_time()
+            with jm_task_context(**{context_key: started_at}):
+                result = func(*args, **kwargs)
+                detail = entity if detail_call else result
+                detail.duration = get_time() - started_at
+                return result
+
+        return wrapper
+
+    return decorator
 
 
 class DownloadManifest:
@@ -12,6 +55,7 @@ class DownloadManifest:
     def __init__(self):
         self.image_filepath_list: List[str] = []
         self.export_filepath_dict: Dict[str, List[str]] = {}
+        self.duration: Optional[float] = None  # 顶层任务完整耗时（秒）
 
     def get_export_filepath_list(self, suffix: str) -> List[str]:
         normalized_suffix = str(suffix).lower().lstrip('.')
@@ -19,8 +63,6 @@ class DownloadManifest:
 
 
 def catch_exception(func):
-    from functools import wraps
-
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         self: JmDownloader
@@ -100,8 +142,8 @@ class BaseDownloader(DownloadCallback):
         self.download_failed_photo: List[Tuple[JmPhotoDetail, BaseException]] = []
         # 每次顶层下载对应的聚合清单
         self.manifest_dict: Dict[DetailEntity, DownloadManifest] = {}
-        # Feature 特性列表: [(feature, feature_from), ...]
-        self._feature_list: List[Tuple] = []
+        # 当前顶层下载注册的 Feature 列表
+        self._feature_list: List = []
 
     def do_filter(self, detail: DetailEntity):
         """
@@ -250,27 +292,40 @@ class BaseDownloader(DownloadCallback):
         ]
         return manifest
 
-    def add_features(self, features, feature_from: str):
+    @staticmethod
+    def _require_feature_context() -> str:
+        from .jm_toolkit import ExceptionTool
+
+        download_type = get_jm_task_context().get('download_type')
+        ExceptionTool.require_true(
+            download_type in ('album', 'photo'),
+            'Feature 注册与执行必须位于下载任务上下文中，请使用 '
+            "jm_task_context(download_type='album') 或 "
+            "jm_task_context(download_type='photo') 进行包裹",
+        )
+        return download_type
+
+    def add_features(self, features):
         """
-        注册 Feature 及其来源。
+        为当前顶层下载注册 Feature。
 
         :param features: Feature / FeatureChain / list / None
-        :param feature_from: 来源标记，如 'download_album' 或 'download_photo'
         """
         if features is None:
             return
 
         from .jm_feature import FeatureChain, Feature
         from .jm_toolkit import ExceptionTool
+        self._require_feature_context()
 
         if isinstance(features, list):
             for f in features:
-                self.add_features(f, feature_from)
+                self.add_features(f)
         elif isinstance(features, FeatureChain):
             for f in features.to_list():
-                self._feature_list.append((f, feature_from))
+                self._feature_list.append(f)
         elif isinstance(features, Feature):
-            self._feature_list.append((features, feature_from))
+            self._feature_list.append(features)
         else:
             ExceptionTool.raises(f'不支持的 extra 类型: {type(features)}，请传入 Feature / FeatureChain / list / None')
 
@@ -281,12 +336,16 @@ class BaseDownloader(DownloadCallback):
         :param when: 当前钩子名，如 'after_album', 'after_photo'
         :param kwargs: album, photo, downloader 等上下文
         """
-        for feature, feature_from in self._feature_list:
-            if feature.should_invoke(feature_from, when):
+        if len(self._feature_list) == 0:
+            return
+
+        download_type = self._require_feature_context()
+        for feature in self._feature_list:
+            if feature.should_invoke(when):
                 try:
-                    feature.invoke(self.option, feature_from=feature_from, when=when, **kwargs)
+                    feature.invoke(self.option, when=when, **kwargs)
                 except Exception as e:
-                    jm_log('downloader.feature.exception', f'Feature执行失败: [{feature}], 来源: [{feature_from}], 异常: [{e}]',
+                    jm_log('downloader.feature.exception', f'Feature执行失败: [{feature}], 下载类型: [{download_type}], 异常: [{e}]',
                            e)
 
     def raise_if_has_exception(self):
@@ -320,6 +379,11 @@ class DownloadResult(NamedTuple):
     @property
     def manifest(self) -> DownloadManifest:
         return self.downloader.manifest_dict[self.detail]
+
+    @property
+    def duration(self) -> Optional[float]:
+        """顶层下载耗时，单位：秒。"""
+        return self.manifest.duration
 
 
 class BatchResult(set):
@@ -358,6 +422,7 @@ class JmDownloader(BaseDownloader):
         """
         return self.option.build_jm_client()
 
+    @record_download_duration('album_started_at')
     def download_album(self, album_id):
         album = self.client.get_album_detail(album_id)
         self.begin_manifest(album)
@@ -367,22 +432,20 @@ class JmDownloader(BaseDownloader):
             self.finish_manifest(album)
         return album
 
+    @record_download_duration('album_started_at')
     def download_by_album_detail(self, album: JmAlbumDetail):
-        started_at = perf_counter()
         album.save_path = self.option.dir_rule.decide_album_root_dir(album)
-        try:
-            self.before_album(album)
-            if album.skip:
-                return
-            self.execute_on_condition(
-                iter_objs=album,
-                apply=self.download_by_photo_detail,
-                count_batch=self.option.decide_photo_batch_count(album)
-            )
-            self.after_album(album)
-        finally:
-            album.duration = perf_counter() - started_at
+        self.before_album(album)
+        if album.skip:
+            return
+        self.execute_on_condition(
+            iter_objs=album,
+            apply=self.download_by_photo_detail,
+            count_batch=self.option.decide_photo_batch_count(album)
+        )
+        self.after_album(album)
 
+    @record_download_duration('photo_started_at')
     def download_photo(self, photo_id):
         photo = self.client.get_photo_detail(photo_id)
         self.begin_manifest(photo)
@@ -393,47 +456,41 @@ class JmDownloader(BaseDownloader):
         return photo
 
     @catch_exception
+    @record_download_duration('photo_started_at')
     def download_by_photo_detail(self, photo: JmPhotoDetail):
-        started_at = perf_counter()
         photo.save_path = self.option.decide_image_save_dir(photo)
-        try:
-            self.client.check_photo(photo)
-            self.before_photo(photo)
-            if photo.skip:
-                return
-            self.execute_on_condition(
-                iter_objs=photo,
-                apply=self.download_by_image_detail,
-                count_batch=self.option.decide_image_batch_count(photo)
-            )
-            self.after_photo(photo)
-        finally:
-            photo.duration = perf_counter() - started_at
+        self.client.check_photo(photo)
+        self.before_photo(photo)
+        if photo.skip:
+            return
+        self.execute_on_condition(
+            iter_objs=photo,
+            apply=self.download_by_image_detail,
+            count_batch=self.option.decide_image_batch_count(photo)
+        )
+        self.after_photo(photo)
 
     @catch_exception
+    @record_download_duration('image_started_at')
     def download_by_image_detail(self, image: JmImageDetail):
-        started_at = perf_counter()
-        try:
-            img_save_path = self.option.decide_image_filepath(image)
-            image.save_path = img_save_path
-            image.exists = file_exists(img_save_path)
-            image.cache = self.option.decide_download_cache(image)
+        img_save_path = self.option.decide_image_filepath(image)
+        image.save_path = img_save_path
+        image.exists = file_exists(img_save_path)
+        image.cache = self.option.decide_download_cache(image)
 
-            self.before_image(image, img_save_path)
-            if image.skip:
-                return
+        self.before_image(image, img_save_path)
+        if image.skip:
+            return
 
-            if not (image.cache and image.exists):
-                decode_image = self.option.decide_download_image_decode(image)
-                self.client.download_by_image_detail(
-                    image,
-                    img_save_path,
-                    decode_image=decode_image,
-                )
+        if not (image.cache and image.exists):
+            decode_image = self.option.decide_download_image_decode(image)
+            self.client.download_by_image_detail(
+                image,
+                img_save_path,
+                decode_image=decode_image,
+            )
 
-            self.after_image(image, img_save_path)
-        finally:
-            image.duration = perf_counter() - started_at
+        self.after_image(image, img_save_path)
 
     def execute_on_condition(self,
                              iter_objs: DetailEntity,

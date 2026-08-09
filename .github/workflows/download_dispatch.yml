@@ -117,7 +117,7 @@ jobs:
       - name: Install Dependency
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          pip install -r .github/requirements-dev.txt
 
       - name: Install img2pdf
         if: inputs.PDF_OPTION != '否'

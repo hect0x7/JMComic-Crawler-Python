@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Parse Tag & Body
+      - name: Build Release Metadata
         id: tb
         run: |
           commit_message=$(git log --format=%B -n 1 ${{ github.sha }})
@@ -35,7 +35,6 @@ jobs:
         with:
           tag_name: ${{ steps.tb.outputs.tag }}
           body_path: release_body.txt
-          generate_release_notes: true
 
       - name: Build
         run: |
