@@ -234,8 +234,8 @@ class Test_DownloadProgress(unittest.TestCase):
 
         rendered = ui_output.getvalue()
         lines = rendered.splitlines()
-        self.assertTrue(lines[0].startswith('┌'))
-        self.assertTrue(lines[-1].startswith('└'))
+        self.assertEqual(len(lines), 9)
+        self.assertIn('JMComic Progress', lines[0])
         self.assertTrue(any('✓ 下载进度插件已启用' in line for line in lines))
         self.assertTrue(any('显示模式：完成后汇总' in line for line in lines))
         self.assertTrue(any(

@@ -399,6 +399,34 @@ class Test_Client(JmTestConfigurable):
 
         self.assertTrue(checked_reply, 'API/HTML 前 5 页没有可对照的回评')
 
+    def test_html_forum_comment_id_parsing(self):
+        page = JmPageTool.parse_html_to_album_comment_page(AdvancedDict({
+            'code': '''
+                <div class="timeline" data-cid="100">
+                    <div class="timeline-left">
+                        <a href="/user/test-user">
+                            <img class="timeline-avatar" data-userid="200" src="/media/users/999.jpg">
+                        </a>
+                    </div>
+                    <div class="timeline-content">first comment</div>
+                    <div class="timeline-ft"><a href="/photo/300/">photo</a></div>
+                </div>
+                <div class="timeline" data-cid="101">
+                    <div class="timeline-left">
+                        <a href="/user/other-user"><img src="/media/users/201.jpg"></a>
+                    </div>
+                    <div class="timeline-content">second comment</div>
+                    <div class="timeline-ft"><a href="/album/301/">album</a></div>
+                </div>
+            ''',
+        }), page_number=1)
+
+        self.assertEqual(page.page_number, 1)
+        self.assertEqual(page[0].user_id, '200')
+        self.assertEqual(page[0].album_id, '300')
+        self.assertEqual(page[1].user_id, '201')
+        self.assertEqual(page[1].album_id, '301')
+
     def test_get_detail(self):
         client = self.client
 

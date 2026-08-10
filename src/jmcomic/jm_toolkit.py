@@ -547,9 +547,13 @@ class CommentParser(HTMLParser):
         if tag == 'img':
             path = urlparse(attrs.get('src') or '').path
             if self._inside_class('timeline-left') and '/media/users/' in path:
+                explicit_user_id = attrs.get('data-userid')
+                if explicit_user_id:
+                    comment['UID'] = explicit_user_id
+
                 filename = path.split('/media/users/', 1)[1].split('/', 1)[0]
                 user_id = filename.rsplit('.', 1)[0]
-                if user_id.isdigit():
+                if comment['UID'] is None and user_id.isdigit():
                     comment['UID'] = user_id
 
         if tag in self.void_elements:
