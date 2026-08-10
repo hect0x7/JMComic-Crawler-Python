@@ -335,9 +335,14 @@ class Test_DownloadProgress(unittest.TestCase):
                 previous_cwd = os.getcwd()
                 os.chdir(temp_dir)
                 try:
-                    DownloadProgressPlugin(object()).redirect_log_to_file()
-                    self.assertNotIn(external_handler, jm_logger.handlers)
-                    self.assertFalse(external_handler._closed)
+                    with patch.object(
+                        external_handler,
+                        'close',
+                        wraps=external_handler.close,
+                    ) as close_handler:
+                        DownloadProgressPlugin(object()).redirect_log_to_file()
+                        self.assertNotIn(external_handler, jm_logger.handlers)
+                        close_handler.assert_not_called()
                 finally:
                     for handler in jm_logger.handlers[:]:
                         jm_logger.removeHandler(handler)
