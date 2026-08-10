@@ -953,7 +953,6 @@ class DownloadProgressPlugin(JmOptionPlugin):
 
         for old_handler in jm_logger.handlers[:]:
             jm_logger.removeHandler(old_handler)
-            old_handler.close()
 
         ProgressDownloader.reset_progress_logs()
         jm_logger.addHandler(file_handler)

@@ -6,7 +6,7 @@
 
 ![下载进度插件的终端效果](../images/download_progress_terminal.png)
 
-你只需要配置一个插件即可开启：`download_progress`，不需要自己编写插件或修改下载代码。
+使用 `jmcomic` 命令下载时，安装 `rich` 后会自动开启进度条；使用 `--no-progress` 可以关闭自动启用。通过 Python API 下载时，配置 `download_progress` 插件即可开启。
 
 插件会自动完成这些工作：
 

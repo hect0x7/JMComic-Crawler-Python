@@ -138,6 +138,16 @@ jmcomic 123
 jmcomic 123 p456
 ```
 
+安装 `rich` 后，`jmcomic` 命令会默认显示本子和章节下载进度：
+
+```sh
+pip install rich
+```
+
+![jmcomic 命令行下载进度](./assets/docs/sources/images/download_progress_terminal.png)
+
+不想显示进度条时，可以使用 `jmcomic 123 --no-progress`。没有安装 `rich` 时会自动使用普通日志。
+
 命令行模式也支持自定义option，你可以使用环境变量或者命令行参数：
 
 a. 通过命令行--option参数指定option文件路径

@@ -325,6 +325,29 @@ class Test_DownloadProgress(unittest.TestCase):
             ProgressDownloader.progress_console = original_console
 
     @unittest.skipUnless(RICH_INSTALLED, '需要安装 rich 才能测试彩色进度插件')
+    def test_plugin_does_not_close_external_log_handlers(self):
+        original_handlers = jm_logger.handlers[:]
+        external_handler = logging.Handler()
+        jm_logger.handlers[:] = [external_handler]
+
+        try:
+            with TemporaryDirectory() as temp_dir:
+                previous_cwd = os.getcwd()
+                os.chdir(temp_dir)
+                try:
+                    DownloadProgressPlugin(object()).redirect_log_to_file()
+                    self.assertNotIn(external_handler, jm_logger.handlers)
+                    self.assertFalse(external_handler._closed)
+                finally:
+                    for handler in jm_logger.handlers[:]:
+                        jm_logger.removeHandler(handler)
+                        handler.close()
+                    os.chdir(previous_cwd)
+        finally:
+            jm_logger.handlers[:] = original_handlers
+            external_handler.close()
+
+    @unittest.skipUnless(RICH_INSTALLED, '需要安装 rich 才能测试彩色进度插件')
     def test_plugin_uses_real_scheduler_without_stdout_or_image_io(self):
         from rich.console import Console
 
