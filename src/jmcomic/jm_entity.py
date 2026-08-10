@@ -720,9 +720,10 @@ class JmAlbumCommentPage(JmBaseEntity, IndexedEntity):
     def __init__(self,
                  content: List[JmAlbumComment],
                  total: Optional[int] = None,
-                 page_number: Optional[int] = None,
                  raw_html: Optional[str] = None,
                  raw_data=None,
+                 *,
+                 page_number: Optional[int] = None,
                  ):
         self.content = content
         self.total = total

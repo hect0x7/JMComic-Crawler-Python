@@ -551,6 +551,11 @@ class Test_Client(JmTestConfigurable):
         self.assertEqual(favorite_page.page_number, 4)
         self.assertEqual(single_album_page.page_number, 5)
 
+        comment_page = JmAlbumCommentPage([], 1, '<html>', {'code': 'ok'}, page_number=6)
+        self.assertEqual(comment_page.raw_html, '<html>')
+        self.assertEqual(comment_page.raw_data.code, 'ok')
+        self.assertEqual(comment_page.page_number, 6)
+
     def test_page_number_in_sync_generator(self):
         def get_page(page):
             return JmSearchPage([], 100, page)
