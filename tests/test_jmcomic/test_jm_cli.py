@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from jmcomic.cli import JmcomicUI, JmViewUI
+from jmcomic.jm_task_context import get_jm_task_context
 
 
 class Test_Cli(JmTestConfigurable):
@@ -49,6 +50,27 @@ class Test_Cli(JmTestConfigurable):
             ui.enable_download_progress(option)
 
         build.assert_not_called()
+
+    def test_jmcomic_no_progress_context_wraps_option_creation(self):
+        ui = JmcomicUI()
+        option = SimpleNamespace(plugins={})
+
+        def parse_arg():
+            ui.progress_enabled = False
+            ui.option_path = None
+
+        def create_default_option():
+            self.assertTrue(get_jm_task_context().get('cli_no_progress'))
+            return option
+
+        with patch.object(ui, 'parse_arg', side_effect=parse_arg), \
+                patch('jmcomic.api.JmOption.default', side_effect=create_default_option), \
+                patch.object(ui, 'enable_download_progress'), \
+                patch.object(ui, 'run'), \
+                patch('jmcomic.api.jm_log'):
+            ui.main()
+
+        self.assertNotIn('cli_no_progress', get_jm_task_context())
 
     def test_jmcomic_falls_back_without_rich(self):
         ui = JmcomicUI()

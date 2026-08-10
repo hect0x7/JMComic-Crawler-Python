@@ -662,11 +662,14 @@ class JmcomicClient(
             if comment_page.page_count is not None:
                 if page >= comment_page.page_count:
                     break
-            elif not any(
-                int(match.group(1)) == page + 1
-                for match in JmcomicText.pattern_html_comment_next_page.finditer(comment_page.raw_html or '')
-            ):
-                break
+            else:
+                # HTML 响应没有评论总数，通过分页按钮中是否存在下一页判断是否继续。
+                has_next_page = any(
+                    int(match.group(1)) == page + 1
+                    for match in JmcomicText.pattern_html_comment_next_page.finditer(comment_page.raw_html or '')
+                )
+                if not has_next_page:
+                    break
 
             page += 1
 
@@ -675,6 +678,7 @@ class JmcomicClient(
                              with_ad_wcm=1,
                              ) -> Generator[JmAlbumCommentPage, None, None]:
         """逐页获取全站评论；HTML 客户端遇到服务端重复返回的末页时停止。"""
+        # 仅供 HTML 客户端使用；API 客户端通过 total 计算 page_count。
         previous_comment_ids = None
         while True:
             comment_page = self.forum_pagination(
@@ -682,15 +686,23 @@ class JmcomicClient(
                 with_ad_wcm=with_ad_wcm,
             )
             comment_ids = tuple(comment.comment_id for comment in comment_page)
-            if not comment_ids or comment_ids == previous_comment_ids:
+            if not comment_ids:
+                break
+
+            # HTML 响应没有 total/has_more，只能通过重复页识别末页。
+            if comment_page.page_count is None and comment_ids == previous_comment_ids:
                 break
 
             yield comment_page
 
-            if comment_page.page_count is not None and page >= comment_page.page_count:
-                break
+            if comment_page.page_count is not None:
+                # API 响应包含 total，page_count 可直接判断末页。
+                if page >= comment_page.page_count:
+                    break
+            else:
+                # HTML 客户端保存本页 ID，供下一次请求检测重复页。
+                previous_comment_ids = comment_ids
 
-            previous_comment_ids = comment_ids
             page += 1
 
     def search_gen(self,
@@ -1112,7 +1124,8 @@ class AsyncJmcomicClient:
                                    page=1,
                                    with_ad_wcm=1,
                                    ):
-        """异步逐页获取全站评论。"""
+        """异步逐页获取全站评论；异步客户端当前只有 API 实现。"""
+        # API 正常通过 total 计算 page_count；保存上一页 ID 仅用于异常响应缺少 total 时兜底。
         previous_comment_ids = None
         while True:
             comment_page = await self.forum_pagination(
@@ -1120,7 +1133,10 @@ class AsyncJmcomicClient:
                 with_ad_wcm=with_ad_wcm,
             )
             comment_ids = tuple(comment.comment_id for comment in comment_page)
-            if not comment_ids or comment_ids == previous_comment_ids:
+            if not comment_ids:
+                break
+
+            if comment_page.page_count is None and comment_ids == previous_comment_ids:
                 break
 
             yield comment_page

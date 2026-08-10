@@ -92,10 +92,12 @@ class JmcomicUI:
     def main(self):
         self.parse_arg()
         from .api import create_option, JmOption
-        if self.option_path is not None:
-            option = create_option(self.option_path)
-        else:
-            option = JmOption.default()
+        from .jm_task_context import jm_task_context
+        with jm_task_context(cli_no_progress=not self.progress_enabled):
+            if self.option_path is not None:
+                option = create_option(self.option_path)
+            else:
+                option = JmOption.default()
 
         self.enable_download_progress(option)
 
@@ -110,7 +112,11 @@ class JmcomicUI:
         self.run(option)
 
     def enable_download_progress(self, option):
-        if not self.progress_enabled or self.option_has_download_progress(option):
+        option_enabled = self.option_has_download_progress(option)
+        if not self.progress_enabled:
+            return
+
+        if option_enabled:
             return
 
         if importlib.util.find_spec('rich') is None:

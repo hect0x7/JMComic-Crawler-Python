@@ -25,6 +25,7 @@ from jmcomic import (
     new_async_downloader,
 )
 from jmcomic.jm_config import setup_default_jm_logger
+from jmcomic.jm_task_context import jm_task_context
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[2]
@@ -385,7 +386,8 @@ class Test_DownloadProgress(unittest.TestCase):
                     with patch.object(ProgressDownloader, 'create_client', fake_create_client), \
                          patch.object(ProgressDownloader, 'download_by_image_detail', fake_download_image), \
                          contextlib.redirect_stdout(stdout_output):
-                        option = create_option_by_str('''
+                        with jm_task_context(cli_no_progress=True):
+                            option = create_option_by_str('''
 plugins:
   after_init:
     - plugin: download_progress
@@ -424,6 +426,8 @@ plugins:
         self.assertEqual('', stdout_output.getvalue())
         self.assertIn('\x1b[', rendered)
         self.assertIn('彩色下载进度插件已启用', rendered)
+        self.assertIn('检测到命令行参数 --no-progress', rendered)
+        self.assertIn('当前 Option 已配置 download_progress', rendered)
         self.assertIn('JMComic Logs', rendered)
         self.assertIn('album.before', rendered)
         self.assertIn('章节-JM101', rendered)

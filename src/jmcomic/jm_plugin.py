@@ -595,6 +595,7 @@ class LogTopicFilterPlugin(JmOptionPlugin):
         jm_logger.addFilter(LogTopicFilterPlugin.TopicFilter(whitelist))
 
 
+# noinspection attribute-outside-init
 class ProgressDownloader(JmDownloader):
     progress_console = None
     progress_log_lines = deque(maxlen=6)
@@ -820,7 +821,7 @@ class ProgressDownloader(JmDownloader):
         self.stop_progress()
         return super().__exit__(exc_type, exc_val, exc_tb)
 
-
+# noinspection attribute-outside-init
 class AsyncProgressDownloader(JmAsyncDownloader):
 
     def start_progress(self, album_total=None, album_id=None):
@@ -921,6 +922,16 @@ class DownloadProgressPlugin(JmOptionPlugin):
     plugin_key = 'download_progress'
     log_file = 'jmcomic-download.log'
 
+    @staticmethod
+    def cli_no_progress_notice():
+        if not get_jm_task_context().get('cli_no_progress'):
+            return ''
+
+        return (
+            '\n[bold yellow]⚠ 检测到命令行参数 --no-progress，'
+            '但是当前 Option 已配置 download_progress 插件，因此未关闭进度条。[/bold yellow]'
+        )
+
     @classmethod
     def build(cls, option):
         plugin = cls(option)
@@ -969,7 +980,8 @@ class DownloadProgressPlugin(JmOptionPlugin):
         from rich.panel import Panel
 
         console.print(Panel.fit(
-            '[bold green]✓ 下载进度插件已启用[/bold green]\n\n'
+            '[bold green]✓ 下载进度插件已启用[/bold green]'
+            f'{DownloadProgressPlugin.cli_no_progress_notice()}\n\n'
             '[cyan]显示模式[/cyan]：完成后汇总\n'
             '[cyan]动态进度[/cyan]：请在 Terminal / PowerShell 中运行\n\n'
             '[yellow]详细日志[/yellow]\n'
@@ -990,7 +1002,8 @@ class DownloadProgressPlugin(JmOptionPlugin):
         if console.is_interactive:
             self.log('当前为交互终端，显示本子、章节两级彩色动态进度')
             console.print(Panel.fit(
-                '[bold green]✓ 彩色下载进度插件已启用[/bold green]\n'
+                '[bold green]✓ 彩色下载进度插件已启用[/bold green]'
+                f'{self.cli_no_progress_notice()}\n'
                 '[cyan]Sync[/cyan]：ProgressDownloader\n'
                 '[cyan]Async[/cyan]：AsyncProgressDownloader\n'
                 f'[yellow]详细日志[/yellow]：{self.log_path}\n'
