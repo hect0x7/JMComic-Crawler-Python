@@ -481,7 +481,7 @@ class CommentParser(HTMLParser):
         comment = {
             'CID': (attrs.get('data-cid') or '').strip('{}'),
             'AID': None,
-            'UID': None,
+            'UID': attrs.get('data-userid') or None,
             'parent_CID': parent['CID'] if parent is not None else None,
             'content_parts': [],
             'username': None,
@@ -538,15 +538,22 @@ class CommentParser(HTMLParser):
             if self._inside_class('timeline-left') and '/user/' in path:
                 username = path.split('/user/', 1)[1].split('/', 1)[0]
                 comment['username'] = unquote(username)
-            if self._inside_class('timeline-ft') and '/photo/' in path:
-                comment['AID'] = path.split('/photo/', 1)[1].split('/', 1)[0]
+            if self._inside_class('timeline-ft'):
+                if '/photo/' in path:
+                    comment['AID'] = path.split('/photo/', 1)[1].split('/', 1)[0]
+                elif '/album/' in path:
+                    comment['AID'] = path.split('/album/', 1)[1].split('/', 1)[0]
 
         if tag == 'img':
             path = urlparse(attrs.get('src') or '').path
             if self._inside_class('timeline-left') and '/media/users/' in path:
+                explicit_user_id = attrs.get('data-userid')
+                if explicit_user_id:
+                    comment['UID'] = explicit_user_id
+
                 filename = path.split('/media/users/', 1)[1].split('/', 1)[0]
                 user_id = filename.rsplit('.', 1)[0]
-                if user_id.isdigit():
+                if comment['UID'] is None and user_id.isdigit():
                     comment['UID'] = user_id
 
         if tag in self.void_elements:
@@ -655,7 +662,7 @@ class JmPageTool:
     ]
 
     @classmethod
-    def parse_html_to_search_page(cls, html: str) -> JmSearchPage:
+    def parse_html_to_search_page(cls, html: str, page_number: Optional[int] = None) -> JmSearchPage:
         # 1. 检查是否失败
         PatternTool.require_not_match(
             html,
@@ -684,10 +691,10 @@ class JmPageTool:
                 album_id, dict(name=title, tags=tags)  # 改成name是为了兼容 parse_api_resp_to_page
             ))
 
-        return JmSearchPage(content, total)
+        return JmSearchPage(content, total, page_number)
 
     @classmethod
-    def parse_html_to_category_page(cls, html: str) -> JmSearchPage:
+    def parse_html_to_category_page(cls, html: str, page_number: Optional[int] = None) -> JmSearchPage:
         content = []
         total = int(PatternTool.match_or_default(html, *cls.pattern_html_search_total))
 
@@ -699,10 +706,10 @@ class JmPageTool:
                 album_id, dict(name=title, tags=tags)  # 改成name是为了兼容 parse_api_resp_to_page
             ))
 
-        return JmSearchPage(content, total)
+        return JmSearchPage(content, total, page_number)
 
     @classmethod
-    def parse_html_to_favorite_page(cls, html: str) -> JmFavoritePage:
+    def parse_html_to_favorite_page(cls, html: str, page_number: Optional[int] = None) -> JmFavoritePage:
         total = int(PatternTool.require_match(
             html,
             cls.pattern_html_favorite_total,
@@ -722,10 +729,10 @@ class JmPageTool:
         folder_list_raw = p2.findall(folder_list_text)
         folder_list = [{'name': fname, 'FID': fid} for fid, fname in folder_list_raw]
 
-        return JmFavoritePage(content, folder_list, total)
+        return JmFavoritePage(content, folder_list, total, page_number)
 
     @classmethod
-    def parse_api_to_search_page(cls, data: AdvancedDict) -> JmSearchPage:
+    def parse_api_to_search_page(cls, data: AdvancedDict, page_number: Optional[int] = None) -> JmSearchPage:
         """
         model_data: {
           "search_query": "MANA",
@@ -751,10 +758,10 @@ class JmPageTool:
         """
         total: int = int(data.total or 0)  # 2024.1.5 data.total可能为None
         content = cls.adapt_content(data.content)
-        return JmSearchPage(content, total)
+        return JmSearchPage(content, total, page_number)
 
     @classmethod
-    def parse_api_to_favorite_page(cls, data: AdvancedDict) -> JmFavoritePage:
+    def parse_api_to_favorite_page(cls, data: AdvancedDict, page_number: Optional[int] = None) -> JmFavoritePage:
         """
         {
           "list": [
@@ -795,10 +802,13 @@ class JmPageTool:
         content = cls.adapt_content(data.list)
         folder_list = data.get('folder_list', [])
 
-        return JmFavoritePage(content, folder_list, total)
+        return JmFavoritePage(content, folder_list, total, page_number)
 
     @classmethod
-    def parse_api_to_album_comment_page(cls, data: AdvancedDict) -> JmAlbumCommentPage:
+    def parse_api_to_album_comment_page(cls,
+                                        data: AdvancedDict,
+                                        page_number=None,
+                                        ) -> JmAlbumCommentPage:
         def parse_comment(item):
             item_data = getattr(item, 'src_dict', item) or {}
             parser = HtmlTextParser()
@@ -827,12 +837,20 @@ class JmPageTool:
         return JmAlbumCommentPage(
             content=content,
             total=total,
+            page_number=page_number,
             raw_data=data,
         )
 
     @classmethod
-    def parse_html_to_album_comment_page(cls, data: AdvancedDict) -> JmAlbumCommentPage:
-        raw_html = data.code or ''
+    def parse_html_to_album_comment_page(cls,
+                                         data: AdvancedDict,
+                                         page_number=None,
+                                         ) -> JmAlbumCommentPage:
+        raw_html = data.get('code')
+        if raw_html is None:
+            message = data.get('message', []) or []
+            raw_html = ''.join(message) if isinstance(message, list) else message
+
         parser = CommentParser()
         parser.feed(raw_html)
         parser.close()
@@ -841,6 +859,7 @@ class JmPageTool:
         return JmAlbumCommentPage(
             content=content,
             total=None,
+            page_number=page_number,
             raw_html=raw_html,
             raw_data=data,
         )

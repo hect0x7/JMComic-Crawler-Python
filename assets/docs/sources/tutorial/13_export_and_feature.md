@@ -3,6 +3,7 @@
 ## 1. 需求场景
 
 下载本子后，很多用户有进一步导出的需求：
+
 - 导出为 **PDF**：方便在电子阅读器上查看
 - 导出为 **ZIP**：方便传输和存档
 - 合并为 **长图**：方便一张图看完整个章节
@@ -16,6 +17,7 @@ jmcomic 内置了三个开箱即用的导出 Feature，对应这三种需求：
 | `Feature.export_long_img` | 下载完自动拼接为长图 PNG |
 
 
+> [!NOTE]
 > 也许你知道，这些功能之前是以插件形式 (JmOptionPlugin) 存在的。
 > 
 > 是的，传统方式需要在 option 配置文件中编写插件配置，门槛偏高。
@@ -80,7 +82,9 @@ download_album('123', option, extra=Feature.export_pdf(
 ))
 ```
 
-> 💡 **小白必读：命名规则（filename_rule）的小知识**
+> [!TIP]
+> **小白必读：命名规则（filename_rule）的小知识**
+>
 > - `A` 开头的占位符（如 `Atitle`, `Aid`）代表 **Album (本子)**。
 > - `P` 开头的占位符（如 `Ptitle`, `Pid`）代表 **Photo (章节)**。
 > - `download_photo` （下载单章）时，由于程序既知道当前章节，也知道它属于哪个本子，所以 **`Pxxx` 和 `Axxx` 都可以用**。
@@ -111,7 +115,8 @@ download_photo('456', option, extra=Feature.export_pdf)
 ├── [JM{Pid}]章节标题.pdf       ← 该章节导出为 1 个 PDF
 ```
 
-> 💡 **提示**：同一个 Feature，通过 `download_album` 和 `download_photo` 调用时会自动适配不同的导出行为，详见下方 [智能适配规则](#25-智能适配规则)。
+> [!TIP]
+> 同一个 Feature，通过 `download_album` 和 `download_photo` 调用时会自动适配不同的导出行为，详见下方 [智能适配规则](#25)。
 
 ### 2.5 智能适配规则
 
@@ -124,7 +129,8 @@ download_photo('456', option, extra=Feature.export_pdf)
 
 当你显式传入参数时（如 `filename_rule='Ptitle'`），**你的配置优先**，不会被自适应覆盖。
 
-> 💡 **提示**：更多可选参数（如加密密码 `encrypt`、后缀名 `suffix` 等），参考 [Plugin 插件参数大全](../option_file_syntax.md#3-option插件配置项)。
+> [!TIP]
+> 更多可选参数（如加密密码 `encrypt`、后缀名 `suffix` 等），参考 [Plugin 插件参数大全](../option_file_syntax.md#3-option)。
 
 ## 3. 传统写法（YAML 插件配置）
 
@@ -165,29 +171,32 @@ Feature **自然嵌入到 downloader 的生命周期事件**中自动触发：
 ```text
 api.download_album(extra=Feature.export_pdf)
   │
-  ├→ dler.add_features(pdf, 'download_album')   # 注册: [(pdf, 'download_album')]
-  │
-  └→ dler.download_album(id)
+  └→ jm_task_context(download_type='album')
        │
-       ├→ before_album(album)
+       ├→ dler.add_features(extra)               # extra 即 Feature.export_pdf，保存到 _feature_list
        │
-       ├→ download_by_photo_detail(photo)
-       │    ├→ before_photo(photo)
-       │    ├→ download jmcomic images ...      # 下载禁漫图片
-       │    └→ after_photo(photo)
-       │         └→ _invoke_features_for('after_photo')
-       │              └→ pdf.should_invoke('after_photo', 'download_album') → False ✗ 跳过
-       │
-       └→ after_album(album)
-            └→ _invoke_features_for('after_album')
-                 └→ pdf.should_invoke('after_album', 'download_album') → True ✓ 执行!
-                      └→ _adapt_plugin_kwargs(from, when) # 动态生成插件参数
-                           └→ option.invoke(pdf, kwargs) # 调用pdf插件，传入参数
+       └→ dler.download_album(id)
+            │
+            ├→ before_album(album)
+            │
+            ├→ download_by_photo_detail(photo)
+            │    ├→ before_photo(photo)
+            │    ├→ download jmcomic images ...      # 下载禁漫图片
+            │    └→ after_photo(photo)
+            │         └→ _invoke_features_for('after_photo')
+            │              └→ Feature.export_pdf.should_invoke('after_photo') → False ✗ 跳过
+            │
+            └→ after_album(album)
+                 └→ _invoke_features_for('after_album')
+                      └→ Feature.export_pdf.should_invoke('after_album') → True ✓ 执行
+                           └→ _adapt_plugin_kwargs(option, when) # 动态生成插件参数
+                                └→ option.invoke_plugin(...)    # 调用 PDF 插件
 ```
 
-> 💡 **关键点**：
+> [!IMPORTANT]
+> **关键点**
 >
-> - **执行时机**：`PluginFeature` 根据注册来源自动推导（`download_album` → `after_album`，`download_photo` → `after_photo`）。自定义 Feature 默认在所有事件都会执行，你可以覆写 `should_invoke` 来控制。
+> - **执行时机**：`PluginFeature` 根据 `TaskContext` 中的 `download_type` 判断当前顶层下载类型。自定义 Feature 默认在所有事件都会执行，你可以覆写 `should_invoke` 来控制。
 > - **参数自适应**：`PluginFeature` 的 `filename_rule` 前缀（A/P）会根据来源动态适配。ZIP 的打包粒度由插件根据上下文自动推导。用户显式传入的参数不会被覆盖。
 
 ### 自定义 Feature

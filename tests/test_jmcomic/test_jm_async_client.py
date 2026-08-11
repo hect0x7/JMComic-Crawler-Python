@@ -83,6 +83,8 @@ class Test_Async_Client(JmAsyncTestConfigurable):
 
             self.assertTrue(list(page_1))
             self.assertTrue(list(page_2))
+            self.assertEqual(page_1.page_number, 1)
+            self.assertEqual(page_2.page_number, 2)
             self.assertEqual(page_1.total, page_2.total)
             self.assertIsInstance(page_1.raw_data, AdvancedDict)
             self.assertGreaterEqual(page_1.comment_count, len(page_1))
@@ -91,10 +93,24 @@ class Test_Async_Client(JmAsyncTestConfigurable):
             self.assertIsInstance(comment, JmAlbumComment)
             self.assertIsInstance(comment.raw_data, AdvancedDict)
             self.assertIsInstance(comment.is_spoiler, bool)
+            self.assertIn(str(comment.comment_id), str(comment))
+            self.assertIn(comment.content, str(comment))
             self.assertTrue(all(
                 isinstance(reply, JmAlbumComment)
                 for reply in comment.replies
             ))
+
+            forum_gen = self.async_client.forum_pagination_gen(page=1)
+            forum_page_1 = await forum_gen.__anext__()
+            forum_page_2 = await forum_gen.__anext__()
+            await forum_gen.aclose()
+
+            self.assertTrue(list(forum_page_1))
+            self.assertTrue(list(forum_page_2))
+            self.assertEqual(forum_page_1.page_number, 1)
+            self.assertEqual(forum_page_2.page_number, 2)
+            self.assertGreater(forum_page_1.total, 0)
+            self.assertIsInstance(forum_page_1.raw_data, AdvancedDict)
 
         self.run_async(run())
 
@@ -254,9 +270,19 @@ class Test_Async_Client(JmAsyncTestConfigurable):
         """专门测试：async 缓存开启/关闭行为"""
         loop = asyncio.new_event_loop()
         client: AsyncJmcomicClient = self.option.new_jm_async_client()
+        album_detail_request_count = 0
 
         try:
             loop.run_until_complete(client.setup())
+            original_req_api = client.req_api
+
+            async def counted_req_api(url, *args, **kwargs):
+                nonlocal album_detail_request_count
+                if url == client.API_ALBUM and kwargs.get('params') == {'id': '123'}:
+                    album_detail_request_count += 1
+                return await original_req_api(url, *args, **kwargs)
+
+            client.req_api = counted_req_api
 
             # 1. 缓存默认关闭（_cache=None）
             self.assertIsNone(client.get_cache_dict(), '默认 cache 应为 None')
@@ -264,8 +290,16 @@ class Test_Async_Client(JmAsyncTestConfigurable):
             # 开启缓存
             client.set_cache_dict({})
             album1 = loop.run_until_complete(client.get_album_detail('123'))
+            album1.save_path = '/tmp/album-123'
+            album1.duration = 1.0
             album2 = loop.run_until_complete(client.get_album_detail('123'))
-            self.assertIs(album1, album2, '缓存开启：同 ID 应返回同一对象（对象引用相同）')
+            self.assertIsNot(album1, album2, '缓存开启：同 ID 应返回独立实体')
+            self.assertEqual(album1.id, album2.id, '缓存命中前后详情 ID 应一致')
+            self.assertEqual(album1.name, album2.name, '缓存命中前后详情名称应一致')
+            self.assertEqual(album1.tags, album2.tags, '缓存命中前后详情标签应一致')
+            self.assertEqual(album_detail_request_count, 1, '缓存命中时底层 album 详情请求应仅发生一次')
+            self.assertEqual(album2.save_path, '', '缓存模板不应携带上一次下载路径')
+            self.assertIsNone(album2.duration, '缓存模板不应携带上一次下载耗时')
 
             # 2. 关闭缓存
             client.set_cache_dict(None)
@@ -278,7 +312,8 @@ class Test_Async_Client(JmAsyncTestConfigurable):
             album4 = loop.run_until_complete(client.get_album_detail('123'))
             self.assertEqual(len(new_cache), 1, '新缓存应有 1 条记录')
             album5 = loop.run_until_complete(client.get_album_detail('123'))
-            self.assertIs(album4, album5, '重新开启缓存后应命中')
+            self.assertIsNot(album4, album5, '重新开启缓存后应返回独立实体')
+            self.assertEqual(album4.id, album5.id, '重新开启缓存后应命中相同详情数据')
 
         finally:
             loop.run_until_complete(client.close())

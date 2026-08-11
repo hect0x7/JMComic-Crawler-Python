@@ -1,3 +1,4 @@
+from copy import deepcopy
 from threading import Lock
 
 from .jm_task_context import bind_jm_task_context
@@ -187,10 +188,10 @@ class AbstractJmClient(
 
                 result = cache.get(key, sentinel)
                 if result is not sentinel:
-                    return result
+                    return deepcopy(result) if isinstance(result, DetailEntity) else result
 
                 result = func(*args, **kwargs)
-                cache[key] = result
+                cache[key] = deepcopy(result) if isinstance(result, DetailEntity) else result
                 return result
 
             setattr(self, func_name, cache_wrapper)
@@ -243,6 +244,7 @@ class JmHtmlClient(AbstractJmClient):
     API_SEARCH = '/search/photos'
     API_CATEGORY = '/albums'
     API_ALBUM_PAGINATION = '/ajax/album_pagination'
+    API_FORUM = '/ajax/forum_more'
 
     def add_favorite_album(self,
                            album_id,
@@ -335,9 +337,9 @@ class JmHtmlClient(AbstractJmClient):
         # 因为如果搜索的是禁漫车号，会直接跳转到本子详情页面
         if resp.redirect_count != 0 and '/album/' in resp.url:
             album = JmcomicText.analyse_jm_album_html(resp.text)
-            return JmSearchPage.wrap_single_album(album)
+            return JmSearchPage.wrap_single_album(album, page)
         else:
-            return JmPageTool.parse_html_to_search_page(resp.text)
+            return JmPageTool.parse_html_to_search_page(resp.text, page)
 
     @classmethod
     def build_search_url(cls, base: str, category: str, sub_category: Optional[str]):
@@ -378,7 +380,7 @@ class JmHtmlClient(AbstractJmClient):
             allow_redirects=True,
         )
 
-        return JmPageTool.parse_html_to_category_page(resp.text)
+        return JmPageTool.parse_html_to_category_page(resp.text, page)
 
     # -- 帐号管理 --
 
@@ -438,7 +440,7 @@ class JmHtmlClient(AbstractJmClient):
             }
         )
 
-        return JmPageTool.parse_html_to_favorite_page(resp.text)
+        return JmPageTool.parse_html_to_favorite_page(resp.text, page)
 
     # noinspection PyTypeChecker
     def get_username_from_cookies(self) -> str:
@@ -553,12 +555,27 @@ class JmHtmlClient(AbstractJmClient):
 
         ret = JmJsonResp(resp)
         ret.require_success()
-        comment_page = JmPageTool.parse_html_to_album_comment_page(ret.model())
+        comment_page = JmPageTool.parse_html_to_album_comment_page(ret.model(), page)
         if need_total:
             album = self.get_album_detail(jm_id)
             comment_page.total = album.comment_count
 
         return comment_page
+
+    def forum_pagination(self,
+                         page=1,
+                         with_ad_wcm=1,
+                         ) -> JmAlbumCommentPage:
+        resp = self.post(
+            self.API_FORUM,
+            data={
+                'page': page,
+                'with_ad_wcm': with_ad_wcm,
+            },
+        )
+        ret = JmJsonResp(resp)
+        ret.require_success()
+        return JmPageTool.parse_html_to_album_comment_page(ret.model(), page)
 
     @classmethod
     def require_resp_success_else_raise(cls, resp, url: str):
@@ -672,9 +689,9 @@ class JmApiClient(AbstractJmClient):
         data = resp.model_data
         if data.get('redirect_aid', None) is not None:
             aid = data.redirect_aid
-            return JmSearchPage.wrap_single_album(self.get_album_detail(aid))
+            return JmSearchPage.wrap_single_album(self.get_album_detail(aid), page)
 
-        return JmPageTool.parse_api_to_search_page(data)
+        return JmPageTool.parse_api_to_search_page(data, page)
 
     def categories_filter(self,
                           page: int,
@@ -698,7 +715,7 @@ class JmApiClient(AbstractJmClient):
 
         resp = self.req_api(self.append_params_to_url(self.API_CATEGORIES_FILTER, params))
 
-        return JmPageTool.parse_api_to_search_page(resp.model_data)
+        return JmPageTool.parse_api_to_search_page(resp.model_data, page)
 
     def get_album_detail(self, album_id) -> JmAlbumDetail:
         return self.fetch_detail_entity(album_id,
@@ -883,7 +900,7 @@ class JmApiClient(AbstractJmClient):
             }
         )
 
-        return JmPageTool.parse_api_to_favorite_page(resp.model_data)
+        return JmPageTool.parse_api_to_favorite_page(resp.model_data, page)
 
     def album_comment(self,
                       video_id,
@@ -910,7 +927,20 @@ class JmApiClient(AbstractJmClient):
                 'aid': JmcomicText.parse_to_jm_id(jm_id),
             },
         )
-        return JmPageTool.parse_api_to_album_comment_page(resp.model_data)
+        return JmPageTool.parse_api_to_album_comment_page(resp.model_data, page)
+
+    def forum_pagination(self,
+                         page=1,
+                         with_ad_wcm=1,
+                         ) -> JmAlbumCommentPage:
+        resp = self.req_api(
+            self.API_FORUM,
+            params={
+                'mode': 'all',
+                'page': page,
+            },
+        )
+        return JmPageTool.parse_api_to_album_comment_page(resp.model_data, page)
 
     def add_favorite_album(self,
                            album_id,

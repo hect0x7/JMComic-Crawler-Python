@@ -92,6 +92,7 @@ with jm_task_context(task_id='task-1'): # 设置这三个本子的任务id为 ta
 
 设置了task_id以后，整个 download_album 内的日志打印都会具有这个task_id标识。
 
+> [!NOTE]
 > jmcomic 使用 [ContextVar](https://docs.python.org/3/library/contextvars.html) 把上下文传播到库内部创建的下载线程或async task里。你设置的task_id其实就是上下文里的一个字段
 
 最直接的效果是，默认终端日志会自动显示任务 ID：
@@ -139,6 +140,7 @@ with jm_task_context(task_id=task_id):  # 任务id
 | `download_type` | `str`  | jmcomic 自动设置 | 你使用的download入口函数类型，例如 download_album -> album                         | `album` / `photo` |
 | `jm_id` | `str`  | jmcomic 自动设置 | 你使用的download入口函数的入参，例如 download_album(123) -> 123。传入多个 ID 时，每个 ID 都在各自隔离的上下文中记录对应的 `jm_id`，并继承同一个 `task_id`。 | `123` |
 
+> [!NOTE]
 > 默认终端日志仅在 `task_id` 有值时显示任务上下文，并一同显示 `download_type` 和 `jm_id`。未设置 `task_id` 时，上下文仍会正常传递，但不会显示在默认日志中。
 
 你也可以放入其他对象到任务上下文里，比如放入一个局部queue用来收集日志。在 jm_task_context 方法里传入即可 `jm_task_context(**fields)`
@@ -147,12 +149,44 @@ with jm_task_context(task_id=task_id):  # 任务id
 
 根据你的需求复杂度，你可以选择以下方式：
 
-- **方式 A：操作 jm_logger (推荐 / 标准)**
+| 方式 | 适用场景 | 推荐程度 |
+| --- | --- | --- |
+| 操作 `jm_logger` | 修改输出位置、格式和过滤规则，或者接入标准日志系统 | 推荐 |
+| 接管 `JmModuleConfig.EXECUTOR_LOG` | 完全替换日志分发逻辑，或者接入不兼容 `logging` 的系统 | 仅限特殊需求 |
 
-  适用于：改变日志输出位置（如文件、监控、后端服务）、调整显示格式、自定义过滤。
+### 5.1 操作 `jm_logger`
 
-- **方式 B：接管 EXECUTOR_LOG (高级 / 深度定制)**
+jmcomic 使用名为 `jmcomic` 的标准 Python Logger。下面的示例会移除默认输出方式，并将日志写入文件：
 
-  适用于：需要完全重塑日志的分发逻辑，或者将日志直接桥接到不符合标准 logging 协议的第三方系统。
+```python
+import logging
 
-代码示例：[模块自定义-自定义log](./4_module_custom.md#自定义log)
+from jmcomic import jm_logger
+
+
+jm_logger.handlers.clear()
+jm_logger.addHandler(
+    logging.FileHandler('jm_download.log', encoding='utf-8')
+)
+```
+
+`handlers.clear()` 会同时移除默认的终端输出。如果希望日志同时显示在终端并写入文件，只需要保留原有 Handler，再追加新的 `FileHandler`。
+
+### 5.2 接管 `EXECUTOR_LOG`
+
+只有标准 `logging` 无法满足需求时，才建议替换 `EXECUTOR_LOG`：
+
+```python
+from jmcomic import JmModuleConfig
+
+
+def custom_log(topic: str, msg, error: Exception = None):
+    # topic 是日志主题，例如 api、album.after、plugin.error
+    # msg 是日志内容；error 是可选的异常对象
+    print(topic, msg, error)
+
+
+JmModuleConfig.EXECUTOR_LOG = custom_log
+```
+
+这是全局设置，会影响当前进程中之后产生的全部 jmcomic 日志。普通的文件输出、日志过滤和格式调整，应优先操作 `jm_logger`。

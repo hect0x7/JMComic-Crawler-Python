@@ -122,13 +122,12 @@ jmcomic.download_album(123, option)
 ```
 
 ### 3. 使用命令行
+> [!TIP]
 > 如果只想下载本子，使用命令行会比上述方式更加简单直接
 > 
 > 例如，在windows上，直接按下 win+R 键，输入`jmcomic xxx`就可以下载本子。
 
-示例：
-
-下载本子123的命令
+示例：下载本子123的命令
 
 ```sh
 jmcomic 123
@@ -140,22 +139,28 @@ jmcomic 123 p456
 
 命令行模式也支持自定义option，你可以使用环境变量或者命令行参数：
 
-a. 通过命令行--option参数指定option文件路径
+a. 通过命令行 --option 参数指定option文件路径
 
 ```sh
 jmcomic 123 --option="D:/a.yml"
 ```
 
-b. 配置环境变量 `JM_OPTION_PATH` 为option文件路径（推荐）
+b. 命令行不改，而是配置环境变量 `JM_OPTION_PATH` 为option文件路径（推荐）
 
+> [!TIP]
 > 请自行google配置环境变量的方式，或使用powershell命令:  `setx JM_OPTION_PATH "D:/a.yml"` 重启后生效
 
-```sh
-jmcomic 123
-```
+
+另外，`jmcomic` 还提供了一个美观的进度条能力，默认是开启的，但是需要你手动安装一个额外依赖 `pip install rich`。效果如下：
+
+![jmcomic 命令行下载进度](./assets/docs/sources/images/download_progress_terminal.png)
+
+详细开启方法参考文档：[启用美观的下载进度条](assets/docs/sources/tutorial/15_download_progress.md)
+
 
 ### 4. 查看本子详情（jmv 命令）
 
+> [!NOTE]
 > `jmv` 命令用于快速查看本子详情，不做下载。
 > 
 > **适用场景**：在某些网站上看到一串*神秘车号*，想快速看看具体是啥本子。此时只需copy原文本，按下 win+R，输入`jmv [粘贴内容]`即可

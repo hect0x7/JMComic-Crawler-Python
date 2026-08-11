@@ -38,7 +38,7 @@ jobs:
       - name: Install Dependency
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          pip install -r .github/requirements-dev.txt
 
       - name: 安装jmcomic（pip）
         if: ${{ github.ref != 'refs/heads/dev' }}

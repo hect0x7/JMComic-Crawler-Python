@@ -27,7 +27,7 @@ on:
 
       IMAGE_QUALITY:
         type: number
-        description: 图片质量（1-99开启；PDF模式会转为JPEG，100不压缩）
+        description: 图片质量（1-99开启；100不压缩。此配置不支持后缀=PNG的图片。pdf模式会把图片转为JPEG压缩再合并pdf）
         default: 100
         required: false
 
@@ -117,7 +117,7 @@ jobs:
       - name: Install Dependency
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          pip install -r .github/requirements-dev.txt
 
       - name: Install img2pdf
         if: inputs.PDF_OPTION != '否'

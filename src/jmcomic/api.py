@@ -1,4 +1,5 @@
 import asyncio
+from time import perf_counter
 
 from .jm_downloader import *
 from .jm_task_context import bind_jm_task_context, jm_task_context
@@ -13,6 +14,12 @@ def _download_type(download_api) -> str:
     if name.startswith('download_'):
         name = name[9:]
     return name
+
+
+def _finish_download_result(detail, dler, task_started_at):
+    manifest = dler.manifest_dict[detail]
+    manifest.duration = perf_counter() - task_started_at
+    return DownloadResult(detail, dler)
 
 
 def download_batch(download_api,
@@ -89,15 +96,17 @@ def download_album(jm_album_id,
     if not isinstance(jm_album_id, (str, int)):
         return download_batch(download_album, jm_album_id, option, downloader, extra=extra)
 
-    with jm_task_context(download_type='album', jm_id=str(jm_album_id)):
+    task_started_at = perf_counter()
+    with jm_task_context(download_type='album', jm_id=str(jm_album_id), task_started_at=task_started_at):
         with new_downloader(option, downloader) as dler:
-            # 注册 Feature 及来源，由 downloader 在 after_album 钩子中自动执行
-            dler.add_features(extra, 'download_album')
+            # 下载类型已记录在 TaskContext 中，Feature 会据此选择执行钩子
+            dler.add_features(extra)
             album = dler.download_album(jm_album_id)
 
             if check_exception:
                 dler.raise_if_has_exception()
-            return DownloadResult(album, dler)
+
+        return _finish_download_result(album, dler, task_started_at)
 
 
 def download_photo(jm_photo_id,
@@ -116,15 +125,17 @@ def download_photo(jm_photo_id,
     if not isinstance(jm_photo_id, (str, int)):
         return download_batch(download_photo, jm_photo_id, option, downloader, extra=extra)
 
-    with jm_task_context(download_type='photo', jm_id=str(jm_photo_id)):
+    task_started_at = perf_counter()
+    with jm_task_context(download_type='photo', jm_id=str(jm_photo_id), task_started_at=task_started_at):
         with new_downloader(option, downloader) as dler:
-            # 注册 Feature 及来源，由 downloader 在 after_photo 钩子中自动执行
-            dler.add_features(extra, 'download_photo')
+            # 下载类型已记录在 TaskContext 中，Feature 会据此选择执行钩子
+            dler.add_features(extra)
             photo = dler.download_photo(jm_photo_id)
 
             if check_exception:
                 dler.raise_if_has_exception()
-            return DownloadResult(photo, dler)
+
+        return _finish_download_result(photo, dler, task_started_at)
 
 
 def new_downloader(option=None, downloader=None) -> JmDownloader:
@@ -161,12 +172,11 @@ create_option = create_option_by_file
 
 
 def new_async_downloader(option=None, downloader=None):
-    from .jm_async_downloader import JmAsyncDownloader
     if option is None:
         option = JmModuleConfig.option_class().default()
 
     if downloader is None:
-        downloader = JmAsyncDownloader
+        downloader = JmModuleConfig.async_downloader_class()
 
     return downloader(option)
 
@@ -194,15 +204,16 @@ async def download_album_async(jm_album_id,
                                           extra=extra
                                           )
 
-    with jm_task_context(download_type='album', jm_id=str(jm_album_id)):
+    task_started_at = perf_counter()
+    with jm_task_context(download_type='album', jm_id=str(jm_album_id), task_started_at=task_started_at):
         async with new_async_downloader(option, downloader) as dler:
-            dler.add_features(extra, 'download_album')
+            dler.add_features(extra)
             album = await dler.download_album(jm_album_id)
 
             if check_exception:
                 dler.raise_if_has_exception()
 
-            return DownloadResult(album, dler)
+        return _finish_download_result(album, dler, task_started_at)
 
 
 async def download_photo_async(jm_photo_id,
@@ -226,15 +237,16 @@ async def download_photo_async(jm_photo_id,
                                           extra=extra
                                           )
 
-    with jm_task_context(download_type='photo', jm_id=str(jm_photo_id)):
+    task_started_at = perf_counter()
+    with jm_task_context(download_type='photo', jm_id=str(jm_photo_id), task_started_at=task_started_at):
         async with new_async_downloader(option, downloader) as dler:
-            dler.add_features(extra, 'download_photo')
+            dler.add_features(extra)
             photo = await dler.download_photo(jm_photo_id)
 
             if check_exception:
                 dler.raise_if_has_exception()
 
-            return DownloadResult(photo, dler)
+        return _finish_download_result(photo, dler, task_started_at)
 
 
 async def download_batch_async(download_api,

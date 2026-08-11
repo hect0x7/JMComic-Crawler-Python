@@ -148,6 +148,11 @@ dir_rule:
 # 插件的配置示例
 plugins:
   after_init:
+    - plugin: download_progress
+      kwargs:
+        log_file: ./jmcomic-download.log # 完整日志文件，默认值为 jmcomic-download.log
+        terminal_log_lines: 6 # 终端上方保留的最近日志行数，默认值为 6
+
     - plugin: usage_log # 实时打印硬件占用率的插件
       # log: false # 选填。所有的插件都可以配置 `log: false` 以关闭该插件执行时产生的日志输出，默认是 true
       kwargs:

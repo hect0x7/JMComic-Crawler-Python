@@ -253,6 +253,7 @@ class JmModuleConfig:
 
     # 模块级别的可重写类配置
     CLASS_DOWNLOADER = None
+    CLASS_ASYNC_DOWNLOADER = None
     CLASS_OPTION = None
     CLASS_ALBUM = None
     CLASS_PHOTO = None
@@ -308,6 +309,14 @@ class JmModuleConfig:
 
         from .jm_downloader import JmDownloader
         return JmDownloader
+
+    @classmethod
+    def async_downloader_class(cls):
+        if cls.CLASS_ASYNC_DOWNLOADER is not None:
+            return cls.CLASS_ASYNC_DOWNLOADER
+
+        from .jm_async_downloader import JmAsyncDownloader
+        return JmAsyncDownloader
 
     @classmethod
     def option_class(cls):

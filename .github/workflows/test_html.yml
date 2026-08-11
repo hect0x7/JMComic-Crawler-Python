@@ -9,6 +9,7 @@ on:
     paths:
       - 'src/**/*.py'
       - 'tests/**/*.py'
+      - '.github/requirements-dev.txt'
       - '.github/workflows/test_html.yml'
       - 'assets/option/option_test_html.yml'
 
@@ -36,7 +37,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+          if [ -f .github/requirements-dev.txt ]; then pip install -r .github/requirements-dev.txt; fi
 
       - name: Install local
         run: |

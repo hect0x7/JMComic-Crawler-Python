@@ -1,15 +1,17 @@
-# publish when new release
-name: Publish If Release
+# manually release and publish from master
+name: Manual Release & Publish
 
 on:
   workflow_dispatch:
-  release:
-    types: [ published ]
 
 jobs:
   release:
-    name: Publish `jmcomic` to PYPI
+    name: Manually release `jmcomic`
+    if: github.ref_name == 'master'
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -18,12 +20,23 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Build Release Metadata
+        id: tb
+        run: |
+          python .github/release.py
+
       - name: Build
         run: |
           python -m pip install build
           python -m build
 
-      - name: Publish PYPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          password: ${{ secrets.PYPI_JMCOMIC }}
+          tag_name: ${{ steps.tb.outputs.tag }}
+          body_path: release_body.txt
+
+      - name: Release PYPI
+        uses: pypa/gh-action-pypi-publish@release/v1

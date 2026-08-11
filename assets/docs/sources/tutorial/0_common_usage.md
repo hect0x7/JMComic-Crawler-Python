@@ -13,6 +13,12 @@ download_photo(438696)
 
 # 同时下载多个本子
 download_album([123, 456, 789])
+
+# 查看本子/章节下载位置和耗时
+result: DownloadResult = download_album(123)
+album: JmAlbumDetail = result.detail # detail是实体类，download_album 返回 album，download_photo 返回 photo
+print(f'本子-JM{album.id}，下载保存文件夹: {album.save_path}, 下载耗时: {result.duration:.3f}秒')
+# DownloadResult 里还包含大量字段，更多用法请查阅下方章节【下载返回值】
 ```
 
 ## 使用option定制化下载本子
@@ -170,45 +176,64 @@ for aid, atitle, tag_list in page.iter_id_title_tag():  # 使用page的iter_id_t
 download_album(aid_list, option)
 ```
 
-## 获取本子评论
+## 获取评论
+
+目前支持获取两种评论：
+
+| 评论类型 | 说明 | 获取一页的方法 | 自动翻页的方法 |
+| --- | --- | --- | --- |
+| 本子评论 | 获取指定本子下的评论和回评 | `album_pagination` | `album_pagination_gen` |
+| 全站评论 | 获取全站最新发布的评论，可通过 `comment.album_id` 知道评论来自哪个本子 | `forum_pagination` | `forum_pagination_gen` |
+
+评论页可以直接遍历，评论对象也可以直接打印，格式为 `[评论ID] 用户（剧透）: 内容`。
+
+### 获取本子评论
+
+`album_pagination` 获取指定本子的一页评论。
 
 ```python
-from jmcomic import JmOption, JmAlbumCommentPage, JmAlbumComment
+from jmcomic import JmOption, JmAlbumComment
 
 client = JmOption.default().new_jm_client(impl='api')
+page = client.album_pagination('123456')
 
-# 获取第一页评论
-page: JmAlbumCommentPage = client.album_pagination('123456')
-
-print('本页评论数:', len(page))
-print('本页评论数（含回评）:', page.comment_count)
-print('本子的评论总数:', page.total)
-print('总页数:', page.page_count)
-
-# page对象可以直接遍历评论，评论类型是JmAlbumComment
-comment: JmAlbumComment
+print(f'第 {page.page_number}/{page.page_count} 页，当前页一共 {len(page)} 条主评论，整本一共 {page.total} 条主评论')
 for comment in page:
-    print('用户:', comment.nickname or comment.username)
-    print('内容:', comment.content)
-    print('是否剧透:', comment.is_spoiler)
-
-    # 回评也是评论对象
+    comment: JmAlbumComment # 评论是实体类
+    print(
+        f'评论ID: {comment.comment_id} | 用户ID: {comment.user_id} | 用户: {comment.nickname or comment.username} | '
+        f'是否剧透: {comment.is_spoiler} | 点赞数: {comment.likes} | 发布时间: {comment.created_at}\n内容: {comment.content}'
+    )
     for reply in comment.replies:
-        print('回评用户:', reply.nickname or reply.username)
-        print('回评内容:', reply.content)
-        print('回评是否剧透:', reply.is_spoiler)
+        reply: JmAlbumComment # 回评也是相同的实体类
+        print('  └─', reply)
 
-# gen 方法支持自动循环获取评论分页，直到结束
+# 需要连续获取分页时，使用生成器：
 for page in client.album_pagination_gen('123456'):
-    print('本页主评论数:', len(page))
-    print('本页评论数（含回评）:', page.comment_count)
-    print('主评论总数:', page.total)
-    print('总页数:', page.page_count)
-
+    print(f'\n第 {page.page_number} 页')
     for comment in page:
-        print('用户:', comment.nickname or comment.username)
-        print('内容:', comment.content)
-        print('是否剧透:', comment.is_spoiler)
+        print(comment)
+```
+
+### 获取全站评论
+
+`forum_pagination` 获取一页全站评论。
+
+> [!NOTE]
+> html 端不提供 `total`（全部分页的主评论总数）和 `page_count`（总页数），这两个字段都为 `None`，api端则有值。
+
+```python
+page = client.forum_pagination(page=1)
+
+print(f'第 {page.page_number}/{page.page_count} 页，当前页一共 {len(page)} 条主评论，全站一共 {page.total} 条主评论')
+for comment in page:
+    print(f'本子 {comment.album_id} | {comment}')
+
+# 全站评论同样支持生成器
+for page in client.forum_pagination_gen(page=1):
+    print(f'\n第 {page.page_number} 页')
+    for comment in page:
+        print(f'本子 {comment.album_id} | {comment}')
 ```
 
 ## 获取收藏夹
@@ -413,3 +438,171 @@ cl = JmApiClient(
     retry_times=1
 )
 ```
+
+
+## 下载返回值
+
+`download_album` 和 `download_photo` 下载完成后，单个 ID 返回 `DownloadResult`，多个 ID 返回 `BatchResult`。
+
+从 `result.detail` 可以取得下载的本子/章节的实体类：
+
+```python
+from jmcomic import download_album, download_photo
+
+# 下载本子；result.detail 是本子实体
+result = download_album('123')
+album = result.detail
+print(f'本子实体: {album}')
+
+# 下载章节；result.detail 是章节实体
+result = download_photo('456')
+photo = result.detail
+print(f'章节实体: {photo}')
+```
+
+### 获取保存路径和耗时
+
+下载完成后，你通常会关心两件事：文件保存在哪里，以及哪一步比较慢。下表介绍获取方法。
+
+| 对象 | `save_path` | `duration`（单位-秒）                                |
+| --- | --- |------------------------------------------------------|
+| 下载结果 `result` | 通过 `result.detail.save_path` 查看 | 从调用下载方法到返回，你总共等了多久                 |
+| 本子 `album` | 本子根目录 | 下载这个本子花了多久。包含获取详情、下载章节和插件   |
+| 章节 `photo` | 章节图片目录 | 下载这个章节花了多久。包含获取详情、下载图片和插件   |
+| 图片 `image` | 图片文件路径 | 下载这张图片花了多久。包含检查缓存、下载、保存和插件 |
+
+> [!NOTE]
+> 一次本子下载可能同时处理多个章节，一个章节也可能同时处理多张图片。因此，把所有章节或图片的耗时相加，不会得到本子的耗时，这是正常现象。
+
+
+<details markdown="1">
+<summary>完整示例：查看路径、耗时和缓存状态</summary>
+
+```python
+from jmcomic import download_album
+
+result = download_album('123')
+album = result.detail
+
+# result.duration 是调用下载方法后总共等待的时间
+print(f'本子目录: {album.save_path}，总共等待: {result.duration:.2f} 秒')
+print(f'下载本子用了: {album.duration:.2f} 秒')
+
+for photo in album:
+    # 查看每个章节的保存目录和处理耗时
+    print(f'章节 {photo.id} 目录: {photo.save_path}，耗时: {photo.duration:.2f} 秒')
+
+    for image in photo:
+        # exists 和 cache 都为 True，表示满足缓存复用条件
+        not_download = image.exists and image.cache
+        print(
+            f'图片 {image.filename} 路径: {image.save_path}，'
+            f'耗时: {image.duration:.2f} 秒，是否因存在而跳过下载: {not_download}'
+        )
+```
+
+`not_download` 为 `True`，表示目标图片原本存在并且允许使用缓存。
+
+</details>
+
+### 使用 `manifest` 获取结果文件
+
+相比于遍历实体类， `manifest` 提供了更直接的写法，适合场景：直接取得全部图片路径，以及取得**额外产物**（由插件/Feature产出的 PDF、ZIP、长图）
+
+| 想要什么                                   | 推荐写法 |
+|--------------------------------------------| --- |
+| 查看某张图片的路径、耗时和缓存状态         | 遍历实体，读取 `image.save_path` 等字段 |
+| 直接获取所有图片路径（包含命中缓存的图片） | 用`manifest`，`result.manifest.image_filepath_list` |
+| 额外产物（PDF、ZIP 或长图）                | 用`manifest`，`result.manifest.get_export_filepath_list('文件后缀')` |
+
+<details markdown="1">
+<summary>完整示例：获取图片和导出文件</summary>
+
+```python
+from jmcomic import Feature, download_album
+
+# 下载本子，并使用内置 Feature 导出 PDF、ZIP 和长图
+result = download_album(
+    '123',
+    extra=Feature.export_pdf + Feature.export_zip + Feature.export_long_img,
+)
+
+# 本次成功下载或直接复用的图片路径
+print('图片文件:', result.manifest.image_filepath_list)
+
+# 插件导出的文件按后缀查询，后缀前面的点可以省略
+pdf_filepath_list = result.manifest.get_export_filepath_list('pdf')
+zip_filepath_list = result.manifest.get_export_filepath_list('.zip')
+png_filepath_list = result.manifest.get_export_filepath_list('png')
+
+print('PDF 文件:', pdf_filepath_list)
+print('ZIP 文件:', zip_filepath_list)
+print('长图导出文件:', png_filepath_list)
+```
+
+</details>
+
+### 批量下载的返回值
+
+传入多个 ID 时，返回值是 `BatchResult`。每一项成功下载对应一个 `DownloadResult`，失败任务则记录在 `failed` 中：
+
+<details markdown="1">
+<summary>完整示例：处理批量下载结果</summary>
+
+```python
+from jmcomic import download_album
+
+# 同时下载多个本子
+batch_result = download_album(['123', '456', '789'])
+
+# BatchResult 继承 set，成功结果没有输入顺序保证
+for result in batch_result:
+    album = result.detail
+    # 通过实体 ID 识别当前结果，不要用遍历位置对应输入列表
+    print(f'JM{album.id} 下载到: {album.save_path}')
+
+# failed 的键是下载失败的 ID，值是记录失败原因的异常对象
+for album_id, error in batch_result.failed.items():
+    print(f'JM{album_id} 下载失败: {error}')
+
+# total 是实际处理的不同 ID 数量，重复 ID 不会重复下载
+print('任务总数:', batch_result.total)
+print('是否全部成功:', batch_result.all_succeeded)
+```
+
+</details>
+
+下载单个 ID 时，请求本子失败会直接抛出异常；如果只有部分章节或图片失败，会在任务结束后汇总抛出 `PartialDownloadFailedException`，此时不会返回 `DownloadResult`。批量下载则继续执行其他任务，并把失败项集中放进 `batch_result.failed`。
+
+### 速查表
+
+| 你的需求 | 推荐写法 |
+| --- | --- |
+| 查看本子或章节信息 | `result.detail` |
+| 查看本子或章节目录 | `result.detail.save_path` |
+| 查看单张图片路径和状态 | 遍历实体后读取 `image.save_path` 等字段 |
+| 查看图片或章节失败原因 | 捕获 `PartialDownloadFailedException` 后，读取 `e.downloader.download_failed_image` / `download_failed_photo`；列表元素为 `(实体, 异常)` |
+| 获取本次成功图片路径列表 | `result.manifest.image_filepath_list` |
+| 获取已登记的导出文件路径 | `result.manifest.get_export_filepath_list('后缀')` |
+| 查看单个 ID 下载的完整时间 | `result.duration` |
+| 定位本子、章节或图片的内部处理慢点 | 对应实体的 `duration` |
+| 检查批量下载失败项 | `batch_result.failed` |
+
+<details markdown="1">
+<summary>兼容旧版本的返回值解包写法</summary>
+
+旧代码可能会把返回值直接解包成两个变量，这种写法仍然可以继续使用：
+
+```python
+from jmcomic import download_album
+
+result = download_album('123')
+
+# 旧写法：第一个变量是本子实体，第二个变量是下载器
+album, downloader = result
+
+# 新代码更推荐直接通过 result.detail 读取本子实体
+assert album is result.detail
+```
+
+</details>

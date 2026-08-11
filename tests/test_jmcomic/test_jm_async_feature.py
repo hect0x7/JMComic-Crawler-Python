@@ -86,7 +86,7 @@ class Test_Async_Feature(JmAsyncTestConfigurable):
         sync_album = self.sync_api_client.get_album_detail(album_id)
         sync_raised = False
         try:
-            f.invoke(self.option, feature_from='download_album', when='after_album',
+            f.invoke(self.option, when='after_album',
                      album=sync_album, photo=None)
         except AttributeError:
             sync_raised = True
@@ -95,7 +95,7 @@ class Test_Async_Feature(JmAsyncTestConfigurable):
         async_album = self.run_async(self.async_client.get_album_detail(album_id))
         async_raised = False
         try:
-            f.invoke(self.option, feature_from='download_album', when='after_album',
+            f.invoke(self.option, when='after_album',
                      album=async_album, photo=None)
         except AttributeError:
             async_raised = True

@@ -49,10 +49,8 @@ nav:
     - tutorial/0_common_usage.md
     - tutorial/1_github_actions.md
     - tutorial/2_command_line.md
-    - tutorial/4_module_custom.md
     - tutorial/5_filter.md
     - tutorial/6_plugin.md
-    - tutorial/7_advance.md
     - tutorial/8_pick_domain.md
     - tutorial/9_custom_download_dir_name.md
     - tutorial/10_export_favorites.md
@@ -60,6 +58,7 @@ nav:
     - tutorial/12_domain_strategy.md
     - tutorial/13_export_and_feature.md
     - tutorial/14_async_usage.md
+    - tutorial/15_download_progress.md
 
 plugins:
   - search
@@ -78,6 +77,9 @@ plugins:
 
 markdown_extensions:
   - attr_list
+  - admonition
+  - github-callouts
+  - md_in_html
   - toc:
       permalink: true
   - pymdownx.highlight

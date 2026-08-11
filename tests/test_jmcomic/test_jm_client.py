@@ -1,3 +1,6 @@
+import asyncio
+from types import SimpleNamespace
+
 from test_jmcomic import *
 
 
@@ -255,6 +258,9 @@ class Test_Client(JmTestConfigurable):
         self.assertTrue(api_comments)
         self.assertTrue(list(api_page_2))
         self.assertTrue(html_comments)
+        self.assertEqual(api_page.page_number, 1)
+        self.assertEqual(api_page_2.page_number, 2)
+        self.assertEqual(html_page.page_number, 1)
         self.assertIsInstance(api_page.raw_data, AdvancedDict)
         self.assertIsInstance(html_page.raw_data, AdvancedDict)
         self.assertGreaterEqual(api_page.comment_count, len(api_page))
@@ -277,6 +283,34 @@ class Test_Client(JmTestConfigurable):
         self.assertIsNone(html_page_without_total.page_count)
         self.assertIsNone(html_page_2_without_total.total)
         self.assertIsNone(html_page_2_without_total.page_count)
+        self.assertEqual(html_page_without_total.page_number, 1)
+        self.assertEqual(html_page_2_without_total.page_number, 2)
+
+        api_forum_gen = api_client.forum_pagination_gen(page=1)
+        api_forum_page = next(api_forum_gen)
+        api_forum_page_2 = next(api_forum_gen)
+        api_forum_gen.close()
+
+        html_forum_gen = html_client.forum_pagination_gen(page=1, with_ad_wcm=1)
+        html_forum_page = next(html_forum_gen)
+        html_forum_page_2 = next(html_forum_gen)
+        html_forum_gen.close()
+
+        self.assertTrue(list(api_forum_page))
+        self.assertTrue(list(api_forum_page_2))
+        self.assertTrue(list(html_forum_page))
+        self.assertTrue(list(html_forum_page_2))
+        self.assertEqual(api_forum_page.page_number, 1)
+        self.assertEqual(api_forum_page_2.page_number, 2)
+        self.assertEqual(html_forum_page.page_number, 1)
+        self.assertEqual(html_forum_page_2.page_number, 2)
+        self.assertGreater(api_forum_page.total, 0)
+        self.assertIsNone(html_forum_page.total)
+        self.assertIsNone(html_forum_page.page_count)
+        self.assertIsInstance(api_forum_page.raw_data, AdvancedDict)
+        self.assertIsInstance(html_forum_page.raw_data, AdvancedDict)
+        self.assertTrue(any(comment.album_id for comment in html_forum_page))
+        self.assertTrue(any(comment.user_id for comment in html_forum_page))
 
         for comment in (api_comments[0], html_comments[0]):
             self.assertIsInstance(comment.raw_data, AdvancedDict)
@@ -284,6 +318,8 @@ class Test_Client(JmTestConfigurable):
             self.assertEqual(str(comment.album_id), album_id)
             self.assertIsInstance(comment.content, str)
             self.assertIsInstance(comment.is_spoiler, bool)
+            self.assertIn(str(comment.comment_id), str(comment))
+            self.assertIn(comment.content, str(comment))
 
         api_comments_by_cid = {
             str(comment.comment_id): comment
@@ -363,6 +399,34 @@ class Test_Client(JmTestConfigurable):
 
         self.assertTrue(checked_reply, 'API/HTML 前 5 页没有可对照的回评')
 
+    def test_html_forum_comment_id_parsing(self):
+        page = JmPageTool.parse_html_to_album_comment_page(AdvancedDict({
+            'code': '''
+                <div class="timeline" data-cid="100">
+                    <div class="timeline-left">
+                        <a href="/user/test-user">
+                            <img class="timeline-avatar" data-userid="200" src="/media/users/999.jpg">
+                        </a>
+                    </div>
+                    <div class="timeline-content">first comment</div>
+                    <div class="timeline-ft"><a href="/photo/300/">photo</a></div>
+                </div>
+                <div class="timeline" data-cid="101">
+                    <div class="timeline-left">
+                        <a href="/user/other-user"><img src="/media/users/201.jpg"></a>
+                    </div>
+                    <div class="timeline-content">second comment</div>
+                    <div class="timeline-ft"><a href="/album/301/">album</a></div>
+                </div>
+            ''',
+        }), page_number=1)
+
+        self.assertEqual(page.page_number, 1)
+        self.assertEqual(page[0].user_id, '200')
+        self.assertEqual(page[0].album_id, '300')
+        self.assertEqual(page[1].user_id, '201')
+        self.assertEqual(page[1].album_id, '301')
+
     def test_get_detail(self):
         client = self.client
 
@@ -386,9 +450,12 @@ class Test_Client(JmTestConfigurable):
         for args in cases:
             photo = cl.get_photo_detail(*args)
             if ans is None:
-                ans = id(photo)
+                ans = photo
             else:
-                self.assertEqual(ans, id(photo))
+                self.assertIsNot(ans, photo)
+                self.assertEqual(ans.id, photo.id)
+                self.assertEqual(ans.name, photo.name)
+                self.assertEqual(ans.tags, photo.tags)
 
     def test_search_generator(self):
         JmModuleConfig.FLAG_DECODE_URL_WHEN_LOGGING = False
@@ -404,23 +471,6 @@ class Test_Client(JmTestConfigurable):
             break
 
     def test_cache_level(self):
-        def get(cl):
-            return cl.get_album_detail('123')
-
-        def assertEqual(first_cl, second_cl, msg):
-            self.assertEqual(
-                get(first_cl),
-                get(second_cl),
-                msg,
-            )
-
-        def assertNotEqual(first_cl, second_cl, msg):
-            return self.assertNotEqual(
-                get(first_cl),
-                get(second_cl),
-                msg,
-            )
-
         cases = [
             (
                 True,
@@ -439,17 +489,22 @@ class Test_Client(JmTestConfigurable):
             c4 = op.new_jm_client(cache=arg4)
             c5 = op.new_jm_client(cache=False)
 
-            # c1 == c2
-            # c3 == c4
-            # c1 != c3
-            assertEqual(c1, c2, 'equals in same option level')
-            assertNotEqual(c3, c4, 'not equals in client level')
-            assertNotEqual(c1, c3, 'not equals in different level')
-
-            # c5 != c1, c2, c3, c4
-            obj = get(c5)
-            self.assertNotEqual(obj, get(c1))
-            self.assertNotEqual(obj, get(c3))
+            self.assertIs(
+                c1.get_cache_dict(),
+                c2.get_cache_dict(),
+                'clients in the same option level should share a cache dict',
+            )
+            self.assertIsNot(
+                c3.get_cache_dict(),
+                c4.get_cache_dict(),
+                'clients in the client level should use separate cache dicts',
+            )
+            self.assertIsNot(
+                c1.get_cache_dict(),
+                c3.get_cache_dict(),
+                'different cache levels should not share a cache dict',
+            )
+            self.assertIsNone(c5.get_cache_dict(), 'cache=False should disable caching')
 
         for case in cases:
             run(*case)
@@ -479,6 +534,49 @@ class Test_Client(JmTestConfigurable):
         ):
             self.print_page(page)
             break
+
+    def test_page_number(self):
+        search_page = JmPageTool.parse_api_to_search_page(
+            AdvancedDict.wrap({'total': '0', 'content': []}),
+            page_number=3,
+        )
+        favorite_page = JmPageTool.parse_api_to_favorite_page(
+            AdvancedDict.wrap({'total': '0', 'list': [], 'folder_list': []}),
+            page_number=4,
+        )
+        album = SimpleNamespace(album_id='123', name='album', tags=['tag'])
+        single_album_page = JmSearchPage.wrap_single_album(album, page_number=5)
+
+        self.assertEqual(search_page.page_number, 3)
+        self.assertEqual(favorite_page.page_number, 4)
+        self.assertEqual(single_album_page.page_number, 5)
+
+        comment_page = JmAlbumCommentPage([], 1, '<html>', {'code': 'ok'}, page_number=6)
+        self.assertEqual(comment_page.raw_html, '<html>')
+        self.assertEqual(comment_page.raw_data.code, 'ok')
+        self.assertEqual(comment_page.page_number, 6)
+
+    def test_page_number_in_sync_generator(self):
+        def get_page(page):
+            return JmSearchPage([], 100, page)
+
+        generator = JmcomicClient.do_page_iter(None, {}, 1, get_page)
+
+        self.assertEqual(next(generator).page_number, 1)
+        self.assertEqual(generator.send({'page': 3}).page_number, 3)
+
+    def test_page_number_in_async_generator(self):
+        async def run():
+            async def get_page(page):
+                return JmSearchPage([], 100, page)
+
+            generator = AsyncJmcomicClient.do_page_iter(None, {}, 1, get_page)
+
+            self.assertEqual((await generator.asend(None)).page_number, 1)
+            self.assertEqual((await generator.asend({'page': 3})).page_number, 3)
+            await generator.aclose()
+
+        asyncio.run(run())
 
     @staticmethod
     def print_page(page):

@@ -1,8 +1,10 @@
 from test_jmcomic import *
 from io import StringIO
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 from jmcomic.cli import JmcomicUI, JmViewUI
+from jmcomic.jm_task_context import get_jm_task_context
 
 
 class Test_Cli(JmTestConfigurable):
@@ -10,13 +12,78 @@ class Test_Cli(JmTestConfigurable):
 
     album_id = '350234'
 
-    def test_cl_deprecated(self):
-        with self.assertWarnsRegex(DeprecationWarning, r'removed in version 2\.7\.4'):
-            from jmcomic.cl import JmcomicUI as DeprecatedJmcomicUI
-
-        self.assertIs(DeprecatedJmcomicUI, JmcomicUI)
-
     # ========== jmcomic 命令测试 ==========
+
+    def test_jmcomic_progress_enabled_by_default(self):
+        ui = JmcomicUI()
+        with patch('sys.argv', ['jmcomic', self.album_id]):
+            ui.parse_arg()
+
+        self.assertTrue(ui.progress_enabled)
+
+    def test_jmcomic_no_progress_arg(self):
+        ui = JmcomicUI()
+        with patch('sys.argv', ['jmcomic', self.album_id, '--no-progress']):
+            ui.parse_arg()
+
+        self.assertFalse(ui.progress_enabled)
+
+    def test_jmcomic_enable_download_progress(self):
+        ui = JmcomicUI()
+        option = SimpleNamespace(plugins={})
+        plugin = MagicMock()
+
+        with patch('jmcomic.cli.importlib.util.find_spec', return_value=object()), \
+                patch('jmcomic.jm_plugin.DownloadProgressPlugin.build', return_value=plugin) as build:
+            ui.enable_download_progress(option)
+
+        build.assert_called_once_with(option)
+        plugin.invoke.assert_called_once_with()
+
+    def test_jmcomic_does_not_enable_progress_twice(self):
+        ui = JmcomicUI()
+        option = SimpleNamespace(plugins={
+            'after_init': [{'plugin': 'download_progress'}]
+        })
+
+        with patch('jmcomic.jm_plugin.DownloadProgressPlugin.build') as build:
+            ui.enable_download_progress(option)
+
+        build.assert_not_called()
+
+    def test_jmcomic_no_progress_context_wraps_option_creation(self):
+        ui = JmcomicUI()
+        option = SimpleNamespace(plugins={})
+
+        def parse_arg():
+            ui.progress_enabled = False
+            ui.option_path = None
+
+        def create_default_option():
+            self.assertTrue(get_jm_task_context().get('cli_no_progress'))
+            return option
+
+        with patch.object(ui, 'parse_arg', side_effect=parse_arg), \
+                patch('jmcomic.api.JmOption.default', side_effect=create_default_option), \
+                patch.object(ui, 'enable_download_progress'), \
+                patch.object(ui, 'run'), \
+                patch('jmcomic.api.jm_log'):
+            ui.main()
+
+        self.assertNotIn('cli_no_progress', get_jm_task_context())
+
+    def test_jmcomic_falls_back_without_rich(self):
+        ui = JmcomicUI()
+        option = SimpleNamespace(plugins={})
+
+        with patch('jmcomic.cli.importlib.util.find_spec', return_value=None), \
+                patch('jmcomic.jm_config.jm_log') as jm_log:
+            ui.enable_download_progress(option)
+
+        jm_log.assert_called_once_with(
+            'command_line.progress',
+            '未安装 rich，继续使用普通日志。如需显示下载进度，请执行：pip install rich'
+        )
 
     def test_jmcomic_parse_album_id(self):
         """jmcomic 解析 album id"""

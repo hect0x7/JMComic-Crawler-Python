@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from copy import deepcopy
 from typing import Sequence
 from urllib.parse import urlencode
 
@@ -184,7 +185,6 @@ class AsyncJmApiClient(AsyncJmcomicClient):
                 return
 
             # 提取应用配置中预设的网络通信元数据信息（如代理配置与全局 Headers）
-            from copy import deepcopy
             postman_conf = deepcopy(self.option.client.get('postman', {}))
             meta_data = postman_conf.get('meta_data', {})
             if self._meta_kwargs:
@@ -393,7 +393,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
         cached = self._cache_get(cache_key)
         if cached is not self._SENTINEL:
             # noinspection PyTypeChecker
-            return cached
+            return deepcopy(cached)
 
         url = self.API_ALBUM if issubclass(clazz, JmAlbumDetail) else self.API_CHAPTER
         resp = await self.req_api(url, params={'id': jmid})
@@ -402,7 +402,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
             ExceptionTool.raise_missing(resp, jmid)
 
         result = JmApiAdaptTool.parse_entity(resp.res_data, clazz)
-        self._cache_set(cache_key, result)
+        self._cache_set(cache_key, deepcopy(result))
         return result
 
     async def get_album_detail(self, album_id) -> JmAlbumDetail:
@@ -559,9 +559,9 @@ class AsyncJmApiClient(AsyncJmcomicClient):
         data = resp.model_data
         if data.get('redirect_aid', None) is not None:
             aid = data.redirect_aid
-            result = JmSearchPage.wrap_single_album(await self.get_album_detail(aid))
+            result = JmSearchPage.wrap_single_album(await self.get_album_detail(aid), page)
         else:
-            result = JmPageTool.parse_api_to_search_page(data)
+            result = JmPageTool.parse_api_to_search_page(data, page)
 
         self._cache_set(cache_key, result)
         return result
@@ -592,7 +592,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
             'o': o,
         }
         resp = await self.req_api(self.API_CATEGORIES_FILTER, params=params)
-        return JmPageTool.parse_api_to_search_page(resp.model_data)
+        return JmPageTool.parse_api_to_search_page(resp.model_data, page)
 
     # month_ranking / week_ranking / day_ranking
     # 继承自 AsyncJmcomicClient 基类
@@ -631,7 +631,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
                 'o': order_by,
             }
         )
-        return JmPageTool.parse_api_to_favorite_page(resp.model_data)
+        return JmPageTool.parse_api_to_favorite_page(resp.model_data, page)
 
     async def album_pagination(self,
                                jm_id: str,
@@ -640,7 +640,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
                                with_ad_wcm=1,
                                need_total=True,
                                ) -> JmAlbumCommentPage:
-        """获取本子评论分页，返回 ``list`` 和 ``total``。"""
+        """获取本子评论分页，返回评论分页对象。"""
         resp = await self.req_api(
             self.API_FORUM,
             params={
@@ -649,7 +649,21 @@ class AsyncJmApiClient(AsyncJmcomicClient):
                 'aid': JmcomicText.parse_to_jm_id(jm_id),
             },
         )
-        return JmPageTool.parse_api_to_album_comment_page(resp.model_data)
+        return JmPageTool.parse_api_to_album_comment_page(resp.model_data, page)
+
+    async def forum_pagination(self,
+                               page=1,
+                               with_ad_wcm=1,
+                               ) -> JmAlbumCommentPage:
+        """获取全站评论分页。"""
+        resp = await self.req_api(
+            self.API_FORUM,
+            params={
+                'mode': 'all',
+                'page': page,
+            },
+        )
+        return JmPageTool.parse_api_to_album_comment_page(resp.model_data, page)
 
     async def add_favorite_album(self, album_id, folder_id='0'):
         """

@@ -48,42 +48,43 @@ class Test_Feature(JmTestConfigurable):
                 pass
 
         base = MyFeature()
-        self.assertTrue(base.should_invoke('download_album', 'after_album'))
-        self.assertTrue(base.should_invoke('download_album', 'after_photo'))
+        self.assertTrue(base.should_invoke('after_album'))
+        self.assertTrue(base.should_invoke('after_photo'))
 
-        # PluginFeature 根据来源推导执行时机
+        # PluginFeature 根据当前 TaskContext 推导执行时机
         pf = Feature.export_pdf
-        # download_album → 只在 after_album 执行
-        self.assertTrue(pf.should_invoke('download_album', 'after_album'))
-        self.assertFalse(pf.should_invoke('download_album', 'after_photo'))
-        # download_photo → 只在 after_photo 执行
-        self.assertTrue(pf.should_invoke('download_photo', 'after_photo'))
-        self.assertFalse(pf.should_invoke('download_photo', 'after_album'))
+        with jm_task_context(download_type='album'):
+            self.assertTrue(pf.should_invoke('after_album'))
+            self.assertFalse(pf.should_invoke('after_photo'))
+
+        with jm_task_context(download_type='photo'):
+            self.assertTrue(pf.should_invoke('after_photo'))
+            self.assertFalse(pf.should_invoke('after_album'))
 
     def test_adapt_kwargs(self):
         """测试 PluginFeature 参数动态适配"""
         when = 'after_album'
         
         pdf = Feature.export_pdf
-        adapted = pdf._adapt_plugin_kwargs(self.option, 'download_album', when)
+        adapted = pdf._adapt_plugin_kwargs(self.option, when)
         self.assertEqual(adapted['filename_rule'], '[JM{Aid}]{Atitle}')
 
         zip_f = Feature.export_zip
-        adapted = zip_f._adapt_plugin_kwargs(self.option, 'download_album', when)
+        adapted = zip_f._adapt_plugin_kwargs(self.option, when)
         self.assertEqual(adapted['filename_rule'], '[JM{Aid}]{Atitle}')
 
         long_img = Feature.export_long_img
-        adapted = long_img._adapt_plugin_kwargs(self.option, 'download_album', when)
+        adapted = long_img._adapt_plugin_kwargs(self.option, when)
         self.assertEqual(adapted['filename_rule'], '[JM{Aid}]{Atitle}')
 
-        # download_photo 模式
+        # after_photo 使用章节命名规则
         when = 'after_photo'
-        adapted = pdf._adapt_plugin_kwargs(self.option, 'download_photo', when)
+        adapted = pdf._adapt_plugin_kwargs(self.option, when)
         self.assertEqual(adapted['filename_rule'], '[JM{Pid}]{Ptitle}')
 
         # 用户显式传入的参数不被动态适配 (通过 kwargs 机制自带)
         custom = Feature.export_zip(filename_rule='Ptitle')
-        adapted = custom._adapt_plugin_kwargs(self.option, 'download_album', when)
+        adapted = custom._adapt_plugin_kwargs(self.option, when)
         self.assertEqual(adapted['filename_rule'], 'Ptitle')  # 用户显式指定，不被 setdefault 覆盖
 
     def test_dynamic_base_dir(self):
@@ -92,20 +93,20 @@ class Test_Feature(JmTestConfigurable):
         when = 'after_album'
 
         # 1. PDF
-        adapted = Feature.export_pdf._adapt_plugin_kwargs(self.option, 'download_album', when)
+        adapted = Feature.export_pdf._adapt_plugin_kwargs(self.option, when)
         self.assertEqual(adapted['pdf_dir'], './custom_base')
 
         # 2. ZIP
-        adapted = Feature.export_zip._adapt_plugin_kwargs(self.option, 'download_album', when)
+        adapted = Feature.export_zip._adapt_plugin_kwargs(self.option, when)
         self.assertEqual(adapted['zip_dir'], './custom_base')
 
         # 3. LongImg
-        adapted = Feature.export_long_img._adapt_plugin_kwargs(self.option, 'download_album', when)
+        adapted = Feature.export_long_img._adapt_plugin_kwargs(self.option, when)
         self.assertEqual(adapted['img_dir'], './custom_base')
 
         # 4. 如果显式指定了，则不应被覆盖
         custom_pdf = Feature.export_pdf(pdf_dir='./explicit_dir')
-        adapted = custom_pdf._adapt_plugin_kwargs(self.option, 'download_album', when)
+        adapted = custom_pdf._adapt_plugin_kwargs(self.option, when)
         self.assertEqual(adapted['pdf_dir'], './explicit_dir')
 
     def test_download_use_feature(self):
@@ -197,4 +198,4 @@ class Test_Feature(JmTestConfigurable):
         # 因为在 download_album 的 after_album 阶段，photo 为 None
         with self.assertRaises(AttributeError):
             album = self.client.get_album_detail(album_id)
-            f.invoke(self.option, feature_from='download_album', when='after_album', album=album, photo=None)
+            f.invoke(self.option, when='after_album', album=album, photo=None)
