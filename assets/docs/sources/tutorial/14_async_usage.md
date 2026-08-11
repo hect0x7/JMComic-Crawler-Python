@@ -1,5 +1,6 @@
 # 异步使用指南
 
+> [!TIP]
 > 关于`async`和`sync`版本的性能对比可以查看 → [actions-benchmark](https://github.com/hect0x7/JMComic-Crawler-Python/actions/workflows/benchmark.yml)
 >
 > 简单来说，下载场景`async`**快10%↑**，纯查询无下载场景`async`**快30%↑**

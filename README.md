@@ -122,6 +122,7 @@ jmcomic.download_album(123, option)
 ```
 
 ### 3. 使用命令行
+> [!TIP]
 > 如果只想下载本子，使用命令行会比上述方式更加简单直接
 > 
 > 例如，在windows上，直接按下 win+R 键，输入`jmcomic xxx`就可以下载本子。
@@ -146,6 +147,7 @@ jmcomic 123 --option="D:/a.yml"
 
 b. 配置环境变量 `JM_OPTION_PATH` 为option文件路径（推荐）
 
+> [!TIP]
 > 请自行google配置环境变量的方式，或使用powershell命令:  `setx JM_OPTION_PATH "D:/a.yml"` 重启后生效
 
 ```sh
@@ -161,6 +163,7 @@ jmcomic 123
 
 ### 4. 查看本子详情（jmv 命令）
 
+> [!NOTE]
 > `jmv` 命令用于快速查看本子详情，不做下载。
 > 
 > **适用场景**：在某些网站上看到一串*神秘车号*，想快速看看具体是啥本子。此时只需copy原文本，按下 win+R，输入`jmv [粘贴内容]`即可

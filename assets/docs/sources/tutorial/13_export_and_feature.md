@@ -17,6 +17,7 @@ jmcomic 内置了三个开箱即用的导出 Feature，对应这三种需求：
 | `Feature.export_long_img` | 下载完自动拼接为长图 PNG |
 
 
+> [!NOTE]
 > 也许你知道，这些功能之前是以插件形式 (JmOptionPlugin) 存在的。
 > 
 > 是的，传统方式需要在 option 配置文件中编写插件配置，门槛偏高。
@@ -114,7 +115,8 @@ download_photo('456', option, extra=Feature.export_pdf)
 ├── [JM{Pid}]章节标题.pdf       ← 该章节导出为 1 个 PDF
 ```
 
-> 💡 **提示**：同一个 Feature，通过 `download_album` 和 `download_photo` 调用时会自动适配不同的导出行为，详见下方 [智能适配规则](#25)。
+> [!TIP]
+> 同一个 Feature，通过 `download_album` 和 `download_photo` 调用时会自动适配不同的导出行为，详见下方 [智能适配规则](#25)。
 
 ### 2.5 智能适配规则
 
@@ -127,7 +129,8 @@ download_photo('456', option, extra=Feature.export_pdf)
 
 当你显式传入参数时（如 `filename_rule='Ptitle'`），**你的配置优先**，不会被自适应覆盖。
 
-> 💡 **提示**：更多可选参数（如加密密码 `encrypt`、后缀名 `suffix` 等），参考 [Plugin 插件参数大全](../option_file_syntax.md#3-option)。
+> [!TIP]
+> 更多可选参数（如加密密码 `encrypt`、后缀名 `suffix` 等），参考 [Plugin 插件参数大全](../option_file_syntax.md#3-option)。
 
 ## 3. 传统写法（YAML 插件配置）
 
@@ -188,7 +191,8 @@ api.download_album(extra=Feature.export_pdf)
                            └→ option.invoke(pdf, kwargs) # 调用pdf插件，传入参数
 ```
 
-> 💡 **关键点**：
+> [!IMPORTANT]
+> **关键点**
 >
 > - **执行时机**：`PluginFeature` 根据 `TaskContext` 中的 `download_type` 判断当前顶层下载类型。自定义 Feature 默认在所有事件都会执行，你可以覆写 `should_invoke` 来控制。
 > - **参数自适应**：`PluginFeature` 的 `filename_rule` 前缀（A/P）会根据来源动态适配。ZIP 的打包粒度由插件根据上下文自动推导。用户显式传入的参数不会被覆盖。
