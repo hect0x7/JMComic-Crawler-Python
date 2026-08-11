@@ -58,6 +58,7 @@ nav:
     - tutorial/12_domain_strategy.md
     - tutorial/13_export_and_feature.md
     - tutorial/14_async_usage.md
+    - tutorial/15_download_progress.md
 
 plugins:
   - search
@@ -77,6 +78,7 @@ plugins:
 markdown_extensions:
   - attr_list
   - admonition
+  - github-callouts
   - md_in_html
   - toc:
       permalink: true
