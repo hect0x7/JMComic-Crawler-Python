@@ -126,9 +126,7 @@ jmcomic.download_album(123, option)
 > 
 > 例如，在windows上，直接按下 win+R 键，输入`jmcomic xxx`就可以下载本子。
 
-示例：
-
-下载本子123的命令
+示例：下载本子123的命令
 
 ```sh
 jmcomic 123
@@ -138,19 +136,9 @@ jmcomic 123
 jmcomic 123 p456
 ```
 
-安装 `rich` 后，`jmcomic` 命令会默认显示本子和章节下载进度：
-
-```sh
-pip install rich
-```
-
-![jmcomic 命令行下载进度](./assets/docs/sources/images/download_progress_terminal.png)
-
-不想显示进度条时，可以使用 `jmcomic 123 --no-progress`。没有安装 `rich` 时会自动使用普通日志。
-
 命令行模式也支持自定义option，你可以使用环境变量或者命令行参数：
 
-a. 通过命令行--option参数指定option文件路径
+a. 通过命令行 --option 参数指定option文件路径
 
 ```sh
 jmcomic 123 --option="D:/a.yml"
@@ -163,6 +151,13 @@ b. 配置环境变量 `JM_OPTION_PATH` 为option文件路径（推荐）
 ```sh
 jmcomic 123
 ```
+
+`jmcomic` 还提供了一个美观的进度条能力，默认是开启的，但是需要你手动安装一个额外依赖 `pip install rich`。效果如下：
+
+![jmcomic 命令行下载进度](./assets/docs/sources/images/download_progress_terminal.png)
+
+不想显示进度条时，可以使用 `jmcomic 123 --no-progress`。没有安装 `rich` 时会自动使用普通日志。
+
 
 ### 4. 查看本子详情（jmv 命令）
 
