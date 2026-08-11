@@ -171,24 +171,26 @@ Feature **自然嵌入到 downloader 的生命周期事件**中自动触发：
 ```text
 api.download_album(extra=Feature.export_pdf)
   │
-  ├→ dler.add_features(pdf, 'download_album')   # 注册: [(pdf, 'download_album')]
-  │
-  └→ dler.download_album(id)
+  └→ jm_task_context(download_type='album')
        │
-       ├→ before_album(album)
+       ├→ dler.add_features(extra)               # extra 即 Feature.export_pdf，保存到 _feature_list
        │
-       ├→ download_by_photo_detail(photo)
-       │    ├→ before_photo(photo)
-       │    ├→ download jmcomic images ...      # 下载禁漫图片
-       │    └→ after_photo(photo)
-       │         └→ _invoke_features_for('after_photo')
-       │              └→ pdf.should_invoke('after_photo') → False ✗ 跳过
-       │
-       └→ after_album(album)
-            └→ _invoke_features_for('after_album')
-                 └→ pdf.should_invoke('after_album') → True ✓ 执行!
-                      └→ _adapt_plugin_kwargs(option, when) # 动态生成插件参数
-                           └→ option.invoke(pdf, kwargs) # 调用pdf插件，传入参数
+       └→ dler.download_album(id)
+            │
+            ├→ before_album(album)
+            │
+            ├→ download_by_photo_detail(photo)
+            │    ├→ before_photo(photo)
+            │    ├→ download jmcomic images ...      # 下载禁漫图片
+            │    └→ after_photo(photo)
+            │         └→ _invoke_features_for('after_photo')
+            │              └→ Feature.export_pdf.should_invoke('after_photo') → False ✗ 跳过
+            │
+            └→ after_album(album)
+                 └→ _invoke_features_for('after_album')
+                      └→ Feature.export_pdf.should_invoke('after_album') → True ✓ 执行
+                           └→ _adapt_plugin_kwargs(option, when) # 动态生成插件参数
+                                └→ option.invoke_plugin(...)    # 调用 PDF 插件
 ```
 
 > [!IMPORTANT]
