@@ -275,6 +275,47 @@ class Test_DownloadProgress(unittest.TestCase):
             self.assertIn(f'log-{index}', rendered)
 
     @unittest.skipUnless(RICH_INSTALLED, '需要安装 rich 才能测试彩色进度插件')
+    def test_plugin_accepts_custom_log_file_and_terminal_lines(self):
+        from rich.console import Console
+
+        original_console = ProgressDownloader.progress_console
+        original_handlers = jm_logger.handlers[:]
+        original_downloader = JmModuleConfig.CLASS_DOWNLOADER
+        original_async_downloader = JmModuleConfig.CLASS_ASYNC_DOWNLOADER
+        ProgressDownloader.progress_console = Console(
+            file=StringIO(),
+            force_terminal=False,
+            force_interactive=False,
+        )
+
+        try:
+            with TemporaryDirectory() as temp_dir:
+                try:
+                    log_file = Path(temp_dir) / 'logs' / 'progress.log'
+                    create_option_by_str(f'''
+plugins:
+  after_init:
+    - plugin: download_progress
+      kwargs:
+        log_file: {log_file.as_posix()}
+        terminal_log_lines: 3
+''')
+
+                    self.assertTrue(log_file.exists())
+                    self.assertEqual(3, ProgressDownloader.progress_log_lines.maxlen)
+                finally:
+                    for handler in jm_logger.handlers[:]:
+                        jm_logger.removeHandler(handler)
+                        if handler not in original_handlers:
+                            handler.close()
+        finally:
+            jm_logger.handlers[:] = original_handlers
+            ProgressDownloader.configure_progress_log_lines(6)
+            ProgressDownloader.progress_console = original_console
+            JmModuleConfig.CLASS_DOWNLOADER = original_downloader
+            JmModuleConfig.CLASS_ASYNC_DOWNLOADER = original_async_downloader
+
+    @unittest.skipUnless(RICH_INSTALLED, '需要安装 rich 才能测试彩色进度插件')
     def test_non_interactive_progress_only_prints_final_summary(self):
         from rich.console import Console
 

@@ -12,7 +12,7 @@
 本次更新让同步和异步下载进度更直观、下载结果更易处理，还可以分页浏览全站评论并直接获取当前页码。
 
 ### Added
-- 新增 `download_progress` 插件：`jmcomic` 命令安装 `rich` 后默认启用，可通过 `--no-progress` 关闭自动启用；同步和异步下载在交互终端中固定展示最近 6 条日志，并在下方显示彩色的本子、章节两级进度；IDE 运行面板等不支持动态界面的环境只在结束后输出汇总；完整日志写入文件且不再重复输出 `INFO` 字段。
+- 新增 `download_progress` 插件：`jmcomic` 命令安装 `rich` 后默认启用，可通过 `--no-progress` 关闭自动启用；同步和异步下载在交互终端中默认展示最近 6 条日志，并在下方显示彩色的本子、章节两级进度；支持通过 `log_file` 和 `terminal_log_lines` 自定义日志文件与终端日志行数；IDE 运行面板等不支持动态界面的环境只在结束后输出汇总；完整日志写入文件且不再重复输出 `INFO` 字段。
 
 ![download_progress 插件效果](https://raw.githubusercontent.com/hect0x7/JMComic-Crawler-Python/v2.7.4/assets/docs/sources/images/download_progress_terminal.png)
 

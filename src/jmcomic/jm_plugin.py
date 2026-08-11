@@ -620,6 +620,11 @@ class ProgressDownloader(JmDownloader):
             cls.progress_log_lines.clear()
 
     @classmethod
+    def configure_progress_log_lines(cls, max_lines):
+        with cls.progress_ui_lock:
+            cls.progress_log_lines = deque(maxlen=max_lines)
+
+    @classmethod
     def append_progress_log(cls, message):
         with cls.progress_ui_lock:
             cls.progress_log_lines.append(message)
@@ -650,17 +655,18 @@ class ProgressDownloader(JmDownloader):
 
         with cls.progress_ui_lock:
             lines = list(cls.progress_log_lines)
+            max_lines = cls.progress_log_lines.maxlen
 
         render_lines = [
             Text(line, overflow='ellipsis', no_wrap=True)
             for line in lines
         ]
-        render_lines.extend(Text('') for _ in range(6 - len(render_lines)))
+        render_lines.extend(Text('') for _ in range(max_lines - len(render_lines)))
         return Panel(
             Group(*render_lines),
             title='[bold cyan]JMComic Logs[/bold cyan]',
             border_style='cyan',
-            height=8,
+            height=max_lines + 2,
         )
 
     @classmethod
@@ -939,10 +945,9 @@ class DownloadProgressPlugin(JmOptionPlugin):
             import rich
         except ImportError:
             plugin.warning_lib_not_install('rich')
-        plugin.log_path = plugin.redirect_log_to_file()
         return plugin
 
-    def redirect_log_to_file(self):
+    def redirect_log_to_file(self, log_file=None):
         import logging
         from pathlib import Path
         from .jm_config import jm_logger
@@ -954,7 +959,8 @@ class DownloadProgressPlugin(JmOptionPlugin):
                 except Exception:
                     self.handleError(record)
 
-        log_path = Path(self.log_file).resolve()
+        log_path = Path(log_file or self.log_file).resolve()
+        log_path.parent.mkdir(parents=True, exist_ok=True)
         formatter = logging.Formatter(
             '%(asctime)s [%(threadName)s] [%(topic)s] '
             '%(message)s'
@@ -990,9 +996,20 @@ class DownloadProgressPlugin(JmOptionPlugin):
             border_style='bright_blue',
         ))
 
-    def invoke(self):
+    def invoke(self,
+               log_file='jmcomic-download.log',
+               terminal_log_lines=6,
+               ):
         from rich.panel import Panel
 
+        self.require_param(
+            isinstance(terminal_log_lines, int)
+            and not isinstance(terminal_log_lines, bool)
+            and terminal_log_lines > 0,
+            'terminal_log_lines 必须是大于 0 的整数',
+        )
+        ProgressDownloader.configure_progress_log_lines(terminal_log_lines)
+        self.log_path = self.redirect_log_to_file(log_file)
         ProgressDownloader.use()
         AsyncProgressDownloader.use()
         self.log('已将默认 Downloader 替换为 ProgressDownloader')
