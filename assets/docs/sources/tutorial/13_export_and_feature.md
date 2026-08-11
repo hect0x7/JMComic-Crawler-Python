@@ -81,7 +81,9 @@ download_album('123', option, extra=Feature.export_pdf(
 ))
 ```
 
-> 💡 **小白必读：命名规则（filename_rule）的小知识**
+> [!TIP]
+> **小白必读：命名规则（filename_rule）的小知识**
+>
 > - `A` 开头的占位符（如 `Atitle`, `Aid`）代表 **Album (本子)**。
 > - `P` 开头的占位符（如 `Ptitle`, `Pid`）代表 **Photo (章节)**。
 > - `download_photo` （下载单章）时，由于程序既知道当前章节，也知道它属于哪个本子，所以 **`Pxxx` 和 `Axxx` 都可以用**。
