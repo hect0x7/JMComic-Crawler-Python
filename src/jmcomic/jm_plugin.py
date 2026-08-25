@@ -1785,6 +1785,7 @@ class AdvancedRetryPlugin(JmOptionPlugin):
 
         retry_domain_max_times: int = self.retry_config['retry_domain_max_times']
         retry_rounds: int = self.retry_config['retry_rounds']
+        retry_errors = []
         for rindex in range(retry_rounds):
             domain_list = self.get_sorted_domain(client, retry_domain_max_times)
             for i, domain in enumerate(domain_list):
@@ -1795,9 +1796,16 @@ class AdvancedRetryPlugin(JmOptionPlugin):
                     return do_request(domain)
                 except Exception as e:
                     jm_log('req.error', e)
+                    retry_errors.append({
+                        'domain': domain,
+                        'url': client.of_api_url(url, domain) if url.startswith('/') else url,
+                        'retry': rindex,
+                        'error': e,
+                    })
                     self.update_failed_count(client, domain)
 
-        return client.fallback(request, url, 0, 0, is_image, **kwargs)
+        return client.fallback(request, url, 0, 0, is_image,
+                               retry_errors=retry_errors, **kwargs)
 
     def get_sorted_domain(self, client: JmcomicClient, times):
         domain_list = client.get_domain_list()

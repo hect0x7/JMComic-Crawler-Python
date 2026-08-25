@@ -260,6 +260,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
         if not domain_list:
             ExceptionTool.raises("无可用 API 域名列表")
 
+        retry_errors = []
         for domain_index, domain in enumerate(domain_list):
             url = self._build_api_url(url_path, domain)
 
@@ -289,11 +290,21 @@ class AsyncJmApiClient(AsyncJmcomicClient):
                     return resp
                 except Exception as e:
                     self.before_retry(e, url, retry, domain_index)
+                    retry_errors.append({
+                        'domain': domain,
+                        'url': url,
+                        'retry': retry,
+                        'error': e,
+                    })
 
         # 所有域名都失败
         msg = f"请求重试全部失败: [{url_path}], {domain_list}"
         jm_log('req.fallback', msg)
-        ExceptionTool.raises(msg, {}, RequestRetryAllFailException)
+        ExceptionTool.raises(
+            msg,
+            {ExceptionTool.CONTEXT_KEY_RETRY_ERRORS: retry_errors},
+            RequestRetryAllFailException,
+        )
 
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
     def before_retry(self, e, url, retry, domain_index):
