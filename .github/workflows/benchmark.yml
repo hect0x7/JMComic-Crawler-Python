@@ -2,12 +2,12 @@ name: Async Benchmark
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ master ]
     paths:
       - '**/*async*.py'
       - '.github/workflows/benchmark.yml'
   pull_request:
-    branches: [ main, master ]
+    branches: [ master ]
     paths:
       - '**/*async*.py'
       - '.github/workflows/benchmark.yml'
@@ -24,7 +24,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.12'
+        python-version: '3.14'
 
     - name: Install dependencies
       run: |
