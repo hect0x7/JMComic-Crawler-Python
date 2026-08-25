@@ -62,7 +62,7 @@ jobs:
           mv "../$ZIP_NAME" .
 
       - name: 上传结果
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.UPLOAD_NAME }}
           path: ${{ env.JM_DOWNLOAD_DIR }}/${{ env.ZIP_NAME }}
