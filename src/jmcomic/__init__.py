@@ -2,11 +2,14 @@
 # 被依赖方 <--- 使用方
 # config <--- entity <--- toolkit <--- client <--- option <--- downloader
 
-__version__ = '2.6.20'
+__version__ = '2.7.5'
 
+from .jm_task_context import *
 from .api import *
 from .jm_plugin import *
 from .jm_feature import *
+from .jm_async_client import AsyncJmApiClient
+from .jm_async_downloader import JmAsyncDownloader
 
 # 下面进行注册组件（客户端、插件）
 gb = dict(filter(lambda pair: isinstance(pair[1], type), globals().items()))
@@ -18,10 +21,15 @@ def register_jmcomic_component(variables: Dict[str, Any], method, valid_interfac
             method(v)
 
 
-# 注册客户端
+# 注册 sync 客户端
 register_jmcomic_component(gb,
                            JmModuleConfig.register_client,
                            JmcomicClient,
+                           )
+# 注册 async 客户端
+register_jmcomic_component(gb,
+                           JmModuleConfig.register_async_client,
+                           AsyncJmcomicClient,
                            )
 # 注册插件
 register_jmcomic_component(gb,

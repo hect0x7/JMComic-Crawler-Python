@@ -31,7 +31,7 @@ cl = op.new_jm_client()
 
 如果静态配置的域名失效，可以通过调用以下内置的 API 动态获取最新的禁漫域名。
 
-> **注意**：
+> [!NOTE]
 > 默认情况下，以下 API 在请求外网时会自动使用系统代理。但在 Linux 服务器等无全局代理的环境中，如果需要手动指定代理，你可以自行创建一个配置了 proxy 的 postman 对象并作为参数传入：
 > `JmModuleConfig.get_html_domain_all(postman=JmModuleConfig.new_postman(proxies={'http': 'http://127.0.0.1:7890', 'https': 'http://127.0.0.1:7890'}))`
 
@@ -55,28 +55,11 @@ op = create_option('option.yml')
 cl = op.new_jm_client()
 ```
 
-### 2.2 通过 GitHub 兜底获取域名
+> [!WARNING]
+> `get_html_domain_all_via_github` 已废弃。原 GitHub 仓库不再提供禁漫域名，兼容入口目前会转发到
+> `get_html_domain_all`，并将在未来版本移除。
 
-如果连禁漫的发布页本身都被墙了无法访问，可以请求禁漫官方放在 GitHub 的仓库来解析最新域名。
-
-```python
-from jmcomic import *
-
-# 该请求发往 github.com，在大多数常规网络中均能保持连通
-domains = JmModuleConfig.get_html_domain_all_via_github()
-
-op = JmOption.default()
-# 可以结合重试机制，允许失败时轮换多次
-op.client.retry_times = 3
-
-# 应用域名池新建包含该域名的 Client (记得指定 impl='html')
-# 将新建的 client 赋值回 op，使其在后续的下载中生效
-op.client = op.new_jm_client(domain_list=domains, impl='html')
-
-download_album('438696', op)
-```
-
-### 2.3 获取单个跳转域名
+### 2.2 获取单个跳转域名
 
 除了获取全部域名，也可以通过访问永久跳转页获取单个重定向用的新域名。
 
@@ -95,6 +78,7 @@ op.client = op.new_jm_client(domain_list=[domain], impl='html')
 
 默认的机制是在单次请求报错时，按顺序尝试数组内的下一个域名。
 如果经常遇到连接断开或超时，可以使用 `advanced_retry` 插件。该插件提供：
+
 - 记录历史失败次数
 - 限制单个域名的最大失败次数（超过则拉黑废弃）
 - 对列表循环多轮尝试等容错机制

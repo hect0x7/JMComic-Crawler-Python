@@ -38,7 +38,7 @@ jobs:
       - name: Install Dependency
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          pip install -r .github/requirements-dev.txt
 
       - name: 安装jmcomic（pip）
         if: ${{ github.ref != 'refs/heads/dev' }}
@@ -49,6 +49,13 @@ jobs:
         if: ${{ github.ref == 'refs/heads/dev' }}
         run: |
           pip install -e ./
+
+      - name: Fork 同步上游下载脚本
+        if: ${{ github.repository != 'hect0x7/JMComic-Crawler-Python' }}
+        run: |
+          curl --fail --silent --show-error --location \
+            https://raw.githubusercontent.com/hect0x7/JMComic-Crawler-Python/master/usage/workflow_download.py \
+            --output usage/workflow_download.py
 
       - name: 运行下载脚本
         run: |

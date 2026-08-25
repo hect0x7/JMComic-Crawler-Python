@@ -23,6 +23,7 @@ filter(过滤器)是v2.1.12新引入的机制，
 
 > [!WARNING]
 > **使用 Filter 机制的两大陷阱**
+>
 > 1. `do_filter` 的返回值**必须支持 `len()`**（比如返回 list、tuple 或原本的 Entity 本身），因为底层代码会使用 `len(iter_objs)` 约束并发线程数。如果你过滤后没有任何内容，**请返回空列表 `[]`** 而不是 `None`。
 > 2. 一旦 `JmDownloader` 使用了 filter 机制屏蔽了任意一个本子/章节/图片的下载，该下载器的 **`downloader.all_success` 属性将永远为 `False`**！
 

@@ -28,7 +28,7 @@ git checkout -b <your_feature_branch>
 ```bash
 # 自动打通虚拟环境并注满燃油（安装源码及开发依赖）
 uv venv
-uv pip install -r requirements-dev.txt -e ./
+uv pip install -r .github/requirements-dev.txt -e ./
 ```
 
 ### 2. 空中改造 (Coding)
@@ -52,7 +52,8 @@ uv run python -m unittest
 
 **选项 B：云端试飞 (GitHub Actions)**
 如果你的本地环境不便配置，也可以直接将代码推送至你个人 Fork 仓库的 `dev` 分支。云端塔台会在后台自动触发 `test_api.yml` 动作。
-> 💡 请前往你个人仓库的 **Actions** 面板，确保最新地推流全部亮起绿灯。
+> [!TIP]
+> 请前往你个人仓库的 **Actions** 面板，确保最新地推流全部亮起绿灯。
 
 ## 📥 申请接入航线 (Pull Request)
 
@@ -62,7 +63,9 @@ uv run python -m unittest
 
 - 📘 **`docs` 航道 (文档维护)**：本航道直通项目专属的 **[在线文档 (Read the Docs)](https://jmcomic.readthedocs.io/zh-cn/latest/)**。所有不涉及功能性代码修改的**纯粹文档更新**，请直接提交至此分支。入线后它将即刻触发并全网同步部署，绕过复杂的流水安检。需要注意的是，`docs` 航道的进度通常会超前于主系统 (`master`)，塔台会在新版发布或定期检修时统一将二者对齐同步。
 
-- 🚫 **禁飞区 (禁止直飞 master)**：为防止外部航班意外触发 `release_auto.yml` 这个威力巨大的自动发版工作流，**本项目不接受任何直接指向 `master` 分支的 PR**。所有的新功能与代码改造必须经由 `dev` 航道降落并完成试飞，新版本号的最终敲定与发布由塔台统一操控。
+- 🚫 **禁飞区 (普通 PR 禁止直飞 master)**：为防止外部航班意外触发 `release_auto.yml` 这个威力巨大的自动发版工作流，所有的功能、重构、修复、文档和普通维护 PR 都不得直接指向 `master`。这些改动必须先经由 `dev` 或 `docs` 航道降落，完成对应试飞后再由塔台统一调度。
+
+- 🚀 **发版专线 (仅限版本发布)**：`master` 只接收由塔台（维护者）从 `dev` 发起的正式发版 PR。该 PR 必须同时完成版本号更新，并在 `CHANGELOG.md` 中准备好对应版本的带日期发布记录；任意一项缺失，都不得指向或合并到 `master`。
 
 PR 申请后，我会尽快 review 各位机长的代码并反馈通讯。再次感谢你的付出！🎉
 
@@ -70,28 +73,46 @@ PR 申请后，我会尽快 review 各位机长的代码并反馈通讯。再次
 
 ## 🚀 发版巡航 (Release Process)
 
-项目使用自动化流水线进行发版，此流程仅由塔台（维护者）在合并至 `master` 分支时触发。
+项目使用自动化流水线进行发版，此流程仅由塔台（维护者）通过 `dev → master` 发版专线触发。
 
 ### 1. 触发条件
 当代码被推送（或 PR 合并）至 `master` 分支，且 **Commit Message 以 `v` 开头**时，GitHub Actions 会自动启动 `release_auto.yml` 工作流，执行以下操作：
-1. 自动根据 Commit Message 创建 GitHub Release 标签。
-2. 自动构建项目并发布至 [PyPI](https://pypi.org/project/jmcomic/)。
+1. 自动根据 Commit Message 中的版本号创建 GitHub Release 标签。
+2. 从 `CHANGELOG.md` 对应版本段生成 GitHub Release 正文。
+3. 在 Actions 日志中输出目标版本、Changelog 条目数量和正文来源，供塔台在正式发布前复核。
+4. 自动构建项目并发布至 [PyPI](https://pypi.org/project/jmcomic/)。
 
 ### 2. Commit 格式指令 (仅针对维护者)
-当塔台（维护者）准备好发布新版本并合入 `master` 时，需要根据 `.github/release.py` 的解析要求使用特定格式的 Commit Message：
+当塔台（维护者）准备好发布新版本并合入 `master` 时，必须先完成以下发版检查：
 
-**格式：** `v<版本号>: <更新项1>; <更新项2>; ...`
+1. 更新 `src/jmcomic/__init__.py` 中的 `__version__`。
+2. 在 `CHANGELOG.md` 中添加同版本的 `## [版本号] - YYYY-MM-DD` 段落，并确认自上一个版本以来的重要改动均已记录。
+3. 确认版本号与 Changelog 均已包含在发版 PR 中，再使用以下 Commit Message 合并到 `master`。
 
-*   **示例：** `v2.1.0: 修复搜索解析异常; 优化多线程下载效率; 新增插件系统`
+**格式：** `v<版本号>: <简短发布说明>`
+
+*   **示例：** `v2.7.4: 发布下载清单功能`
 *   **黑匣子解析逻辑：**
     *   **Tag**：冒号 `:` 前的内容（如 `v2.1.0`）。
-    *   **Body**：冒号 `:` 后的内容，程序会将分号 `;` 分割的每一项转化为有序列表。
+    *   **版本校验**：Commit Message 中的版本必须与 `jmcomic.__version__` 一致。
+    *   **Body**：GitHub Release 正文完全来自 `CHANGELOG.md` 的同版本段落；冒号后的文字只用于说明本次发版提交，不再充当 Release 正文。
+
+### 3. 备降与人工复飞
+
+如果符合规范的发版提交已经进入 `master`，但自动流水线因为 Changelog 遗漏、格式错误或版本不匹配而在创建 Tag、GitHub Release 和 PyPI 包之前中止，塔台无需再制造第二条 `v版本号:` 发版提交：
+
+1. 在 `master` 补充一条普通修正提交，只修正当前版本的版本号或 Changelog 发版资料，不夹带新的功能代码。
+2. 在 GitHub Actions 中选择 `master` 分支，手动运行 `Manual Release & Publish`。
+3. 手动流水线会直接读取 `src/jmcomic/__init__.py` 中的版本号，并使用 `CHANGELOG.md` 的同版本段落完成发布。
+
+人工复飞仅用于修复自动发版的前置校验失败，不替代正常的 `dev → master` 发版专线，也不得用于绕过发版 PR 的版本与 Changelog 检查。
 
 ---
 
 ## 🛠️ 引擎改装规范 (Coding Guidelines)
 
-> 📌 **塔台公告**：本《引擎改装规范》将伴随舰队的探索进度**持续迭代更新**。当前的强制适航指令主要聚焦于 **黑匣子 (日志记录)** 与 **空难溯源 (异常处理)** 两大核心电传模块。
+> [!NOTE]
+> **塔台公告**：本《引擎改装规范》将伴随舰队的探索进度**持续迭代更新**。当前的强制适航指令主要聚焦于 **黑匣子 (日志记录)** 与 **空难溯源 (异常处理)** 两大核心电传模块。
 
 ### 📝 测试与操作手册 (Tests & Docs)
 

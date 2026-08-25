@@ -9,6 +9,7 @@ on:
     paths:
       - 'src/**/*.py'
       - 'tests/**/*.py'
+      - '.github/requirements-dev.txt'
       - '.github/workflows/test_html.yml'
       - 'assets/option/option_test_html.yml'
 
@@ -16,7 +17,7 @@ jobs:
   test: # This code is based on https://github.com/gaogaotiantian/viztracer/blob/master/.github/workflows/python-package.yml
     strategy:
       matrix:
-        python-version: ['3.9', '3.10', '3.11', '3.13']
+        python-version: ['3.10', '3.11', '3.13', '3.14']
         os: [ ubuntu-latest ]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5
@@ -36,7 +37,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+          if [ -f .github/requirements-dev.txt ]; then pip install -r .github/requirements-dev.txt; fi
 
       - name: Install local
         run: |

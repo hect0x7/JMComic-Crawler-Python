@@ -37,8 +37,8 @@ Homepage = "https://github.com/hect0x7/JMComic-Crawler-Python"
 Documentation = "https://jmcomic.readthedocs.io"
 
 [project.scripts]
-jmcomic = "jmcomic.cl:main"
-jmv = "jmcomic.cl:view_main"
+jmcomic = "jmcomic.cli:main"
+jmv = "jmcomic.cli:view_main"
 
 [tool.setuptools.dynamic]
 version = {attr = "jmcomic.__version__"}

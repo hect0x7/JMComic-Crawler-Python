@@ -1,7 +1,43 @@
+import asyncio
+import inspect
+from unittest.mock import AsyncMock, patch
+
 from test_jmcomic import *
 
 
 class Test_Api(JmTestConfigurable):
+
+    def test_callback_is_not_public_download_api(self):
+        for download_api in (
+                download_album,
+                download_photo,
+                download_album_async,
+                download_photo_async,
+        ):
+            parameters = inspect.signature(download_api).parameters
+            self.assertNotIn('callback', parameters)
+            self.assertEqual(
+                parameters['check_exception'].kind,
+                inspect.Parameter.KEYWORD_ONLY,
+            )
+
+    def test_multi_id_shortcuts_do_not_forward_check_exception(self):
+        for download_api in (download_album, download_photo):
+            expected = BatchResult()
+            with patch('jmcomic.api.download_batch', return_value=expected) as batch:
+                actual = download_api(['123', '456'], check_exception=False)
+
+            self.assertIs(actual, expected)
+            self.assertNotIn('check_exception', batch.call_args.kwargs)
+
+        for download_api in (download_album_async, download_photo_async):
+            expected = BatchResult()
+            batch = AsyncMock(return_value=expected)
+            with patch('jmcomic.api.download_batch_async', new=batch):
+                actual = asyncio.run(download_api(['123', '456'], check_exception=False))
+
+            self.assertIs(actual, expected)
+            self.assertNotIn('check_exception', batch.call_args.kwargs)
 
     def test_download_photo_by_id(self):
         """
@@ -47,7 +83,6 @@ class Test_Api(JmTestConfigurable):
         func_list = {
             self.client.get_html_domain,
             self.client.get_html_domain_all,
-            self.client.get_html_domain_all_via_github,
             # JmModuleConfig.get_jmcomic_url,
             # JmModuleConfig.get_jmcomic_domain_all,
         }
@@ -76,6 +111,15 @@ class Test_Api(JmTestConfigurable):
             print(e)
 
         raise AssertionError(exception_list)
+
+    def test_get_html_domain_all_via_github_deprecated(self):
+        """废弃入口应发出警告，并转发到官方发布页域名获取逻辑。"""
+        with self.assertWarns(DeprecationWarning):
+            deprecated_result = self.client.get_html_domain_all_via_github()
+
+        current_result = self.client.get_html_domain_all()
+        self.assertEqual(deprecated_result, current_result)
+        self.assertGreater(len(deprecated_result), 0)
 
     def test_partial_exception(self):
         class TestDownloader(JmDownloader):

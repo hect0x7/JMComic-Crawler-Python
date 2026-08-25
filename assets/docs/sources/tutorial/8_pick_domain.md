@@ -17,26 +17,8 @@ disable_jm_log()
 
 
 def get_all_domain():
-    template = 'https://jmcmomic.github.io/go/{}.html'
-    url_ls = [
-        template.format(i)
-        for i in range(300, 309)
-    ]
-    domain_set: Set[str] = set()
-
-    def fetch_domain(url):
-        from curl_cffi import requests as postman
-        text = postman.get(url, allow_redirects=False, **meta_data).text
-        for domain in JmcomicText.analyse_jm_pub_html(text):
-            if domain.startswith('jm365.work'):
-                continue
-            domain_set.add(domain)
-
-    multi_thread_launcher(
-        iter_objs=url_ls,
-        apply_each_obj_func=fetch_domain,
-    )
-    return domain_set
+    postman = JmModuleConfig.new_postman(**meta_data)
+    return set(JmModuleConfig.get_html_domain_all(postman))
 
 
 domain_set = get_all_domain()

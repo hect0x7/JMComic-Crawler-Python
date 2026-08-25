@@ -15,7 +15,7 @@ JmOption.default().to_file('./option.yml') # 创建默认option，导出为optio
 
 ```yaml
 # 开启jmcomic的日志输出，默认为true
-# 对日志有需求的可进一步参考文档 → https://jmcomic.readthedocs.io/en/latest/tutorial/11_log_custom/
+# 对日志有需求的可进一步参考文档 → https://jmcomic.readthedocs.io/zh-cn/latest/tutorial/11_log_custom/
 log: true
 
 # 配置客户端相关
@@ -26,6 +26,10 @@ client:
   #  api - 表示APP端
   # APP端不限ip兼容性好，网页端限制ip地区但效率高
   impl: html
+  
+  # async_impl: 指定异步客户端的底层实现类 (目前仅有: async_api)
+  # 注意: 配置此项不会自动开启异步下载，你必须在代码中调用 _async 相关方法
+  async_impl: async_api
 
   # domain: 禁漫域名配置，一般无需配置，jmcomic会根据上面的impl自动设置相应域名
   # 该配置项需要和上面的impl结合使用，因为禁漫网页端和APP端使用的是不同域名，
@@ -144,6 +148,11 @@ dir_rule:
 # 插件的配置示例
 plugins:
   after_init:
+    - plugin: download_progress
+      kwargs:
+        log_file: ./jmcomic-download.log # 完整日志文件，默认值为 jmcomic-download.log
+        terminal_log_lines: 6 # 终端上方保留的最近日志行数，默认值为 6
+
     - plugin: usage_log # 实时打印硬件占用率的插件
       # log: false # 选填。所有的插件都可以配置 `log: false` 以关闭该插件执行时产生的日志输出，默认是 true
       kwargs:
@@ -182,8 +191,8 @@ plugins:
     
     # v2.5.0 引入的插件
     # 可以启动一个服务器，可以在浏览器上查看本子
-    # 基于flask框架，需要安装额外库: [pip install plugin_jm_server]
-    # 源码：https://github.com/hect0x7/plugin-jm-server
+    # 基于flask框架，需要安装额外库: [pip install jm-view-server]
+    # 源码：https://github.com/hect0x7/jm-view-server
     - plugin: jm_server 
       kwargs:
         password: '3333' # 服务器访问密码
@@ -223,10 +232,10 @@ plugins:
           rule: '{Atitle}/{Aid}_cover.jpg'
     
 
-  after_album: # 钩子（插件被调用时机）
+  after_album: # 事件（插件被调用的时机）
     - plugin: zip # 压缩文件插件
       kwargs:
-        # 压缩文件插件，配在不同钩子下面，效果不一样。可以选择配在 after_album 或者 after_photo 下
+        # 压缩文件插件，配在不同事件下面，效果不一样。可以选择配在 after_album 或者 after_photo 下
         #   配置在 after_album 下 → 整个本子合并为一个压缩文件
         #   配置在 after_photo 下 → 每个章节各一个压缩文件
         # （旧的 level 配置已废弃，如果你配置过level，比如level=photo, 请直接改用after_photo）
@@ -235,7 +244,7 @@ plugins:
         suffix: zip #压缩包后缀名，默认值为zip，可以指定为zip或者7z
         filename_rule: Atitle # 压缩文件的命名规则
         # 请注意⚠ [https://github.com/hect0x7/JMComic-Crawler-Python/issues/223#issuecomment-2045227527]
-        # filename_rule和所在钩子有对应关系
+        # filename_rule和所在事件有对应关系
         # 如果配置在 after_photo 下, filename_rule 可以写 Pxxx 和Axxx
         # 如果配置在 after_album 下, filename_rule 只能写 Axxx，不能写 Pxxx
 

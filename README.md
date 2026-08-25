@@ -19,6 +19,7 @@
 [![GitHub latest releases](https://img.shields.io/github/v/release/hect0x7/JMComic-Crawler-Python?color=blue&label=version)](https://github.com/hect0x7/JMComic-Crawler-Python/releases/latest)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/jmcomic?style=flat&color=hotpink)](https://pepy.tech/projects/jmcomic)
 [![Licence](https://img.shields.io/github/license/hect0x7/JMComic-Crawler-Python?color=red)](https://github.com/hect0x7/JMComic-Crawler-Python)
+[![Used by](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fhect0x7%2Fhect0x7%2Fused-by%2Fmanifest.json&query=%24.public_dependents&label=used%20by&color=6f42c1&style=flat)](https://github.com/hect0x7/JMComic-Crawler-Python/network/dependents)
 
 </div>
 
@@ -37,7 +38,7 @@
 > 
 
 
-![introduction.jpg](./assets/docs/sources/images/introduction.jpg)
+![introduction.jpg](https://raw.githubusercontent.com/hect0x7/hect0x7/master/images/jmcomic-intro-main.png)
 
 
 ## 项目介绍
@@ -52,16 +53,17 @@
 
 - 登录
 - 搜索本子（支持所有搜索项）
-- 图片下载解码
+- 获取本子评论（包括回评、剧透标识）
 - 分类/排行榜
-- 本子/章节详情
+- 获取本子/章节详情
+- 图片下载解码
 - 个人收藏夹
 - 接口加解密（APP的接口）
 
 ## 安装教程
 
 > ⚠如果你没有安装过 Python，需要先前往 [Python 官网下载](https://www.python.org/downloads/) 再执行以下步骤。
->**推荐使用 Python 3.12及以上版本**
+>**推荐使用 Python 3.14**
 
 * 通过pip官方源安装（推荐，并且更新也是这个命令）
 
@@ -83,6 +85,10 @@
 ```python
 import jmcomic  # 导入此模块，需要先安装.
 jmcomic.download_album('123')  # 传入要下载的album的id，即可下载整个album到本地.
+
+# 也可以使用 Async API (详见教程: https://jmcomic.readthedocs.io/zh-cn/latest/tutorial/14_async_usage/)
+import asyncio
+asyncio.run(jmcomic.download_album_async('123'))
 ```
 
 上面的 `download_album`方法还有一个参数`option`，可用于控制下载配置，配置包括禁漫域名、网络代理、图片格式转换、插件等等。
@@ -116,13 +122,12 @@ jmcomic.download_album(123, option)
 ```
 
 ### 3. 使用命令行
+> [!TIP]
 > 如果只想下载本子，使用命令行会比上述方式更加简单直接
 > 
 > 例如，在windows上，直接按下 win+R 键，输入`jmcomic xxx`就可以下载本子。
 
-示例：
-
-下载本子123的命令
+示例：下载本子123的命令
 
 ```sh
 jmcomic 123
@@ -134,22 +139,28 @@ jmcomic 123 p456
 
 命令行模式也支持自定义option，你可以使用环境变量或者命令行参数：
 
-a. 通过命令行--option参数指定option文件路径
+a. 通过命令行 --option 参数指定option文件路径
 
 ```sh
 jmcomic 123 --option="D:/a.yml"
 ```
 
-b. 配置环境变量 `JM_OPTION_PATH` 为option文件路径（推荐）
+b. 命令行不改，而是配置环境变量 `JM_OPTION_PATH` 为option文件路径（推荐）
 
+> [!TIP]
 > 请自行google配置环境变量的方式，或使用powershell命令:  `setx JM_OPTION_PATH "D:/a.yml"` 重启后生效
 
-```sh
-jmcomic 123
-```
+
+另外，`jmcomic` 还提供了一个美观的进度条能力，默认是开启的，但是需要你手动安装一个额外依赖 `pip install rich`。效果如下：
+
+![jmcomic 命令行下载进度](./assets/docs/sources/images/download_progress_terminal.png)
+
+详细开启方法参考文档：[启用美观的下载进度条](assets/docs/sources/tutorial/15_download_progress.md)
+
 
 ### 4. 查看本子详情（jmv 命令）
 
+> [!NOTE]
 > `jmv` 命令用于快速查看本子详情，不做下载。
 > 
 > **适用场景**：在某些网站上看到一串*神秘车号*，想快速看看具体是啥本子。此时只需copy原文本，按下 win+R，输入`jmv [粘贴内容]`即可
@@ -216,6 +227,7 @@ jmv 350234 -y
 
 - **绕过Cloudflare的反爬虫**
 - **实现禁漫APP接口最新的加解密算法 (1.6.3)**
+- 支持**Async**和**Sync**两套 API
 - 用法多样：
 
   - GitHub
@@ -224,7 +236,7 @@ jmv 350234 -y
   - Python代码：最本质、最强大的使用方式，需要你有一定的python编程基础
 - 支持**网页端**和**移动端**两种客户端实现，可通过配置切换（**移动端不限ip兼容性好，网页端限制ip地区但效率高**）
 - 支持**自动重试和域名切换**机制
-- **多线程下载**（可细化到一图一线程，效率极高）
+- 支持按下载任务维度结构化收集日志
 - **可配置性强**
 
   - 不配置也能使用，十分方便
@@ -233,34 +245,19 @@ jmv 350234 -y
     等
 - **可扩展性强**
 
-  - 支持自定义本子/章节/图片下载前后的回调函数
+  - 支持自定义本子/章节/图片下载前后事件的回调函数
   - 支持自定义类：`Downloader（负责调度）` `Option（负责配置）` `Client（负责请求）` `实体类`等
   - 支持自定义日志、异常监听器
-  - **支持Plugin插件，可以方便地扩展功能，以及使用别人的插件，目前内置插件有**：
-    - `登录插件`
-    - `硬件占用监控插件`
-    - `只下载新章插件`
-    - `压缩文件插件`
-    - `客户端代理插件`
-    - `下载特定后缀图片插件`
-    - `发送QQ邮件插件`
-    - `日志主题过滤插件`
-    - `自动获取浏览器cookies插件`
-    - `导出收藏夹为csv文件插件`
-    - `合并所有图片为pdf文件插件`
-    - `合并所有图片为长图png插件`
-    - `网页观看本地章节插件`
-    - `订阅更新插件`
-    - `小章节跳过插件`
-    - `重复文件检测删除插件`
-    - `路径字符串替换插件`
-    - `高级重试插件`
-    - `封面下载插件`
+  - **支持Plugin插件，可以方便地扩展功能，以及使用别人的插件，目前核心内置插件有**：
+    - `登录插件`、`只下载新章插件`、`导出收藏夹为csv文件插件`
+    - `合并所有图片为pdf文件插件`、`合并所有图片为长图png插件`
+    - `压缩文件插件`、`自动获取浏览器cookies插件`、`订阅更新插件`等
 
 ## 使用小说明
 
-* 推荐使用 **Python 3.12+**，目前最低兼容版本为3.9。
-  > 注意：Python 3.9 及更早版本皆已于 2025 年彻底结束官方生命周期 (EOL)，使用3.9及以下随时有可能遇到第三方库不兼容的问题。
+* 推荐使用 **Python 3.14**，目前 CI 只覆盖 Python 3.10 及以上版本。
+  > [!NOTE]
+  > Python 3.9 及更早版本均已结束官方支持 (EOL)，使用3.9及以下随时有可能遇到第三方库不兼容的问题。Python 3.9 仍保留安装兼容，但不再纳入 CI。
 
 * 个人项目，文档和示例会有不及时之处，可以Issue提问。
 
@@ -288,3 +285,21 @@ jmv 350234 -y
     <img alt="Repo Card" src="https://github-readme-stats.vercel.app/api/pin/?username=tonquer&repo=JMComic-qt" />
   </picture>
 </a>
+
+## used by 项目
+
+<a href="https://github.com/hect0x7/JMComic-Crawler-Python/network/dependents">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/zh-CN-dark.svg" />
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/zh-CN-light.svg" />
+    <img width="100%" alt="使用 jmcomic 的项目" src="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/zh-CN-light.svg" />
+  </picture>
+</a>
+
+## Star History
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history-dark.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history.svg" />
+  <img width="100%" alt="jmcomic 生态 Star History" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history.svg" />
+</picture>

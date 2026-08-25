@@ -4,7 +4,7 @@ plugin(扩展/插件)是v2.2.0新引入的机制，使用插件可以实现灵�
 
 目前jmcomic已经内置了一些插件，源码位于 src/jmcomic/jm_plugin.py。
 
-你可以在这里查看这些插件的配置→ [option_file_syntax](../option_file_syntax.md#3-option插件配置项)
+你可以在这里查看这些插件的配置→ [option_file_syntax](../option_file_syntax.md#3-option)
 
 ## 1. 插件机制介绍
 
@@ -54,7 +54,59 @@ option = jmcomic.create_option_by_file('xxx.yml')  # 创建option对象
 option.download_album(123)
 ```
 
-## 3. 怎么手动调用插件
+## 3. 综合示例：登录、增量下载与分章压缩
+
+下面把多个插件组合起来，完成这些需求：
+
+1. 使用登录状态下载本子；
+2. 只下载指定章节之后的新章节；
+3. 将图片转换为 JPG；
+4. 每个章节分别压缩，并在压缩成功后删除原图片。
+
+先创建并加载配置文件：
+
+```python
+from jmcomic import create_option
+
+# 加载配置时会执行 after_init 插件，其中 find_update 会开始下载
+create_option('myoption.yml')
+```
+
+然后在 `myoption.yml` 中组合插件：
+
+```yaml
+dir_rule:
+  rule: Bd_Aid
+  base_dir: ./downloads
+
+download:
+  image:
+    suffix: .jpg
+
+plugins:
+  after_init:
+    - plugin: login
+      kwargs:
+        username: your_username
+        password: your_password
+
+    - plugin: find_update
+      kwargs:
+        145504: 290266  # 只下载本子 145504 中章节 290266 之后的新章节
+
+  after_album:
+    - plugin: zip
+      kwargs:
+        level: photo
+        filename_rule: Ptitle
+        zip_dir: ./downloads
+        delete_original_file: true
+```
+
+这里的执行顺序是：先登录，再由 `find_update` 发起增量下载；每个本子下载完成后，`zip` 插件按章节生成压缩文件并删除已成功压缩的原图片。
+
+
+## 4. 怎么手动调用插件
 
 你可以使用下面的代码触发某个事件
 
@@ -70,7 +122,7 @@ option.call_all_plugin('my_event')
 
 ```
 
-## 4. 示例：自定义插件
+## 5. 示例：自定义插件
 
 * 如果你有好的plugin想法，也欢迎向我提PR，将你的plugin内置到jmcomic模块中
 

@@ -19,6 +19,7 @@
 [![GitHub latest releases](https://img.shields.io/github/v/release/hect0x7/JMComic-Crawler-Python?color=blue&label=version)](https://github.com/hect0x7/JMComic-Crawler-Python/releases/latest)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/jmcomic?style=flat&color=hotpink)](https://pepy.tech/projects/jmcomic)
 [![Licence](https://img.shields.io/github/license/hect0x7/JMComic-Crawler-Python?color=red)](https://github.com/hect0x7/JMComic-Crawler-Python)
+[![Used by](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fhect0x7%2Fhect0x7%2Fused-by%2Fmanifest.json&query=%24.public_dependents&label=used%20by&color=6f42c1&style=flat)](https://github.com/hect0x7/JMComic-Crawler-Python/network/dependents)
 
 </div>
 
@@ -37,7 +38,7 @@
 > **ご案内：JMのサーバー負荷を軽減するため、一度に大量のダウンロードは控えてください 🙏🙏🙏**
 
 
-![introduction.jpg](../docs/sources/images/introduction.jpg)
+![introduction.jpg](https://raw.githubusercontent.com/hect0x7/hect0x7/master/images/jmcomic-intro-main.png)
 
 
 ## プロジェクトの紹介
@@ -52,16 +53,17 @@
 
 - ログイン
 - アルバム検索（すべての検索条件をサポート）
-- 画像のダウンロードおよびデコード
+- アルバムコメントの取得（返信、ネタバレ表示を含む）
 - カテゴリ / ランキング
-- アルバム / 各チャプター（エピソード）の詳細
+- アルバム / 各チャプター（エピソード）の詳細を取得
+- 画像のダウンロードおよびデコード
 - 個人のお気に入り
 - インターフェースの暗号化・復号化（APP API）
 
 ## インストール手順
 
 > ⚠ まだPythonをインストールしていない場合は、先に [公式のPythonページからダウンロード](https://www.python.org/downloads/) してインストールをお願いします。
-> **Python 3.12以上の使用を推奨します**
+> **Python 3.14の使用を推奨します**
 
 * 公式 pip ソースからインストール（推奨。アップデートもこのコマンドを使用します）
 
@@ -88,6 +90,7 @@ jmcomic.download_album('123')  # ダウンロードしたいアルバムのIDを
 上記の `download_album` メソッドには `option` パラメータが用意されており、JMのドメイン名、ネットワークプロキシ、画像のフォーマット変換、プラグインなどのダウンロード設定を管理できます。
 
 これらの設定項目が必要な場合は、設定ファイルから `option` オブジェクトを作成し、それを使用してアルバムをダウンロードすることをお勧めします。次の章をご参照ください。
+
 
 ### 2. Option 設定を利用してアルバムをダウンロード
 
@@ -150,6 +153,60 @@ jmcomic 123
 
 
 
+### 4. アルバムの詳細を確認する（jmv コマンド）
+
+> `jmv` コマンドは、ダウンロードせずにアルバムの詳細を素早く確認するために使用します。
+> 
+> **利用シーン**: どこかのサイトで*謎の番号*を見かけ、それが何のアルバムかすぐに確認したい時。元のテキストをコピーし、Win+Rを押して `jmv [貼り付けた内容]` と入力するだけです。
+>
+> 任意のテキストから数値を抽出し、それを番号として扱うことができるため、さまざまな形式の番号をそのまま貼り付けるのに便利です。
+
+例：
+
+```sh
+# 番号を直接入力する
+jmv 350234
+
+# 混在したテキストから数値を抽出する (350234 を抽出)
+jmv 350これ見たことない234
+
+# Optionファイルを指定する (環境変数もサポート、使用法は上記と同様)
+jmv 350234 --option="D:/a.yml"
+
+# -y パラメータ: 実行後、Enterキーの確認を待たずに直接終了する
+jmv 350234 -y
+```
+
+出力イメージ：
+
+```text
+🔍 検索中... 禁漫番号 - [350234] の詳細
+
+──────────────────────────────────────────────────
+  📖 タイトル:  xxx
+  🆔 ID:     JM350234
+  🔗 リンク:   https://18comic.vip/album/350234/
+  ✍️ 作者:    Author1, Author2
+──────────────────────────────────────────────────
+  📅 公開日:    2022-06-15
+  📅 更新日:    2023-01-01
+  📄 総ページ数: 50
+  👀 閲覧数:    2M
+  ❤️ いいね:    77K
+  💬 コメント:  9801
+──────────────────────────────────────────────────
+  🏷️ タグ:       タグ1, タグ2, ...
+  🎭 キャラクター: キャラA, キャラB, ...
+  📚 作品:       作品1, 作品2, ...
+──────────────────────────────────────────────────
+  📑 チャプター (2):
+     第1話  上  (id: 350234)
+     第2話  下  (id: 350235)
+──────────────────────────────────────────────────
+
+[実行終了] Enterキーを押してウィンドウを閉じてください... (次回から -y パラメータを付けると確認をスキップできます)
+```
+
 ## 高度な利用方法
 
 ドキュメントのトップページをご覧ください → [jmcomic.readthedocs.io](https://jmcomic.readthedocs.io/zh-cn/latest)
@@ -160,6 +217,7 @@ jmcomic 123
 
 - **Cloudflareのボット対策のバイパス機能**
 - **JM APP インターフェースの最新暗号化アルゴリズムを実装 (1.6.3)**
+- **Async** と **Sync** の2種類の API に対応
 - 様々な利用方法のサポート：
 
   - GitHub Actions: Web上でアルバムIDを直接入力してダウンロード（[チュートリアル：GitHub Actions経由でのダウンロード](../docs/sources/tutorial/1_github_actions.md)）
@@ -167,6 +225,7 @@ jmcomic 123
   - Pythonコード: 最も本質的かつ強力な利用法（一定のPythonプログラミング知識が必要です）
 - **Web版**と**モバイル版**の2つのクライアントをサポートし、設定から簡単に切り替え可能（**モバイル版はIP制限がなく圧倒的な互換性を持ち、Web版はエリア制限があるものの高効率**）
 - **自動再試行およびドメイン切り替えメカニズム**のサポート
+- ダウンロードタスク単位での構造化ログ収集に対応
 - **マルチスレッドダウンロード**（各画像ごとにスレッドの細分化が可能。驚異的な効率）
 - **強力な設定オプション**
 
@@ -178,31 +237,16 @@ jmcomic 123
   - アルバム/チャプター/画像ダウンロード前後のコールバック関数のカスタムをサポート
   - 各種クラスのカスタマイズ対応: `Downloader（スケジューリング担当）` `Option（設定担当）` `Client（リクエスト担当）` `エンティティクラス` など
   - カスタムログ出力・例外リスナーの実装
-  - **プラグイン(Plugin)システムにより、機能を容易に拡張したり、他者の製作物を利用可能**。組み込みプラグインの一例：
-    - `ログインプラグイン`
-    - `ハードウェアリソース監視プラグイン`
-    - `最新チャプターのみダウンロードするプラグイン`
-    - `ファイル圧縮（Zip）プラグイン`
-    - `クライアントプロキシプラグイン`
-    - `特定拡張子の画像ダウンロードプラグイン`
-    - `QQメール送信プラグイン`
-    - `ログトピックフィルタプラグイン`
-    - `ブラウザのクッキーを自動で抽出するプラグイン`
-    - `お気に入りをCSV形式でエクスポートするプラグイン`
-    - `すべての画像を1つのPDFファイルに結合するプラグイン`
-    - `すべての画像を縦長の1つのPNGファイルに結合するプラグイン`
-    - `Webブラウザからローカルのチャプターを閲覧するプラグイン`
-    - `アルバム更新購読プラグイン`
-    - `画像数の少ないチャプターをスキップするプラグイン`
-    - `重複ファイルの検出・削除プラグイン`
-    - `パス文字列置換プラグイン`
-    - `高度な再試行プラグイン`
-    - `表紙ダウンロードプラグイン`
+  - **プラグイン(Plugin)システムにより、機能を容易に拡張したり、他者の製作物を利用可能**。主要な組み込みプラグインの一例：
+    - `ログインプラグイン`, `最新チャプターのみダウンロードするプラグイン`, `お気に入りをCSV形式でエクスポートするプラグイン`
+    - `すべての画像を1つのPDFファイルに結合するプラグイン`, `すべての画像を縦長の1つのPNGファイルに結合するプラグイン`
+    - `ファイル圧縮（Zip）プラグイン`, `ブラウザのクッキーを自動で抽出するプラグイン`, `アルバム更新購読プラグイン` など
 
 ## ご利用上の注意点
 
-* **Python 3.12以上**を推奨します。現在の最小互換バージョンは3.9です。
-  > 注意: Python 3.9 およびそれ以前のバージョンは2025年に完全にサポート終了 (EOL) となっており、3.9以下のバージョンを使用すると、サードパーティ製ライブラリの非互換性の問題がいつでも発生する可能性があります。
+* **Python 3.14**を推奨します。現在、CI は Python 3.10 以降のみを対象としています。
+  > [!NOTE]
+  > Python 3.9 およびそれ以前のバージョンは公式サポートが終了 (EOL) しており、3.9以下のバージョンを使用すると、サードパーティ製ライブラリの非互換性の問題がいつでも発生する可能性があります。Python 3.9 はインストール互換性を維持しますが、CI の対象外です。
 
 * 個人のプロジェクトであるため、ドキュメントやサンプルコードの更新が遅れることがあります。ご不明な点はIssueにてご質問ください。
 
@@ -228,3 +272,21 @@ jmcomic 123
     <img alt="Repo Card" src="https://github-readme-stats.vercel.app/api/pin/?username=tonquer&repo=JMComic-qt" />
   </picture>
 </a>
+
+## jmcomic を使用しているプロジェクト
+
+<a href="https://github.com/hect0x7/hect0x7/tree/used-by">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/ja-dark.svg" />
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/ja-light.svg" />
+    <img width="100%" alt="jmcomic を使用しているプロジェクト" src="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/ja-light.svg" />
+  </picture>
+</a>
+
+## Star History
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history-dark.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history.svg" />
+  <img width="100%" alt="jmcomic エコシステム Star History" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/star-history.svg" />
+</picture>

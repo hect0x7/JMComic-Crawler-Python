@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from functools import lru_cache
 
 from common import *
@@ -8,10 +9,11 @@ from .jm_config import *
 class Downloadable:
 
     def __init__(self):
-        self.save_path: str = ''
-        self.exists: bool = False
-        self.skip = False
-        self.cache = True
+        self.save_path: str = ''  # 下载保存路径
+        self.exists: bool = False  # 下载前，目标是否已存在
+        self.skip = False  # 是否跳过本次下载，可供外界控制
+        self.cache = True  # 下载前目标已存在时，是否使用缓存，如果 exists and cache 都是 True，会跳过下载
+        self.duration: Optional[float] = None  # 下载耗时，单位：秒
 
 
 class JmBaseEntity:
@@ -37,7 +39,7 @@ class JmBaseEntity:
         return False
 
 
-class IndexedEntity:
+class IndexedEntity(Sequence):
     def getindex(self, index: int):
         raise NotImplementedError
 
@@ -46,12 +48,14 @@ class IndexedEntity:
 
     def __getitem__(self, item) -> Any:
         if isinstance(item, slice):
-            start = item.start or 0
-            stop = item.stop or len(self)
-            step = item.step or 1
+            start, stop, step = item.indices(len(self))
             return [self.getindex(index) for index in range(start, stop, step)]
 
         elif isinstance(item, int):
+            if item < 0:
+                item += len(self)
+            if item < 0 or item >= len(self):
+                raise IndexError(f"index {item} out of range")
             return self.getindex(item)
 
         else:
@@ -221,7 +225,7 @@ class JmImageDetail(JmBaseEntity, Downloadable):
         self.img_file_name: str = img_file_name  # without suffix
         self.img_file_suffix: str = img_file_suffix
 
-        self.from_photo: Optional[JmPhotoDetail] = from_photo
+        self.from_photo: 'JmPhotoDetail' = from_photo  # type: ignore
         self.query_params: Optional[str] = query_params
         self.index = index  # 从1开始
 
@@ -320,7 +324,7 @@ class JmPhotoDetail(DetailEntity, Downloadable):
         self._series_id: int = int(series_id)
 
         self._author: Optional[str] = author
-        self.from_album: Optional[JmAlbumDetail] = from_album
+        self.from_album: JmAlbumDetail = from_album  # type: ignore
         self.index = self.album_index
 
         # 下面的属性和图片url有关
@@ -578,7 +582,7 @@ class JmAlbumDetail(DetailEntity, Downloadable):
 class JmPageContent(JmBaseEntity, IndexedEntity):
     ContentItem = Tuple[str, Dict[str, Any]]
 
-    def __init__(self, content: List[ContentItem], total: int):
+    def __init__(self, content: List[ContentItem], total: int, page_number: Optional[int] = None):
 
         """
         content:
@@ -587,9 +591,11 @@ class JmPageContent(JmBaseEntity, IndexedEntity):
         ]
         :param content: 分页数据
         :param total: 总结果数
+        :param page_number: 当前页码
         """
         self.content = content
         self.total = total
+        self.page_number = page_number  # 当前页码，独立解析分页内容时可能为空
 
     @property
     def page_count(self) -> int:
@@ -648,6 +654,112 @@ class JmPageContent(JmBaseEntity, IndexedEntity):
         return True
 
 
+class JmAlbumComment(JmBaseEntity):
+    """
+    本子评论实体。
+
+    raw_data 始终为 AdvancedDict。
+
+    网页端字段说明：
+    - likes：评论分页 HTML 不提供，值为 None。
+    - user_id：优先读取评论节点的用户 ID，否则尝试从头像地址解析。
+    - album_id：从评论中的本子或章节链接解析，链接缺失时为 None。
+    """
+
+    def __init__(self, raw_data):
+        self.raw_data = AdvancedDict.wrap(raw_data or {})
+        data = self.raw_data
+
+        self.comment_id = data.get('CID')
+        self.album_id = data.get('AID')
+        self.user_id = data.get('UID')
+        parent_comment_id = data.get('parent_CID')
+        self.parent_comment_id = None if str(parent_comment_id) == '0' else parent_comment_id
+        self.content = data.get('content')
+        self.username = data.get('username')
+        self.nickname = data.get('nickname')
+        is_spoiler = data.get('is_spoiler')
+        if is_spoiler is None:
+            is_spoiler = str(data.get('spoiler')) == '2'
+        elif not isinstance(is_spoiler, bool):
+            is_spoiler = str(is_spoiler).lower() in {'1', '2', 'true'}
+        self.is_spoiler = is_spoiler
+        self.created_at = data.get('addtime')
+
+        likes = data.get('likes')
+        if likes is None:
+            self.likes = None
+        else:
+            try:
+                self.likes = int(likes)
+            except (TypeError, ValueError):
+                self.likes = None
+
+        self.replies = [
+            JmAlbumComment(reply)
+            for reply in data.get('replys', []) or []
+        ]
+
+    def __str__(self):
+        author = self.nickname or self.username or ''
+        spoiler = '（剧透）' if self.is_spoiler else ''
+        return f'[{self.comment_id}] {author}{spoiler}: {self.content or ""}'
+
+    __repr__ = __str__
+
+
+class JmAlbumCommentPage(JmBaseEntity, IndexedEntity):
+    """
+    本子评论分页。
+
+    total 是全部分页的主评论总数；comment_count 是当前页主评论
+    加所有层级回评的数量；len(page) 只统计当前页主评论。
+    page_number 是当前页码；raw_data 始终为 AdvancedDict。
+    """
+
+    def __init__(self,
+                 content: List[JmAlbumComment],
+                 total: Optional[int] = None,
+                 raw_html: Optional[str] = None,
+                 raw_data=None,
+                 *,
+                 page_number: Optional[int] = None,
+                 ):
+        self.content = content
+        self.total = total
+        self.page_number = page_number
+        self.raw_html = raw_html
+        self.raw_data = AdvancedDict.wrap(raw_data or {})
+
+    @property
+    def page_size(self) -> int:
+        return 10
+
+    @property
+    def page_count(self) -> Optional[int]:
+        if self.total is None:
+            return None
+
+        return (self.total + self.page_size - 1) // self.page_size
+
+    @property
+    def comment_count(self) -> int:
+        def count_comment(comment):
+            return 1 + sum(count_comment(reply) for reply in comment.replies)
+
+        return sum(count_comment(comment) for comment in self.content)
+
+    def __len__(self):
+        return len(self.content)
+
+    def getindex(self, index: int) -> JmAlbumComment:
+        return self.content[index]
+
+    @classmethod
+    def is_page(cls):
+        return True
+
+
 class JmSearchPage(JmPageContent):
 
     @property
@@ -665,13 +777,13 @@ class JmSearchPage(JmPageContent):
         return getattr(self, 'album')
 
     @classmethod
-    def wrap_single_album(cls, album: JmAlbumDetail) -> 'JmSearchPage':
+    def wrap_single_album(cls, album: JmAlbumDetail, page_number: Optional[int] = None) -> 'JmSearchPage':
         page = JmSearchPage([(
             album.album_id, {
-                'name': album.name,
-                'tags': album.tags,
-            }
-        )], 1)
+            'name': album.name,
+            'tags': album.tags,
+        }
+        )], 1, page_number)
         setattr(page, 'album', album)
         return page
 
@@ -681,14 +793,15 @@ JmCategoryPage = JmSearchPage
 
 class JmFavoritePage(JmPageContent):
 
-    def __init__(self, content, folder_list, total):
+    def __init__(self, content, folder_list, total, page_number: Optional[int] = None):
         """
 
         :param content: 收藏夹一页数据
         :param folder_list: 所有的收藏夹的信息
         :param total: 收藏夹的收藏总数
+        :param page_number: 当前页码
         """
-        super().__init__(content, total)
+        super().__init__(content, total, page_number)
         self.folder_list = folder_list
 
     @property
@@ -702,3 +815,6 @@ class JmFavoritePage(JmPageContent):
         for folder_info in self.folder_list:
             fid, fname = folder_info['FID'], folder_info['name']
             yield fid, fname
+
+
+DetailType = TypeVar('DetailType', bound='DetailEntity')

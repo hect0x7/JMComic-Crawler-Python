@@ -1,4 +1,8 @@
 # 该文件存放jmcomic的异常机制设计和实现
+from __future__ import annotations
+
+from typing import NoReturn
+
 from .jm_entity import *
 
 
@@ -59,6 +63,28 @@ class MissingAlbumPhotoException(ResponseUnexpectedException):
 class RequestRetryAllFailException(JmcomicException):
     description = '请求重试全部失败异常'
 
+    @property
+    def errors(self) -> list:
+        """返回每次请求失败的记录，其中 error 为原始异常对象。"""
+        return self.context.get(ExceptionTool.CONTEXT_KEY_RETRY_ERRORS, [])
+
+    def __str__(self):
+        if not self.errors:
+            return super().__str__()
+
+        details = []
+        for index, item in enumerate(self.errors, 1):
+            error = item['error']
+            location = item.get('url') or item.get('domain') or '未知地址'
+            retry = item.get('retry')
+            retry_text = '' if retry is None else f', retry={retry}'
+            details.append(
+                f'  {index}. {location}{retry_text}: '
+                f'{type(error).__name__}: {error}'
+            )
+
+        return f'{super().__str__()}\n失败详情:\n' + '\n'.join(details)
+
 
 class PartialDownloadFailedException(JmcomicException):
     description = '部分章节或图片下载失败异常'
@@ -66,6 +92,7 @@ class PartialDownloadFailedException(JmcomicException):
     @property
     def downloader(self):
         return self.from_context(ExceptionTool.CONTEXT_KEY_DOWNLOADER)
+
 
 class ExceptionTool:
     """
@@ -79,13 +106,14 @@ class ExceptionTool:
     CONTEXT_KEY_RE_PATTERN = 'pattern'
     CONTEXT_KEY_MISSING_JM_ID = 'missing_jm_id'
     CONTEXT_KEY_DOWNLOADER = 'downloader'
+    CONTEXT_KEY_RETRY_ERRORS = 'retry_errors'
 
     @classmethod
     def raises(cls,
                msg: str,
-               context: dict = None,
+               context: dict | None = None,
                etype: Optional[Type[Exception]] = None,
-               ):
+               ) -> NoReturn:
         """
         抛出异常
 
@@ -112,7 +140,13 @@ class ExceptionTool:
                      msg: str,
                      html: str,
                      pattern: Pattern,
-                     ):
+                     ) -> NoReturn:
+        # 当 flag 开启时，将匹配失败的响应文本持久化到文件，方便debug
+        if JmModuleConfig.FLAG_DUMP_HTML_ON_REGEX_ERROR:
+            dump_path = cls.dump_html_to_file(html, msg)
+            if dump_path is not None:
+                msg += f'\n已将响应文本持久化到文件: [{dump_path}]'
+
         cls.raises(
             msg,
             {
@@ -127,7 +161,7 @@ class ExceptionTool:
                     msg: str,
                     resp,
                     etype=ResponseUnexpectedException
-                    ):
+                    ) -> NoReturn:
         cls.raises(
             msg, {
                 cls.CONTEXT_KEY_RESP: resp
@@ -139,7 +173,7 @@ class ExceptionTool:
     def raise_missing(cls,
                       resp,
                       jmid: str,
-                      ):
+                      ) -> NoReturn:
         """
         抛出本子/章节的异常
         :param resp: 响应对象
@@ -190,3 +224,36 @@ class ExceptionTool:
         for accept_type, listener in registry.items():
             if isinstance(e, accept_type):
                 listener(e)
+
+    @classmethod
+    def dump_html_to_file(cls, html: str, msg: str) -> Optional[str]:
+        """
+        将响应文本持久化到本地工作目录下的文件，方便debug。
+        文件名包含时间戳，便于区分多次调试的结果。
+
+        :param html: 需要持久化的响应文本
+        :param msg: 异常消息（用于写入文件头部，提供上下文）
+        :return: 文件路径，如果写入失败则返回 None
+        """
+        import os
+        from datetime import datetime
+
+        try:
+            dump_dir = os.path.join(os.getcwd(), 'jmcomic_debug')
+            os.makedirs(dump_dir, exist_ok=True)
+
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+            filename = f'regex_error_{timestamp}.html'
+            filepath = os.path.join(dump_dir, filename)
+
+            with open(filepath, 'w', encoding='utf-8') as f:
+                # 写入异常上下文信息作为文件头部注释
+                f.write(f'<!-- jmcomic debug dump -->\n')
+                f.write(f'<!-- 时间: {datetime.now().isoformat()} -->\n')
+                f.write(f'<!-- 异常信息: {msg} -->\n')
+                f.write(f'<!-- 响应文本长度: {len(html)} -->\n\n')
+                f.write(html)
+
+            return filepath
+        except Exception:
+            return None

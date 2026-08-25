@@ -8,4 +8,6 @@
       - JmPhotoDetail
       - JmImageDetail
       - JmPageContent
+      - JmAlbumComment
+      - JmAlbumCommentPage
       - JmSearchPage
