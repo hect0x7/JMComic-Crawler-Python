@@ -251,7 +251,7 @@ Please check the documentation homepage → [jmcomic.readthedocs.io (Chinese lan
 
 * **Python 3.14** is recommended. CI currently only covers Python 3.10 and later.
   > [!NOTE]
-  > Python 3.9 and earlier versions reached their End Of Life (EOL) in 2025. You may encounter third-party library incompatibilities at any time if you use version 3.9 or below. Python 3.9 remains install-compatible, but is no longer included in CI.
+  > Python 3.9 and earlier versions are no longer officially supported (EOL). You may encounter third-party library incompatibilities at any time if you use version 3.9 or below. Python 3.9 remains install-compatible, but is no longer included in CI.
 
 * Since this is a personal project, the documentation/examples may occasionally be out of sync. Please feel free to open an Issue for any clarifications.
 
