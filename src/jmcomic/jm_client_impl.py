@@ -59,6 +59,7 @@ class AbstractJmClient(
                            domain_index=0,
                            retry_count=0,
                            is_image=False,
+                           _retry_errors=None,
                            **kwargs,
                            ):
         """
@@ -83,8 +84,12 @@ class AbstractJmClient(
                                               **kwargs,
                                               )
 
+        if _retry_errors is None:
+            _retry_errors = []
+
         if domain_index >= len(self.domain_list):
-            return self.fallback(request, url, domain_index, retry_count, is_image, **kwargs)
+            return self.fallback(request, url, domain_index, retry_count, is_image,
+                                 retry_errors=_retry_errors, **kwargs)
 
         url_backup = url
 
@@ -120,11 +125,19 @@ class AbstractJmClient(
                 raise e
 
             self.before_retry(e, kwargs, retry_count, url)
+            _retry_errors.append({
+                'domain': self.domain_list[domain_index] if url_backup.startswith('/') else None,
+                'url': url,
+                'retry': retry_count,
+                'error': e,
+            })
 
         if retry_count < self.retry_times:
-            return self.request_with_retry(request, url_backup, domain_index, retry_count + 1, is_image, **kwargs)
+            return self.request_with_retry(request, url_backup, domain_index, retry_count + 1, is_image,
+                                           _retry_errors, **kwargs)
         else:
-            return self.request_with_retry(request, url_backup, domain_index + 1, 0, is_image, **kwargs)
+            return self.request_with_retry(request, url_backup, domain_index + 1, 0, is_image,
+                                           _retry_errors, **kwargs)
 
     # noinspection PyMethodMayBeStatic
     def raise_if_resp_should_retry(self, resp, is_image):
@@ -212,10 +225,14 @@ class AbstractJmClient(
         self.domain_list = domain_list
 
     # noinspection PyUnusedLocal
-    def fallback(self, request, url, domain_index, retry_count, is_image, **kwargs):
+    def fallback(self, request, url, domain_index, retry_count, is_image, retry_errors=None, **kwargs):
         msg = f"请求重试全部失败: [{url}], {self.domain_list}"
         jm_log('req.fallback', msg)
-        ExceptionTool.raises(msg, {}, RequestRetryAllFailException)
+        ExceptionTool.raises(
+            msg,
+            {ExceptionTool.CONTEXT_KEY_RETRY_ERRORS: retry_errors or []},
+            RequestRetryAllFailException,
+        )
 
     # noinspection PyMethodMayBeStatic
     def append_params_to_url(self, url, params):

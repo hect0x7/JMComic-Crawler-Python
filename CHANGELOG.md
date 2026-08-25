@@ -5,6 +5,19 @@
 条目分类参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [2.7.5] - 2026-08-25
+
+### Summary
+
+本次更新修复网页端收藏夹总数误解析，并同步禁漫 APP 2.1.2 的移动端版本号。
+
+### Fixed
+- 修复收藏夹页面改版后，总数正则优先命中 CSS 尺寸、导致 `JmHtmlClient.favorite_folder().total` 错误返回 `50` 的问题。
+
+### Changed
+- 更新禁漫移动端版本号至 `2.1.2`。
+- `RequestRetryAllFailException` 现在会保留并输出各域名、各次重试的原始异常，便于定位真实失败原因。
+
 ## [2.7.4] - 2026-08-09
 
 ### Summary

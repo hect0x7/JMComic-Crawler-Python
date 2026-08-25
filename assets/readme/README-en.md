@@ -63,7 +63,7 @@ In addition to downloading, other JM interfaces are also implemented on demand. 
 ## Installation Guide
 
 > ⚠ If you have not installed Python, you must install Python before executing the following steps. [Download from Python Official Site](https://www.python.org/downloads/)
-> **Version 3.12+ is recommended.**
+> **Python 3.14 is recommended.**
 
 * Install via official pip source (recommended, the update command is identical)
 
@@ -249,8 +249,9 @@ Please check the documentation homepage → [jmcomic.readthedocs.io (Chinese lan
 
 ## Prerequisites
 
-* Version **3.12+** is recommended, with a minimum compatible version of 3.9.
-  > Note: Python 3.9 and earlier versions reached their End Of Life (EOL) in 2025. You may encounter third-party library incompatibilities at any time if you use version 3.9 or below.
+* **Python 3.14** is recommended. CI currently only covers Python 3.10 and later.
+  > [!NOTE]
+  > Python 3.9 and earlier versions are no longer officially supported (EOL). You may encounter third-party library incompatibilities at any time if you use version 3.9 or below. Python 3.9 remains install-compatible, but is no longer included in CI.
 
 * Since this is a personal project, the documentation/examples may occasionally be out of sync. Please feel free to open an Issue for any clarifications.
 

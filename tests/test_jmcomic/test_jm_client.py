@@ -427,6 +427,25 @@ class Test_Client(JmTestConfigurable):
         self.assertEqual(page[1].user_id, '201')
         self.assertEqual(page[1].album_id, '301')
 
+    def test_html_favorite_total_uses_labeled_count(self):
+        for label, expected_total in [('總數', 6), ('总数', 12)]:
+            with self.subTest(label=label):
+                html = f'''
+                    <style>
+                        .modal {{ width : 50px; height: 50px; }}
+                        .modal-content {{ inset: 0 / auto 35px; }}
+                    </style>
+                    <div>{label} : {expected_total}\n / 600</div>
+                    <select class="user-select" name="movefolder-fid">
+                        <option value="0">全部</option>
+                    </select>
+                '''
+
+                page = JmPageTool.parse_html_to_favorite_page(html, page_number=1)
+
+                self.assertEqual(page.total, expected_total)
+                self.assertEqual(page.page_number, 1)
+
     def test_get_detail(self):
         client = self.client
 

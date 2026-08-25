@@ -653,7 +653,7 @@ class JmPageTool:
     )
 
     # 收藏夹的收藏总数
-    pattern_html_favorite_total = compile(r' : (\d+)[^/]*/\D*(\d+)')
+    pattern_html_favorite_total = compile(r'(?:總數|总数)\s*:\s*(\d+)\s*/\s*(\d+)')
 
     # 所有的收藏夹
     pattern_html_favorite_folder_list = [
