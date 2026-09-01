@@ -19,9 +19,12 @@ import jmcomic
 
 async def main():
     # 异步下载单个本子
-    album, downloader = await jmcomic.download_album_async('438696')
+    result = await jmcomic.download_album_async('438696')
+    album = result.detail
+    downloader = result.downloader
 
-    # 返回的 downloader 已释放网络连接和线程池，只用于读取下载结果
+    # 返回时该 Downloader 的网络 client 已关闭；如果传入共享 blocking
+    # 执行器，它仍由创建它的调用方管理
     print(downloader.download_failed_image)
     
     # 异步下载单章节
@@ -51,6 +54,8 @@ async def main():
 
 asyncio.run(main())
 ```
+
+异步下载的网络 I/O 仍由 event loop 和 Semaphore 控制；解密、PIL、写盘及同步 hook 使用标准线程池。每个 `JmAsyncDownloader` 仍独立创建并关闭自己的 client、session 和并发控制；需要显式复用线程池时，请参阅[复用下载 Runtime](16_shared_executors.md)。
 
 ## 3. 异步获取实体类，并发请求
 

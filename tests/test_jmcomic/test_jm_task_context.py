@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import threading
+import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from queue import Queue
@@ -8,7 +9,9 @@ from unittest.mock import patch
 
 from jmcomic import (
     BaseDownloader,
+    JmAsyncRuntime,
     DownloadManifest,
+    DownloadControl,
     Feature,
     JmAsyncDownloader,
     JmDownloader,
@@ -18,12 +21,17 @@ from jmcomic import (
     JM_TASK_CONTEXT,
     PhotoConcurrentFetcherProxy,
     PrettyFormatter,
+    JmSimpleRuntime,
+    JmSyncRuntime,
     bind_jm_task_context,
     default_jm_logging,
     download_album,
     download_batch,
     download_batch_async,
     download_photo_async,
+    get_current_control,
+    get_current_option,
+    get_jm_runtime,
     get_jm_task_context,
     jm_log,
     jm_task_context,
@@ -41,7 +49,202 @@ class ListHandler(logging.Handler):
         self.records.append(record)
 
 
+class ExecutorProbeDownloader(JmDownloader):
+
+    def __init__(self):
+        BaseDownloader.__init__(self, object())
+        self.work = lambda _item: None
+
+    def download_by_image_detail(self, image):
+        self.work(image)
+
+
+class PhotoDetails(list):
+
+    @staticmethod
+    def is_album():
+        return False
+
+
 class Test_Jm_Task_Context(unittest.TestCase):
+
+    def test_context_exposes_runtime_and_borrows_executor(self):
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            runtime = JmSyncRuntime(id_executor=executor)
+            with jm_task_context(task_id='job-42', runtime=runtime):
+                self.assertEqual(
+                    get_jm_task_context(),
+                    {'task_id': 'job-42', 'runtime': runtime},
+                )
+                raw_context = JM_TASK_CONTEXT.get()
+                self.assertEqual(raw_context['task_id'], 'job-42')
+                self.assertIs(raw_context['runtime'], runtime)
+                with self.assertRaises(TypeError):
+                    raw_context['mutable'] = True
+                self.assertIs(get_jm_runtime(), runtime)
+                with jm_task_context(jm_id='123'):
+                    self.assertEqual(
+                        get_jm_task_context(),
+                        {
+                            'task_id': 'job-42',
+                            'runtime': runtime,
+                            'jm_id': '123',
+                        },
+                    )
+
+                public_bound = executor.submit(bind_jm_task_context(
+                    lambda: (
+                        get_jm_task_context(),
+                        get_jm_runtime(),
+                    )
+                ))
+                self.assertEqual(
+                    public_bound.result(timeout=1),
+                    ({'task_id': 'job-42', 'runtime': runtime}, runtime),
+                )
+
+            self.assertEqual(executor.submit(lambda: 7).result(timeout=1), 7)
+
+    def test_option_is_public_and_propagated(self):
+        option = object()
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            with jm_task_context(option=option, task_id='job-42'):
+                self.assertEqual(
+                    get_jm_task_context(),
+                    {'task_id': 'job-42', 'option': option},
+                )
+                self.assertIs(get_current_option(), option)
+                future = executor.submit(bind_jm_task_context(get_current_option))
+
+            self.assertIs(future.result(timeout=1), option)
+
+        self.assertIsNone(get_current_option())
+
+    def test_none_option_runtime_and_nested_runtime_rules(self):
+        with jm_task_context(option=None, runtime=None, task_id='job-42'):
+            self.assertEqual(get_jm_task_context(), {'task_id': 'job-42'})
+            self.assertIsNone(get_current_option())
+            self.assertIsNone(get_jm_runtime())
+
+        outer = JmSyncRuntime(id_workers=1)
+        inner = JmSyncRuntime(id_workers=1)
+        try:
+            with jm_task_context(runtime=outer):
+                with jm_task_context(runtime=outer):
+                    self.assertIs(get_jm_runtime(), outer)
+                with self.assertRaisesRegex(RuntimeError, 'already active'):
+                    with jm_task_context(runtime=inner):
+                        self.fail('nested runtime must be rejected')
+        finally:
+            outer.close()
+            inner.close()
+
+        runtime = JmSyncRuntime(id_workers=1)
+        with jm_task_context(runtime=runtime):
+            pass
+        futures = runtime.multi_thread_launcher(
+            [1],
+            lambda item: item,
+            level='id',
+        )
+        self.assertEqual(1, futures[0].result())
+        runtime.close()
+        with self.assertRaisesRegex(RuntimeError, 'JmRuntime is closed'):
+            runtime.multi_thread_launcher(
+                [1],
+                lambda item: item,
+                level='id',
+            )
+
+    def test_runtime_configuration_is_explicit_and_validated(self):
+        with self.assertRaisesRegex(TypeError, 'runtime must be'):
+            with jm_task_context(runtime='metadata'):
+                self.fail('runtime must be a Runtime instance')
+
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            with self.assertRaisesRegex(ValueError, 'mutually exclusive'):
+                JmSyncRuntime(id_workers=1, id_executor=executor)
+            with self.assertRaisesRegex(ValueError, 'different executor'):
+                JmSyncRuntime(id_executor=executor, photo_executor=executor)
+            with self.assertRaisesRegex(ValueError, 'mutually exclusive'):
+                JmAsyncRuntime(blocking_workers=1, blocking_executor=executor)
+            with self.assertRaisesRegex(ValueError, 'mutually exclusive'):
+                JmSimpleRuntime(workers=1, executor=executor)
+
+        with self.assertRaisesRegex(ValueError, 'positive integer'):
+            JmSyncRuntime(photo_workers=0)
+        with self.assertRaisesRegex(ValueError, 'positive integer'):
+            JmAsyncRuntime(blocking_workers=True)
+        with self.assertRaisesRegex(ValueError, 'positive integer'):
+            JmSimpleRuntime(workers=0)
+
+    def test_sync_runtime_reuses_one_id_pool_across_batches(self):
+        worker_threads = []
+
+        def fake_download(jmid, _option, _downloader, **_kwargs):
+            worker_threads.append(threading.get_ident())
+            return str(jmid)
+
+        runtime = JmSyncRuntime(id_workers=1, photo_workers=1, image_workers=1)
+        try:
+            with jm_task_context(runtime=runtime):
+                self.assertEqual(
+                    {'1', '2'},
+                    set(download_batch(fake_download, ['1', '2'], option=object())),
+                )
+                self.assertEqual(
+                    {'3'},
+                    set(download_batch(fake_download, ['3'], option=object())),
+                )
+
+            self.assertEqual(1, len(set(worker_threads)))
+        finally:
+            runtime.close()
+
+    def test_sync_runtime_accepts_call_site_worker_defaults(self):
+        with ThreadPoolExecutor(max_workers=1) as id_executor:
+            runtime = JmSyncRuntime(id_executor=id_executor)
+            try:
+                with jm_task_context(runtime=runtime):
+                    photo_futures = runtime.multi_thread_launcher(
+                        [1, 2],
+                        lambda item: item * 2,
+                        level='photo',
+                        default_workers=2,
+                    )
+                    self.assertEqual(
+                        [future.result() for future in photo_futures],
+                        [2, 4],
+                    )
+                    image_futures = runtime.multi_thread_launcher(
+                        [1],
+                        lambda item: item + 1,
+                        level='image',
+                        default_workers=4,
+                    )
+                    self.assertEqual(
+                        [future.result() for future in image_futures],
+                        [2],
+                    )
+            finally:
+                runtime.close()
+
+            self.assertEqual(id_executor.submit(lambda: 5).result(timeout=1), 5)
+
+    def test_download_control_is_propagated_by_public_binder(self):
+        control = DownloadControl()
+
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            with jm_task_context(control=control):
+                future = executor.submit(bind_jm_task_context(get_current_control))
+
+            self.assertIs(future.result(timeout=1), control)
+            self.assertIsNone(executor.submit(get_current_control).result(timeout=1))
+
+        self.assertTrue(control.cancel('user requested'))
+        self.assertFalse(control.cancel('ignored'))
+        self.assertTrue(control.is_cancelled)
+        self.assertEqual(control.reason, 'user requested')
 
     def test_public_context_var_names_log_record_field(self):
         self.assertEqual('jm_task_context', JM_TASK_CONTEXT.name)
@@ -267,10 +470,17 @@ class Test_Jm_Task_Context(unittest.TestCase):
         )
         self.assertIsInstance(album_context.get('task_started_at'), float)
         self.assertIsInstance(photo_context.get('task_started_at'), float)
+        self.assertIsInstance(album_context['runtime'], JmSyncRuntime)
+        with self.assertRaisesRegex(RuntimeError, 'JmRuntime is closed'):
+            album_context['runtime'].executor('photo', 1)
+        with self.assertRaisesRegex(RuntimeError, 'JmRuntime is closed'):
+            photo_context['runtime'].executor('blocking', 1)
 
     def test_sync_result_duration_uses_task_context_and_finishes_after_downloader_exit(self):
         clock = {'now': 10.0}
         observed_contexts = []
+        observed_options = []
+        option = object()
 
         class Detail:
             duration = 99.0
@@ -292,18 +502,21 @@ class Test_Jm_Task_Context(unittest.TestCase):
                 self.begin_manifest(detail)
                 try:
                     observed_contexts.append(get_jm_task_context())
+                    observed_options.append(get_current_option())
                 finally:
                     self.finish_manifest(detail)
                 return detail
 
         with patch('jmcomic.api.perf_counter', side_effect=lambda: clock['now'], create=True):
-            result = download_album('123', option=object(), downloader=FakeDownloader)
+            result = download_album('123', option=option, downloader=FakeDownloader)
 
         self.assertEqual(10.0, observed_contexts[0].get('task_started_at'))
         self.assertEqual(10.0, result.manifest.duration)
         self.assertEqual(10.0, result.duration)
         self.assertEqual(99.0, result.detail.duration)
+        self.assertEqual([option], observed_options)
         self.assertEqual({}, get_jm_task_context())
+        self.assertIsNone(get_current_option())
 
     def test_async_result_duration_uses_task_context_and_finishes_after_downloader_exit(self):
         async def run_test():
@@ -497,9 +710,10 @@ class Test_Jm_Task_Context(unittest.TestCase):
         def fail(jmid, _option, _downloader, **_kwargs):
             raise ValueError(f'failed-{jmid}')
 
+        option = object()
         try:
             with jm_task_context(session_id='failed-session'):
-                result = download_batch(fail, ['404'], option=object())
+                result = download_batch(fail, ['404'], option=option)
         finally:
             jm_logger.handlers[:] = original_handlers
 
@@ -510,36 +724,52 @@ class Test_Jm_Task_Context(unittest.TestCase):
             if getattr(record, 'topic', None) == 'batch.failed'
         ]
         self.assertEqual(1, len(batch_failure_records))
+        log_context = batch_failure_records[0].jm_task_context
         self.assertEqual(
             {
                 'session_id': 'failed-session',
                 'download_type': 'fail',
                 'jm_id': '404',
             },
-            batch_failure_records[0].jm_task_context,
+            {
+                key: log_context[key]
+                for key in ('session_id', 'download_type', 'jm_id')
+            },
         )
+        self.assertIs(log_context['option'], option)
+        self.assertIsInstance(log_context['runtime'], JmSyncRuntime)
 
-    def test_sync_downloader_propagates_both_threading_branches(self):
+    def test_sync_downloader_uses_and_closes_temporary_simple_runtime(self):
         downloader = object.__new__(JmDownloader)
         BaseDownloader.__init__(downloader, object())
+        created = []
+
+        class ProbeRuntime(JmSimpleRuntime):
+
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                created.append(self)
 
         for count_batch in (3, 1):
             observed = Queue()
 
-            with jm_task_context(session_id=f'workers-{count_batch}'):
-                downloader.execute_on_condition(
-                    iter_objs=[1, 2, 3],
-                    apply=lambda _item: observed.put(get_jm_task_context()),
-                    count_batch=count_batch,
-                )
+            with patch('jmcomic.jm_downloader.JmSimpleRuntime', ProbeRuntime):
+                with jm_task_context(session_id=f'workers-{count_batch}'):
+                    downloader.execute_on_condition(
+                        iter_objs=[1, 2, 3],
+                        apply=lambda _item: observed.put(get_jm_task_context()),
+                        count_batch=count_batch,
+                    )
 
             contexts = [observed.get_nowait() for _ in range(3)]
             self.assertEqual(
-                [{
-                    'session_id': f'workers-{count_batch}',
-                }] * 3,
-                contexts,
+                [f'workers-{count_batch}'] * 3,
+                [context['session_id'] for context in contexts],
             )
+            self.assertTrue(all('runtime' not in context for context in contexts))
+            self.assertTrue(all('option' not in context for context in contexts))
+            with self.assertRaisesRegex(RuntimeError, 'JmRuntime is closed'):
+                created[-1].executor()
 
     def test_async_batch_and_decode_pool_propagate_context(self):
         async def run_test():
@@ -560,21 +790,23 @@ class Test_Jm_Task_Context(unittest.TestCase):
                     option=object(),
                 )
 
-            downloader = object.__new__(JmAsyncDownloader)
-            downloader._decode_pool = ThreadPoolExecutor(max_workers=1)
-            try:
+            with ThreadPoolExecutor(max_workers=1) as blocking_executor:
+                runtime = JmAsyncRuntime(blocking_executor=blocking_executor)
                 with jm_task_context(session_id='decode-pool'):
-                    executor_context = await downloader._run_in_decode_pool(
-                        get_jm_task_context
-                    )
+                    with jm_task_context(runtime=runtime):
+                        future = runtime.executor(
+                            'blocking',
+                            1,
+                        ).submit(
+                            bind_jm_task_context(get_jm_task_context),
+                        )
+                        executor_context = await asyncio.wrap_future(future)
 
                 loop = asyncio.get_running_loop()
                 leaked_context = await loop.run_in_executor(
-                    downloader._decode_pool,
+                    blocking_executor,
                     get_jm_task_context,
                 )
-            finally:
-                downloader.shutdown()
 
             return batch_result, executor_context, leaked_context
 
@@ -587,7 +819,8 @@ class Test_Jm_Task_Context(unittest.TestCase):
             },
             set(batch_result),
         )
-        self.assertEqual({'session_id': 'decode-pool'}, executor_context)
+        self.assertEqual('decode-pool', executor_context['session_id'])
+        self.assertIsInstance(executor_context['runtime'], JmAsyncRuntime)
         self.assertEqual({}, leaked_context)
 
     def test_photo_concurrent_proxy_propagates_context(self):
@@ -602,6 +835,56 @@ class Test_Jm_Task_Context(unittest.TestCase):
             self.assertEqual({'session_id': 'client-proxy'}, future.result())
         finally:
             proxy.executors.shutdown(wait=True)
+
+    def test_sync_runtime_executor_capacity_controls_image_concurrency(self):
+        downloader = ExecutorProbeDownloader()
+        lock = threading.Lock()
+        active = 0
+        maximum = 0
+
+        def limited_work(_item):
+            nonlocal active, maximum
+            with lock:
+                active += 1
+                maximum = max(maximum, active)
+            time.sleep(0.02)
+            with lock:
+                active -= 1
+
+        downloader.work = limited_work
+        downloader.do_filter = lambda details: list(details)
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            runtime = JmSyncRuntime(image_executor=executor)
+            with jm_task_context(runtime=runtime):
+                downloader.execute_on_condition(
+                    PhotoDetails(range(8)),
+                    downloader.download_by_image_detail,
+                    count_batch=8,
+                )
+            runtime.close()
+            self.assertEqual(executor.submit(lambda: 1).result(timeout=1), 1)
+
+        self.assertEqual(maximum, 2)
+
+    def test_async_runtime_borrows_shared_executor(self):
+        async def scenario():
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                runtime = JmAsyncRuntime(blocking_executor=executor)
+                with jm_task_context(session_id='async-runtime', runtime=runtime):
+                    future = runtime.executor(
+                        'blocking',
+                        1,
+                    ).submit(
+                        bind_jm_task_context(
+                            lambda: (8, get_jm_task_context()['session_id'])
+                        ),
+                    )
+                    value = await asyncio.wrap_future(future)
+
+                self.assertEqual(value, (8, 'async-runtime'))
+                self.assertEqual(executor.submit(lambda: 9).result(timeout=1), 9)
+
+        asyncio.run(scenario())
 
 
 if __name__ == '__main__':

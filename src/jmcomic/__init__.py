@@ -4,6 +4,8 @@
 
 __version__ = '2.7.5'
 
+from .jm_exception import DownloadCancelledException
+from .jm_runtime import *
 from .jm_task_context import *
 from .api import *
 from .jm_plugin import *

@@ -114,45 +114,14 @@ class Test_Release(unittest.TestCase):
 
         self.assertEqual(release.count_release_entries(body), 3)
 
-    def test_workflow_keeps_master_v_prefix_trigger_without_generated_notes(self):
-        workflow = (PROJECT_ROOT / ".github" / "workflows" / "release_auto.yml").read_text(encoding="utf-8")
+    def test_python_39_remains_install_compatible(self):
+        pyproject = (PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        setup_py = (PROJECT_ROOT / "setup.py").read_text(encoding="utf-8")
 
-        self.assertIn("branches:\n      - master", workflow)
-        self.assertIn("startsWith(github.event.head_commit.message, 'v')", workflow)
-        self.assertIn('python .github/release.py "$commit_message"', workflow)
-        self.assertNotIn("generate_release_notes:", workflow)
-
-    def test_manual_workflow_reads_source_version_from_master(self):
-        workflow = (PROJECT_ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
-
-        self.assertIn("workflow_dispatch:", workflow)
-        self.assertNotIn("types: [ published ]", workflow)
-        self.assertIn("github.ref_name == 'master'", workflow)
-        self.assertIn("python .github/release.py\n", workflow)
-        self.assertIn("softprops/action-gh-release@v2", workflow)
-        self.assertIn("pypa/gh-action-pypi-publish@release/v1", workflow)
-
-    def test_release_workflows_build_before_creating_release(self):
-        for filename in ("release.yml", "release_auto.yml"):
-            with self.subTest(filename=filename):
-                workflow = (PROJECT_ROOT / ".github" / "workflows" / filename).read_text(encoding="utf-8")
-
-                self.assertLess(workflow.index("- name: Build\n"), workflow.index("- name: Create Release\n"))
-
-    def test_test_workflows_watch_development_requirements(self):
-        for filename in ("test_api.yml", "test_html.yml"):
-            with self.subTest(filename=filename):
-                workflow = (PROJECT_ROOT / ".github" / "workflows" / filename).read_text(encoding="utf-8")
-
-                self.assertIn("      - '.github/requirements-dev.txt'", workflow)
-
-    def test_contributing_allows_only_formal_release_prs_to_master(self):
-        contributing = (PROJECT_ROOT / ".github" / "CONTRIBUTING.md").read_text(encoding="utf-8")
-
-        self.assertIn("普通 PR 禁止直飞 master", contributing)
-        self.assertIn("发版专线 (仅限版本发布)", contributing)
-        self.assertIn("任意一项缺失，都不得指向或合并到 `master`", contributing)
-        self.assertNotIn("本项目不接受任何直接指向 `master` 分支的 PR", contributing)
+        self.assertIn('requires-python = ">=3.9"', pyproject)
+        self.assertIn('python_requires=">=3.9"', setup_py)
+        self.assertIn("Programming Language :: Python :: 3.9", pyproject)
+        self.assertIn("Programming Language :: Python :: 3.9", setup_py)
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ from jmcomic.jm_async_client import AsyncJmApiClient
 from jmcomic.jm_async_downloader import JmAsyncDownloader
 from jmcomic.jm_client_interface import AsyncJmcomicClient
 import asyncio
+from unittest.mock import patch
 
 
 class Test_Async_Custom(JmAsyncTestConfigurable):
@@ -213,15 +214,23 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
             AsyncJmApiClient._has_setup_domain = old_setup_domain
 
     def test_async_downloader_cleanup_when_setup_fails(self):
-        """真实 AsyncSession 初始化失败时，downloader 应回收 client 和线程池"""
+        """真实会话初始化失败时，也要关闭 Downloader 自建线程池。"""
         old_auto_update = JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN
         old_require_cookies = JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES
         old_app_cookies = JmModuleConfig.APP_COOKIES
         old_updated_domains = JmModuleConfig.DOMAIN_API_UPDATED_LIST
         old_setup_domain = AsyncJmApiClient._has_setup_domain
 
+        class ProbeAsyncRuntime(JmAsyncRuntime):
+            instances = []
+
+            def __init__(self):
+                super().__init__(blocking_workers=1)
+                self.instances.append(self)
+
         loop = asyncio.new_event_loop()
         downloader = None
+        runtime = None
         try:
             JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = False
             JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES = True
@@ -241,14 +250,21 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
                 photo_concurrency=1,
                 decode_worker=1,
             )
-            with self.assertRaises(RequestRetryAllFailException):
-                loop.run_until_complete(downloader.__aenter__())
+            with patch(
+                    'jmcomic.jm_async_downloader.JmAsyncRuntime',
+                    ProbeAsyncRuntime,
+            ):
+                with self.assertRaises(RequestRetryAllFailException):
+                    loop.run_until_complete(downloader.__aenter__())
 
+            runtime = ProbeAsyncRuntime.instances[0]
             self.assertIsNone(downloader.client)
-            self.assertTrue(downloader._decode_pool._shutdown)
+            self.assertIsNone(get_jm_runtime())
+            with self.assertRaisesRegex(RuntimeError, 'JmRuntime is closed'):
+                runtime.executor('blocking', 1)
         finally:
-            if downloader is not None and not downloader._decode_pool._shutdown:
-                downloader.shutdown()
+            if runtime is not None:
+                runtime.close()
             loop.close()
             JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = old_auto_update
             JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES = old_require_cookies

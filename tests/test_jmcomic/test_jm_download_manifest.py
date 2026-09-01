@@ -59,7 +59,9 @@ class ContractOption:
         return os.path.join(self.base_dir, 'album', 'photo')
 
     def decide_image_filepath(self, image):
-        return os.path.join(self.decide_image_save_dir(image.from_photo), image.filename)
+        save_dir = self.decide_image_save_dir(image.from_photo)
+        os.makedirs(save_dir, exist_ok=True)
+        return os.path.join(save_dir, image.filename)
 
     def decide_download_cache(self, _image):
         return True
@@ -143,6 +145,10 @@ class ContractAsyncClient:
     async def check_photo(self, _photo):
         return None
 
+    async def get_jm_image(self, _url):
+        self.image_download_count += 1
+        return SimpleNamespace(content=b'image')
+
 
 class ContractAsyncDownloader(JmAsyncDownloader):
 
@@ -162,6 +168,53 @@ class ContractAsyncDownloader(JmAsyncDownloader):
 
 
 class Test_Download_Manifest(unittest.TestCase):
+
+    def test_current_sync_image_is_recorded_before_cancellation(self):
+        with TemporaryDirectory() as temp_dir:
+            album, photo, image_list = new_album_photo_images()
+            option = ContractOption(temp_dir)
+            downloader = ContractSyncDownloader(option, album, photo, image_list)
+            control = DownloadControl()
+            option.after_image_callback = lambda image: control.cancel('stop after image')
+
+            with jm_task_context(control=control):
+                with self.assertRaises(DownloadCancelledException):
+                    downloader.download_album(album.id)
+
+            image = image_list[0]
+            self.assertTrue(os.path.isfile(image.save_path))
+            self.assertEqual(
+                downloader.download_success_dict[album][photo],
+                [(image.save_path, image)],
+            )
+            self.assertEqual(downloader.download_failed_image, [])
+
+    def test_current_async_image_is_recorded_before_cancellation(self):
+        async def run_test(temp_dir):
+            album, photo, image_list = new_album_photo_images()
+            option = ContractOption(temp_dir)
+            downloader = ContractAsyncDownloader(option, album, photo, image_list)
+            control = DownloadControl()
+            option.after_image_callback = lambda image: control.cancel('stop after image')
+            os.makedirs(option.decide_image_save_dir(photo), exist_ok=True)
+
+            runtime = JmAsyncRuntime()
+            try:
+                with jm_task_context(control=control, runtime=runtime):
+                    with self.assertRaises(DownloadCancelledException):
+                        await downloader.download_album(album.id)
+            finally:
+                runtime.close()
+
+            image = image_list[0]
+            self.assertEqual(
+                downloader.download_success_dict[album][photo],
+                [(image.save_path, image)],
+            )
+            self.assertEqual(downloader.download_failed_image, [])
+
+        with TemporaryDirectory() as temp_dir:
+            asyncio.run(run_test(temp_dir))
 
     def test_downloadable_defaults(self):
         album, photo, image_list = new_album_photo_images()
@@ -1032,21 +1085,23 @@ class Test_Download_Manifest(unittest.TestCase):
                 f.write(b'cached')
 
             downloader = ContractAsyncDownloader(option, album, photo, image_list)
+            runtime = JmAsyncRuntime()
             try:
-                await downloader.download_album(album.id)
-
-                self.assertEqual(album.save_path, option.dir_rule.decide_album_root_dir(album))
-                self.assertEqual(photo.save_path, option.decide_image_save_dir(photo))
-                self.assertEqual(image.save_path, filepath)
-                self.assertIsInstance(album.duration, float)
-                self.assertIsInstance(photo.duration, float)
-                self.assertIsInstance(image.duration, float)
-                after_image_events = [event for event, _ in option.plugin_event_list if event == 'after_image']
-                self.assertEqual(after_image_events, ['after_image'])
-                self.assertEqual(downloader.download_success_dict[album][photo], [(filepath, image)])
-                self.assertEqual(downloader.manifest_dict[album].image_filepath_list, [filepath])
+                with jm_task_context(runtime=runtime):
+                    await downloader.download_album(album.id)
             finally:
-                downloader.shutdown()
+                runtime.close()
+
+            self.assertEqual(album.save_path, option.dir_rule.decide_album_root_dir(album))
+            self.assertEqual(photo.save_path, option.decide_image_save_dir(photo))
+            self.assertEqual(image.save_path, filepath)
+            self.assertIsInstance(album.duration, float)
+            self.assertIsInstance(photo.duration, float)
+            self.assertIsInstance(image.duration, float)
+            after_image_events = [event for event, _ in option.plugin_event_list if event == 'after_image']
+            self.assertEqual(after_image_events, ['after_image'])
+            self.assertEqual(downloader.download_success_dict[album][photo], [(filepath, image)])
+            self.assertEqual(downloader.manifest_dict[album].image_filepath_list, [filepath])
 
         with TemporaryDirectory() as temp_dir:
             asyncio.run(run_test(temp_dir))

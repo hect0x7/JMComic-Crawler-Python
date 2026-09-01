@@ -135,6 +135,7 @@ class JmcomicUI:
 
     def run(self, option):
         from .api import download_album, download_photo
+        from .jm_task_context import bind_jm_task_context
         from common import MultiTaskLauncher
 
         if len(self.album_id_list) == 0:
@@ -146,11 +147,11 @@ class JmcomicUI:
             launcher = MultiTaskLauncher()
 
             launcher.create_task(
-                target=download_album,
+                target=bind_jm_task_context(download_album),
                 args=(self.album_id_list, option)
             )
             launcher.create_task(
-                target=download_photo,
+                target=bind_jm_task_context(download_photo),
                 args=(self.photo_id_list, option)
             )
 

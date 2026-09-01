@@ -574,6 +574,62 @@ print('是否全部成功:', batch_result.all_succeeded)
 
 下载单个 ID 时，请求本子失败会直接抛出异常；如果只有部分章节或图片失败，会在任务结束后汇总抛出 `PartialDownloadFailedException`，此时不会返回 `DownloadResult`。批量下载则继续执行其他任务，并把失败项集中放进 `batch_result.failed`。
 
+### 取消下载
+
+下载开始后，可以从按钮、定时器或其他线程调用 `DownloadControl.cancel()` 请求停止。JMComic 收到请求后不会再开始下载新的章节和图片，但会先把当前正在处理的图片完整保存，避免留下损坏文件；随后下载会抛出 `DownloadCancelledException`，调用方可以据此提示用户任务已经取消。
+
+下面的同步示例启动一个下载线程，并在两秒后从主线程请求取消：
+
+```python
+from threading import Thread
+from time import sleep
+
+from jmcomic import DownloadCancelledException, DownloadControl, download_album, jm_task_context
+
+control = DownloadControl()
+
+def run_download():
+    try:
+        # ContextVar 不会自动进入用户创建的新线程，
+        # 因此 context 必须在实际调用下载的线程内建立。
+        with jm_task_context(control=control):
+            download_album('123')
+    except DownloadCancelledException as e:
+        print('取消原因:', e.reason)
+
+thread = Thread(target=run_download)
+thread.start()
+
+# GUI 按钮、请求处理器或其他线程调用
+sleep(2)
+control.cancel('用户取消')
+thread.join()
+```
+
+异步 API 使用完全相同的 `DownloadControl` 和 context。`asyncio.create_task()` 会自动复制当前 Context，因此 Task 会看到同一个 `control`。`DownloadControl` 的协作式取消路径不会调用 `asyncio.Task.cancel()`；如果要保留“当前图片完整写入后再停止”的保证，只调用 `control.cancel()`。如果调用方直接取消外层异步批量 Task，批量 API 会取消并等待其内部子 Task 完成清理，再透传 `CancelledError`；这条外部取消路径不保证当前图片完整写入。
+
+```python
+import asyncio
+
+from jmcomic import DownloadCancelledException, DownloadControl, download_album_async, jm_task_context
+
+async def main():
+    control = DownloadControl()
+    with jm_task_context(control=control):
+        task = asyncio.create_task(download_album_async('123'))
+
+    await asyncio.sleep(2)
+    control.cancel('用户取消')
+    try:
+        await task
+    except DownloadCancelledException as e:
+        print('取消原因:', e.reason)
+
+asyncio.run(main())
+```
+
+取消不会删除已经完整写入的图片。同步 HTTP 请求以及已经运行的解密或写盘不能被强制中断，因此取消会在当前不可中断操作完成或超时后生效。取消后不会执行整章、整本完成回调及 PDF/ZIP 等导出 Feature。
+
 ### 速查表
 
 | 你的需求 | 推荐写法 |
