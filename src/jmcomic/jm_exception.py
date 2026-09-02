@@ -98,7 +98,9 @@ class DownloadCancelledException(JmcomicException):
     description = '下载任务已取消'
 
     def __init__(self, msg='download cancelled', context=None):
-        """按 JMComic 异常的统一结构创建下载取消异常。"""
+        """
+        按 JMComic 异常的统一结构创建下载取消异常。
+        """
         msg = str(msg or 'download cancelled')
         context = dict(context or {})
         context.setdefault('reason', msg)

@@ -215,7 +215,7 @@ class Test_Jm_Runtime(unittest.TestCase):
         self.assertEqual(1, len(observed))
         self.assertIsInstance(observed[0], JmAsyncRuntime)
         with self.assertRaisesRegex(RuntimeError, 'JmRuntime is closed'):
-            observed[0].executor('blocking', 1)
+            observed[0].executor('decode', 1)
 
     def test_sync_batch_collects_failure_after_siblings_finish(self):
         completed = []

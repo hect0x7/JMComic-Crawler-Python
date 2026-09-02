@@ -270,3 +270,48 @@ asyncio.run(main())
 | `image.duration` | 处理这张图片花了多久，包含检查缓存、下载、解密和保存 |
 
 下载器可能同时处理多个章节或多张图片，所以把它们的耗时全部相加，不会得到本子的耗时，这是正常现象。同步下载中的这些字段含义相同。
+
+## 10. 异步解码池复用与性能调优 (Async Runtime)
+
+禁漫的图片下载后需要进行分块拼接、反混淆解密并存盘。异步下载时，网络请求由 `asyncio` 协程高效处理，而图片解码与写盘等阻塞操作则由后台线程池负责。
+
+默认情况下，每次调用 `download_album_async` 会自动管理解码池，任务结束后自动释放，通常不需要手动配置。
+
+自 `v2.7.6` 起，如果你在并发下载多个本子时希望控制解码并发数，或者希望复用外部线程池，可以使用 `JmAsyncRuntime`：
+
+```python
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from jmcomic import JmAsyncRuntime, download_album_async, jm_task_context, JTC
+
+
+async def main():
+    # 场景 1：指定解码并发线程数为 4
+    runtime = JmAsyncRuntime(decode_workers=4)
+    try:
+        with jm_task_context(runtime=runtime):
+            # 两个本子的图片统一使用这 4 个解码线程处理
+            await asyncio.gather(
+                download_album_async('123456'),
+                download_album_async('789012'),
+            )
+
+            # 下载过程中可以通过 JTC 查看当前生效的 Runtime
+            print('当前 Runtime:', JTC.get_runtime())
+    finally:
+        runtime.close()
+
+    # 场景 2：复用外部已有的线程池（生命周期由外部管理，JMComic 不会主动关闭它）
+    with ThreadPoolExecutor(max_workers=4) as my_pool:
+        runtime = JmAsyncRuntime(decode_executor=my_pool)
+        try:
+            with jm_task_context(runtime=runtime):
+                await download_album_async('123456')
+        finally:
+            runtime.close()
+
+
+asyncio.run(main())
+```
+
+关于 Runtime 与任务上下文的更多进阶机制（如同步三层拓扑、JTC 门面类、外部 Executor 生命周期），请参考 [复用下载 Runtime 与共享线程池](16_shared_executors.md)。

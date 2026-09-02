@@ -1,109 +1,160 @@
-# 复用下载 Runtime
+# 复用下载 Runtime 与共享线程池
 
-普通下载不需要手动创建 Runtime。同步顶层 API 使用临时 `JmSyncRuntime` 并在返回前显式关闭；裸同步 Downloader 没有 Runtime 时，每次局部调度使用一个临时 `JmSimpleRuntime`。只有当你希望多个下载调用复用同一组线程池，或想明确控制各层并发数时，才需要 `jm_task_context`：
+日常使用 JMComic 下载时，通常不需要手动配置 Runtime。顶层下载 API 会自动管理线程资源，并在任务结束后自动释放。
+
+自 `v2.7.6` 起，如果你需要在批量下载时控制并发数，或者希望复用已有程序中的线程池，可以通过 `JmSyncRuntime` 或 `JmAsyncRuntime` 进行定制。
+
+---
+
+## 1. 同步下载的分层并发机制
+
+同步下载漫画时，内部通常是分层调度的：
+
+```text
+本子层 (id_executor)       -> 同时下载几个本子 (Album)
+  └── 章节层 (photo_executor)  -> 每个本子同时下载几个章节 (Photo)
+        └── 图片层 (image_executor)  -> 每个章节同时下载几张图片 (Image)
+```
+
+因为外层任务（下载本子）需要等待内层任务（下载章节和图片）完成，所以这三层需要分别使用不同的线程池。如果三层混用同一个线程池，当外层任务占满线程时，内层任务可能无法获得线程执行，导致任务互相等待。
+
+`JmSyncRuntime` 负责集中配置和管理这三层的线程池。
+
+---
+
+## 2. 同步下载：使用 JmSyncRuntime
+
+### 场景 A：自定义各层并发数
+
+通过 `JmSyncRuntime`，可以分别设置每一层的并发线程数，并通过 `jm_task_context` 传给下载方法：
 
 ```python
 from jmcomic import JmSyncRuntime, download_album, jm_task_context
 
-
+# 1. 创建 Runtime，指定本子、章节和图片的并发数
 runtime = JmSyncRuntime(
-    id_workers=2,
-    photo_workers=3,
-    image_workers=8,
+    id_workers=2,       # 同时下载 2 个本子
+    photo_workers=3,    # 每个本子同时下载 3 个章节
+    image_workers=8,    # 每个章节同时下载 8 张图片
 )
+
 try:
+    # 2. 绑定到任务上下文并执行下载
     with jm_task_context(runtime=runtime):
-        download_album(['123', '456'])
+        download_album(['123456', '789012'])
 finally:
+    # 3. 释放 Runtime 创建的线程池
     runtime.close()
 ```
 
-这就是分层同步 Runtime 的完整公开用法。`JmSyncRuntime` 负责 `id`、`photo` 和 `image` 三层调度；任务上下文只传播 Runtime，不管理资源，创建 Runtime 的代码负责显式关闭它。
+如果某一层没有指定 `*_workers`，下载器会按 Option 里的默认配置建池。
 
-如果只需要直接调度一层独立任务，也可以使用 `JmSimpleRuntime(workers=...)` 或 `JmSimpleRuntime(executor=...)`。它的 `multi_thread_launcher()` 不接收 `level`。不要把同一个单池 Runtime 用于 album 的 photo/image 两层同步嵌套调度，否则外层 worker 等待内层 worker 时可能耗尽线程。
+### 场景 B：复用已有线程池
 
-## Runtime 默认容量从哪里来
-
-Runtime 本身不读取 Option，也不保存下载任务状态。它只管理 Executor 的配置、创建、调度和关闭。
-
-如果你没有给某一层配置 `*_workers`，真正发起调度的调用点会把已经解析好的默认值传给 Runtime：`photo` 和 `image` 使用 Option 中的 `download.threading.photo/image`，批量 ID 使用本次 ID 数量，异步阻塞池使用 Downloader 的 `decode_worker`。这样 Runtime 不需要反向依赖 Context 或 Option。
-
-你也可以直接使用公开的 `multi_thread_launcher()`，但普通下载通常不需要这样做。`wait_finish=True` 会等待所有 Future 完成；worker 异常保存在对应 Future 中，由需要结果的调用方通过 `future.result()` 读取：
-
-```python
-from jmcomic import JmSyncRuntime, jm_task_context
-
-
-runtime = JmSyncRuntime(id_workers=2)
-try:
-    with jm_task_context(runtime=runtime):
-        futures = runtime.multi_thread_launcher(
-            [123, 456],
-            str,
-            level='id',
-        )
-        print([future.result() for future in futures])
-finally:
-    runtime.close()
-```
-
-## 借用已有线程池
-
-如果应用已经管理自己的 `ThreadPoolExecutor`，可以把它交给 Runtime。Runtime 只借用外部 Executor，不会替你关闭：
+如果你的程序本身已经维护了 `ThreadPoolExecutor`，可以直接传给 `JmSyncRuntime` 复用：
 
 ```python
 from concurrent.futures import ThreadPoolExecutor
-
 from jmcomic import JmSyncRuntime, download_album, jm_task_context
 
+with ThreadPoolExecutor(max_workers=2) as id_pool, \
+     ThreadPoolExecutor(max_workers=3) as photo_pool, \
+     ThreadPoolExecutor(max_workers=8) as image_pool:
 
-with ThreadPoolExecutor(max_workers=2) as id_executor, \
-        ThreadPoolExecutor(max_workers=3) as photo_executor, \
-        ThreadPoolExecutor(max_workers=8) as image_executor:
     runtime = JmSyncRuntime(
-        id_executor=id_executor,
-        photo_executor=photo_executor,
-        image_executor=image_executor,
+        id_executor=id_pool,
+        photo_executor=photo_pool,
+        image_executor=image_pool,
     )
     try:
         with jm_task_context(runtime=runtime):
-            download_album(['123', '456'])
+            download_album(['123456', '789012'])
     finally:
         runtime.close()
 ```
 
-三个同步层级会互相等待，因此必须使用不同的 Executor。任务上下文需要在线程间传播，所以不支持 `ProcessPoolExecutor`。
+关于外部线程池的关闭：
+- **不影响外部线程池**：JMComic 遵循“谁创建、谁关闭”的原则，外部传入的线程池仍由外部上下文管理，`runtime.close()` 不会调用外部池的 `shutdown()`；
+- **状态注销与防泄漏**：`runtime.close()` 会将 Runtime 标记为已结束；如果部分层级使用了外部池、另一部分是内部自建的，它会自动关闭自建的那部分线程池，避免资源泄漏。
 
-## 异步下载
+---
 
-异步网络请求由 event loop 和 Semaphore 并发；图片解密、PIL、写盘和同步 hook 交给 `blocking` Executor：
+## 3. 异步下载：使用 JmAsyncRuntime
+
+异步下载与同步下载的并发分工不同：
+- **网络请求**：完全由 Python 的 `asyncio` 事件循环和协程处理，无需占用线程池；
+- **图片解密与处理**：禁漫的图片下载后需要进行分块拼接、反混淆解密和写盘，这部分属于 CPU 计算与文件写入，交给后台线程池处理。
+
+`JmAsyncRuntime` 负责管理这层解码线程池：
 
 ```python
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-
 from jmcomic import JmAsyncRuntime, download_album_async, jm_task_context
 
-
 async def main():
-    with ThreadPoolExecutor(max_workers=4) as blocking_executor:
-        runtime = JmAsyncRuntime(blocking_executor=blocking_executor)
+    # 方式 1：指定解码线程数（任务完成后 close 释放）
+    runtime = JmAsyncRuntime(decode_workers=4)
+    try:
+        with jm_task_context(runtime=runtime):
+            await asyncio.gather(
+                download_album_async('123456'),
+                download_album_async('789012'),
+            )
+    finally:
+        runtime.close()
+
+    # 方式 2：直接复用外部已有线程池
+    with ThreadPoolExecutor(max_workers=4) as my_decode_pool:
+        runtime = JmAsyncRuntime(decode_executor=my_decode_pool)
         try:
             with jm_task_context(runtime=runtime):
-                await download_album_async('123')
+                await download_album_async('123456')
         finally:
             runtime.close()
-
 
 asyncio.run(main())
 ```
 
-共享 `blocking` Executor 不会共享 Downloader、网络 Client、Session 或 Semaphore。每个顶层调用仍有自己的 Downloader 和 Manifest。
+---
 
-## Context 中保存什么
+## 4. 任务上下文统一门面：JTC
 
-项目只有一个 `JM_TASK_CONTEXT`。Runtime 和 Option 直接使用公开字段 `runtime`、`option` 保存，和 `download_type`、`jm_id` 以及调用方附加字段处于同一个 context mapping 中。`get_jm_task_context()` 返回包含所有字段的完整副本。
+在下载过程中，自定义插件（Plugin）、Feature、回调函数或主逻辑常常需要查询当前任务状态。
 
-可以直接从 context 副本读取 `runtime`、`option`，也可以使用便捷方法 `get_jm_runtime()`、`get_current_option()`。`bind_jm_task_context()` 会把完整上下文快照传播到工作线程。默认文本日志不会展开 Runtime 或 Option，但自定义日志处理器可以读取这两个公开字段。
+JMComic 提供了门面类 **`JTC` (Jm Task Context)**，方便统一读取上下文信息：
 
-嵌套上下文中的 `runtime=None` 和 `option=None` 表示继承父上下文。同步下载 API 只接受 `JmSyncRuntime`，异步 API 只接受 `JmAsyncRuntime`；同一任务作用域不能替换成另一个 Runtime。`JmSimpleRuntime` 用于独立的单层调度，不作为分层同步下载的共享 context Runtime。
+```python
+from jmcomic import JTC, jm_task_context, JmSyncRuntime, JmOption, DownloadControl
+
+runtime = JmSyncRuntime(id_workers=2)
+option = JmOption.default()
+control = DownloadControl()
+
+with jm_task_context(runtime=runtime, option=option, control=control, custom_tag='v1'):
+    # 1. 获取当前生效的 Runtime
+    cur_runtime = JTC.get_runtime()
+
+    # 2. 获取当前生效的 Option 配置
+    cur_option = JTC.get_option()
+
+    # 3. 获取当前的取消控制器
+    cur_control = JTC.get_control()
+
+    # 4. 获取完整任务上下文快照
+    ctx_dict = JTC.get_context()
+    print('自定义字段:', ctx_dict.get('custom_tag'))
+```
+
+在未进入 `jm_task_context` 的代码区域调用 `JTC.get_runtime()` 等方法，会安全返回 `None`。
+
+---
+
+## 5. 核心规则与速查
+
+| 概念 | 核心职责 | 推荐使用方式 |
+| :--- | :--- | :--- |
+| **`JmSyncRuntime`** | 统一管理同步的 `id`、`photo`、`image` 三层线程池 | 批量下载多本漫画且需控制并发时使用，通过 `try...finally: runtime.close()` 回收 |
+| **`JmAsyncRuntime`** | 统一管理异步中的 CPU 解密与文件写入池 (`decode`) | 多个异步任务并发、需要控制解密并发时使用 |
+| **`JTC`** | 任务上下文统一访问门面 | 随时读取 `JTC.get_runtime()` / `get_option()` / `get_control()` / `get_context()` |
+| **外部 Executor** | 复用已有线程池 | 传入 `*_executor` 参数；Runtime 不会代关，由调用方自行管理生命周期 |

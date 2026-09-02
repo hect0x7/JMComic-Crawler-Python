@@ -572,77 +572,112 @@ print('是否全部成功:', batch_result.all_succeeded)
 
 </details>
 
-下载单个 ID 时，请求本子失败会直接抛出异常；如果只有部分章节或图片失败，会在任务结束后汇总抛出 `PartialDownloadFailedException`，此时不会返回 `DownloadResult`。批量下载则继续执行其他任务，并把失败项集中放进 `batch_result.failed`。
+下载单个 ID 时，请求本子失败会直接抛出异常；如果只有部分章节或图片失败，会在任务结束后汇总抛出 `PartialDownloadFailedException`，此时不会返回 `DownloadResult`。
+
+批量下载（如传入 ID 列表）具备**自动容错机制**，单个本子下载失败不会中断其他任务，所有失败项会被完整收集在 `batch_result.failed` 字典中，键为本子 ID，值为对应的异常对象：
+
+```python
+from jmcomic import download_album
+
+result = download_album(['123456', '99999999'])  # 假设后者不存在
+
+print(f'全部成功? {result.all_succeeded}')  # False
+print(f'成功数量: {len(result)}, 失败数量: {len(result.failed)}')
+
+# 逐一排查失败项
+for aid, err in result.failed.items():
+    print(f'本子 [{aid}] 下载失败: {err}')
+```
+
+---
 
 ### 取消下载
 
-下载开始后，可以从按钮、定时器或其他线程调用 `DownloadControl.cancel()` 请求停止。JMComic 收到请求后不会再开始下载新的章节和图片，但会先把当前正在处理的图片完整保存，避免留下损坏文件；随后下载会抛出 `DownloadCancelledException`，调用方可以据此提示用户任务已经取消。
+自 `v2.7.6` 起，JMComic 新增了 `DownloadControl` 控制器。如果在 GUI 界面（如 PyQt/Tkinter）、Web 接口或后台脚本中需要支持中途停止下载，可以通过它实现优雅取消。
 
-下面的同步示例启动一个下载线程，并在两秒后从主线程请求取消：
+> [!NOTE]
+> `DownloadControl` 采用协作式退出设计：收到取消请求后，下载器不会再开始新的章节和图片下载；当前正在处理的那张图片会正常保存完毕后再退出，避免磁盘上留下损坏文件，随后抛出 `DownloadCancelledException`。
+
+#### 基本用法
+
+取消下载的逻辑分为三步：
+1. **创建控制器**：`control = DownloadControl()`；
+2. **绑定任务上下文**：使用 `with jm_task_context(control=control):` 包裹下载调用，将控制器传给当前下载任务；
+3. **请求停止**：在其他线程或协程中调用 `control.cancel('取消原因')`。
+
+#### 1. 同步下载取消示例
+
+如果下载运行在独立的子线程（例如 GUI 点击下载按钮后启动线程），可以在主线程或其他线程中调用 `control.cancel()`：
 
 ```python
 from threading import Thread
 from time import sleep
-
 from jmcomic import DownloadCancelledException, DownloadControl, download_album, jm_task_context
 
+# 1. 创建控制器
 control = DownloadControl()
 
 def run_download():
     try:
-        # ContextVar 不会自动进入用户创建的新线程，
-        # 因此 context 必须在实际调用下载的线程内建立。
+        # 2. 通过 jm_task_context 将 control 绑定给当前下载任务
+        # （由于任务上下文是与线程绑定的，请将 with 写在实际调用下载的线程内部）
         with jm_task_context(control=control):
-            download_album('123')
+            download_album('123456')
     except DownloadCancelledException as e:
-        print('取消原因:', e.reason)
+        print(f'下载已取消: {e.reason}')
 
-thread = Thread(target=run_download)
-thread.start()
+t = Thread(target=run_download)
+t.start()
 
-# GUI 按钮、请求处理器或其他线程调用
+# 模拟用户在界面上点击了取消按钮
 sleep(2)
-control.cancel('用户取消')
-thread.join()
+control.cancel('用户主动取消')
+t.join()
 ```
 
-异步 API 使用完全相同的 `DownloadControl` 和 context。`asyncio.create_task()` 会自动复制当前 Context，因此 Task 会看到同一个 `control`。`DownloadControl` 的协作式取消路径不会调用 `asyncio.Task.cancel()`；如果要保留“当前图片完整写入后再停止”的保证，只调用 `control.cancel()`。如果调用方直接取消外层异步批量 Task，批量 API 会取消并等待其内部子 Task 完成清理，再透传 `CancelledError`；这条外部取消路径不保证当前图片完整写入。
+#### 2. 异步下载取消示例
+
+异步调用的方式完全一致。在异步代码中，`asyncio.create_task` 会自动传播任务上下文，子任务会自动继承 `control`：
 
 ```python
 import asyncio
-
 from jmcomic import DownloadCancelledException, DownloadControl, download_album_async, jm_task_context
 
 async def main():
     control = DownloadControl()
+
+    # 绑定 control 并启动下载任务
     with jm_task_context(control=control):
-        task = asyncio.create_task(download_album_async('123'))
+        task = asyncio.create_task(download_album_async('123456'))
 
     await asyncio.sleep(2)
-    control.cancel('用户取消')
+    # 请求取消
+    control.cancel('任务超时取消')
+
     try:
         await task
     except DownloadCancelledException as e:
-        print('取消原因:', e.reason)
+        print(f'异步任务已取消: {e.reason}')
 
 asyncio.run(main())
 ```
 
-取消不会删除已经完整写入的图片。同步 HTTP 请求以及已经运行的解密或写盘不能被强制中断，因此取消会在当前不可中断操作完成或超时后生效。取消后不会执行整章、整本完成回调及 PDF/ZIP 等导出 Feature。
+取消生效后，已下载完成的图片会保留在本地；未完成的章节不会触发整章或整本完成回调，也不会执行 PDF/ZIP 等导出特性。
+
+---
 
 ### 速查表
 
-| 你的需求 | 推荐写法 |
-| --- | --- |
-| 查看本子或章节信息 | `result.detail` |
-| 查看本子或章节目录 | `result.detail.save_path` |
-| 查看单张图片路径和状态 | 遍历实体后读取 `image.save_path` 等字段 |
-| 查看图片或章节失败原因 | 捕获 `PartialDownloadFailedException` 后，读取 `e.downloader.download_failed_image` / `download_failed_photo`；列表元素为 `(实体, 异常)` |
-| 获取本次成功图片路径列表 | `result.manifest.image_filepath_list` |
-| 获取已登记的导出文件路径 | `result.manifest.get_export_filepath_list('后缀')` |
-| 查看单个 ID 下载的完整时间 | `result.duration` |
-| 定位本子、章节或图片的内部处理慢点 | 对应实体的 `duration` |
-| 检查批量下载失败项 | `batch_result.failed` |
+| 你的需求 | 推荐写法 | 说明 |
+| :--- | :--- | :--- |
+| 查看本子或章节信息 | `result.detail` | 访问实体类所有属性（标题、作者、标签等） |
+| 查看本子或章节目录 | `result.detail.save_path` | 获取下载保存的目标文件夹路径 |
+| 查看单张图片路径和状态 | 遍历实体读取 `image.save_path` | 获取具体图片文件路径 |
+| 获取本次成功图片路径清单 | `result.manifest.image_filepath_list` | 包含所有下载成功的图片绝对路径 |
+| 获取已登记的导出文件路径 | `result.manifest.get_export_filepath_list('zip')` | 获取导出插件生成的压缩包或 PDF 路径 |
+| 查看单个 ID 下载的完整时间 | `result.duration` | 秒数，顶层完整下载耗时 |
+| 检查批量下载失败项 | `batch_result.failed` | 字典结构：`{aid: error}` |
+| 获取当前任务上下文信息 | `JTC.get_runtime()` / `get_option()` / `get_control()` | 通过 `JTC` 统一门面快捷自省 |
 
 <details markdown="1">
 <summary>兼容旧版本的返回值解包写法</summary>

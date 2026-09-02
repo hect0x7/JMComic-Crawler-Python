@@ -272,7 +272,7 @@ async def download_album_async(jm_album_id,
 
     当 ``jm_album_id`` 是可迭代对象时使用批量 API。单个 ID 返回
     ``DownloadResult``；其中 Downloader 的网络 client 已关闭，阻塞工作也已
-    收敛。通过 ``jm_task_context(runtime=JmAsyncRuntime(...))`` 提供的 blocking
+    收敛。通过 ``jm_task_context(runtime=JmAsyncRuntime(...))`` 提供的 decode
     执行器由调用方负责关闭。
 
     ``check_exception`` 只对单个 ID 生效。批量场景应检查
@@ -323,7 +323,7 @@ async def download_photo_async(jm_photo_id,
     """异步下载一个章节。
 
     返回的 Downloader 已关闭网络 client，阻塞工作也已收敛。通过
-    ``jm_task_context(runtime=JmAsyncRuntime(...))`` 提供的 blocking 执行器由调用方负责关闭。
+    ``jm_task_context(runtime=JmAsyncRuntime(...))`` 提供的 decode 执行器由调用方负责关闭。
 
     ``check_exception`` 只对单个 ID 生效。批量场景应检查
     ``BatchResult.failed``，或按需封装 ``download_batch_async``。

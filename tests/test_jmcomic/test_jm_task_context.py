@@ -13,6 +13,7 @@ from jmcomic import (
     DownloadManifest,
     DownloadControl,
     Feature,
+    JTC,
     JmAsyncDownloader,
     JmDownloader,
     JmModuleConfig,
@@ -167,14 +168,14 @@ class Test_Jm_Task_Context(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'different executor'):
                 JmSyncRuntime(id_executor=executor, photo_executor=executor)
             with self.assertRaisesRegex(ValueError, 'mutually exclusive'):
-                JmAsyncRuntime(blocking_workers=1, blocking_executor=executor)
+                JmAsyncRuntime(decode_workers=1, decode_executor=executor)
             with self.assertRaisesRegex(ValueError, 'mutually exclusive'):
                 JmSimpleRuntime(workers=1, executor=executor)
 
         with self.assertRaisesRegex(ValueError, 'positive integer'):
             JmSyncRuntime(photo_workers=0)
         with self.assertRaisesRegex(ValueError, 'positive integer'):
-            JmAsyncRuntime(blocking_workers=True)
+            JmAsyncRuntime(decode_workers=True)
         with self.assertRaisesRegex(ValueError, 'positive integer'):
             JmSimpleRuntime(workers=0)
 
@@ -474,7 +475,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'JmRuntime is closed'):
             album_context['runtime'].executor('photo', 1)
         with self.assertRaisesRegex(RuntimeError, 'JmRuntime is closed'):
-            photo_context['runtime'].executor('blocking', 1)
+            photo_context['runtime'].executor('decode', 1)
 
     def test_sync_result_duration_uses_task_context_and_finishes_after_downloader_exit(self):
         clock = {'now': 10.0}
@@ -790,12 +791,12 @@ class Test_Jm_Task_Context(unittest.TestCase):
                     option=object(),
                 )
 
-            with ThreadPoolExecutor(max_workers=1) as blocking_executor:
-                runtime = JmAsyncRuntime(blocking_executor=blocking_executor)
+            with ThreadPoolExecutor(max_workers=1) as decode_executor:
+                runtime = JmAsyncRuntime(decode_executor=decode_executor)
                 with jm_task_context(session_id='decode-pool'):
                     with jm_task_context(runtime=runtime):
                         future = runtime.executor(
-                            'blocking',
+                            'decode',
                             1,
                         ).submit(
                             bind_jm_task_context(get_jm_task_context),
@@ -804,7 +805,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
 
                 loop = asyncio.get_running_loop()
                 leaked_context = await loop.run_in_executor(
-                    blocking_executor,
+                    decode_executor,
                     get_jm_task_context,
                 )
 
@@ -869,10 +870,10 @@ class Test_Jm_Task_Context(unittest.TestCase):
     def test_async_runtime_borrows_shared_executor(self):
         async def scenario():
             with ThreadPoolExecutor(max_workers=1) as executor:
-                runtime = JmAsyncRuntime(blocking_executor=executor)
+                runtime = JmAsyncRuntime(decode_executor=executor)
                 with jm_task_context(session_id='async-runtime', runtime=runtime):
                     future = runtime.executor(
-                        'blocking',
+                        'decode',
                         1,
                     ).submit(
                         bind_jm_task_context(
@@ -885,6 +886,35 @@ class Test_Jm_Task_Context(unittest.TestCase):
                 self.assertEqual(executor.submit(lambda: 9).result(timeout=1), 9)
 
         asyncio.run(scenario())
+
+    def test_jtc_facade_getters(self):
+        # 根作用域无状态
+        self.assertIsNone(JTC.get_runtime())
+        self.assertIsNone(JTC.get_option())
+        self.assertIsNone(JTC.get_control())
+        self.assertEqual(JTC.get_context(), {})
+
+        runtime = JmSyncRuntime()
+        option = object()
+        control = DownloadControl()
+
+        try:
+            with jm_task_context(runtime=runtime, option=option, control=control, custom_field='val'):
+                self.assertIs(JTC.get_runtime(), runtime)
+                self.assertIs(JTC.get_option(), option)
+                self.assertIs(JTC.get_control(), control)
+                ctx = JTC.get_context()
+                self.assertIs(ctx['runtime'], runtime)
+                self.assertIs(ctx['option'], option)
+                self.assertIs(ctx['control'], control)
+                self.assertEqual(ctx['custom_field'], 'val')
+        finally:
+            runtime.close()
+
+        # 退出作用域后恢复
+        self.assertIsNone(JTC.get_runtime())
+        self.assertIsNone(JTC.get_option())
+        self.assertIsNone(JTC.get_control())
 
 
 if __name__ == '__main__':

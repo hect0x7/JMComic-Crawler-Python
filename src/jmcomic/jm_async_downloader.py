@@ -94,7 +94,7 @@ class JmAsyncDownloader(BaseDownloader):
                 'runtime=JmAsyncRuntime(...))'
             )
         worker = bind_jm_task_context(func)
-        executor = runtime.executor('blocking', self._decode_worker)
+        executor = runtime.executor('decode', self._decode_worker)
         future = executor.submit(worker, *args)
         waiter = asyncio.wrap_future(future)
         try:

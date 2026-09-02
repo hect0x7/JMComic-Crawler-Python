@@ -225,7 +225,7 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
             instances = []
 
             def __init__(self):
-                super().__init__(blocking_workers=1)
+                super().__init__(decode_workers=1)
                 self.instances.append(self)
 
         loop = asyncio.new_event_loop()
@@ -261,7 +261,7 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
             self.assertIsNone(downloader.client)
             self.assertIsNone(get_jm_runtime())
             with self.assertRaisesRegex(RuntimeError, 'JmRuntime is closed'):
-                runtime.executor('blocking', 1)
+                runtime.executor('decode', 1)
         finally:
             if runtime is not None:
                 runtime.close()

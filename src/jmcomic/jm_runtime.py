@@ -51,7 +51,9 @@ def normalize_jm_executor_config(
 
 
 class JmRuntime:
-    """轻量 Runtime：管理 Executor 的配置、创建、调度和关闭。"""
+    """
+    轻量 Runtime：管理 Executor 的配置、创建、调度和关闭。
+    """
 
     _default_level = None
 
@@ -76,7 +78,9 @@ class JmRuntime:
             level: Optional[str] = None,
             default_workers: Optional[int] = None,
     ) -> Executor:
-        """返回指定层级的 Executor；未配置时按调用点给出的默认并发数创建。"""
+        """
+        返回指定层级的 Executor；未配置时按调用点给出的默认并发数创建。
+        """
         if level is None:
             level = self._default_level
         if level is None:
@@ -126,7 +130,9 @@ class JmRuntime:
             level: Optional[str] = None,
             default_workers: Optional[int] = None,
     ):
-        """使用指定层级的 Executor 批量提交任务，并按需等待完成。"""
+        """
+        使用指定层级的 Executor 批量提交任务，并按需等待完成。
+        """
         executor = self.executor(level, default_workers)
         futures = []
 
@@ -145,7 +151,9 @@ class JmRuntime:
         return futures
 
     def close(self) -> None:
-        """关闭 Runtime 自建的 Executor；调用方传入的 Executor 保持可用。"""
+        """
+        关闭 Runtime 自建的 Executor；调用方传入的 Executor 保持可用。
+        """
         with self._lock:
             if self._closed:
                 return
@@ -158,7 +166,9 @@ class JmRuntime:
 
 
 class JmSimpleRuntime(JmRuntime):
-    """单 Executor Runtime：用于一次同步下载中的局部并发。"""
+    """
+    单 Executor Runtime：用于一次同步下载中的局部并发。
+    """
 
     _default_level = 'default'
 
@@ -183,7 +193,9 @@ class JmSimpleRuntime(JmRuntime):
 
 
 class JmSyncRuntime(JmRuntime):
-    """同步下载 Runtime：分别管理 id、photo、image 三层 Executor。"""
+    """
+    同步下载 Runtime：分别管理 id、photo、image 三层 Executor。
+    """
 
     def __init__(
             self,
@@ -219,18 +231,20 @@ class JmSyncRuntime(JmRuntime):
 
 
 class JmAsyncRuntime(JmRuntime):
-    """异步下载 Runtime：管理解密、图片处理和同步 hook 的 blocking Executor。"""
+    """
+    异步下载 Runtime：管理图片解密、处理和同步 hook 的 decode Executor。
+    """
 
     def __init__(
             self,
             *,
-            blocking_workers: Optional[int] = None,
-            blocking_executor: Optional[Executor] = None,
+            decode_workers: Optional[int] = None,
+            decode_executor: Optional[Executor] = None,
     ):
         super().__init__(
             configs={
-                'blocking': normalize_jm_executor_config(
-                    'blocking', blocking_workers, blocking_executor
+                'decode': normalize_jm_executor_config(
+                    'decode', decode_workers, decode_executor
                 ),
             },
         )

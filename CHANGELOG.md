@@ -8,8 +8,9 @@
 ## [Unreleased]
 
 ### Added
-- 新增 `JmSimpleRuntime`、`JmSyncRuntime` 与 `JmAsyncRuntime`；裸同步 Downloader 的局部调度使用单池 Runtime，顶层同步 API 或自定义同步调度可复用 `id/photo/image` 三层线程池，异步下载可复用 `blocking` 线程池。
+- 新增 `JmSimpleRuntime`、`JmSyncRuntime` 与 `JmAsyncRuntime`；裸同步 Downloader 的局部调度使用单池 Runtime，顶层同步 API 或自定义同步调度可复用 `id/photo/image` 三层线程池，异步下载可复用 `decode` 线程池。
 - 新增 `DownloadControl` 和 `DownloadCancelledException`，支持通过任务上下文协作式取消同步与异步下载。
+- 新增 `JTC` (Jm Task Context) 门面类，统一提供上下文、Runtime、Option 及取消控制器的快捷读取方法。
 
 ### Changed
 - Python 3.9 保留安装兼容，但不再纳入 CI。
