@@ -282,6 +282,7 @@ class BaseDownloader(DownloadCallback):
         self.raise_if_cancelled()
 
     def after_image(self, image: JmImageDetail, img_save_path):
+        cancellation_error = None
         try:
             self.raise_if_cancelled()
             super().after_image(image, img_save_path)
@@ -290,11 +291,15 @@ class BaseDownloader(DownloadCallback):
                 image=image,
                 downloader=self,
             )
-        finally:
-            # 图片已经保存或命中缓存；取消时也登记，正常完成时保留插件更新后的路径。
-            photo = image.from_photo
-            album = photo.from_album
-            self.download_success_dict.get(album).get(photo).append((image.save_path, image))
+        except DownloadCancelledException as error:
+            cancellation_error = error
+
+        # 正常完成或取消时登记；普通插件异常直接向外传播，不进入成功清单。
+        photo = image.from_photo
+        album = photo.from_album
+        self.download_success_dict.get(album).get(photo).append((image.save_path, image))
+        if cancellation_error is not None:
+            raise cancellation_error
         self.raise_if_cancelled()
 
     def begin_manifest(self, detail: DetailEntity) -> DownloadManifest:

@@ -169,6 +169,73 @@ class ContractAsyncDownloader(JmAsyncDownloader):
 
 class Test_Download_Manifest(unittest.TestCase):
 
+    def test_after_image_error_does_not_register_sync_success(self):
+        with TemporaryDirectory() as temp_dir:
+            album, photo, images = new_album_photo_images()
+            option = ContractOption(temp_dir)
+            downloader = ContractSyncDownloader(option, album, photo, images)
+            error = ValueError('image plugin failed')
+
+            def fail(_image):
+                raise error
+
+            option.after_image_callback = fail
+            with self.assertRaises(ValueError) as caught:
+                downloader.download_album(album.id)
+
+            self.assertIs(caught.exception, error)
+            self.assertTrue(os.path.isfile(images[0].save_path))
+            self.assertEqual(downloader.download_success_dict[album][photo], [])
+            self.assertEqual(downloader.download_failed_image, [(images[0], error)])
+            self.assertEqual(downloader.manifest_dict[album].image_filepath_list, [])
+
+    def test_after_image_error_does_not_register_async_success(self):
+        async def run_test(temp_dir):
+            album, photo, images = new_album_photo_images()
+            option = ContractOption(temp_dir)
+            downloader = ContractAsyncDownloader(option, album, photo, images)
+            error = ValueError('image plugin failed')
+
+            def fail(_image):
+                raise error
+
+            option.after_image_callback = fail
+            runtime = JmAsyncRuntime()
+            try:
+                with jm_task_context(runtime=runtime):
+                    await downloader.download_album(album.id)
+            finally:
+                runtime.close()
+
+            self.assertTrue(os.path.isfile(images[0].save_path))
+            self.assertEqual(downloader.download_success_dict[album][photo], [])
+            self.assertEqual(downloader.download_failed_image, [(images[0], error)])
+            self.assertEqual(downloader.manifest_dict[album].image_filepath_list, [])
+
+        with TemporaryDirectory() as temp_dir:
+            asyncio.run(run_test(temp_dir))
+
+    def test_after_image_direct_cancellation_keeps_saved_image(self):
+        with TemporaryDirectory() as temp_dir:
+            album, photo, images = new_album_photo_images()
+            option = ContractOption(temp_dir)
+            downloader = ContractSyncDownloader(option, album, photo, images)
+            error = DownloadCancelledException('image plugin cancelled')
+
+            def cancel(_image):
+                raise error
+
+            option.after_image_callback = cancel
+            with self.assertRaises(DownloadCancelledException) as caught:
+                downloader.download_album(album.id)
+
+            self.assertIs(caught.exception, error)
+            self.assertEqual(downloader.download_failed_image, [])
+            self.assertEqual(
+                downloader.manifest_dict[album].image_filepath_list,
+                [images[0].save_path],
+            )
+
     def test_current_sync_image_is_recorded_before_cancellation(self):
         with TemporaryDirectory() as temp_dir:
             album, photo, image_list = new_album_photo_images()
