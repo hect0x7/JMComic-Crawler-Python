@@ -5,7 +5,7 @@
 条目分类参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [2.7.6] - 2026-09-06
 
 ### Added
 - 新增 `JmSimpleRuntime`、`JmSyncRuntime` 与 `JmAsyncRuntime`；裸同步 Downloader 的局部调度使用单池 Runtime，顶层同步 API 或自定义同步调度可复用 `id/photo/image` 三层线程池，异步下载可复用 `decode` 线程池。

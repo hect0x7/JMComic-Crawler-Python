@@ -23,7 +23,7 @@ async def main():
     album = result.detail
     downloader = result.downloader
 
-    # 返回时该 Downloader 的网络 client 已关闭；如果传入共享 blocking
+    # 返回时该 Downloader 的网络 client 已关闭；如果传入共享 decode
     # 执行器，它仍由创建它的调用方管理
     print(downloader.download_failed_image)
     
@@ -107,11 +107,17 @@ async def main():
         # 示例：使用 async 并发获取本子详情
         album_id_list = [123, 456]
         album_list = await asyncio.gather(
-            *(cl.get_album_detail(aid) for aid in album_id_list)
+            *(cl.get_album_detail(aid) for aid in album_id_list),
+            return_exceptions=True,  # 等所有请求结束后再关闭共享 client
         )
         
         # 打印结果
         for aid, album in zip(album_id_list, album_list):
+            if isinstance(album, asyncio.CancelledError):
+                raise album
+            if isinstance(album, Exception):
+                print(f'[JM{aid}] 查询失败: {album}')
+                continue
             print(f'[JM{aid}] 本子详情: {album}')
 
 asyncio.run(main())
@@ -291,10 +297,9 @@ async def main():
     try:
         with jm_task_context(runtime=runtime):
             # 两个本子的图片统一使用这 4 个解码线程处理
-            await asyncio.gather(
-                download_album_async('123456'),
-                download_album_async('789012'),
-            )
+            results = await download_album_async(['123456', '789012'])
+            for album_id, error in results.failed.items():
+                print(f'本子 {album_id} 下载任务失败: {error}')
 
             # 下载过程中可以通过 JTC 查看当前生效的 Runtime
             print('当前 Runtime:', JTC.get_runtime())
@@ -313,5 +318,7 @@ async def main():
 
 asyncio.run(main())
 ```
+
+> 批量 API 会等两个本子的任务都结束，再返回 `BatchResult`。其中某个任务抛出普通异常时，会记录到 `results.failed`，不会提前关闭另一个任务正在使用的 Runtime；取消仍会向调用方抛出。
 
 关于 Runtime 与任务上下文的更多进阶机制（如同步三层拓扑、JTC 门面类、外部 Executor 生命周期），请参考 [复用下载 Runtime 与共享线程池](16_shared_executors.md)。

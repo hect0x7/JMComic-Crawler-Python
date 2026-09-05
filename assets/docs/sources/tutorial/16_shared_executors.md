@@ -11,9 +11,9 @@
 同步下载漫画时，内部通常是分层调度的：
 
 ```text
-本子层 (id_executor)       -> 同时下载几个本子 (Album)
-  └── 章节层 (photo_executor)  -> 每个本子同时下载几个章节 (Photo)
-        └── 图片层 (image_executor)  -> 每个章节同时下载几张图片 (Image)
+本子层 (id_executor)       -> 共享此 Runtime 的本子任务并发上限
+  └── 章节层 (photo_executor)  -> 这些本子的章节任务共用一个并发上限
+        └── 图片层 (image_executor)  -> 这些章节的图片任务共用一个并发上限
 ```
 
 因为外层任务（下载本子）需要等待内层任务（下载章节和图片）完成，所以这三层需要分别使用不同的线程池。如果三层混用同一个线程池，当外层任务占满线程时，内层任务可能无法获得线程执行，导致任务互相等待。
@@ -33,9 +33,9 @@ from jmcomic import JmSyncRuntime, download_album, jm_task_context
 
 # 1. 创建 Runtime，指定本子、章节和图片的并发数
 runtime = JmSyncRuntime(
-    id_workers=2,       # 同时下载 2 个本子
-    photo_workers=3,    # 每个本子同时下载 3 个章节
-    image_workers=8,    # 每个章节同时下载 8 张图片
+    id_workers=2,       # 整个 Runtime 最多同时处理 2 个本子任务
+    photo_workers=3,    # 所有本子合计最多同时处理 3 个章节任务
+    image_workers=8,    # 所有章节合计最多同时处理 8 个图片任务
 )
 
 try:
@@ -47,7 +47,9 @@ finally:
     runtime.close()
 ```
 
-如果某一层没有指定 `*_workers`，下载器会按 Option 里的默认配置建池。
+> 上例中的两个本子共用 3 个章节线程，所有章节共用 8 个图片线程。不会因为增加本子或章节数量，就为每个本子、每个章节分别创建一套线程池。
+
+如果某一层没有指定 `*_workers`，下载器会在首次使用该层时按调用点传入的默认并发数建池，后续任务复用该池；章节、图片层的默认值来自 Option。
 
 ### 场景 B：复用已有线程池
 
@@ -97,10 +99,9 @@ async def main():
     runtime = JmAsyncRuntime(decode_workers=4)
     try:
         with jm_task_context(runtime=runtime):
-            await asyncio.gather(
-                download_album_async('123456'),
-                download_album_async('789012'),
-            )
+            results = await download_album_async(['123456', '789012'])
+            for album_id, error in results.failed.items():
+                print(f'本子 {album_id} 下载任务失败: {error}')
     finally:
         runtime.close()
 
@@ -115,6 +116,8 @@ async def main():
 
 asyncio.run(main())
 ```
+
+> 批量 API 会等两个本子的任务都结束，再返回 `BatchResult`。普通任务异常收集在 `results.failed` 中，取消仍会向调用方抛出，因此需要检查失败项。不要直接用默认的 `asyncio.gather` 包住两个单本下载后立即关闭 Runtime：一个任务报错时，另一个任务可能还在使用解码池。
 
 ---
 

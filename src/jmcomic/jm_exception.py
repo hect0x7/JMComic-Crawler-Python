@@ -232,7 +232,11 @@ class ExceptionTool:
         def new(msg, context=None, etype=None):
             if context is None:
                 context = {}
-            raises(old, msg, context)
+
+            def raise_original(msg, context=None, etype=etype):
+                return old(msg, context, etype)
+
+            raises(raise_original, msg, context)
 
         cls.raises = new
 

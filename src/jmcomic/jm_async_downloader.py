@@ -103,8 +103,10 @@ class JmAsyncDownloader(BaseDownloader):
             # 线程任务无法可靠中断，协程取消后仍需等待写盘等操作收尾。
             try:
                 await waiter
-            except BaseException:
+            except (asyncio.CancelledError, DownloadCancelledException):
                 pass
+            except BaseException as drain_error:
+                jm_log('dler.cancel.drain.exception', drain_error)
             raise
 
     @record_download_duration('album_started_at')

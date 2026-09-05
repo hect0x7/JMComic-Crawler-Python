@@ -1,4 +1,5 @@
 import asyncio
+from concurrent.futures import Future
 from types import SimpleNamespace
 from threading import Thread
 import unittest
@@ -10,6 +11,7 @@ from jmcomic import (
     DownloadControl,
     JmImageDetail,
     JmAsyncDownloader,
+    JmAsyncRuntime,
     JmDownloader,
     bind_jm_task_context,
     download_album,
@@ -269,7 +271,12 @@ class Test_Cancellation(unittest.IsolatedAsyncioTestCase):
         downloader.client.get_jm_image = AsyncMock()
         downloader.client.get_jm_image.return_value.content = b'image'
         downloader._image_semaphore = asyncio.Semaphore(1)
-        downloader._run_in_decode_pool = AsyncMock()
+
+        async def run_inline(func, *args):
+            return func(*args)
+
+        downloader._run_in_decode_pool = run_inline
+        downloader._save_raw = Mock(side_effect=lambda *_args: control.cancel('save finished'))
         downloader.option.decide_image_filepath.return_value = 'image.jpg'
         downloader.option.decide_download_cache.return_value = False
         downloader.option.decide_download_image_decode.return_value = False
@@ -278,22 +285,84 @@ class Test_Cancellation(unittest.IsolatedAsyncioTestCase):
         image.skip = False
         image.scramble_id = None
         image.download_url = 'https://example.invalid/image.jpg'
-        recorded = []
-
-        async def after_image(current_image, _path):
-            recorded.append(current_image)
-            control.cancel('stop after current image')
-
+        image.index = 1
+        image.from_photo = Mock()
+        photo = image.from_photo
+        album = photo.from_album
+        photo.is_album.return_value = False
+        downloader.download_success_dict = {album: {photo: []}}
+        downloader.manifest_dict = {}
+        downloader.begin_manifest(photo)
         downloader.before_image = AsyncMock()
-        downloader.after_image = after_image
 
         with patch('jmcomic.jm_async_downloader.os.path.exists', return_value=False):
             with jm_task_context(control=control):
                 with self.assertRaises(DownloadCancelledException):
                     await downloader._download_single_image(image)
 
-        self.assertEqual(recorded, [image])
-        downloader._run_in_decode_pool.assert_awaited_once()
+        self.assertEqual(downloader.finish_manifest(photo).image_filepath_list, ['image.jpg'])
+        downloader._save_raw.assert_called_once()
+        downloader.option.call_all_plugin.assert_not_called()
+
+    def test_sync_image_saved_during_cancellation_is_in_manifest(self):
+        control = DownloadControl()
+        downloader = object.__new__(JmDownloader)
+        downloader.option = Mock()
+        downloader.option.decide_image_filepath.return_value = 'image.jpg'
+        downloader.option.decide_download_cache.return_value = False
+        downloader.option.decide_download_image_decode.return_value = False
+        downloader.client = Mock()
+        downloader.client.download_by_image_detail.side_effect = (
+            lambda *_args, **_kwargs: control.cancel('save finished')
+        )
+        downloader.before_image = Mock()
+        image = Mock(spec=JmImageDetail)
+        image.skip = False
+        image.index = 1
+        image.from_photo = Mock()
+        photo = image.from_photo
+        album = photo.from_album
+        photo.is_album.return_value = False
+        downloader.download_success_dict = {album: {photo: []}}
+        downloader.manifest_dict = {}
+        downloader.begin_manifest(photo)
+
+        with jm_task_context(control=control):
+            with self.assertRaises(DownloadCancelledException):
+                downloader.download_by_image_detail(image)
+
+        self.assertEqual(downloader.finish_manifest(photo).image_filepath_list, ['image.jpg'])
+        downloader.client.download_by_image_detail.assert_called_once()
+        downloader.option.call_all_plugin.assert_not_called()
+
+    async def test_cancelled_decode_logs_worker_failure_and_preserves_cancellation(self):
+        future = Future()
+        submitted = asyncio.Event()
+        executor = Mock()
+
+        def submit(*_args):
+            submitted.set()
+            return future
+
+        executor.submit.side_effect = submit
+        runtime = JmAsyncRuntime(decode_workers=1)
+        downloader = object.__new__(JmAsyncDownloader)
+        downloader._decode_worker = 1
+        error = OSError('save failed')
+        try:
+            with patch.object(runtime, 'executor', return_value=executor):
+                with patch('jmcomic.jm_async_downloader.jm_log') as log:
+                    with jm_task_context(runtime=runtime):
+                        task = asyncio.create_task(downloader._run_in_decode_pool(lambda: None))
+                        await asyncio.wait_for(submitted.wait(), timeout=1)
+                        task.cancel()
+                        await asyncio.sleep(0)
+                        future.set_exception(error)
+                        with self.assertRaises(asyncio.CancelledError):
+                            await task
+                    log.assert_called_once_with('dler.cancel.drain.exception', error)
+        finally:
+            runtime.close()
 
     async def test_image_cancelled_while_waiting_for_semaphore_never_requests(self):
         control = DownloadControl()

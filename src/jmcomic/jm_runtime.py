@@ -140,13 +140,9 @@ class JmRuntime:
             for obj in iter_objs:
                 args, kwargs = process_single_arg_to_args_and_kwargs(obj)
                 futures.append(executor.submit(apply_each_obj_func, *args, **kwargs))
-        except BaseException:
+        finally:
             if wait_finish:
                 concurrent.futures.wait(futures)
-            raise
-
-        if wait_finish:
-            concurrent.futures.wait(futures)
 
         return futures
 

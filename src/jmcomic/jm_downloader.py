@@ -282,16 +282,19 @@ class BaseDownloader(DownloadCallback):
         self.raise_if_cancelled()
 
     def after_image(self, image: JmImageDetail, img_save_path):
-        self.raise_if_cancelled()
-        super().after_image(image, img_save_path)
-        self.option.call_all_plugin(
-            'after_image',
-            image=image,
-            downloader=self,
-        )
-        photo = image.from_photo
-        album = photo.from_album
-        self.download_success_dict.get(album).get(photo).append((image.save_path, image))
+        try:
+            self.raise_if_cancelled()
+            super().after_image(image, img_save_path)
+            self.option.call_all_plugin(
+                'after_image',
+                image=image,
+                downloader=self,
+            )
+        finally:
+            # 图片已经保存或命中缓存；取消时也登记，正常完成时保留插件更新后的路径。
+            photo = image.from_photo
+            album = photo.from_album
+            self.download_success_dict.get(album).get(photo).append((image.save_path, image))
         self.raise_if_cancelled()
 
     def begin_manifest(self, detail: DetailEntity) -> DownloadManifest:

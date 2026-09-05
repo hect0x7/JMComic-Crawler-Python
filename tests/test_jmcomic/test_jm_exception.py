@@ -18,6 +18,36 @@ class Test_RequestRetryAllFailException(unittest.TestCase):
         self.assertEqual(len(seen), 1)
         self.assertEqual(seen[0][1:], ('compatibility probe', {}))
 
+    def test_replaced_exception_executor_preserves_requested_type(self):
+        class IsolatedExceptionTool(ExceptionTool):
+            pass
+
+        IsolatedExceptionTool.replace_old_exception_executor(
+            lambda old, msg, context: old(msg=msg, context=context)
+        )
+
+        with self.assertRaises(DownloadCancelledException) as caught:
+            IsolatedExceptionTool.require_true(
+                False, 'cancel probe', etype=DownloadCancelledException,
+            )
+        self.assertEqual(caught.exception.reason, 'cancel probe')
+
+    def test_replaced_exception_executor_can_override_requested_type(self):
+        class IsolatedExceptionTool(ExceptionTool):
+            pass
+
+        context = {'detail': 'override probe'}
+        IsolatedExceptionTool.replace_old_exception_executor(
+            lambda old, msg, context: old(msg, context, JmcomicException)
+        )
+
+        with self.assertRaises(JmcomicException) as caught:
+            IsolatedExceptionTool.raises(
+                'override probe', context, DownloadCancelledException,
+            )
+        self.assertIs(type(caught.exception), JmcomicException)
+        self.assertEqual(caught.exception.context, context)
+
     def test_sync_client_collects_each_failed_request(self):
         client = object.__new__(AbstractJmClient)
         client.domain_list = ['api-one.example', 'api-two.example']
