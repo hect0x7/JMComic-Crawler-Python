@@ -322,3 +322,31 @@ asyncio.run(main())
 > 批量 API 会等两个本子的任务都结束，再返回 `BatchResult`。其中某个任务抛出普通异常时，会记录到 `results.failed`，不会提前关闭另一个任务正在使用的 Runtime；取消仍会向调用方抛出。
 
 关于 Runtime 与任务上下文的更多进阶机制（如同步三层拓扑、JTC 门面类、外部 Executor 生命周期），请参考 [复用下载 Runtime 与共享线程池](16_shared_executors.md)。
+
+## 11. 取消下载
+
+如果需要中途停止异步下载，可以使用 `DownloadControl`（需 `v2.7.6` 及以上版本）。
+
+```python
+import asyncio
+from jmcomic import DownloadCancelledException, DownloadControl, download_album_async, jm_task_context
+
+async def main():
+    control = DownloadControl()
+
+    # 绑定 control 并启动下载任务
+    with jm_task_context(control=control):
+        task = asyncio.create_task(download_album_async('123456'))
+
+    # 模拟一段时间后需要取消下载
+    await asyncio.sleep(2)
+    control.cancel()  # 可以传入取消原因，下载协程可通过下面的 e.reason 获取
+
+    try:
+        # 等待下载收尾
+        await task
+    except DownloadCancelledException as e:
+        print(f'异步任务已取消: {e.reason}')
+
+asyncio.run(main())
+```

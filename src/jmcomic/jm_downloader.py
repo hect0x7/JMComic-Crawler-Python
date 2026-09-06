@@ -8,9 +8,7 @@ from .jm_option import *
 from .jm_runtime import JmSimpleRuntime, JmSyncRuntime
 from .jm_task_context import (
     bind_jm_task_context,
-    get_current_control,
-    get_jm_runtime,
-    get_jm_task_context,
+    JTC,
     jm_task_context,
 )
 
@@ -35,7 +33,7 @@ def record_download_duration(context_key: str, clock=None):
                 entity = get_entity(args, kwargs)
                 detail_call = isinstance(entity, Downloadable)
                 # 顶层 ID 下载负责完整耗时，内部 detail 调用复用同一个计时上下文。
-                if detail_call and get_jm_task_context().get(context_key) is not None:
+                if detail_call and JTC.get_context().get(context_key) is not None:
                     return await func(*args, **kwargs)
 
                 started_at = get_time()
@@ -53,7 +51,7 @@ def record_download_duration(context_key: str, clock=None):
             entity = get_entity(args, kwargs)
             detail_call = isinstance(entity, Downloadable)
             # 顶层 ID 下载负责完整耗时，内部 detail 调用复用同一个计时上下文。
-            if detail_call and get_jm_task_context().get(context_key) is not None:
+            if detail_call and JTC.get_context().get(context_key) is not None:
                 return func(*args, **kwargs)
 
             started_at = get_time()
@@ -208,13 +206,13 @@ class BaseDownloader(DownloadCallback):
         return len(self.download_failed_image) != 0 or len(self.download_failed_photo) != 0
 
     def is_cancelled(self) -> bool:
-        control = get_current_control()
+        control = JTC.get_control()
         return control is not None and control.is_cancelled
 
     @classmethod
     def raise_if_cancelled(cls) -> None:
         """在当前下载作用域已取消时抛出异常，子类可重写该检查点。"""
-        control = get_current_control()
+        control = JTC.get_control()
         if control is None or not control.is_cancelled:
             return
         raise DownloadCancelledException(
@@ -356,7 +354,7 @@ class BaseDownloader(DownloadCallback):
     def _require_feature_context() -> str:
         from .jm_toolkit import ExceptionTool
 
-        download_type = get_jm_task_context().get('download_type')
+        download_type = JTC.get_context().get('download_type')
         ExceptionTool.require_true(
             download_type in ('album', 'photo'),
             'Feature 注册与执行必须位于下载任务上下文中，请使用 '
@@ -574,7 +572,7 @@ class JmDownloader(BaseDownloader):
 
     def execute_on_condition(self, iter_objs, apply, count_batch):
         """使用当前 Runtime 调度本子或章节的下载。"""
-        runtime = get_jm_runtime()
+        runtime = JTC.get_runtime()
         if runtime is not None and not isinstance(runtime, JmSyncRuntime):
             raise TypeError('sync downloader requires JmSyncRuntime')
         level = None if runtime is None else (

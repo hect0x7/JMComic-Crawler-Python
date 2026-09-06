@@ -11,7 +11,7 @@ from jmcomic import (
     JmSyncRuntime,
     download_batch,
     download_batch_async,
-    get_jm_runtime,
+    JTC,
     jm_task_context,
 )
 
@@ -187,7 +187,7 @@ class Test_Jm_Runtime(unittest.TestCase):
         observed = []
 
         def download_one(jmid, *_args, **_kwargs):
-            observed.append(get_jm_runtime())
+            observed.append(JTC.get_runtime())
             return jmid
 
         self.assertEqual(
@@ -202,7 +202,7 @@ class Test_Jm_Runtime(unittest.TestCase):
         observed = []
 
         async def download_one(jmid, *_args, **_kwargs):
-            observed.append(get_jm_runtime())
+            observed.append(JTC.get_runtime())
             return jmid
 
         result = asyncio.run(download_batch_async(

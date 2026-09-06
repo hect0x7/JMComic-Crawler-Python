@@ -6,7 +6,7 @@ from .jm_exception import DownloadCancelledException
 from .jm_runtime import JmAsyncRuntime, JmSyncRuntime
 from .jm_task_context import (
     bind_jm_task_context,
-    get_jm_runtime,
+    JTC,
     jm_task_context,
 )
 
@@ -33,7 +33,7 @@ def _ensure_option(option):
 
 
 def _resolve_runtime(runtime_type, error_message):
-    runtime = get_jm_runtime()
+    runtime = JTC.get_runtime()
     if runtime is None:
         runtime = runtime_type()
         return runtime, True

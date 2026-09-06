@@ -6,8 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from jmcomic.cli import JmcomicUI, JmViewUI
-from jmcomic import JmSyncRuntime, get_jm_runtime, jm_task_context
-from jmcomic.jm_task_context import get_jm_task_context
+from jmcomic import JmSyncRuntime, JTC, jm_task_context
 
 
 class Test_Cli(JmTestConfigurable):
@@ -63,7 +62,7 @@ class Test_Cli(JmTestConfigurable):
             ui.option_path = None
 
         def create_default_option():
-            self.assertTrue(get_jm_task_context().get('cli_no_progress'))
+            self.assertTrue(JTC.get_context().get('cli_no_progress'))
             return option
 
         with patch.object(ui, 'parse_arg', side_effect=parse_arg), \
@@ -73,7 +72,7 @@ class Test_Cli(JmTestConfigurable):
                 patch('jmcomic.api.jm_log'):
             ui.main()
 
-        self.assertNotIn('cli_no_progress', get_jm_task_context())
+        self.assertNotIn('cli_no_progress', JTC.get_context())
 
     def test_jmcomic_falls_back_without_rich(self):
         ui = JmcomicUI()
@@ -121,8 +120,8 @@ class Test_Cli(JmTestConfigurable):
             observed.append((
                 ids,
                 actual_option,
-                get_jm_runtime(),
-                get_jm_task_context(),
+                JTC.get_runtime(),
+                JTC.get_context(),
             ))
 
         with ThreadPoolExecutor(max_workers=1) as executor:

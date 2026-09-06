@@ -259,7 +259,7 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
 
             runtime = ProbeAsyncRuntime.instances[0]
             self.assertIsNone(downloader.client)
-            self.assertIsNone(get_jm_runtime())
+            self.assertIsNone(JTC.get_runtime())
             with self.assertRaisesRegex(RuntimeError, 'JmRuntime is closed'):
                 runtime.executor('decode', 1)
         finally:

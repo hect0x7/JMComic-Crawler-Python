@@ -161,3 +161,33 @@ with jm_task_context(runtime=runtime, option=option, control=control, custom_tag
 | **`JmAsyncRuntime`** | 统一管理异步中的 CPU 解密与文件写入池 (`decode`) | 多个异步任务并发、需要控制解密并发时使用 |
 | **`JTC`** | 任务上下文统一访问门面 | 随时读取 `JTC.get_runtime()` / `get_option()` / `get_control()` / `get_context()` |
 | **外部 Executor** | 复用已有线程池 | 传入 `*_executor` 参数；Runtime 不会代关，由调用方自行管理生命周期 |
+
+## Runtime 与 Control 架构图
+
+```text
+下载调用
+  |
+  +-- jm_task_context：为任务绑定 Runtime 和 Control
+  |     |
+  |     +-- Runtime：管理下载使用的线程池
+  |     `-- Control：保存取消信号和原因
+  |
+  `-- 下载 API -> Downloader（下载器）
+        |
+        +-- 同步：JmSyncRuntime
+        |     ID 池（批量时）-> 章节池 -> 图片池
+        |                                 `-- 请求、解码、保存
+        |
+        +-- 异步：JmAsyncRuntime
+        |     协程 + 信号量 -> 网络请求
+        |     解码池       -> 图片解码、保存、同步回调
+        |
+        `-- 取消检查点 <--- Control.cancel() <--- 用户点击停止
+              已取消 -> 当前图片工作收尾，保留已保存文件
+                        抛出 DownloadCancelledException
+
+资源关闭
+  API 自动创建的 Runtime -> API 在任务结束后关闭
+  调用方提供的 Runtime   -> 调用方等待所有任务结束后关闭
+  外部传入的线程池       -> 由外部管理，Runtime 不代为关闭
+```

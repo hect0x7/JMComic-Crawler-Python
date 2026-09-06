@@ -13,11 +13,8 @@ __all__ = (
     'JM_TASK_CONTEXT',
     'DownloadControl',
     'JTC',
-    'jm_task_context',
     'get_jm_task_context',
-    'get_current_control',
-    'get_jm_runtime',
-    'get_current_option',
+    'jm_task_context',
     'bind_jm_task_context',
 )
 
@@ -58,42 +55,6 @@ class DownloadControl:
             return self._reason
 
 
-def get_jm_task_context() -> dict:
-    """
-    返回当前 JM 任务上下文的可变快照。
-    """
-    return dict(JM_TASK_CONTEXT.get())
-
-
-def get_current_control() -> Optional[DownloadControl]:
-    """
-    返回当前 JM 任务上下文中的取消控制器。
-    """
-    control = get_jm_task_context().get('control')
-    if control is None:
-        return None
-    if not isinstance(control, DownloadControl):
-        raise TypeError(
-            'jm_task_context control must be DownloadControl, '
-            f'got {type(control)}'
-        )
-    return control
-
-
-def get_jm_runtime() -> Optional[JmRuntime]:
-    """
-    返回当前任务的 Runtime；没有活动 Runtime 时返回 None。
-    """
-    return get_jm_task_context().get('runtime')
-
-
-def get_current_option():
-    """
-    返回当前任务的 Option；没有活动 Option 时返回 None。
-    """
-    return get_jm_task_context().get('option')
-
-
 class JTC:
     """
     JMComic 任务上下文统一门面 (Jm Task Context)。
@@ -104,28 +65,40 @@ class JTC:
         """
         返回当前 JM 任务上下文的可变快照。
         """
-        return get_jm_task_context()
+        return dict(JM_TASK_CONTEXT.get())
 
     @classmethod
     def get_runtime(cls) -> Optional[JmRuntime]:
         """
         返回当前任务绑定的 JmRuntime；没有活动 Runtime 时返回 None。
         """
-        return get_jm_runtime()
+        return cls.get_context().get('runtime')
 
     @classmethod
     def get_option(cls):
         """
         返回当前任务绑定的 JmOption；没有活动 Option 时返回 None。
         """
-        return get_current_option()
+        return cls.get_context().get('option')
 
     @classmethod
     def get_control(cls) -> Optional[DownloadControl]:
         """
         返回当前任务绑定的取消控制器 DownloadControl；未设置时返回 None。
         """
-        return get_current_control()
+        control = cls.get_context().get('control')
+        if control is None:
+            return None
+        if not isinstance(control, DownloadControl):
+            raise TypeError(
+                'jm_task_context control must be DownloadControl, '
+                f'got {type(control)}'
+            )
+        return control
+
+
+# 兼容已发布的上下文查询入口，内部统一使用 JTC。
+get_jm_task_context = JTC.get_context
 
 
 @contextmanager
@@ -133,7 +106,7 @@ def jm_task_context(*, option=None, runtime=None, **fields):
     """
     临时绑定任务字段；只传播 Option/Runtime，不管理资源生命周期。
     """
-    context = get_jm_task_context()
+    context = JTC.get_context()
     parent_runtime = context.get('runtime')
 
     if runtime is not None and not isinstance(runtime, JmRuntime):
@@ -169,7 +142,7 @@ def bind_jm_task_context(func: Callable, context: Optional[Mapping] = None) -> C
         raise TypeError('bind_jm_task_context only supports synchronous callables')
 
     snapshot = MappingProxyType(dict(
-        get_jm_task_context() if context is None else context
+        JTC.get_context() if context is None else context
     ))
 
     @wraps(func)

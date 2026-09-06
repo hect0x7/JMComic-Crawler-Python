@@ -20,7 +20,7 @@ from .jm_exception import DownloadCancelledException
 from .jm_runtime import JmAsyncRuntime
 from .jm_task_context import (
     bind_jm_task_context,
-    get_jm_runtime,
+    JTC,
     jm_task_context,
 )
 from .jm_option import JmOption
@@ -87,7 +87,7 @@ class JmAsyncDownloader(BaseDownloader):
     # ======================================================================
 
     async def _run_in_decode_pool(self, func, *args):
-        runtime = get_jm_runtime()
+        runtime = JTC.get_runtime()
         if not isinstance(runtime, JmAsyncRuntime):
             raise RuntimeError(
                 'async downloader requires jm_task_context('
@@ -343,7 +343,7 @@ class JmAsyncDownloader(BaseDownloader):
         self._runtime_context.close()
 
     async def __aenter__(self):
-        runtime = get_jm_runtime()
+        runtime = JTC.get_runtime()
         if runtime is None:
             runtime = JmAsyncRuntime()
             self._runtime_context.callback(runtime.close)

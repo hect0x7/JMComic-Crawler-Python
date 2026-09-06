@@ -17,7 +17,7 @@ from jmcomic import (
     download_album,
     download_batch,
     download_batch_async,
-    get_current_control,
+    JTC,
     jm_task_context,
 )
 
@@ -30,7 +30,7 @@ class Test_Cancellation(unittest.IsolatedAsyncioTestCase):
 
         with jm_task_context(control=control):
             worker = bind_jm_task_context(
-                lambda: seen.append(get_current_control())
+                lambda: seen.append(JTC.get_control())
             )
             thread = Thread(target=worker)
             thread.start()
@@ -104,7 +104,7 @@ class Test_Cancellation(unittest.IsolatedAsyncioTestCase):
                 pass
 
             def download_album(self, _album_id):
-                seen.append(get_current_control())
+                seen.append(JTC.get_control())
                 control.cancel('api probe')
                 BaseDownloader.raise_if_cancelled()
 

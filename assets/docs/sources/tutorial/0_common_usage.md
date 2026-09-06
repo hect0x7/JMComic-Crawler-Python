@@ -591,81 +591,6 @@ for aid, err in result.failed.items():
 
 ---
 
-### 取消下载
-
-自 `v2.7.6` 起，JMComic 新增了 `DownloadControl` 控制器。如果在 GUI 界面（如 PyQt/Tkinter）、Web 接口或后台脚本中需要支持中途停止下载，可以通过它实现优雅取消。
-
-> [!NOTE]
-> `DownloadControl` 采用协作式退出设计：收到取消请求后，下载器不会再开始新的章节和图片下载；当前正在处理的那张图片会正常保存完毕后再退出，避免磁盘上留下损坏文件，随后抛出 `DownloadCancelledException`。
-
-#### 基本用法
-
-取消下载的逻辑分为三步：
-1. **创建控制器**：`control = DownloadControl()`；
-2. **绑定任务上下文**：使用 `with jm_task_context(control=control):` 包裹下载调用，将控制器传给当前下载任务；
-3. **请求停止**：在其他线程或协程中调用 `control.cancel('取消原因')`。
-
-#### 1. 同步下载取消示例
-
-如果下载运行在独立的子线程（例如 GUI 点击下载按钮后启动线程），可以在主线程或其他线程中调用 `control.cancel()`：
-
-```python
-from threading import Thread
-from time import sleep
-from jmcomic import DownloadCancelledException, DownloadControl, download_album, jm_task_context
-
-# 1. 创建控制器
-control = DownloadControl()
-
-def run_download():
-    try:
-        # 2. 通过 jm_task_context 将 control 绑定给当前下载任务
-        # （由于任务上下文是与线程绑定的，请将 with 写在实际调用下载的线程内部）
-        with jm_task_context(control=control):
-            download_album('123456')
-    except DownloadCancelledException as e:
-        print(f'下载已取消: {e.reason}')
-
-t = Thread(target=run_download)
-t.start()
-
-# 模拟用户在界面上点击了取消按钮
-sleep(2)
-control.cancel('用户主动取消')
-t.join()
-```
-
-#### 2. 异步下载取消示例
-
-异步调用的方式完全一致。在异步代码中，`asyncio.create_task` 会自动传播任务上下文，子任务会自动继承 `control`：
-
-```python
-import asyncio
-from jmcomic import DownloadCancelledException, DownloadControl, download_album_async, jm_task_context
-
-async def main():
-    control = DownloadControl()
-
-    # 绑定 control 并启动下载任务
-    with jm_task_context(control=control):
-        task = asyncio.create_task(download_album_async('123456'))
-
-    await asyncio.sleep(2)
-    # 请求取消
-    control.cancel('任务超时取消')
-
-    try:
-        await task
-    except DownloadCancelledException as e:
-        print(f'异步任务已取消: {e.reason}')
-
-asyncio.run(main())
-```
-
-取消生效后，已下载完成的图片会保留在本地；未完成的章节不会触发整章或整本完成回调，也不会执行 PDF/ZIP 等导出特性。
-
----
-
 ### 速查表
 
 | 你的需求 | 推荐写法 | 说明 |
@@ -697,3 +622,35 @@ assert album is result.detail
 ```
 
 </details>
+
+---
+
+### 取消下载
+
+如果需要中途停止下载，可以使用 `DownloadControl`（需 `v2.7.6` 及以上版本）。
+
+```python
+from threading import Thread
+from time import sleep
+from jmcomic import DownloadCancelledException, DownloadControl, download_album, jm_task_context
+
+# 创建取消控制器
+control = DownloadControl()
+
+def run_download():
+    try:
+        # 在下载的线程里绑定 control
+        with jm_task_context(control=control):
+            download_album('123456')
+    except DownloadCancelledException as e:
+        print(f'下载已取消: {e.reason}')
+
+t = Thread(target=run_download)
+t.start()
+
+# 模拟一段时间后需要取消下载
+sleep(2)
+control.cancel()  # 可以传入取消原因，下载线程可通过上面的 e.reason 获取
+# 等待下载收尾
+t.join()
+```

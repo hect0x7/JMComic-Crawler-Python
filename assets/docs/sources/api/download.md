@@ -43,10 +43,13 @@
     options:
       members:
       - DownloadControl
-      - JTC
       - jm_task_context
       - bind_jm_task_context
-      - get_jm_task_context
-      - get_current_control
-      - get_jm_runtime
-      - get_current_option
+
+::: jmcomic.jm_task_context.JTC
+    options:
+      members:
+      - get_runtime
+      - get_option
+      - get_control
+      - get_context

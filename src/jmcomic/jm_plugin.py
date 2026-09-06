@@ -8,7 +8,7 @@ from threading import RLock
 from .jm_option import *
 from .jm_async_downloader import JmAsyncDownloader
 from .jm_downloader import JmDownloader
-from .jm_task_context import bind_jm_task_context, get_jm_task_context
+from .jm_task_context import bind_jm_task_context, JTC
 
 
 class PluginValidationException(Exception):
@@ -36,7 +36,7 @@ class JmOptionPlugin:
     @property
     def jm_task_context(self) -> dict:
         """Return the current invocation's isolated task-context snapshot."""
-        return get_jm_task_context()
+        return JTC.get_context()
 
     @classmethod
     def build(cls, option: JmOption) -> 'JmOptionPlugin':
@@ -930,7 +930,7 @@ class DownloadProgressPlugin(JmOptionPlugin):
 
     @staticmethod
     def cli_no_progress_notice():
-        if not get_jm_task_context().get('cli_no_progress'):
+        if not JTC.get_context().get('cli_no_progress'):
             return ''
 
         return (

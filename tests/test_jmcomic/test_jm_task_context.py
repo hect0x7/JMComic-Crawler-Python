@@ -30,10 +30,6 @@ from jmcomic import (
     download_batch,
     download_batch_async,
     download_photo_async,
-    get_current_control,
-    get_current_option,
-    get_jm_runtime,
-    get_jm_task_context,
     jm_log,
     jm_task_context,
     jm_logger,
@@ -74,7 +70,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
             runtime = JmSyncRuntime(id_executor=executor)
             with jm_task_context(task_id='job-42', runtime=runtime):
                 self.assertEqual(
-                    get_jm_task_context(),
+                    JTC.get_context(),
                     {'task_id': 'job-42', 'runtime': runtime},
                 )
                 raw_context = JM_TASK_CONTEXT.get()
@@ -82,10 +78,10 @@ class Test_Jm_Task_Context(unittest.TestCase):
                 self.assertIs(raw_context['runtime'], runtime)
                 with self.assertRaises(TypeError):
                     raw_context['mutable'] = True
-                self.assertIs(get_jm_runtime(), runtime)
+                self.assertIs(JTC.get_runtime(), runtime)
                 with jm_task_context(jm_id='123'):
                     self.assertEqual(
-                        get_jm_task_context(),
+                        JTC.get_context(),
                         {
                             'task_id': 'job-42',
                             'runtime': runtime,
@@ -95,8 +91,8 @@ class Test_Jm_Task_Context(unittest.TestCase):
 
                 public_bound = executor.submit(bind_jm_task_context(
                     lambda: (
-                        get_jm_task_context(),
-                        get_jm_runtime(),
+                        JTC.get_context(),
+                        JTC.get_runtime(),
                     )
                 ))
                 self.assertEqual(
@@ -111,28 +107,28 @@ class Test_Jm_Task_Context(unittest.TestCase):
         with ThreadPoolExecutor(max_workers=1) as executor:
             with jm_task_context(option=option, task_id='job-42'):
                 self.assertEqual(
-                    get_jm_task_context(),
+                    JTC.get_context(),
                     {'task_id': 'job-42', 'option': option},
                 )
-                self.assertIs(get_current_option(), option)
-                future = executor.submit(bind_jm_task_context(get_current_option))
+                self.assertIs(JTC.get_option(), option)
+                future = executor.submit(bind_jm_task_context(JTC.get_option))
 
             self.assertIs(future.result(timeout=1), option)
 
-        self.assertIsNone(get_current_option())
+        self.assertIsNone(JTC.get_option())
 
     def test_none_option_runtime_and_nested_runtime_rules(self):
         with jm_task_context(option=None, runtime=None, task_id='job-42'):
-            self.assertEqual(get_jm_task_context(), {'task_id': 'job-42'})
-            self.assertIsNone(get_current_option())
-            self.assertIsNone(get_jm_runtime())
+            self.assertEqual(JTC.get_context(), {'task_id': 'job-42'})
+            self.assertIsNone(JTC.get_option())
+            self.assertIsNone(JTC.get_runtime())
 
         outer = JmSyncRuntime(id_workers=1)
         inner = JmSyncRuntime(id_workers=1)
         try:
             with jm_task_context(runtime=outer):
                 with jm_task_context(runtime=outer):
-                    self.assertIs(get_jm_runtime(), outer)
+                    self.assertIs(JTC.get_runtime(), outer)
                 with self.assertRaisesRegex(RuntimeError, 'already active'):
                     with jm_task_context(runtime=inner):
                         self.fail('nested runtime must be rejected')
@@ -237,10 +233,10 @@ class Test_Jm_Task_Context(unittest.TestCase):
 
         with ThreadPoolExecutor(max_workers=1) as executor:
             with jm_task_context(control=control):
-                future = executor.submit(bind_jm_task_context(get_current_control))
+                future = executor.submit(bind_jm_task_context(JTC.get_control))
 
             self.assertIs(future.result(timeout=1), control)
-            self.assertIsNone(executor.submit(get_current_control).result(timeout=1))
+            self.assertIsNone(executor.submit(JTC.get_control).result(timeout=1))
 
         self.assertTrue(control.cancel('user requested'))
         self.assertFalse(control.cancel('ignored'))
@@ -251,33 +247,33 @@ class Test_Jm_Task_Context(unittest.TestCase):
         self.assertEqual('jm_task_context', JM_TASK_CONTEXT.name)
 
     def test_nested_context_restores_on_normal_and_exception_exit(self):
-        self.assertEqual({}, get_jm_task_context())
+        self.assertEqual({}, JTC.get_context())
 
         with jm_task_context(session_id='outer'):
-            self.assertEqual({'session_id': 'outer'}, get_jm_task_context())
+            self.assertEqual({'session_id': 'outer'}, JTC.get_context())
             with jm_task_context(session_id='inner', task_id='task'):
                 self.assertEqual(
                     {'session_id': 'inner', 'task_id': 'task'},
-                    get_jm_task_context(),
+                    JTC.get_context(),
                 )
-            self.assertEqual({'session_id': 'outer'}, get_jm_task_context())
+            self.assertEqual({'session_id': 'outer'}, JTC.get_context())
 
             with self.assertRaisesRegex(RuntimeError, 'stop'):
                 with jm_task_context(task_id='failed'):
                     raise RuntimeError('stop')
 
-            self.assertEqual({'session_id': 'outer'}, get_jm_task_context())
+            self.assertEqual({'session_id': 'outer'}, JTC.get_context())
 
-        self.assertEqual({}, get_jm_task_context())
+        self.assertEqual({}, JTC.get_context())
 
     def test_bound_context_survives_thread_pool_and_does_not_leak(self):
         with ThreadPoolExecutor(max_workers=1) as executor:
             with jm_task_context(session_id='A'):
-                future_a = executor.submit(bind_jm_task_context(get_jm_task_context))
+                future_a = executor.submit(bind_jm_task_context(JTC.get_context))
             with jm_task_context(session_id='B'):
-                future_b = executor.submit(bind_jm_task_context(get_jm_task_context))
+                future_b = executor.submit(bind_jm_task_context(JTC.get_context))
 
-            empty = executor.submit(get_jm_task_context)
+            empty = executor.submit(JTC.get_context)
 
             self.assertEqual({'session_id': 'A'}, future_a.result())
             self.assertEqual({'session_id': 'B'}, future_b.result())
@@ -308,7 +304,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
             captured = []
 
             def executor_two_args(topic, msg):
-                captured.append((topic, msg, get_jm_task_context()))
+                captured.append((topic, msg, JTC.get_context()))
 
             JmModuleConfig.EXECUTOR_LOG = executor_two_args
             with jm_task_context(session_id='custom-2'):
@@ -317,7 +313,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
             error = ValueError('failed')
 
             def executor_three_args(topic, msg, e):
-                captured.append((topic, msg, e, get_jm_task_context()))
+                captured.append((topic, msg, e, JTC.get_context()))
 
             JmModuleConfig.EXECUTOR_LOG = executor_three_args
             with jm_task_context(session_id='custom-3'):
@@ -502,8 +498,8 @@ class Test_Jm_Task_Context(unittest.TestCase):
                 detail = Detail()
                 self.begin_manifest(detail)
                 try:
-                    observed_contexts.append(get_jm_task_context())
-                    observed_options.append(get_current_option())
+                    observed_contexts.append(JTC.get_context())
+                    observed_options.append(JTC.get_option())
                 finally:
                     self.finish_manifest(detail)
                 return detail
@@ -516,8 +512,8 @@ class Test_Jm_Task_Context(unittest.TestCase):
         self.assertEqual(10.0, result.duration)
         self.assertEqual(99.0, result.detail.duration)
         self.assertEqual([option], observed_options)
-        self.assertEqual({}, get_jm_task_context())
-        self.assertIsNone(get_current_option())
+        self.assertEqual({}, JTC.get_context())
+        self.assertIsNone(JTC.get_option())
 
     def test_async_result_duration_uses_task_context_and_finishes_after_downloader_exit(self):
         async def run_test():
@@ -535,7 +531,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
             class FakeDownloader(BaseDownloader):
 
                 async def __aenter__(self):
-                    observed_contexts.append(get_jm_task_context())
+                    observed_contexts.append(JTC.get_context())
                     return self
 
                 async def __aexit__(self, *_args):
@@ -558,7 +554,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
         self.assertEqual(30.0, result.manifest.duration)
         self.assertEqual(30.0, result.duration)
         self.assertEqual(99.0, result.detail.duration)
-        self.assertEqual({}, get_jm_task_context())
+        self.assertEqual({}, JTC.get_context())
 
     def test_plugin_invocation_can_read_current_task_context(self):
         observed = []
@@ -654,7 +650,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
 
     def test_sync_batch_binds_parent_and_item_context(self):
         def fake_download(jmid, _option, _downloader, **_kwargs):
-            context = get_jm_task_context()
+            context = JTC.get_context()
             return (
                 str(jmid),
                 context['session_id'],
@@ -672,14 +668,14 @@ class Test_Jm_Task_Context(unittest.TestCase):
             },
             set(result),
         )
-        self.assertEqual({}, get_jm_task_context())
+        self.assertEqual({}, JTC.get_context())
 
     def test_concurrent_sync_sessions_do_not_cross(self):
         barrier = threading.Barrier(2)
 
         def fake_download(jmid, _option, _downloader, **_kwargs):
             barrier.wait(timeout=2)
-            context = get_jm_task_context()
+            context = JTC.get_context()
             return context['session_id'], context['jm_id'], str(jmid)
 
         def run_session(session_id, jmid):
@@ -758,7 +754,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
                 with jm_task_context(session_id=f'workers-{count_batch}'):
                     downloader.execute_on_condition(
                         iter_objs=[1, 2, 3],
-                        apply=lambda _item: observed.put(get_jm_task_context()),
+                        apply=lambda _item: observed.put(JTC.get_context()),
                         count_batch=count_batch,
                     )
 
@@ -776,7 +772,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
         async def run_test():
             async def fake_download(jmid, _option, _downloader, **_kwargs):
                 await asyncio.sleep(0)
-                context = get_jm_task_context()
+                context = JTC.get_context()
                 return (
                     str(jmid),
                     context['session_id'],
@@ -799,14 +795,14 @@ class Test_Jm_Task_Context(unittest.TestCase):
                             'decode',
                             1,
                         ).submit(
-                            bind_jm_task_context(get_jm_task_context),
+                            bind_jm_task_context(JTC.get_context),
                         )
                         executor_context = await asyncio.wrap_future(future)
 
                 loop = asyncio.get_running_loop()
                 leaked_context = await loop.run_in_executor(
                     decode_executor,
-                    get_jm_task_context,
+                    JTC.get_context,
                 )
 
             return batch_result, executor_context, leaked_context
@@ -831,7 +827,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
         proxy = PhotoConcurrentFetcherProxy(FakeClient(), max_workers=1)
         try:
             with jm_task_context(session_id='client-proxy'):
-                future = proxy.get_future('context', get_jm_task_context)
+                future = proxy.get_future('context', JTC.get_context)
 
             self.assertEqual({'session_id': 'client-proxy'}, future.result())
         finally:
@@ -877,7 +873,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
                         1,
                     ).submit(
                         bind_jm_task_context(
-                            lambda: (8, get_jm_task_context()['session_id'])
+                            lambda: (8, JTC.get_context()['session_id'])
                         ),
                     )
                     value = await asyncio.wrap_future(future)

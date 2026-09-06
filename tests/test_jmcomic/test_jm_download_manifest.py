@@ -77,7 +77,7 @@ class ContractOption:
 
     def call_all_plugin(self, group, **kwargs):
         self.plugin_event_list.append((group, kwargs))
-        self.context_event_list.append((group, get_jm_task_context()))
+        self.context_event_list.append((group, JTC.get_context()))
         if group == 'after_image' and self.after_image_callback is not None:
             self.after_image_callback(kwargs['image'])
 
@@ -914,7 +914,7 @@ class Test_Download_Manifest(unittest.TestCase):
                 [2, 2],
                 [context['photo_started_at'] for context in context_by_group['before_image']],
             )
-            self.assertEqual({}, get_jm_task_context())
+            self.assertEqual({}, JTC.get_context())
 
     def test_sync_download_album_duration_includes_detail_and_manifest(self):
         clock = {'now': 10.0}
@@ -923,20 +923,20 @@ class Test_Download_Manifest(unittest.TestCase):
         downloader = object.__new__(JmDownloader)
 
         def get_album_detail(_album_id):
-            contexts.append(get_jm_task_context())
+            contexts.append(JTC.get_context())
             clock['now'] = 20.0
             return album
 
         def begin_manifest(_album):
-            contexts.append(get_jm_task_context())
+            contexts.append(JTC.get_context())
             clock['now'] = 30.0
 
         def download_by_album_detail(_album):
-            contexts.append(get_jm_task_context())
+            contexts.append(JTC.get_context())
             clock['now'] = 40.0
 
         def finish_manifest(_album):
-            contexts.append(get_jm_task_context())
+            contexts.append(JTC.get_context())
             clock['now'] = 50.0
 
         downloader.client = SimpleNamespace(get_album_detail=get_album_detail)
@@ -950,7 +950,7 @@ class Test_Download_Manifest(unittest.TestCase):
         self.assertIs(result, album)
         self.assertEqual(40.0, album.duration)
         self.assertEqual([10.0] * 4, [context.get('album_started_at') for context in contexts])
-        self.assertEqual({}, get_jm_task_context())
+        self.assertEqual({}, JTC.get_context())
 
     def test_sync_download_photo_duration_includes_detail_and_manifest(self):
         clock = {'now': 10.0}
@@ -959,20 +959,20 @@ class Test_Download_Manifest(unittest.TestCase):
         downloader = object.__new__(JmDownloader)
 
         def get_photo_detail(_photo_id):
-            contexts.append(get_jm_task_context())
+            contexts.append(JTC.get_context())
             clock['now'] = 20.0
             return photo
 
         def begin_manifest(_photo):
-            contexts.append(get_jm_task_context())
+            contexts.append(JTC.get_context())
             clock['now'] = 30.0
 
         def download_by_photo_detail(_photo):
-            contexts.append(get_jm_task_context())
+            contexts.append(JTC.get_context())
             clock['now'] = 40.0
 
         def finish_manifest(_photo):
-            contexts.append(get_jm_task_context())
+            contexts.append(JTC.get_context())
             clock['now'] = 50.0
 
         downloader.client = SimpleNamespace(get_photo_detail=get_photo_detail)
@@ -986,7 +986,7 @@ class Test_Download_Manifest(unittest.TestCase):
         self.assertIs(result, photo)
         self.assertEqual(40.0, photo.duration)
         self.assertEqual([10.0] * 4, [context.get('photo_started_at') for context in contexts])
-        self.assertEqual({}, get_jm_task_context())
+        self.assertEqual({}, JTC.get_context())
 
     def test_async_download_album_duration_includes_detail_and_manifest(self):
         async def run_test():
@@ -996,20 +996,20 @@ class Test_Download_Manifest(unittest.TestCase):
             downloader = object.__new__(JmAsyncDownloader)
 
             async def get_album_detail(_album_id):
-                contexts.append(get_jm_task_context())
+                contexts.append(JTC.get_context())
                 clock['now'] = 20.0
                 return album
 
             def begin_manifest(_album):
-                contexts.append(get_jm_task_context())
+                contexts.append(JTC.get_context())
                 clock['now'] = 30.0
 
             async def download_by_album_detail(_album):
-                contexts.append(get_jm_task_context())
+                contexts.append(JTC.get_context())
                 clock['now'] = 40.0
 
             def finish_manifest(_album):
-                contexts.append(get_jm_task_context())
+                contexts.append(JTC.get_context())
                 clock['now'] = 50.0
 
             downloader.client = SimpleNamespace(get_album_detail=get_album_detail)
@@ -1023,7 +1023,7 @@ class Test_Download_Manifest(unittest.TestCase):
             self.assertIs(result, album)
             self.assertEqual(40.0, album.duration)
             self.assertEqual([10.0] * 4, [context.get('album_started_at') for context in contexts])
-            self.assertEqual({}, get_jm_task_context())
+            self.assertEqual({}, JTC.get_context())
 
         asyncio.run(run_test())
 
@@ -1035,20 +1035,20 @@ class Test_Download_Manifest(unittest.TestCase):
             downloader = object.__new__(JmAsyncDownloader)
 
             async def get_photo_detail(_photo_id):
-                contexts.append(get_jm_task_context())
+                contexts.append(JTC.get_context())
                 clock['now'] = 20.0
                 return photo
 
             def begin_manifest(_photo):
-                contexts.append(get_jm_task_context())
+                contexts.append(JTC.get_context())
                 clock['now'] = 30.0
 
             async def download_by_photo_detail(_photo):
-                contexts.append(get_jm_task_context())
+                contexts.append(JTC.get_context())
                 clock['now'] = 40.0
 
             def finish_manifest(_photo):
-                contexts.append(get_jm_task_context())
+                contexts.append(JTC.get_context())
                 clock['now'] = 50.0
 
             downloader.client = SimpleNamespace(get_photo_detail=get_photo_detail)
@@ -1062,7 +1062,7 @@ class Test_Download_Manifest(unittest.TestCase):
             self.assertIs(result, photo)
             self.assertEqual(40.0, photo.duration)
             self.assertEqual([10.0] * 4, [context.get('photo_started_at') for context in contexts])
-            self.assertEqual({}, get_jm_task_context())
+            self.assertEqual({}, JTC.get_context())
 
         asyncio.run(run_test())
 
