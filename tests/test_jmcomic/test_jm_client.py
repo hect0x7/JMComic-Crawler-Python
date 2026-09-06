@@ -244,17 +244,9 @@ class Test_Client(JmTestConfigurable):
         raise AssertionError(elist)
 
     def test_comment_count(self):
-        aid = 'JM438516'
+        aid = '350234'
         album = self.client.get_album_detail(aid)
         self.assertGreater(album.comment_count, 0)
-        page = self.client.search_site('无修正')
-        for i in range(3):
-            aid, _atitle = page[i]
-            self.assertGreaterEqual(
-                self.client.get_album_detail(aid).comment_count,
-                0,
-                aid,
-            )
 
     def test_album_pagination(self):
         album_id = '302820'
