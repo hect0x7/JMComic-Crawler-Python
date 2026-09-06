@@ -19,9 +19,12 @@ import jmcomic
 
 async def main():
     # 异步下载单个本子
-    album, downloader = await jmcomic.download_album_async('438696')
+    result = await jmcomic.download_album_async('438696')
+    album = result.detail
+    downloader = result.downloader
 
-    # 返回的 downloader 已释放网络连接和线程池，只用于读取下载结果
+    # 返回时该 Downloader 的网络 client 已关闭；如果传入共享 decode
+    # 执行器，它仍由创建它的调用方管理
     print(downloader.download_failed_image)
     
     # 异步下载单章节
@@ -51,6 +54,8 @@ async def main():
 
 asyncio.run(main())
 ```
+
+异步下载的网络 I/O 仍由 event loop 和 Semaphore 控制；解密、PIL、写盘及同步 hook 使用标准线程池。每个 `JmAsyncDownloader` 仍独立创建并关闭自己的 client、session 和并发控制；需要显式复用线程池时，请参阅[复用下载 Runtime](16_shared_executors.md)。
 
 ## 3. 异步获取实体类，并发请求
 
@@ -102,11 +107,17 @@ async def main():
         # 示例：使用 async 并发获取本子详情
         album_id_list = [123, 456]
         album_list = await asyncio.gather(
-            *(cl.get_album_detail(aid) for aid in album_id_list)
+            *(cl.get_album_detail(aid) for aid in album_id_list),
+            return_exceptions=True,  # 等所有请求结束后再关闭共享 client
         )
         
         # 打印结果
         for aid, album in zip(album_id_list, album_list):
+            if isinstance(album, asyncio.CancelledError):
+                raise album
+            if isinstance(album, Exception):
+                print(f'[JM{aid}] 查询失败: {album}')
+                continue
             print(f'[JM{aid}] 本子详情: {album}')
 
 asyncio.run(main())
@@ -265,3 +276,77 @@ asyncio.run(main())
 | `image.duration` | 处理这张图片花了多久，包含检查缓存、下载、解密和保存 |
 
 下载器可能同时处理多个章节或多张图片，所以把它们的耗时全部相加，不会得到本子的耗时，这是正常现象。同步下载中的这些字段含义相同。
+
+## 10. 异步解码池复用与性能调优 (Async Runtime)
+
+禁漫的图片下载后需要进行分块拼接、反混淆解密并存盘。异步下载时，网络请求由 `asyncio` 协程高效处理，而图片解码与写盘等阻塞操作则由后台线程池负责。
+
+默认情况下，每次调用 `download_album_async` 会自动管理解码池，任务结束后自动释放，通常不需要手动配置。
+
+自 `v2.7.6` 起，如果你在并发下载多个本子时希望控制解码并发数，或者希望复用外部线程池，可以使用 `JmAsyncRuntime`：
+
+```python
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from jmcomic import JmAsyncRuntime, download_album_async, jm_task_context, JTC
+
+
+async def main():
+    # 场景 1：指定解码并发线程数为 4
+    runtime = JmAsyncRuntime(decode_workers=4)
+    try:
+        with jm_task_context(runtime=runtime):
+            # 两个本子的图片统一使用这 4 个解码线程处理
+            results = await download_album_async(['123456', '789012'])
+            for album_id, error in results.failed.items():
+                print(f'本子 {album_id} 下载任务失败: {error}')
+
+            # 下载过程中可以通过 JTC 查看当前生效的 Runtime
+            print('当前 Runtime:', JTC.get_runtime())
+    finally:
+        runtime.close()
+
+    # 场景 2：复用外部已有的线程池（生命周期由外部管理，JMComic 不会主动关闭它）
+    with ThreadPoolExecutor(max_workers=4) as my_pool:
+        runtime = JmAsyncRuntime(decode_executor=my_pool)
+        try:
+            with jm_task_context(runtime=runtime):
+                await download_album_async('123456')
+        finally:
+            runtime.close()
+
+
+asyncio.run(main())
+```
+
+> 批量 API 会等两个本子的任务都结束，再返回 `BatchResult`。其中某个任务抛出普通异常时，会记录到 `results.failed`，不会提前关闭另一个任务正在使用的 Runtime；取消仍会向调用方抛出。
+
+关于 Runtime 与任务上下文的更多进阶机制（如同步三层拓扑、JTC 门面类、外部 Executor 生命周期），请参考 [复用下载 Runtime 与共享线程池](16_shared_executors.md)。
+
+## 11. 取消下载
+
+如果需要中途停止异步下载，可以使用 `DownloadControl`（需 `v2.7.6` 及以上版本）。
+
+```python
+import asyncio
+from jmcomic import DownloadCancelledException, DownloadControl, download_album_async, jm_task_context
+
+async def main():
+    control = DownloadControl()
+
+    # 绑定 control 并启动下载任务
+    with jm_task_context(control=control):
+        task = asyncio.create_task(download_album_async('123456'))
+
+    # 模拟一段时间后需要取消下载
+    await asyncio.sleep(2)
+    control.cancel()  # 可以传入取消原因，下载协程可通过下面的 e.reason 获取
+
+    try:
+        # 等待下载收尾
+        await task
+    except DownloadCancelledException as e:
+        print(f'异步任务已取消: {e.reason}')
+
+asyncio.run(main())
+```

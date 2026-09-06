@@ -58,6 +58,7 @@ nav:
     - tutorial/12_domain_strategy.md
     - tutorial/13_export_and_feature.md
     - tutorial/14_async_usage.md
+    - tutorial/16_shared_executors.md
     - tutorial/15_download_progress.md
 
 plugins:

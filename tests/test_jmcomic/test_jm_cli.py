@@ -1,10 +1,12 @@
+from concurrent.futures import ThreadPoolExecutor
+
 from test_jmcomic import *
 from io import StringIO
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from jmcomic.cli import JmcomicUI, JmViewUI
-from jmcomic.jm_task_context import get_jm_task_context
+from jmcomic import JmSyncRuntime, JTC, jm_task_context
 
 
 class Test_Cli(JmTestConfigurable):
@@ -60,7 +62,7 @@ class Test_Cli(JmTestConfigurable):
             ui.option_path = None
 
         def create_default_option():
-            self.assertTrue(get_jm_task_context().get('cli_no_progress'))
+            self.assertTrue(JTC.get_context().get('cli_no_progress'))
             return option
 
         with patch.object(ui, 'parse_arg', side_effect=parse_arg), \
@@ -70,7 +72,7 @@ class Test_Cli(JmTestConfigurable):
                 patch('jmcomic.api.jm_log'):
             ui.main()
 
-        self.assertNotIn('cli_no_progress', get_jm_task_context())
+        self.assertNotIn('cli_no_progress', JTC.get_context())
 
     def test_jmcomic_falls_back_without_rich(self):
         ui = JmcomicUI()
@@ -106,6 +108,44 @@ class Test_Cli(JmTestConfigurable):
         ui.parse_raw_id()
         self.assertEqual(ui.album_id_list, [self.album_id])
         self.assertEqual(ui.photo_id_list, [self.album_id])
+
+    def test_jmcomic_mixed_threads_inherit_runtime(self):
+        ui = JmcomicUI()
+        ui.album_id_list = ['1']
+        ui.photo_id_list = ['2']
+        option = SimpleNamespace()
+        observed = []
+
+        def record(ids, actual_option):
+            observed.append((
+                ids,
+                actual_option,
+                JTC.get_runtime(),
+                JTC.get_context(),
+            ))
+
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            runtime = JmSyncRuntime(id_executor=executor)
+            with patch('jmcomic.api.download_album', side_effect=record), \
+                    patch('jmcomic.api.download_photo', side_effect=record):
+                with jm_task_context(task_id='cli-job', runtime=runtime):
+                    ui.run(option)
+
+        self.assertCountEqual(
+            [(ids, actual_option) for ids, actual_option, _executor, _context in observed],
+            [(['1'], option), (['2'], option)],
+        )
+        self.assertEqual(
+            [seen for _ids, _option, seen, _context in observed],
+            [runtime, runtime],
+        )
+        self.assertEqual(
+            [context for _ids, _option, _executor, context in observed],
+            [
+                {'task_id': 'cli-job', 'runtime': runtime},
+                {'task_id': 'cli-job', 'runtime': runtime},
+            ],
+        )
 
     def test_jmcomic_download_album(self):
         """jmcomic 真实下载 album 350234"""

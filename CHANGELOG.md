@@ -5,6 +5,18 @@
 条目分类参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [2.7.6] - 2026-09-06
+
+### Added
+- 新增 `JmSimpleRuntime`、`JmSyncRuntime` 与 `JmAsyncRuntime`；裸同步 Downloader 的局部调度使用单池 Runtime，顶层同步 API 或自定义同步调度可复用 `id/photo/image` 三层线程池，异步下载可复用 `decode` 线程池。
+- 新增 `DownloadControl` 和 `DownloadCancelledException`，支持通过任务上下文协作式取消同步与异步下载。
+- 新增 `JTC` (Jm Task Context) 门面类，统一提供上下文、Runtime、Option 及取消控制器的快捷读取方法。
+
+### Changed
+- Python 3.9 保留安装兼容，但不再纳入 CI。
+- 下载调度统一使用标准库 Executor；顶层 API 和裸同步 Downloader 的临时调度显式关闭自己创建的 Runtime，`jm_task_context` 只传播字段；外部 Runtime 和 Executor 仍由调用方关闭。
+- 顶层下载会把 Runtime 和 Option 作为公开字段直接放入任务上下文；Runtime 不依赖 Context 或 Option，未配置的层级由实际调用点传入默认 worker 数。
+
 ## [2.7.5] - 2026-08-25
 
 ### Summary

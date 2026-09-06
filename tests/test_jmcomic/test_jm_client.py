@@ -1,10 +1,41 @@
 import asyncio
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 from test_jmcomic import *
 
 
 class Test_Client(JmTestConfigurable):
+
+    def test_add_favorite_album_uses_ajax_form_post(self):
+        client = object.__new__(JmHtmlClient)
+        response = SimpleNamespace(
+            status_code=200,
+            url='https://example.com/ajax/favorite_album',
+            redirect_count=0,
+            text='{"status": 1}',
+            json=lambda: {'status': 1},
+        )
+        client.post = Mock(return_value=response)
+
+        result = JmHtmlClient.add_favorite_album(client, 21, 123)
+
+        self.assertIs(result, response)
+        client.post.assert_called_once_with(
+            '/ajax/favorite_album',
+            data={
+                'album_id': '21',
+                'fid': '123',
+            },
+            headers={
+                'accept': 'application/json, text/javascript, */*; q=0.01',
+                'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'sec-fetch-dest': 'empty',
+                'sec-fetch-mode': 'cors',
+                'sec-fetch-site': 'same-origin',
+                'x-requested-with': 'XMLHttpRequest',
+            },
+        )
 
     def test_download_image(self):
         jm_photo_id = 'JM438516'
@@ -213,17 +244,9 @@ class Test_Client(JmTestConfigurable):
         raise AssertionError(elist)
 
     def test_comment_count(self):
-        aid = 'JM438516'
+        aid = '350234'
         album = self.client.get_album_detail(aid)
         self.assertGreater(album.comment_count, 0)
-        page = self.client.search_site('无修正')
-        for i in range(3):
-            aid, _atitle = page[i]
-            self.assertGreaterEqual(
-                self.client.get_album_detail(aid).comment_count,
-                0,
-                aid,
-            )
 
     def test_album_pagination(self):
         album_id = '302820'

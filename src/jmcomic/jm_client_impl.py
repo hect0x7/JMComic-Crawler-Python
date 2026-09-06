@@ -268,14 +268,28 @@ class JmHtmlClient(AbstractJmClient):
                            folder_id='0',
                            ):
         data = {
-            'album_id': album_id,
-            'fid': folder_id,
+            'album_id': str(album_id),
+            'fid': str(folder_id),
         }
 
-        resp = self.get_jm_html(
+        resp = self.post(
             '/ajax/favorite_album',
             data=data,
+            headers={
+                'accept': 'application/json, text/javascript, */*; q=0.01',
+                'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'sec-fetch-dest': 'empty',
+                'sec-fetch-mode': 'cors',
+                'sec-fetch-site': 'same-origin',
+                'x-requested-with': 'XMLHttpRequest',
+            },
         )
+
+        if resp.status_code != 200:
+            self.check_special_http_code(resp)
+            self.raise_request_error(resp)
+
+        self.require_resp_success_else_raise(resp, '/ajax/favorite_album')
 
         res = resp.json()
 
@@ -967,7 +981,8 @@ class JmApiClient(AbstractJmClient):
         移动端没有提供folder_id参数
         """
         resp = self.req_api(
-            '/favorite',
+            self.API_FAVORITE,
+            get=False,
             data={
                 'aid': album_id,
             },

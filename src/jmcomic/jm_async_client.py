@@ -681,8 +681,11 @@ class AsyncJmApiClient(AsyncJmcomicClient):
         将指定图集加入用户的收藏夹。
         注意：移动端没有提供 folder_id 参数。
         """
-        # 服务端实现上使用带 body 的 GET 请求方式
-        resp = await self.req_api('/favorite', data={'aid': album_id})
+        resp = await self.req_api(
+            self.API_FAVORITE,
+            get=False,
+            data={'aid': album_id},
+        )
         data = resp.model_data
         if data.status != 'ok':
             ExceptionTool.raises_resp(data.msg, resp)
