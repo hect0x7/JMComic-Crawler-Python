@@ -87,6 +87,10 @@ class JmMagicConstants:
     ORDER_BY_SCORE = 'tr'
     ORDER_BY_COMMENT = 'md'
 
+    # 收藏夹列表的排序参数（ff = favorite folder）
+    ORDER_FF_FAVORITE_TIME = 'mr'  # 收藏时间
+    ORDER_FF_UPDATE_TIME = 'mp'  # 更新时间
+
     ORDER_MONTH_RANKING = 'mv_m'
     ORDER_WEEK_RANKING = 'mv_w'
     ORDER_DAY_RANKING = 'mv_t'
@@ -142,7 +146,7 @@ class JmMagicConstants:
     APP_TOKEN_SECRET_2 = '18comicAPPContent'
     APP_DATA_SECRET = '185Hcomic3PAPP7R'
     API_DOMAIN_SERVER_SECRET = 'diosfjckwpqpdfjkvnqQjsik'
-    APP_VERSION = '2.1.2'
+    APP_VERSION = '2.1.6'
 
 
 # 模块级别共用配置

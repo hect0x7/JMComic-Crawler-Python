@@ -290,7 +290,7 @@ class JmUserClient:
 
     def favorite_folder(self,
                         page=1,
-                        order_by=JmMagicConstants.ORDER_BY_LATEST,
+                        order_by=JmMagicConstants.ORDER_FF_FAVORITE_TIME,
                         folder_id='0',
                         username='',
                         ) -> JmFavoritePage:
@@ -298,7 +298,7 @@ class JmUserClient:
         获取收藏了的漫画，文件夹默认是全部
         :param folder_id: 文件夹id
         :param page: 分页
-        :param order_by: 排序
+        :param order_by: 排序（JmMagicConstants.ORDER_FF_FAVORITE_TIME / ORDER_FF_UPDATE_TIME）
         :param username: 用户名
         """
         raise NotImplementedError
@@ -309,6 +309,15 @@ class JmUserClient:
                            ):
         """
         把漫画加入收藏夹
+        """
+        raise NotImplementedError
+
+    def delete_favorite_album(self,
+                              album_id,
+                              folder_id='0',
+                              ):
+        """
+        从收藏夹移除漫画
         """
         raise NotImplementedError
 
@@ -609,7 +618,7 @@ class JmcomicClient(
 
     def favorite_folder_gen(self,
                             page=1,
-                            order_by=JmMagicConstants.ORDER_BY_LATEST,
+                            order_by=JmMagicConstants.ORDER_FF_FAVORITE_TIME,
                             folder_id='0',
                             username='',
                             ) -> Generator[JmFavoritePage, Dict, None]:
@@ -1016,7 +1025,7 @@ class AsyncJmcomicClient:
 
     async def favorite_folder(self,
                               page=1,
-                              order_by=JmMagicConstants.ORDER_BY_LATEST,
+                              order_by=JmMagicConstants.ORDER_FF_FAVORITE_TIME,
                               folder_id='0',
                               username='',
                               ) -> JmFavoritePage:
@@ -1024,7 +1033,7 @@ class AsyncJmcomicClient:
 
     async def favorite_folder_gen(self,
                                   page=1,
-                                  order_by=JmMagicConstants.ORDER_BY_LATEST,
+                                  order_by=JmMagicConstants.ORDER_FF_FAVORITE_TIME,
                                   folder_id='0',
                                   username='',
                                   ):
@@ -1047,6 +1056,9 @@ class AsyncJmcomicClient:
                 break
 
     async def add_favorite_album(self, album_id, folder_id='0'):
+        raise NotImplementedError
+
+    async def delete_favorite_album(self, album_id, folder_id='0'):
         raise NotImplementedError
 
     async def album_comment(self,

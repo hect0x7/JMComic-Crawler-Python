@@ -185,7 +185,10 @@ class JmcomicText:
 
             if field_value is None:
                 if default is None:
-                    msg_tail = '' if JmModuleConfig.FLAG_DUMP_HTML_ON_REGEX_ERROR else '，可通过设置 JmModuleConfig.FLAG_DUMP_HTML_ON_REGEX_ERROR = True 将响应文本保存到文件'
+                    msg_tail = '' if JmModuleConfig.FLAG_DUMP_HTML_ON_REGEX_ERROR else \
+                        ('，可通过设置 JmModuleConfig.FLAG_DUMP_HTML_ON_REGEX_ERROR = True '
+                         '将响应文本保存到文件'
+                         )
                     ExceptionTool.raises_regex(
                         f"文本没有匹配上字段：字段名为'{field_name}'，pattern: [{pattern}]"
                         + (f"\n响应文本=[{html}]" if len(html) < 200 else

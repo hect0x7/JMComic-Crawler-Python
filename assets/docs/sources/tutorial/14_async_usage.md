@@ -181,6 +181,10 @@ async def main():
             for folder_id, folder_name in page.iter_folder_id_name():
                 print(f'收藏夹id: {folder_id}, 名称: {folder_name}')
 
+        # 异步添加或取消收藏
+        await cl.add_favorite_album('438696')
+        await cl.delete_favorite_album('438696')
+
 asyncio.run(main())
 ```
 

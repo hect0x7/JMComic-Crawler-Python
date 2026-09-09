@@ -281,10 +281,25 @@ for page in client.favorite_folder_gen():  # 如果你只想获取特定收藏�
         print(f'收藏夹id: {folder_id}, 收藏夹名称: {folder_name}')
 
 # 获取特定收藏夹的单页，使用favorite_folder方法
+# order_by 支持:
+#   JmMagicConstants.ORDER_FF_FAVORITE_TIME: 按收藏时间倒序（默认）
+#   JmMagicConstants.ORDER_FF_UPDATE_TIME:   按漫画更新时间倒序
 page = client.favorite_folder(page=1,
-                              order_by=JmMagicConstants.ORDER_BY_LATEST,
+                              order_by=JmMagicConstants.ORDER_FF_FAVORITE_TIME,
                               folder_id='0'  # 收藏夹id
                               )
+```
+
+### 添加与取消收藏
+
+支持直接通过本子 ID 添加或取消收藏（HTML 网页端与 API 端均支持）：
+
+```python
+# 把本子加入收藏
+client.add_favorite_album('438696')
+
+# 从收藏夹移除本子
+client.delete_favorite_album('438696')
 ```
 
 ## 分类 / 排行榜

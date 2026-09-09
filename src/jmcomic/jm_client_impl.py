@@ -2,7 +2,6 @@ from copy import deepcopy
 from threading import Lock
 
 from .jm_task_context import bind_jm_task_context
-
 from .jm_client_interface import *
 
 
@@ -267,14 +266,12 @@ class JmHtmlClient(AbstractJmClient):
                            album_id,
                            folder_id='0',
                            ):
-        data = {
-            'album_id': album_id,
-            'fid': folder_id,
-        }
-
-        resp = self.get_jm_html(
+        resp = self.post(
             '/ajax/favorite_album',
-            data=data,
+            data={
+                'album_id': str(album_id),
+                'fid': str(folder_id),
+            },
         )
 
         res = resp.json()
@@ -283,6 +280,30 @@ class JmHtmlClient(AbstractJmClient):
             msg = parse_unicode_escape_text(res['msg'])
             error_msg = PatternTool.match_or_default(msg, JmcomicText.pattern_ajax_favorite_msg, msg)
             # 此圖片已經在您最喜愛的清單！
+
+            self.raise_request_error(
+                resp,
+                error_msg
+            )
+
+        return resp
+
+    def delete_favorite_album(self,
+                              album_id,
+                              folder_id='0',
+                              ):
+        resp = self.post(
+            '/ajax/delete_favorite_album',
+            data={
+                'album_id': str(album_id),
+            },
+        )
+
+        res = resp.json()
+
+        if res['status'] != 1:
+            msg = parse_unicode_escape_text(res['msg'])
+            error_msg = PatternTool.match_or_default(msg, JmcomicText.pattern_ajax_favorite_msg, msg)
 
             self.raise_request_error(
                 resp,
@@ -440,7 +461,7 @@ class JmHtmlClient(AbstractJmClient):
 
     def favorite_folder(self,
                         page=1,
-                        order_by=JmMagicConstants.ORDER_BY_LATEST,
+                        order_by=JmMagicConstants.ORDER_FF_FAVORITE_TIME,
                         folder_id='0',
                         username='',
                         ) -> JmFavoritePage:
@@ -904,7 +925,7 @@ class JmApiClient(AbstractJmClient):
 
     def favorite_folder(self,
                         page=1,
-                        order_by=JmMagicConstants.ORDER_BY_LATEST,
+                        order_by=JmMagicConstants.ORDER_FF_FAVORITE_TIME,
                         folder_id='0',
                         username='',
                         ) -> JmFavoritePage:
@@ -959,15 +980,20 @@ class JmApiClient(AbstractJmClient):
         )
         return JmPageTool.parse_api_to_album_comment_page(resp.model_data, page)
 
-    def add_favorite_album(self,
-                           album_id,
-                           folder_id='0',
-                           ):
+    def toggle_favorite_album(self,
+                              album_id,
+                              folder_id='0',
+                              expected_type: Optional[str] = None,
+                              ):
         """
-        移动端没有提供folder_id参数
+        切换本子的收藏状态（移动端接口底层为 Toggle 逻辑）。
+        :param album_id: 本子ID
+        :param folder_id: 移动端没有提供 folder_id 参数，保留参数兼容
+        :param expected_type: 期望的操作类型 ('add' | 'remove')，如果不匹配则抛异常
         """
         resp = self.req_api(
-            '/favorite',
+            self.API_FAVORITE,
+            get=False,
             data={
                 'aid': album_id,
             },
@@ -975,7 +1001,35 @@ class JmApiClient(AbstractJmClient):
 
         self.require_resp_status_ok(resp)
 
+        if expected_type is not None:
+            actual_type = resp.model_data.type
+            if actual_type != expected_type:
+                ExceptionTool.raises_resp(
+                    f'收藏操作不符合预期，期望 [{expected_type}]，实际为 [{actual_type}]: {resp.model_data.msg}',
+                    resp
+                )
+
         return resp
+
+    def add_favorite_album(self,
+                           album_id,
+                           folder_id='0',
+                           ):
+        """
+        把本子加入收藏夹。
+        如果当前已收藏，将抛出异常以保证收藏语义明确。
+        """
+        return self.toggle_favorite_album(album_id, folder_id, expected_type='add')
+
+    def delete_favorite_album(self,
+                              album_id,
+                              folder_id='0',
+                              ):
+        """
+        从收藏夹移除本子。
+        如果当前未收藏，将抛出异常以保证取消收藏语义明确。
+        """
+        return self.toggle_favorite_album(album_id, folder_id, expected_type='remove')
 
     # noinspection PyMethodMayBeStatic
     def require_resp_status_ok(self, resp: JmApiResp):

@@ -5,6 +5,20 @@
 条目分类参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [2.7.6] - 2026-09-09
+
+### Summary
+
+本次更新支持 API 与 HTML 客户端的添加与取消收藏功能，新增收藏夹列表专用排序常量，并同步禁漫 APP 2.1.6 移动端版本号。
+
+### Added
+- 新增 `delete_favorite_album` 接口，支持 HTML 网页端、API 移动端及异步客户端取消漫画收藏。
+- 新增收藏夹专用排序常量 `JmMagicConstants.ORDER_FF_FAVORITE_TIME`（按收藏时间排序）与 `JmMagicConstants.ORDER_FF_UPDATE_TIME`（按更新时间排序），并作为收藏夹接口默认参数。
+- API 客户端内部新增 `toggle_favorite_album` 复用方法，并在 `add_favorite_album` 与 `delete_favorite_album` 中增加操作类型强校验，防止底层 Toggle 接口误操作。
+
+### Changed
+- 更新禁漫移动端版本号至 `2.1.6`。
+
 ## [2.7.5] - 2026-08-25
 
 ### Summary

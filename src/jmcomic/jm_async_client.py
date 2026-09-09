@@ -35,7 +35,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
     禁漫移动端异步 API 客户端。
 
     继承 AsyncJmcomicClient 接口，提供全面的异步网络通信能力，
-    涵盖图集、章节、搜索、登录与收藏夹等功能模块。
+    涵盖本子、章节、搜索、登录与收藏夹等功能模块。
     通过异步会话管理与并发请求调度，显著提升网络 I/O 的处理性能与吞吐量。
     """
 
@@ -417,7 +417,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
         return result
 
     async def get_album_detail(self, album_id) -> JmAlbumDetail:
-        """获取图集详情信息"""
+        """获取本子详情信息"""
         return await self._fetch_detail_entity(album_id, JmModuleConfig.album_class())
 
     async def get_photo_detail(self,
@@ -434,7 +434,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
     async def _fetch_photo_additional_field(self, photo: JmPhotoDetail,
                                             fetch_album: bool,
                                             fetch_scramble_id: bool):
-        """并发获取图片从属的图集信息与 scramble_id 加解密参数。"""
+        """并发获取图片从属的本子信息与 scramble_id 加解密参数。"""
         tasks = {}
         if fetch_album:
             tasks['album'] = self.get_album_detail(photo.album_id)
@@ -592,7 +592,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
                                 sub_category: str | None = None,
                                 ) -> JmCategoryPage:
         """
-        获取指定分类下的图集列表数据。
+        获取指定分类下的本子列表数据。
         注意：移动端不支持 sub_category。
         """
         o = f'{order_by}_{time}' if time != JmMagicConstants.TIME_ALL else order_by
@@ -629,11 +629,11 @@ class AsyncJmApiClient(AsyncJmcomicClient):
 
     async def favorite_folder(self,
                               page=1,
-                              order_by=JmMagicConstants.ORDER_BY_LATEST,
+                              order_by=JmMagicConstants.ORDER_FF_FAVORITE_TIME,
                               folder_id='0',
                               username='',
                               ) -> JmFavoritePage:
-        """获取收藏夹内特定目录的图集数据分页。"""
+        """获取收藏夹内特定目录的本子数据分页。"""
         resp = await self.req_api(
             self.API_FAVORITE,
             params={
@@ -676,17 +676,49 @@ class AsyncJmApiClient(AsyncJmcomicClient):
         )
         return JmPageTool.parse_api_to_album_comment_page(resp.model_data, page)
 
-    async def add_favorite_album(self, album_id, folder_id='0'):
+    async def toggle_favorite_album(self,
+                                    album_id,
+                                    folder_id='0',
+                                    expected_type: Optional[str] = None,
+                                    ):
         """
-        将指定图集加入用户的收藏夹。
-        注意：移动端没有提供 folder_id 参数。
+        切换本子的收藏状态（移动端接口底层为 Toggle 逻辑）。
+        :param album_id: 本子ID
+        :param folder_id: 移动端没有提供 folder_id 参数，保留参数兼容
+        :param expected_type: 期望的操作类型 ('add' | 'remove')，如果不匹配则抛异常
         """
-        # 服务端实现上使用带 body 的 GET 请求方式
-        resp = await self.req_api('/favorite', data={'aid': album_id})
+        resp = await self.req_api(
+            self.API_FAVORITE,
+            get=False,
+            data={'aid': album_id},
+        )
         data = resp.model_data
         if data.status != 'ok':
             ExceptionTool.raises_resp(data.msg, resp)
+
+        if expected_type is not None:
+            actual_type = data.type
+            if actual_type != expected_type:
+                ExceptionTool.raises_resp(
+                    f'收藏操作不符合预期，期望 [{expected_type}]，实际为 [{actual_type}]: {data.msg}',
+                    resp
+                )
+
         return resp
+
+    async def add_favorite_album(self, album_id, folder_id='0'):
+        """
+        将指定本子加入用户的收藏夹。
+        如果当前已收藏，将抛出异常以保证收藏语义明确。
+        """
+        return await self.toggle_favorite_album(album_id, folder_id, expected_type='add')
+
+    async def delete_favorite_album(self, album_id, folder_id='0'):
+        """
+        将指定本子移出用户的收藏夹。
+        如果当前未收藏，将抛出异常以保证取消收藏语义明确。
+        """
+        return await self.toggle_favorite_album(album_id, folder_id, expected_type='remove')
 
     async def album_comment(self,
                             video_id,

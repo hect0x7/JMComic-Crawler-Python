@@ -827,6 +827,7 @@ class ProgressDownloader(JmDownloader):
         self.stop_progress()
         return super().__exit__(exc_type, exc_val, exc_tb)
 
+
 # noinspection attribute-outside-init
 class AsyncProgressDownloader(JmAsyncDownloader):
 
