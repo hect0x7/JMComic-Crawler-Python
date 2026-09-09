@@ -94,6 +94,27 @@ class PartialDownloadFailedException(JmcomicException):
         return self.from_context(ExceptionTool.CONTEXT_KEY_DOWNLOADER)
 
 
+class DownloadCancelledException(JmcomicException):
+    description = '下载任务已取消'
+
+    def __init__(self, msg='download cancelled', context=None):
+        """
+        按 JMComic 异常的统一结构创建下载取消异常。
+        """
+        msg = str(msg or 'download cancelled')
+        context = dict(context or {})
+        context.setdefault('reason', msg)
+        super().__init__(msg, context)
+
+    @property
+    def control(self):
+        return self.from_context('control')
+
+    @property
+    def reason(self) -> str:
+        return str(self.context.get('reason', 'download cancelled'))
+
+
 class ExceptionTool:
     """
     抛异常的工具
@@ -198,20 +219,24 @@ class ExceptionTool:
         )
 
     @classmethod
-    def require_true(cls, case: bool, msg: str):
+    def require_true(cls, case: bool, msg: str, etype=None):
         if case:
             return
 
-        cls.raises(msg)
+        cls.raises(msg, etype=etype)
 
     @classmethod
     def replace_old_exception_executor(cls, raises: Callable[[Callable, str, dict], None]):
         old = cls.raises
 
-        def new(msg, context=None, _etype=None):
+        def new(msg, context=None, etype=None):
             if context is None:
                 context = {}
-            raises(old, msg, context)
+
+            def raise_original(msg, context=None, etype=etype):
+                return old(msg, context, etype)
+
+            raises(raise_original, msg, context)
 
         cls.raises = new
 

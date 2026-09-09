@@ -59,7 +59,9 @@ class ContractOption:
         return os.path.join(self.base_dir, 'album', 'photo')
 
     def decide_image_filepath(self, image):
-        return os.path.join(self.decide_image_save_dir(image.from_photo), image.filename)
+        save_dir = self.decide_image_save_dir(image.from_photo)
+        os.makedirs(save_dir, exist_ok=True)
+        return os.path.join(save_dir, image.filename)
 
     def decide_download_cache(self, _image):
         return True
@@ -75,7 +77,7 @@ class ContractOption:
 
     def call_all_plugin(self, group, **kwargs):
         self.plugin_event_list.append((group, kwargs))
-        self.context_event_list.append((group, get_jm_task_context()))
+        self.context_event_list.append((group, JTC.get_context()))
         if group == 'after_image' and self.after_image_callback is not None:
             self.after_image_callback(kwargs['image'])
 
@@ -143,6 +145,10 @@ class ContractAsyncClient:
     async def check_photo(self, _photo):
         return None
 
+    async def get_jm_image(self, _url):
+        self.image_download_count += 1
+        return SimpleNamespace(content=b'image')
+
 
 class ContractAsyncDownloader(JmAsyncDownloader):
 
@@ -162,6 +168,120 @@ class ContractAsyncDownloader(JmAsyncDownloader):
 
 
 class Test_Download_Manifest(unittest.TestCase):
+
+    def test_after_image_error_does_not_register_sync_success(self):
+        with TemporaryDirectory() as temp_dir:
+            album, photo, images = new_album_photo_images()
+            option = ContractOption(temp_dir)
+            downloader = ContractSyncDownloader(option, album, photo, images)
+            error = ValueError('image plugin failed')
+
+            def fail(_image):
+                raise error
+
+            option.after_image_callback = fail
+            with self.assertRaises(ValueError) as caught:
+                downloader.download_album(album.id)
+
+            self.assertIs(caught.exception, error)
+            self.assertTrue(os.path.isfile(images[0].save_path))
+            self.assertEqual(downloader.download_success_dict[album][photo], [])
+            self.assertEqual(downloader.download_failed_image, [(images[0], error)])
+            self.assertEqual(downloader.manifest_dict[album].image_filepath_list, [])
+
+    def test_after_image_error_does_not_register_async_success(self):
+        async def run_test(temp_dir):
+            album, photo, images = new_album_photo_images()
+            option = ContractOption(temp_dir)
+            downloader = ContractAsyncDownloader(option, album, photo, images)
+            error = ValueError('image plugin failed')
+
+            def fail(_image):
+                raise error
+
+            option.after_image_callback = fail
+            runtime = JmAsyncRuntime()
+            try:
+                with jm_task_context(runtime=runtime):
+                    await downloader.download_album(album.id)
+            finally:
+                runtime.close()
+
+            self.assertTrue(os.path.isfile(images[0].save_path))
+            self.assertEqual(downloader.download_success_dict[album][photo], [])
+            self.assertEqual(downloader.download_failed_image, [(images[0], error)])
+            self.assertEqual(downloader.manifest_dict[album].image_filepath_list, [])
+
+        with TemporaryDirectory() as temp_dir:
+            asyncio.run(run_test(temp_dir))
+
+    def test_after_image_direct_cancellation_keeps_saved_image(self):
+        with TemporaryDirectory() as temp_dir:
+            album, photo, images = new_album_photo_images()
+            option = ContractOption(temp_dir)
+            downloader = ContractSyncDownloader(option, album, photo, images)
+            error = DownloadCancelledException('image plugin cancelled')
+
+            def cancel(_image):
+                raise error
+
+            option.after_image_callback = cancel
+            with self.assertRaises(DownloadCancelledException) as caught:
+                downloader.download_album(album.id)
+
+            self.assertIs(caught.exception, error)
+            self.assertEqual(downloader.download_failed_image, [])
+            self.assertEqual(
+                downloader.manifest_dict[album].image_filepath_list,
+                [images[0].save_path],
+            )
+
+    def test_current_sync_image_is_recorded_before_cancellation(self):
+        with TemporaryDirectory() as temp_dir:
+            album, photo, image_list = new_album_photo_images()
+            option = ContractOption(temp_dir)
+            downloader = ContractSyncDownloader(option, album, photo, image_list)
+            control = DownloadControl()
+            option.after_image_callback = lambda image: control.cancel('stop after image')
+
+            with jm_task_context(control=control):
+                with self.assertRaises(DownloadCancelledException):
+                    downloader.download_album(album.id)
+
+            image = image_list[0]
+            self.assertTrue(os.path.isfile(image.save_path))
+            self.assertEqual(
+                downloader.download_success_dict[album][photo],
+                [(image.save_path, image)],
+            )
+            self.assertEqual(downloader.download_failed_image, [])
+
+    def test_current_async_image_is_recorded_before_cancellation(self):
+        async def run_test(temp_dir):
+            album, photo, image_list = new_album_photo_images()
+            option = ContractOption(temp_dir)
+            downloader = ContractAsyncDownloader(option, album, photo, image_list)
+            control = DownloadControl()
+            option.after_image_callback = lambda image: control.cancel('stop after image')
+            os.makedirs(option.decide_image_save_dir(photo), exist_ok=True)
+
+            runtime = JmAsyncRuntime()
+            try:
+                with jm_task_context(control=control, runtime=runtime):
+                    with self.assertRaises(DownloadCancelledException):
+                        await downloader.download_album(album.id)
+            finally:
+                runtime.close()
+
+            image = image_list[0]
+            self.assertEqual(
+                downloader.download_success_dict[album][photo],
+                [(image.save_path, image)],
+            )
+            self.assertEqual(downloader.download_failed_image, [])
+
+        with TemporaryDirectory() as temp_dir:
+            asyncio.run(run_test(temp_dir))
 
     def test_downloadable_defaults(self):
         album, photo, image_list = new_album_photo_images()
@@ -794,7 +914,7 @@ class Test_Download_Manifest(unittest.TestCase):
                 [2, 2],
                 [context['photo_started_at'] for context in context_by_group['before_image']],
             )
-            self.assertEqual({}, get_jm_task_context())
+            self.assertEqual({}, JTC.get_context())
 
     def test_sync_download_album_duration_includes_detail_and_manifest(self):
         clock = {'now': 10.0}
@@ -803,20 +923,20 @@ class Test_Download_Manifest(unittest.TestCase):
         downloader = object.__new__(JmDownloader)
 
         def get_album_detail(_album_id):
-            contexts.append(get_jm_task_context())
+            contexts.append(JTC.get_context())
             clock['now'] = 20.0
             return album
 
         def begin_manifest(_album):
-            contexts.append(get_jm_task_context())
+            contexts.append(JTC.get_context())
             clock['now'] = 30.0
 
         def download_by_album_detail(_album):
-            contexts.append(get_jm_task_context())
+            contexts.append(JTC.get_context())
             clock['now'] = 40.0
 
         def finish_manifest(_album):
-            contexts.append(get_jm_task_context())
+            contexts.append(JTC.get_context())
             clock['now'] = 50.0
 
         downloader.client = SimpleNamespace(get_album_detail=get_album_detail)
@@ -830,7 +950,7 @@ class Test_Download_Manifest(unittest.TestCase):
         self.assertIs(result, album)
         self.assertEqual(40.0, album.duration)
         self.assertEqual([10.0] * 4, [context.get('album_started_at') for context in contexts])
-        self.assertEqual({}, get_jm_task_context())
+        self.assertEqual({}, JTC.get_context())
 
     def test_sync_download_photo_duration_includes_detail_and_manifest(self):
         clock = {'now': 10.0}
@@ -839,20 +959,20 @@ class Test_Download_Manifest(unittest.TestCase):
         downloader = object.__new__(JmDownloader)
 
         def get_photo_detail(_photo_id):
-            contexts.append(get_jm_task_context())
+            contexts.append(JTC.get_context())
             clock['now'] = 20.0
             return photo
 
         def begin_manifest(_photo):
-            contexts.append(get_jm_task_context())
+            contexts.append(JTC.get_context())
             clock['now'] = 30.0
 
         def download_by_photo_detail(_photo):
-            contexts.append(get_jm_task_context())
+            contexts.append(JTC.get_context())
             clock['now'] = 40.0
 
         def finish_manifest(_photo):
-            contexts.append(get_jm_task_context())
+            contexts.append(JTC.get_context())
             clock['now'] = 50.0
 
         downloader.client = SimpleNamespace(get_photo_detail=get_photo_detail)
@@ -866,7 +986,7 @@ class Test_Download_Manifest(unittest.TestCase):
         self.assertIs(result, photo)
         self.assertEqual(40.0, photo.duration)
         self.assertEqual([10.0] * 4, [context.get('photo_started_at') for context in contexts])
-        self.assertEqual({}, get_jm_task_context())
+        self.assertEqual({}, JTC.get_context())
 
     def test_async_download_album_duration_includes_detail_and_manifest(self):
         async def run_test():
@@ -876,20 +996,20 @@ class Test_Download_Manifest(unittest.TestCase):
             downloader = object.__new__(JmAsyncDownloader)
 
             async def get_album_detail(_album_id):
-                contexts.append(get_jm_task_context())
+                contexts.append(JTC.get_context())
                 clock['now'] = 20.0
                 return album
 
             def begin_manifest(_album):
-                contexts.append(get_jm_task_context())
+                contexts.append(JTC.get_context())
                 clock['now'] = 30.0
 
             async def download_by_album_detail(_album):
-                contexts.append(get_jm_task_context())
+                contexts.append(JTC.get_context())
                 clock['now'] = 40.0
 
             def finish_manifest(_album):
-                contexts.append(get_jm_task_context())
+                contexts.append(JTC.get_context())
                 clock['now'] = 50.0
 
             downloader.client = SimpleNamespace(get_album_detail=get_album_detail)
@@ -903,7 +1023,7 @@ class Test_Download_Manifest(unittest.TestCase):
             self.assertIs(result, album)
             self.assertEqual(40.0, album.duration)
             self.assertEqual([10.0] * 4, [context.get('album_started_at') for context in contexts])
-            self.assertEqual({}, get_jm_task_context())
+            self.assertEqual({}, JTC.get_context())
 
         asyncio.run(run_test())
 
@@ -915,20 +1035,20 @@ class Test_Download_Manifest(unittest.TestCase):
             downloader = object.__new__(JmAsyncDownloader)
 
             async def get_photo_detail(_photo_id):
-                contexts.append(get_jm_task_context())
+                contexts.append(JTC.get_context())
                 clock['now'] = 20.0
                 return photo
 
             def begin_manifest(_photo):
-                contexts.append(get_jm_task_context())
+                contexts.append(JTC.get_context())
                 clock['now'] = 30.0
 
             async def download_by_photo_detail(_photo):
-                contexts.append(get_jm_task_context())
+                contexts.append(JTC.get_context())
                 clock['now'] = 40.0
 
             def finish_manifest(_photo):
-                contexts.append(get_jm_task_context())
+                contexts.append(JTC.get_context())
                 clock['now'] = 50.0
 
             downloader.client = SimpleNamespace(get_photo_detail=get_photo_detail)
@@ -942,7 +1062,7 @@ class Test_Download_Manifest(unittest.TestCase):
             self.assertIs(result, photo)
             self.assertEqual(40.0, photo.duration)
             self.assertEqual([10.0] * 4, [context.get('photo_started_at') for context in contexts])
-            self.assertEqual({}, get_jm_task_context())
+            self.assertEqual({}, JTC.get_context())
 
         asyncio.run(run_test())
 
@@ -1032,21 +1152,23 @@ class Test_Download_Manifest(unittest.TestCase):
                 f.write(b'cached')
 
             downloader = ContractAsyncDownloader(option, album, photo, image_list)
+            runtime = JmAsyncRuntime()
             try:
-                await downloader.download_album(album.id)
-
-                self.assertEqual(album.save_path, option.dir_rule.decide_album_root_dir(album))
-                self.assertEqual(photo.save_path, option.decide_image_save_dir(photo))
-                self.assertEqual(image.save_path, filepath)
-                self.assertIsInstance(album.duration, float)
-                self.assertIsInstance(photo.duration, float)
-                self.assertIsInstance(image.duration, float)
-                after_image_events = [event for event, _ in option.plugin_event_list if event == 'after_image']
-                self.assertEqual(after_image_events, ['after_image'])
-                self.assertEqual(downloader.download_success_dict[album][photo], [(filepath, image)])
-                self.assertEqual(downloader.manifest_dict[album].image_filepath_list, [filepath])
+                with jm_task_context(runtime=runtime):
+                    await downloader.download_album(album.id)
             finally:
-                downloader.shutdown()
+                runtime.close()
+
+            self.assertEqual(album.save_path, option.dir_rule.decide_album_root_dir(album))
+            self.assertEqual(photo.save_path, option.decide_image_save_dir(photo))
+            self.assertEqual(image.save_path, filepath)
+            self.assertIsInstance(album.duration, float)
+            self.assertIsInstance(photo.duration, float)
+            self.assertIsInstance(image.duration, float)
+            after_image_events = [event for event, _ in option.plugin_event_list if event == 'after_image']
+            self.assertEqual(after_image_events, ['after_image'])
+            self.assertEqual(downloader.download_success_dict[album][photo], [(filepath, image)])
+            self.assertEqual(downloader.manifest_dict[album].image_filepath_list, [filepath])
 
         with TemporaryDirectory() as temp_dir:
             asyncio.run(run_test(temp_dir))

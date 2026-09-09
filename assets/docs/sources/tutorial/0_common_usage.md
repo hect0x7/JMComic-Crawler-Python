@@ -455,11 +455,61 @@ cl = JmApiClient(
 ```
 
 
+## 取消下载
+
+> 如果你想中途取消下载，最简单粗暴的方式是直接杀死进程，比如 `ctrl+c`，关闭终端窗口 等
+> 
+> 但是在 GUI、Web服务这类场景里，就不适合这么关闭。 
+> 
+> 于是，jmcomic 提供了一种优雅停止的写法，可以使用 `DownloadControl` 这个类。
+> 
+> 这种写法更加可控：
+> 
+> - **不影响主程序**：只停当前下载，GUI 界面或 Web 服务依然正常运作。
+> - **多任务统一取消**：多个本子一起下载时，可以被统一取消。
+> - **可携带取消理由**：调用 `cancel()` 传入的原因可以直接捕获，方便做提示和日志。
+
+写法就两步：
+
+1. 创建 DownloadControl 对象，传入任务上下文
+2. 调用 DownloadControl 类的 cancel() 方法
+
+```python
+from threading import Thread
+from time import sleep
+from jmcomic import DownloadCancelledException, DownloadControl, download_album, jm_task_context
+
+# 创建取消控制器
+my_control = DownloadControl()
+
+def run_download():
+    try:
+        # 使用 with jm_task_context 创建任务上下文，并传入 control 参数
+        with jm_task_context(control=my_control):
+            # 这里还可以写多个 download_album(xxx)，都会统一被取消，因为属于同一个 任务上下文
+            download_album('123456')
+    except DownloadCancelledException as e:
+        print(f'下载已取消: {e.reason}')
+
+# 使用单独的下载线程执行下载
+# 主线程负责取消
+t = Thread(target=run_download)
+t.start()
+
+# 模拟一段时间后，需要取消下载
+sleep(2)
+# 可以传入取消原因，下载线程可通过上面的 e.reason 获取
+my_control.cancel("不想要了，取消掉吧") 
+# 等待下载线程结束
+t.join()
+```
+
+
 ## 下载返回值
 
 `download_album` 和 `download_photo` 下载完成后，单个 ID 返回 `DownloadResult`，多个 ID 返回 `BatchResult`。
 
-从 `result.detail` 可以取得下载的本子/章节的实体类：
+从 `DownloadResult` 的 `detail` 字段可以取得下载的本子/章节的实体类：
 
 ```python
 from jmcomic import download_album, download_photo
@@ -559,24 +609,26 @@ print('长图导出文件:', png_filepath_list)
 
 ### 批量下载的返回值
 
-传入多个 ID 时，返回值是 `BatchResult`。每一项成功下载对应一个 `DownloadResult`，失败任务则记录在 `failed` 中：
+传入多个 ID 时，返回值是 `BatchResult`，通过这个对象可以取得成功和失败的下载结果：
 
 <details markdown="1">
 <summary>完整示例：处理批量下载结果</summary>
 
 ```python
-from jmcomic import download_album
+from jmcomic import download_album, DownloadResult
 
 # 同时下载多个本子
 batch_result = download_album(['123', '456', '789'])
 
-# BatchResult 继承 set，成功结果没有输入顺序保证
+# BatchResult 继承 set，直接遍历是只遍历成功结果
 for result in batch_result:
+    result: DownloadResult
+    # result 的用法同上    
     album = result.detail
-    # 通过实体 ID 识别当前结果，不要用遍历位置对应输入列表
     print(f'JM{album.id} 下载到: {album.save_path}')
 
-# failed 的键是下载失败的 ID，值是记录失败原因的异常对象
+# failed 负责存放失败的下载结果，类型是dict
+# key是下载失败的 ID，value是记录失败原因的异常对象
 for album_id, error in batch_result.failed.items():
     print(f'JM{album_id} 下载失败: {error}')
 
@@ -587,7 +639,8 @@ print('是否全部成功:', batch_result.all_succeeded)
 
 </details>
 
-下载单个 ID 时，请求本子失败会直接抛出异常；如果只有部分章节或图片失败，会在任务结束后汇总抛出 `PartialDownloadFailedException`，此时不会返回 `DownloadResult`。批量下载则继续执行其他任务，并把失败项集中放进 `batch_result.failed`。
+---
+
 
 ### 速查表
 

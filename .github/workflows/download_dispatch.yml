@@ -108,9 +108,11 @@ jobs:
       JM_DOWNLOAD_DIR: /home/runner/work/jmcomic/download/
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
@@ -153,7 +155,7 @@ jobs:
           mv "../$ZIP_NAME" .
 
       - name: 上传结果
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.UPLOAD_NAME }}
           path: ${{ env.JM_DOWNLOAD_DIR }}/${{ env.ZIP_NAME }}

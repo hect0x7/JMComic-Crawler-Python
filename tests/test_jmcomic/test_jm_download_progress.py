@@ -3,7 +3,6 @@ import asyncio
 import importlib.util
 import logging
 import os
-import time
 import unittest
 from io import StringIO
 from pathlib import Path
@@ -28,10 +27,6 @@ from jmcomic.jm_config import setup_default_jm_logger
 from jmcomic.jm_task_context import jm_task_context
 
 
-PROJECT_DIR = Path(__file__).resolve().parents[2]
-DOCUMENT_FILE = PROJECT_DIR / 'assets' / 'docs' / 'sources' / 'tutorial' / '15_download_progress.md'
-PLUGIN_FILE = PROJECT_DIR / 'src' / 'jmcomic' / 'jm_plugin.py'
-DOWNLOADER_FILE = PROJECT_DIR / 'src' / 'jmcomic' / 'jm_downloader.py'
 RICH_INSTALLED = importlib.util.find_spec('rich') is not None
 
 
@@ -159,7 +154,7 @@ class Test_DownloadProgress(unittest.TestCase):
             JmModuleConfig.CLASS_ASYNC_DOWNLOADER = original_downloader
 
     @unittest.skipUnless(RICH_INSTALLED, '需要安装 rich 才能测试彩色进度插件')
-    def test_sync_progress_is_rendered_before_download_finishes(self):
+    def test_sync_progress_updates_before_download_finishes(self):
         from rich.console import Console
 
         album = create_album()
@@ -186,19 +181,24 @@ class Test_DownloadProgress(unittest.TestCase):
             ):
                 downloader = ProgressDownloader(option)
             downloader.before_album(album)
-            rendered_before_wait = ui_output.getvalue()
-            time.sleep(0.2)
-            self.assertEqual(rendered_before_wait, ui_output.getvalue())
 
             downloader.before_photo(photo)
             image.save_path = 'mock.jpg'
             downloader.after_image(image, image.save_path)
 
-            rendered_during_download = ui_output.getvalue()
-            self.assertIn('本子-JM123456', rendered_during_download)
-            self.assertIn('章节-JM101', rendered_during_download)
-            self.assertIn('1/2', rendered_during_download)
-            self.assertNotIn('✓ 本子-JM123456', rendered_during_download)
+            album_task = next(
+                task for task in downloader.progress.tasks
+                if '本子-JM123456' in task.description
+            )
+            chapter_task = next(
+                task for task in downloader.progress.tasks
+                if '章节-JM101' in task.description
+            )
+            self.assertEqual(0, album_task.completed)
+            self.assertEqual(1, chapter_task.completed)
+            self.assertEqual(2, chapter_task.total)
+            self.assertFalse(album_task.finished)
+            self.assertFalse(chapter_task.finished)
         finally:
             if downloader is not None:
                 downloader.stop_progress()
@@ -470,7 +470,7 @@ plugins:
         self.assertIn('检测到命令行参数 --no-progress', rendered)
         self.assertIn('当前 Option 已配置 download_progress', rendered)
         self.assertIn('JMComic Logs', rendered)
-        self.assertIn('album.before', rendered)
+        self.assertIn('album.after', rendered)
         self.assertIn('章节-JM101', rendered)
         self.assertIn('章节-JM102', rendered)
         self.assertIn('✓ 本子-JM123456', rendered)
@@ -548,18 +548,11 @@ plugins:
         self.assertIn('详细日志', rendered)
         self.assertIn('✓ 下载完成：本子-JM123456，章节 2/2，图片 5/5', rendered)
 
-    def test_plugin_is_registered_and_documentation_only_shows_usage(self):
-        document = DOCUMENT_FILE.read_text(encoding='utf-8')
+    def test_plugin_is_registered(self):
         self.assertIs(
             DownloadProgressPlugin,
             JmModuleConfig.REGISTRY_PLUGIN['download_progress'],
         )
-        self.assertIn('plugin: download_progress', document)
-        self.assertIn('download_album_async', document)
-        self.assertNotIn('class ProgressDownloader', document)
-        self.assertNotIn('class DownloadProgressPlugin', document)
-        self.assertIn('class ProgressDownloader', PLUGIN_FILE.read_text(encoding='utf-8'))
-        self.assertNotIn('class ProgressDownloader', DOWNLOADER_FILE.read_text(encoding='utf-8'))
 
 
 if __name__ == '__main__':

@@ -234,9 +234,9 @@ client:
   async_impl: async_api
 ```
 
-## 9. 查看下载耗时
+## 9. 下载返回值
 
-异步下载完成后，可以直接查看自己总共等了多久，也可以继续查看具体是哪个本子、章节或图片比较慢。所有 `duration` 的单位都是秒。
+用法与同步版本完全一致，返回的 `DownloadResult` 包含了本子实体、保存路径、耗时以及下载清单（`manifest`）等专属字段：
 
 ```python
 import asyncio
@@ -247,25 +247,67 @@ async def main():
     result = await jmcomic.download_album_async('438696')
     album = result.detail
 
-    # 从调用 download_album_async 到返回，总共等了多久
-    print(f'总共等待: {result.duration:.3f} 秒')
+    # 1. 实体与保存路径
+    print(f'本子: JM{album.id} - {album.title}')
+    print(f'保存目录: {album.save_path}')
 
-    # 如果下载比较慢，可以继续查看具体慢在哪里
-    print(f'下载本子用了: {album.duration:.3f} 秒')
-    for photo in album:
-        print(f'下载章节 {photo.id} 用了: {photo.duration:.3f} 秒')
-        for image in photo:
-            print(f'处理图片 {image.img_file_name} 用了: {image.duration:.3f} 秒')
+    # 2. 耗时统计（单位：秒）
+    print(f'总耗时: {result.duration:.3f} 秒, 本子处理耗时: {album.duration:.3f} 秒')
+
+    # 3. 下载清单 manifest
+    manifest = result.manifest
+    print(f'全部本子图片的磁盘路径: {manifest.image_filepath_list}')
 
 
 asyncio.run(main())
 ```
 
-| 字段 | 它告诉你什么 |
-| --- | --- |
-| `result.duration` | 从调用异步下载方法到返回，你总共等了多久 |
-| `album.duration` | 下载这个本子花了多久，包含获取本子信息和整理下载结果 |
-| `photo.duration` | 下载这个章节花了多久，包含获取或补全章节信息 |
-| `image.duration` | 处理这张图片花了多久，包含检查缓存、下载、解密和保存 |
+## 10. 取消下载
 
-下载器可能同时处理多个章节或多张图片，所以把它们的耗时全部相加，不会得到本子的耗时，这是正常现象。同步下载中的这些字段含义相同。
+下面示例代码模拟了一个 GUI 场景中，有两个按钮，一个开始下载，一个取消下载，基于 `DownloadControl` 实现。
+
+```python
+import asyncio
+from jmcomic import DownloadCancelledException, DownloadControl, download_album_async, jm_task_context
+
+# 界面持有的当前下载控制器与任务
+current_control = None
+current_task = None
+
+
+# 按钮 1：点击【开始下载】
+def on_btn_download_click(album_id: str) -> asyncio.Task:
+    global current_control, current_task
+    current_control = DownloadControl()
+
+    async def _run():
+        try:
+            with jm_task_context(control=current_control):
+                await download_album_async(album_id)
+        except DownloadCancelledException as e:
+            print(f'[UI 提示] 下载已取消: {e.reason}')
+
+    current_task = asyncio.create_task(_run())
+    return current_task
+
+
+# 按钮 2：点击【取消下载】
+def on_btn_cancel_click():
+    if current_control:
+        current_control.cancel("用户点击了界面的取消按钮")
+
+
+async def main():
+    # 模拟用户点击【开始下载】
+    task = on_btn_download_click('123456')
+
+    # 模拟用户在界面等待一段时间后，点击了【取消下载】
+    await asyncio.sleep(2)
+    on_btn_cancel_click()
+
+    # 等待下载任务响应取消并安全收尾
+    await task
+
+
+asyncio.run(main())
+```

@@ -17,3 +17,37 @@
     options:
       members:
       - JmAsyncDownloader
+
+::: jmcomic.jm_downloader
+    options:
+      members:
+      - BaseDownloader
+      - JmDownloader
+
+::: jmcomic.jm_runtime
+    options:
+      members:
+      - JmRuntime
+      - JmSimpleRuntime
+      - JmSyncRuntime
+      - JmAsyncRuntime
+
+::: jmcomic.jm_exception
+    options:
+      members:
+      - DownloadCancelledException
+
+::: jmcomic.jm_task_context
+    options:
+      members:
+      - DownloadControl
+      - jm_task_context
+      - bind_jm_task_context
+
+::: jmcomic.jm_task_context.JTC
+    options:
+      members:
+      - get_runtime
+      - get_option
+      - get_control
+      - get_context

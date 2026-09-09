@@ -274,6 +274,12 @@ class JmHtmlClient(AbstractJmClient):
             },
         )
 
+        if resp.status_code != 200:
+            self.check_special_http_code(resp)
+            self.raise_request_error(resp)
+
+        self.require_resp_success_else_raise(resp, '/ajax/favorite_album')
+
         res = resp.json()
 
         if res['status'] != 1:

@@ -16,6 +16,9 @@ class Test_Api(JmTestConfigurable):
         ):
             parameters = inspect.signature(download_api).parameters
             self.assertNotIn('callback', parameters)
+            self.assertNotIn('runtime', parameters)
+            self.assertNotIn('workers', parameters)
+            self.assertNotIn('executor', parameters)
             self.assertEqual(
                 parameters['check_exception'].kind,
                 inspect.Parameter.KEYWORD_ONLY,
