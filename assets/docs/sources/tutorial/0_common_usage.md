@@ -440,11 +440,61 @@ cl = JmApiClient(
 ```
 
 
+## 取消下载
+
+> 如果你想中途取消下载，最简单粗暴的方式是直接杀死进程，比如 `ctrl+c`，关闭终端窗口 等
+> 
+> 但是在 GUI、Web服务这类场景里，就不适合这么关闭。 
+> 
+> 于是，jmcomic 提供了一种优雅停止的写法，可以使用 `DownloadControl` 这个类。
+> 
+> 这种写法更加可控：
+> 
+> - **不影响主程序**：只停当前下载，GUI 界面或 Web 服务依然正常运作。
+> - **多任务统一取消**：多个本子一起下载时，可以被统一取消。
+> - **可携带取消理由**：调用 `cancel()` 传入的原因可以直接捕获，方便做提示和日志。
+
+写法就两步：
+
+1. 创建 DownloadControl 对象，传入任务上下文
+2. 调用 DownloadControl 类的 cancel() 方法
+
+```python
+from threading import Thread
+from time import sleep
+from jmcomic import DownloadCancelledException, DownloadControl, download_album, jm_task_context
+
+# 创建取消控制器
+my_control = DownloadControl()
+
+def run_download():
+    try:
+        # 使用 with jm_task_context 创建任务上下文，并传入 control 参数
+        with jm_task_context(control=my_control):
+            # 这里还可以写多个 download_album(xxx)，都会统一被取消，因为属于同一个 任务上下文
+            download_album('123456')
+    except DownloadCancelledException as e:
+        print(f'下载已取消: {e.reason}')
+
+# 使用单独的下载线程执行下载
+# 主线程负责取消
+t = Thread(target=run_download)
+t.start()
+
+# 模拟一段时间后，需要取消下载
+sleep(2)
+# 可以传入取消原因，下载线程可通过上面的 e.reason 获取
+my_control.cancel("不想要了，取消掉吧") 
+# 等待下载线程结束
+t.join()
+```
+
+
 ## 下载返回值
 
 `download_album` 和 `download_photo` 下载完成后，单个 ID 返回 `DownloadResult`，多个 ID 返回 `BatchResult`。
 
-从 `result.detail` 可以取得下载的本子/章节的实体类：
+从 `DownloadResult` 的 `detail` 字段可以取得下载的本子/章节的实体类：
 
 ```python
 from jmcomic import download_album, download_photo
@@ -544,24 +594,26 @@ print('长图导出文件:', png_filepath_list)
 
 ### 批量下载的返回值
 
-传入多个 ID 时，返回值是 `BatchResult`。每一项成功下载对应一个 `DownloadResult`，失败任务则记录在 `failed` 中：
+传入多个 ID 时，返回值是 `BatchResult`，通过这个对象可以取得成功和失败的下载结果：
 
 <details markdown="1">
 <summary>完整示例：处理批量下载结果</summary>
 
 ```python
-from jmcomic import download_album
+from jmcomic import download_album, DownloadResult
 
 # 同时下载多个本子
 batch_result = download_album(['123', '456', '789'])
 
-# BatchResult 继承 set，成功结果没有输入顺序保证
+# BatchResult 继承 set，直接遍历是只遍历成功结果
 for result in batch_result:
+    result: DownloadResult
+    # result 的用法同上    
     album = result.detail
-    # 通过实体 ID 识别当前结果，不要用遍历位置对应输入列表
     print(f'JM{album.id} 下载到: {album.save_path}')
 
-# failed 的键是下载失败的 ID，值是记录失败原因的异常对象
+# failed 负责存放失败的下载结果，类型是dict
+# key是下载失败的 ID，value是记录失败原因的异常对象
 for album_id, error in batch_result.failed.items():
     print(f'JM{album_id} 下载失败: {error}')
 
@@ -572,37 +624,22 @@ print('是否全部成功:', batch_result.all_succeeded)
 
 </details>
 
-下载单个 ID 时，请求本子失败会直接抛出异常；如果只有部分章节或图片失败，会在任务结束后汇总抛出 `PartialDownloadFailedException`，此时不会返回 `DownloadResult`。
-
-批量下载（如传入 ID 列表）具备**自动容错机制**，单个本子下载失败不会中断其他任务，所有失败项会被完整收集在 `batch_result.failed` 字典中，键为本子 ID，值为对应的异常对象：
-
-```python
-from jmcomic import download_album
-
-result = download_album(['123456', '99999999'])  # 假设后者不存在
-
-print(f'全部成功? {result.all_succeeded}')  # False
-print(f'成功数量: {len(result)}, 失败数量: {len(result.failed)}')
-
-# 逐一排查失败项
-for aid, err in result.failed.items():
-    print(f'本子 [{aid}] 下载失败: {err}')
-```
-
 ---
+
 
 ### 速查表
 
-| 你的需求 | 推荐写法 | 说明 |
-| :--- | :--- | :--- |
-| 查看本子或章节信息 | `result.detail` | 访问实体类所有属性（标题、作者、标签等） |
-| 查看本子或章节目录 | `result.detail.save_path` | 获取下载保存的目标文件夹路径 |
-| 查看单张图片路径和状态 | 遍历实体读取 `image.save_path` | 获取具体图片文件路径 |
-| 获取本次成功图片路径清单 | `result.manifest.image_filepath_list` | 包含所有下载成功的图片绝对路径 |
-| 获取已登记的导出文件路径 | `result.manifest.get_export_filepath_list('zip')` | 获取导出插件生成的压缩包或 PDF 路径 |
-| 查看单个 ID 下载的完整时间 | `result.duration` | 秒数，顶层完整下载耗时 |
-| 检查批量下载失败项 | `batch_result.failed` | 字典结构：`{aid: error}` |
-| 获取当前任务上下文信息 | `JTC.get_runtime()` / `get_option()` / `get_control()` | 通过 `JTC` 统一门面快捷自省 |
+| 你的需求 | 推荐写法 |
+| --- | --- |
+| 查看本子或章节信息 | `result.detail` |
+| 查看本子或章节目录 | `result.detail.save_path` |
+| 查看单张图片路径和状态 | 遍历实体后读取 `image.save_path` 等字段 |
+| 查看图片或章节失败原因 | 捕获 `PartialDownloadFailedException` 后，读取 `e.downloader.download_failed_image` / `download_failed_photo`；列表元素为 `(实体, 异常)` |
+| 获取本次成功图片路径列表 | `result.manifest.image_filepath_list` |
+| 获取已登记的导出文件路径 | `result.manifest.get_export_filepath_list('后缀')` |
+| 查看单个 ID 下载的完整时间 | `result.duration` |
+| 定位本子、章节或图片的内部处理慢点 | 对应实体的 `duration` |
+| 检查批量下载失败项 | `batch_result.failed` |
 
 <details markdown="1">
 <summary>兼容旧版本的返回值解包写法</summary>
@@ -622,35 +659,3 @@ assert album is result.detail
 ```
 
 </details>
-
----
-
-### 取消下载
-
-如果需要中途停止下载，可以使用 `DownloadControl`（需 `v2.7.6` 及以上版本）。
-
-```python
-from threading import Thread
-from time import sleep
-from jmcomic import DownloadCancelledException, DownloadControl, download_album, jm_task_context
-
-# 创建取消控制器
-control = DownloadControl()
-
-def run_download():
-    try:
-        # 在下载的线程里绑定 control
-        with jm_task_context(control=control):
-            download_album('123456')
-    except DownloadCancelledException as e:
-        print(f'下载已取消: {e.reason}')
-
-t = Thread(target=run_download)
-t.start()
-
-# 模拟一段时间后需要取消下载
-sleep(2)
-control.cancel()  # 可以传入取消原因，下载线程可通过上面的 e.reason 获取
-# 等待下载收尾
-t.join()
-```

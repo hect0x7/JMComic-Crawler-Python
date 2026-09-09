@@ -24,8 +24,6 @@
       - BaseDownloader
       - JmDownloader
 
-## 下载 Runtime 与取消控制
-
 ::: jmcomic.jm_runtime
     options:
       members:
