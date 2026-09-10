@@ -13,15 +13,6 @@ from .jm_task_context import (
 __DOWNLOAD_API_RET = DownloadResult
 
 
-def _download_type(download_api) -> str:
-    name = getattr(download_api, '__name__', download_api.__class__.__name__)
-    if name.endswith('_async'):
-        name = name[:-6]
-    if name.startswith('download_'):
-        name = name[9:]
-    return name
-
-
 def _finish_download_result(detail, dler, task_started_at):
     manifest = dler.manifest_dict[detail]
     manifest.duration = perf_counter() - task_started_at
@@ -47,6 +38,7 @@ def download_batch(
         jm_id_iter: Union[Iterable, Generator],
         option=None,
         downloader=None,
+        download_type='batch',
         **kwargs,
 ) -> BatchResult:
     """
@@ -60,6 +52,7 @@ def download_batch(
     :param jm_id_iter: jmid (album_id, photo_id) 的迭代器
     :param option: 下载选项，所有的jmid共用一个option
     :param downloader: 下载器类
+    :param download_type: 下载类型 ('album', 'photo' 等)，默认 'batch'
     """
     option = _ensure_option(option)
     jm_ids = list({
@@ -69,7 +62,6 @@ def download_batch(
     result = BatchResult()
     if len(jm_ids) == 0:
         return result
-    download_type = _download_type(download_api)
 
     def _download_one(aid):
         with jm_task_context(download_type=download_type, jm_id=str(aid)):
@@ -146,7 +138,7 @@ def download_album(jm_album_id,
     """
 
     if not isinstance(jm_album_id, (str, int)):
-        return download_batch(download_album, jm_album_id, option, downloader, extra=extra)
+        return download_batch(download_album, jm_album_id, option, downloader, download_type='album', extra=extra)
 
     option = _ensure_option(option)
     task_started_at = perf_counter()
@@ -189,7 +181,7 @@ def download_photo(jm_photo_id,
     BatchResult.failed，或自行封装 download_batch 处理批量异常。
     """
     if not isinstance(jm_photo_id, (str, int)):
-        return download_batch(download_photo, jm_photo_id, option, downloader, extra=extra)
+        return download_batch(download_photo, jm_photo_id, option, downloader, download_type='photo', extra=extra)
 
     option = _ensure_option(option)
     task_started_at = perf_counter()
@@ -283,6 +275,7 @@ async def download_album_async(jm_album_id,
                                           jm_album_id,
                                           option,
                                           downloader,
+                                          download_type='album',
                                           extra=extra
                                           )
 
@@ -333,6 +326,7 @@ async def download_photo_async(jm_photo_id,
                                           jm_photo_id,
                                           option,
                                           downloader,
+                                          download_type='photo',
                                           extra=extra
                                           )
 
@@ -368,6 +362,7 @@ async def download_batch_async(
         jm_id_iter,
         option=None,
         downloader=None,
+        download_type='batch',
         **kwargs,
 ) -> BatchResult:
     """
@@ -380,7 +375,6 @@ async def download_batch_async(
     result = BatchResult()
     if len(jm_ids) == 0:
         return result
-    download_type = _download_type(download_api)
 
     async def _download_one(jmid):
         with jm_task_context(download_type=download_type, jm_id=str(jmid)):

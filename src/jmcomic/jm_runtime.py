@@ -121,6 +121,7 @@ class JmRuntime:
             self._owned_executors.add(executor)
             return executor
 
+
     def multi_thread_launcher(
             self,
             iter_objs,
@@ -159,6 +160,18 @@ class JmRuntime:
 
         for executor in owned_executors:
             executor.shutdown(wait=True)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 
 
 class JmSimpleRuntime(JmRuntime):

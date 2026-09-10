@@ -663,8 +663,8 @@ class Test_Jm_Task_Context(unittest.TestCase):
 
         self.assertEqual(
             {
-                ('1', 'sync-batch', 'fake_download', '1'),
-                ('2', 'sync-batch', 'fake_download', '2'),
+                ('1', 'sync-batch', 'batch', '1'),
+                ('2', 'sync-batch', 'batch', '2'),
             },
             set(result),
         )
@@ -725,7 +725,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
         self.assertEqual(
             {
                 'session_id': 'failed-session',
-                'download_type': 'fail',
+                'download_type': 'batch',
                 'jm_id': '404',
             },
             {
@@ -811,8 +811,8 @@ class Test_Jm_Task_Context(unittest.TestCase):
 
         self.assertEqual(
             {
-                ('1', 'async-batch', 'fake_download', '1'),
-                ('2', 'async-batch', 'fake_download', '2'),
+                ('1', 'async-batch', 'batch', '1'),
+                ('2', 'async-batch', 'batch', '2'),
             },
             set(batch_result),
         )
@@ -857,6 +857,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
                     PhotoDetails(range(8)),
                     downloader.download_by_image_detail,
                     count_batch=8,
+                    level='image',
                 )
             runtime.close()
             self.assertEqual(executor.submit(lambda: 1).result(timeout=1), 1)

@@ -68,25 +68,32 @@ class JTC:
         return dict(JM_TASK_CONTEXT.get())
 
     @classmethod
+    def get_context_value(cls, key: str, default=None):
+        """
+        获取当前 JM 任务上下文指定 key 的值，避免全量 dict 拷贝。
+        """
+        return JM_TASK_CONTEXT.get().get(key, default)
+
+    @classmethod
     def get_runtime(cls) -> Optional[JmRuntime]:
         """
         返回当前任务绑定的 JmRuntime；没有活动 Runtime 时返回 None。
         """
-        return cls.get_context().get('runtime')
+        return cls.get_context_value('runtime')
 
     @classmethod
     def get_option(cls):
         """
         返回当前任务绑定的 JmOption；没有活动 Option 时返回 None。
         """
-        return cls.get_context().get('option')
+        return cls.get_context_value('option')
 
     @classmethod
     def get_control(cls) -> Optional[DownloadControl]:
         """
         返回当前任务绑定的取消控制器 DownloadControl；未设置时返回 None。
         """
-        control = cls.get_context().get('control')
+        control = cls.get_context_value('control')
         if control is None:
             return None
         if not isinstance(control, DownloadControl):

@@ -931,7 +931,7 @@ class DownloadProgressPlugin(JmOptionPlugin):
 
     @staticmethod
     def cli_no_progress_notice():
-        if not JTC.get_context().get('cli_no_progress'):
+        if not JTC.get_context_value('cli_no_progress'):
             return ''
 
         return (

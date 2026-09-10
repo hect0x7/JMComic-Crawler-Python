@@ -143,10 +143,9 @@ class JmAsyncDownloader(BaseDownloader):
         if photos:
             # photo 级并发由 _photo_semaphore 控制（默认 3），包裹整段 photo 下载（见 download_by_photo_detail）。
             photo_tasks = [self._safe_download_photo(photo) for photo in photos]
-            results = await asyncio.gather(*photo_tasks, return_exceptions=True)
-            for item in results:
-                if isinstance(item, BaseException):
-                    raise item
+            # 对齐 sync 最大容错：普通异常由子任务记录，取消异常等待全部结束后再检查
+            await asyncio.gather(*photo_tasks, return_exceptions=True)
+            self.raise_if_cancelled()
 
         await self.after_album(album)
 
@@ -157,9 +156,9 @@ class JmAsyncDownloader(BaseDownloader):
         except DownloadCancelledException:
             raise
         except Exception as e:
-            self.raise_if_cancelled()
             jm_log('photo.failed', f'章节下载失败: [{photo.id}], 异常: [{e}]', e)
             self.download_failed_photo.append((photo, e))
+            self.raise_if_cancelled()
 
     @record_download_duration('photo_started_at')
     async def download_photo(self, photo_id) -> JmPhotoDetail:
@@ -207,10 +206,9 @@ class JmAsyncDownloader(BaseDownloader):
                     self._safe_download_image(image)
                     for image in image_list
                 ]
-                results = await asyncio.gather(*download_tasks, return_exceptions=True)
-                for item in results:
-                    if isinstance(item, BaseException):
-                        raise item
+                # 对齐 sync 最大容错：普通异常由子任务记录，取消异常等待全部结束后再检查
+                await asyncio.gather(*download_tasks, return_exceptions=True)
+                self.raise_if_cancelled()
 
             await self.after_photo(photo)
 
@@ -224,9 +222,9 @@ class JmAsyncDownloader(BaseDownloader):
         except DownloadCancelledException:
             raise
         except Exception as e:
-            self.raise_if_cancelled()
             jm_log('image.failed', f'图片下载失败: [{image.download_url}], 异常: [{e}]', e)
             self.download_failed_image.append((image, e))
+            self.raise_if_cancelled()
 
     @record_download_duration('image_started_at')
     async def _download_single_image(self, image: JmImageDetail):
@@ -245,7 +243,6 @@ class JmAsyncDownloader(BaseDownloader):
 
         if image.cache and image.exists:
             await self.after_image(image, img_save_path)
-            self.raise_if_cancelled()
             return
 
         decode_image = self.option.decide_download_image_decode(image)
@@ -285,7 +282,6 @@ class JmAsyncDownloader(BaseDownloader):
                 )
 
         await self.after_image(image, img_save_path)
-        self.raise_if_cancelled()
 
     # ======================================================================
     # 磁盘写入（在线程池中执行）

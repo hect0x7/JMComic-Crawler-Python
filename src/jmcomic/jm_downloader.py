@@ -1,5 +1,3 @@
-import os
-import inspect
 from functools import wraps
 from typing import NamedTuple
 from time import perf_counter
@@ -33,7 +31,7 @@ def record_download_duration(context_key: str, clock=None):
                 entity = get_entity(args, kwargs)
                 detail_call = isinstance(entity, Downloadable)
                 # 顶层 ID 下载负责完整耗时，内部 detail 调用复用同一个计时上下文。
-                if detail_call and JTC.get_context().get(context_key) is not None:
+                if detail_call and JTC.get_context_value(context_key) is not None:
                     return await func(*args, **kwargs)
 
                 started_at = get_time()
@@ -51,7 +49,7 @@ def record_download_duration(context_key: str, clock=None):
             entity = get_entity(args, kwargs)
             detail_call = isinstance(entity, Downloadable)
             # 顶层 ID 下载负责完整耗时，内部 detail 调用复用同一个计时上下文。
-            if detail_call and JTC.get_context().get(context_key) is not None:
+            if detail_call and JTC.get_context_value(context_key) is not None:
                 return func(*args, **kwargs)
 
             started_at = get_time()
@@ -90,7 +88,6 @@ def catch_exception(func):
         except Exception as e:
             if isinstance(e, DownloadCancelledException):
                 raise
-            self.raise_if_cancelled()
             detail: JmBaseEntity = args[0]
             if detail.is_image():
                 detail: JmImageDetail
@@ -102,6 +99,7 @@ def catch_exception(func):
                 jm_log('photo.failed', f'章节下载失败: [{detail.id}], 异常: [{e}]', e)
                 self.download_failed_photo.append((detail, e))
 
+            self.raise_if_cancelled()
             raise e
 
     return wrapper
@@ -205,6 +203,7 @@ class BaseDownloader(DownloadCallback):
     def has_download_failures(self):
         return len(self.download_failed_image) != 0 or len(self.download_failed_photo) != 0
 
+    @property
     def is_cancelled(self) -> bool:
         control = JTC.get_control()
         return control is not None and control.is_cancelled
@@ -280,25 +279,24 @@ class BaseDownloader(DownloadCallback):
         self.raise_if_cancelled()
 
     def after_image(self, image: JmImageDetail, img_save_path):
-        cancellation_error = None
-        try:
-            self.raise_if_cancelled()
-            super().after_image(image, img_save_path)
-            self.option.call_all_plugin(
-                'after_image',
-                image=image,
-                downloader=self,
-            )
-        except DownloadCancelledException as error:
-            cancellation_error = error
-
-        # 正常完成或取消时登记；普通插件异常直接向外传播，不进入成功清单。
+        # 1. 图片已成功落盘（或命中本地缓存），第一时间登记入成功清单
         photo = image.from_photo
         album = photo.from_album
-        self.download_success_dict.get(album).get(photo).append((image.save_path, image))
-        if cancellation_error is not None:
-            raise cancellation_error
+        if album in self.download_success_dict:
+            self.download_success_dict[album].setdefault(photo, []).append((image.save_path, image))
+
+        # 2. 日志回调
+        super().after_image(image, img_save_path)
+
+        # 3. 取消检查
         self.raise_if_cancelled()
+
+        # 4. 插件回调
+        self.option.call_all_plugin(
+            'after_image',
+            image=image,
+            downloader=self,
+        )
 
     def begin_manifest(self, detail: DetailEntity) -> DownloadManifest:
         manifest = DownloadManifest()
@@ -354,7 +352,7 @@ class BaseDownloader(DownloadCallback):
     def _require_feature_context() -> str:
         from .jm_toolkit import ExceptionTool
 
-        download_type = JTC.get_context().get('download_type')
+        download_type = JTC.get_context_value('download_type')
         ExceptionTool.require_true(
             download_type in ('album', 'photo'),
             'Feature 注册与执行必须位于下载任务上下文中，请使用 '
@@ -510,6 +508,7 @@ class JmDownloader(BaseDownloader):
             iter_objs=album,
             apply=self.download_by_photo_detail,
             count_batch=self.option.decide_photo_batch_count(album),
+            level='photo',
         )
         self.after_album(album)
 
@@ -540,6 +539,7 @@ class JmDownloader(BaseDownloader):
             iter_objs=photo,
             apply=self.download_by_image_detail,
             count_batch=self.option.decide_image_batch_count(photo),
+            level='image',
         )
         self.after_photo(photo)
 
@@ -557,7 +557,6 @@ class JmDownloader(BaseDownloader):
 
         if image.cache and image.exists:
             self.after_image(image, img_save_path)
-            self.raise_if_cancelled()
             return
 
         decode_image = self.option.decide_download_image_decode(image)
@@ -568,43 +567,42 @@ class JmDownloader(BaseDownloader):
         )
 
         self.after_image(image, img_save_path)
-        self.raise_if_cancelled()
 
-    def execute_on_condition(self, iter_objs, apply, count_batch):
+    def execute_on_condition(self, iter_objs, apply, count_batch, level=None):
         """使用当前 Runtime 调度本子或章节的下载。"""
         runtime = JTC.get_runtime()
-        if runtime is not None and not isinstance(runtime, JmSyncRuntime):
-            raise TypeError('sync downloader requires JmSyncRuntime')
-        level = None if runtime is None else (
-            'photo' if iter_objs.is_album() else 'image'
+        ExceptionTool.require_true(
+            runtime is None or isinstance(runtime, JmSyncRuntime),
+            'sync downloader requires JmSyncRuntime',
         )
 
         iter_objs = self.do_filter(iter_objs)
         if len(iter_objs) == 0:
             return
 
-        if isinstance(count_batch, bool) or not isinstance(count_batch, int) or count_batch <= 0:
-            raise ValueError(f'local download limit must be > 0, got {count_batch!r}')
+        ExceptionTool.require_true(
+            not isinstance(count_batch, bool) and isinstance(count_batch, int) and count_batch > 0,
+            f'local download limit must be > 0, got {count_batch!r}',
+        )
 
-        worker = bind_jm_task_context(apply)
+        self.raise_if_cancelled()
 
         if runtime is None:
-            runtime = JmSimpleRuntime(workers=count_batch)
-            try:
+            with JmSimpleRuntime(workers=count_batch) as runtime:
                 runtime.multi_thread_launcher(
                     iter_objs=iter_objs,
-                    apply_each_obj_func=worker,
+                    apply_each_obj_func=bind_jm_task_context(apply),
                 )
-            finally:
-                runtime.close()
-            return
+        else:
+            runtime.multi_thread_launcher(
+                iter_objs=iter_objs,
+                apply_each_obj_func=bind_jm_task_context(apply),
+                level=level,
+                default_workers=count_batch,
+            )
 
-        runtime.multi_thread_launcher(
-            iter_objs=iter_objs,
-            apply_each_obj_func=worker,
-            level=level,
-            default_workers=count_batch,
-        )
+        # 批处理线程等待结束后，统一在此处检查取消状态
+        self.raise_if_cancelled()
 
     # 下面是对with语法的支持
 

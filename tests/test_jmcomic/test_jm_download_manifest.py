@@ -124,7 +124,7 @@ class ContractSyncDownloader(JmDownloader):
             return list(self._contract_image_list)
         return detail
 
-    def execute_on_condition(self, iter_objs, apply, count_batch):
+    def execute_on_condition(self, iter_objs, apply, count_batch, level=None, **kwargs):
         for detail in self.do_filter(iter_objs):
             apply(detail)
 
@@ -169,7 +169,7 @@ class ContractAsyncDownloader(JmAsyncDownloader):
 
 class Test_Download_Manifest(unittest.TestCase):
 
-    def test_after_image_error_does_not_register_sync_success(self):
+    def test_after_image_error_still_registers_saved_image_sync(self):
         with TemporaryDirectory() as temp_dir:
             album, photo, images = new_album_photo_images()
             option = ContractOption(temp_dir)
@@ -185,11 +185,17 @@ class Test_Download_Manifest(unittest.TestCase):
 
             self.assertIs(caught.exception, error)
             self.assertTrue(os.path.isfile(images[0].save_path))
-            self.assertEqual(downloader.download_success_dict[album][photo], [])
+            self.assertEqual(
+                downloader.download_success_dict[album][photo],
+                [(images[0].save_path, images[0])],
+            )
             self.assertEqual(downloader.download_failed_image, [(images[0], error)])
-            self.assertEqual(downloader.manifest_dict[album].image_filepath_list, [])
+            self.assertEqual(
+                downloader.manifest_dict[album].image_filepath_list,
+                [images[0].save_path],
+            )
 
-    def test_after_image_error_does_not_register_async_success(self):
+    def test_after_image_error_still_registers_saved_image_async(self):
         async def run_test(temp_dir):
             album, photo, images = new_album_photo_images()
             option = ContractOption(temp_dir)
@@ -208,9 +214,15 @@ class Test_Download_Manifest(unittest.TestCase):
                 runtime.close()
 
             self.assertTrue(os.path.isfile(images[0].save_path))
-            self.assertEqual(downloader.download_success_dict[album][photo], [])
+            self.assertEqual(
+                downloader.download_success_dict[album][photo],
+                [(images[0].save_path, images[0])],
+            )
             self.assertEqual(downloader.download_failed_image, [(images[0], error)])
-            self.assertEqual(downloader.manifest_dict[album].image_filepath_list, [])
+            self.assertEqual(
+                downloader.manifest_dict[album].image_filepath_list,
+                [images[0].save_path],
+            )
 
         with TemporaryDirectory() as temp_dir:
             asyncio.run(run_test(temp_dir))

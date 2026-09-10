@@ -284,6 +284,7 @@ class Test_Cancellation(unittest.IsolatedAsyncioTestCase):
         image = Mock(spec=JmImageDetail)
         image.skip = False
         image.scramble_id = None
+        image.img_url = 'https://example.invalid/image.jpg'
         image.download_url = 'https://example.invalid/image.jpg'
         image.index = 1
         image.from_photo = Mock()
@@ -318,6 +319,7 @@ class Test_Cancellation(unittest.IsolatedAsyncioTestCase):
         downloader.before_image = Mock()
         image = Mock(spec=JmImageDetail)
         image.skip = False
+        image.img_url = 'https://example.invalid/image.jpg'
         image.index = 1
         image.from_photo = Mock()
         photo = image.from_photo
