@@ -99,6 +99,11 @@ class Test_Plugin(JmTestConfigurable):
             def fake(name, *args, **kwargs):
                 if name in missing:
                     return None
+                # img2pdf 是 img2pdf 插件的无条件依赖，未显式列入 missing 时
+                # 固定返回非 None，避免用例结果取决于运行环境装没装 img2pdf，
+                # 也让加密用例能确定性地走到 pikepdf 检查
+                if name == 'img2pdf':
+                    return object()
                 return real_find_spec(name, *args, **kwargs)
             return fake
 
