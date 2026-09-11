@@ -1,5 +1,11 @@
 from test_jmcomic import *
 
+try:
+    import jmcomic_calibre  # noqa: F401
+    HAS_JMCOMIC_CALIBRE = True
+except ImportError:
+    HAS_JMCOMIC_CALIBRE = False
+
 
 class Test_Plugin(JmTestConfigurable):
 
@@ -36,11 +42,15 @@ class Test_Plugin(JmTestConfigurable):
         download_photo(photo_id, option, downloader=DoNotDownloadImage)
         print('✅ All folder rule plugins assert completed safely without KeyError.')
 
+    @unittest.skipUnless(
+        HAS_JMCOMIC_CALIBRE,
+        '这条用例依赖 jmcomic-calibre 生成 OPF：pip install jmcomic-calibre',
+    )
     def test_calibre_metadata(self):
         """
         source: https://github.com/hect0x7/JMComic-Crawler-Python/issues/573
 
-        测试 calibre_metadata 插件：
+        测试 calibre_metadata 插件（OPF 由 jmcomic-calibre 生成）：
         1. after_album 阶段生成 metadata.opf，包含书名/作者/标签/identifier
         2. fields 静态字段（如 language）按维护者建议写入
         3. 作者为空时兜底 DEFAULT_AUTHOR；XML 特殊字符正确转义

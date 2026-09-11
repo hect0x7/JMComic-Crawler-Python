@@ -9,3 +9,4 @@ rich
 jm-view-server
 zhconv
 img2pdf
+jmcomic-calibre @ https://github.com/yifenliwu/jmcomic-calibre/archive/refs/tags/v0.2.0.tar.gz
