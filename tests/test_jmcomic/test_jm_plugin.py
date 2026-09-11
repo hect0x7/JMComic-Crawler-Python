@@ -137,6 +137,52 @@ class Test_Plugin(JmTestConfigurable):
                 JmOption.construct(dic5)
         print('✅ real resolver: img2pdf requires pikepdf only when encrypt.')
 
+    def test_strict_dependencies_rejects_non_mapping_encrypt(self):
+        """
+        source: https://github.com/hect0x7/JMComic-Crawler-Python/pull/575 (CodeRabbit review)
+
+        encrypt 必须是映射。写成真值标量（encrypt: enabled）时，之前会在
+        required_dependencies_for 里 encrypt.get(...) 抛 AttributeError，
+        报错既不是 JmcomicException、也绕过了配置校验机制。
+        现在应统一抛出可读的配置错误。
+        """
+        from jmcomic import JmOption, JmcomicException
+
+        for bad in ('enabled', True, 1):
+            dic = {'plugins': {'strict_dependencies': True,
+                               'after_album': [{'plugin': 'zip',
+                                                'kwargs': {'zip_dir': './', 'encrypt': bad}}]}}
+            # 不能是 AttributeError
+            try:
+                JmOption.construct(dic)
+            except JmcomicException as e:
+                self.assertIn('encrypt', str(e))
+            except AttributeError as e:
+                self.fail(f'encrypt={bad!r} 仍抛 AttributeError: {e}')
+            else:
+                self.fail(f'encrypt={bad!r} 应当抛配置错误，实际构建成功')
+        print('✅ non-mapping encrypt rejected with a readable config error.')
+
+        # 未开启 strict_dependencies 时，construct 阶段不校验插件配置，
+        # 但真正调用 zip 插件时应抛出可读的配置错误，而不是 AttributeError
+        from jmcomic import JmModuleConfig
+
+        zip_cls = JmModuleConfig.REGISTRY_PLUGIN['zip']
+
+        class _FakeOption:
+            pass
+
+        fake = _FakeOption()
+        try:
+            zip_cls(fake).check_encrypt_param('enabled')
+        except JmcomicException as e:
+            self.assertIn('encrypt', str(e))
+        except AttributeError as e:
+            self.fail(f'zip 插件仍抛 AttributeError: {e}')
+        else:
+            self.fail('非 mapping 的 encrypt 应当抛配置错误')
+        print('✅ non-mapping encrypt rejected instead of raising AttributeError.')
+
     def test_calibre_metadata(self):
         """
         source: https://github.com/hect0x7/JMComic-Crawler-Python/issues/573

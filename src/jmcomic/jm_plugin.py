@@ -344,12 +344,30 @@ class ZipPlugin(JmOptionPlugin):
 
     @classmethod
     def required_dependencies_for(cls, kwargs: dict) -> tuple:
-        encrypt = kwargs.get('encrypt')
+        encrypt = cls.check_encrypt_param(kwargs.get('encrypt'))
         if not encrypt:
             return ()
         if encrypt.get('impl', '') == '7z':
             return ('py7zr',)
         return ('pyzipper',)
+
+    @staticmethod
+    def check_encrypt_param(encrypt):
+        """
+        校验 encrypt 配置的类型，返回规范化后的值（未配置时返回 None）。
+
+        encrypt 必须是映射（如 {type: sha256, password: xxx}），
+        写成真值标量（encrypt: enabled）时后续的 encrypt.get(...) 会抛
+        AttributeError，绕过了配置校验机制、报错也难以理解，这里统一拦掉。
+        """
+        if encrypt is None:
+            return None
+        if not isinstance(encrypt, dict):
+            ExceptionTool.raises(
+                f'zip插件的encrypt参数类型有误，预期为映射（如 {{type: sha256, password: xxx}}），'
+                f'实际类型为{type(encrypt)}'
+            )
+        return encrypt
 
     # noinspection PyAttributeOutsideInit
     def invoke(self,
@@ -373,6 +391,8 @@ class ZipPlugin(JmOptionPlugin):
             level = 'album' if album is not None else 'photo'
         self.level = level
         self.delete_original_file = delete_original_file
+        # 未开启 strict_dependencies 时也拦掉非法的 encrypt 类型
+        encrypt = self.check_encrypt_param(encrypt)
 
         # 确保压缩文件所在文件夹存在
         zip_dir = JmcomicText.parse_to_abspath(zip_dir)
