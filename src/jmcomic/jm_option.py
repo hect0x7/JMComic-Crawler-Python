@@ -202,9 +202,10 @@ class JmOption:
         # 需要主线程等待完成的插件
         self.need_wait_plugins = []
 
+        # 依赖策略预检/处理
+        self.check_plugins_dependencies()
+
         if call_after_init_plugin:
-            if self.plugins.src_dict.get('strict_dependencies', False):
-                self.check_plugins_dependencies()
             self.call_all_plugin('after_init', safe=True)
 
     def copy_option(self):
@@ -639,22 +640,20 @@ class JmOption:
 
     def check_plugins_dependencies(self) -> None:
         """
-        校验已启用插件的可选依赖库是否安装，缺失则直接报错。
+        根据 plugins.dependencies_strategy 策略校验或安装已启用插件所需的依赖库。
 
-        由 plugins.strict_dependencies 配置项开启，在option初始化（after_init）阶段执行，
-        让依赖问题在任务启动时就暴露，而不是等到插件静默跳过、产物缺失时才发现。
+        支持的策略值：
+        - failed-fast（默认）：缺失依赖时快速失败，抛出带清晰解决方案指引的异常。
+        - auto-install：缺失依赖时以插件为维度自动调用 pip 安装缺失包。
+        - ignore-only-log：缺失依赖时仅打印 warning 日志，不阻断运行。
 
-        各插件通过类属性 optional_dependencies 声明所依赖的可选库（import名），
-        也可重写 required_dependencies_for(kwargs) 按插件配置返回实际需要的库
-        （如未加密的 zip 无需 pyzipper/py7zr）。
+        具体检查、安装与错误处理逻辑收口于 JmOptionPlugin.check_plugin_dependency。
         """
-        import importlib.util
-
         # 保证 jm_plugin.py 被加载
         from .jm_plugin import JmOptionPlugin
 
+        strategy = self.plugins.dependencies_strategy
         plugin_registry = JmModuleConfig.REGISTRY_PLUGIN
-        missing: Dict[str, List[str]] = {}
 
         for group, plist in self.plugins.src_dict.items():
             if not isinstance(plist, list):
@@ -668,20 +667,7 @@ class JmOption:
                 if pclass is None:
                     continue
 
-                for lib in pclass.required_dependencies_for(pinfo.get('kwargs') or {}):
-                    if importlib.util.find_spec(lib) is None:
-                        missing.setdefault(lib, []).append(pclass.plugin_key)
-
-        if missing:
-            detail = '; '.join(
-                f'库[{lib}] 被插件 {plugin_keys} 使用'
-                for lib, plugin_keys in sorted(missing.items())
-            )
-            ExceptionTool.raises(
-                '插件依赖校验失败（plugins.strict_dependencies = true）: '
-                f'{detail}。'
-                '请安装缺失的依赖库，或一键安装全部插件依赖: pip install jmcomic[plugins]'
-            )
+                pclass.check_plugin_dependency(pinfo.get('kwargs') or {}, strategy=strategy)
 
     def call_all_plugin(self, group: str, safe=None, **extra):
         plugin_list: List[dict] = self.plugins.get(group, [])

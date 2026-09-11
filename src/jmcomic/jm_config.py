@@ -540,6 +540,8 @@ class JmModuleConfig:
             # 如果插件抛出参数校验异常，只log。（全局配置，可以被插件的局部配置覆盖）
             # 可选值：ignore（忽略），log（打印日志），raise（抛异常）。
             'valid': 'log',
+            # 插件依赖处理策略。可选值：failed-fast（快速失败），auto-install（自动安装），ignore-only-log（只记录日志不报错）。
+            'dependencies_strategy': 'failed-fast',
         },
     }
 

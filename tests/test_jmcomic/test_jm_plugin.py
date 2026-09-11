@@ -42,47 +42,95 @@ class Test_Plugin(JmTestConfigurable):
         download_photo(photo_id, option, downloader=DoNotDownloadImage)
         print('✅ All folder rule plugins assert completed safely without KeyError.')
 
-    def test_strict_dependencies(self):
+    def test_dependencies_strategy_failed_fast(self):
         """
         source: https://github.com/hect0x7/JMComic-Crawler-Python/issues/572
 
-        测试开启 plugins.strict_dependencies 后：
-        1. 启用的插件缺少依赖库时，在 option 初始化（after_init）阶段直接报错
-        2. 未开启时保持原有行为，不校验
+        测试默认/显式配置 plugins.dependencies_strategy: failed-fast：
+        1. 默认情况下，启用的插件缺少依赖库时，在 option 初始化阶段直接报错，报错提示包含3种解决方案
+        2. 显式配置 dependencies_strategy: failed-fast 同样快速失败
+        3. 配置 ignore-only-log 时，仅打印日志不报错
         """
         from jmcomic import JmOption, JmModuleConfig, JmcomicException
 
-        # 临时给 img2pdf 插件声明一个必然不存在的依赖，保证测试不依赖运行环境装了什么库
         pclass = JmModuleConfig.REGISTRY_PLUGIN['img2pdf']
-        origin_deps = pclass.optional_dependencies
-        pclass.optional_dependencies = ('__lib_not_exists__',)
+        origin_deps = pclass.plugin_dependencies
+        pclass.plugin_dependencies = ('__lib_not_exists__',)
         try:
-            # 1) 开启 strict_dependencies，构建 option 时应直接抛异常
-            dic = {
+            # 1) 默认策略（即 failed-fast），构建 option 时应直接抛异常
+            dic_default = {
                 'plugins': {
-                    'strict_dependencies': True,
                     'after_album': [{'plugin': 'img2pdf'}],
                 }
             }
             with self.assertRaises(JmcomicException) as ctx:
-                JmOption.construct(dic)
-            self.assertIn('strict_dependencies', str(ctx.exception))
-            self.assertIn('pip install jmcomic[plugins]', str(ctx.exception))
-            print('✅ strict_dependencies on: missing lib raises at option init.')
+                JmOption.construct(dic_default)
+            err_text = str(ctx.exception)
+            self.assertIn('dependencies_strategy: failed-fast', err_text)
+            self.assertIn('pip install jmcomic[plugins]', err_text)
+            self.assertIn('pip install __lib_not_exists__', err_text)
+            print('✅ default strategy (failed-fast): missing lib raises at option init with guide.')
 
-            # 2) 未开启时，不做校验，正常构建
-            dic2 = {
+            # 2) 显式配置 dependencies_strategy: failed-fast
+            dic_explicit = {
                 'plugins': {
+                    'dependencies_strategy': 'failed-fast',
                     'after_album': [{'plugin': 'img2pdf'}],
                 }
             }
-            option = JmOption.construct(dic2)
-            self.assertIsNotNone(option)
-            print('✅ strict_dependencies off: keeps silent as before.')
-        finally:
-            pclass.optional_dependencies = origin_deps
+            with self.assertRaises(JmcomicException) as ctx:
+                JmOption.construct(dic_explicit)
+            self.assertIn('dependencies_strategy: failed-fast', str(ctx.exception))
+            print('✅ explicit failed-fast: missing lib raises at option init.')
 
-    def test_strict_dependencies_kwargs_aware(self):
+            # 3) 配置 ignore-only-log: 仅打印警告，不阻断构建
+            dic_ignore = {
+                'plugins': {
+                    'dependencies_strategy': 'ignore-only-log',
+                    'after_album': [{'plugin': 'img2pdf'}],
+                }
+            }
+            option = JmOption.construct(dic_ignore)
+            self.assertIsNotNone(option)
+            print('✅ ignore-only-log: logs warning and builds successfully.')
+        finally:
+            pclass.plugin_dependencies = origin_deps
+
+    def test_dependencies_strategy_auto_install(self):
+        """
+        测试 plugins.dependencies_strategy: auto-install 行为：
+        1. 缺失依赖时，触发 install_missing_dependencies
+        2. 若 pip 安装失败，严格抛出异常
+        """
+        from unittest import mock
+        from jmcomic import JmOption, JmModuleConfig, JmcomicException
+
+        pclass = JmModuleConfig.REGISTRY_PLUGIN['img2pdf']
+        origin_deps = pclass.plugin_dependencies
+        pclass.plugin_dependencies = ('__fake_lib_to_install__',)
+        try:
+            dic = {
+                'plugins': {
+                    'dependencies_strategy': 'auto-install',
+                    'after_album': [{'plugin': 'img2pdf'}],
+                }
+            }
+            # 模拟安装成功
+            with mock.patch.object(pclass, 'install_missing_dependencies') as mock_install:
+                option = JmOption.construct(dic)
+                self.assertIsNotNone(option)
+                mock_install.assert_called_once_with(['__fake_lib_to_install__'])
+            print('✅ auto-install: triggers install_missing_dependencies with missing packages.')
+
+            # 模拟安装抛错，严格失败
+            with self.assertRaises(JmcomicException) as ctx:
+                JmOption.construct(dic)
+            self.assertIn('自动安装依赖', str(ctx.exception))
+            print('✅ auto-install: strict failure when pip install fails.')
+        finally:
+            pclass.plugin_dependencies = origin_deps
+
+    def test_dependencies_strategy_kwargs_aware(self):
         """
         source: https://github.com/hect0x7/JMComic-Crawler-Python/pull/575 (CodeRabbit review)
 
@@ -114,8 +162,7 @@ class Test_Plugin(JmTestConfigurable):
             return fake
 
         def build_zip(kwargs):
-            return {'plugins': {'strict_dependencies': True,
-                                'after_album': [{'plugin': 'zip', 'kwargs': kwargs}]}}
+            return {'plugins': {'after_album': [{'plugin': 'zip', 'kwargs': kwargs}]}}
 
         # 1) 未加密 zip：不查任何加密库
         with mock.patch('importlib.util.find_spec', side_effect=find_spec_missing('pyzipper', 'py7zr')):
@@ -135,14 +182,12 @@ class Test_Plugin(JmTestConfigurable):
         print('✅ real resolver: encrypted zip requires pyzipper.')
 
         # 4) img2pdf 未加密：不查 pikepdf
-        dic4 = {'plugins': {'strict_dependencies': True,
-                            'after_album': [{'plugin': 'img2pdf'}]}}
+        dic4 = {'plugins': {'after_album': [{'plugin': 'img2pdf'}]}}
         with mock.patch('importlib.util.find_spec', side_effect=find_spec_missing('pikepdf')):
             self.assertIsNotNone(JmOption.construct(dic4))
 
         # 5) img2pdf 加密：查 pikepdf
-        dic5 = {'plugins': {'strict_dependencies': True,
-                            'after_album': [{'plugin': 'img2pdf', 'kwargs': {'encrypt': {'type': 'sha256'}}}]}}
+        dic5 = {'plugins': {'after_album': [{'plugin': 'img2pdf', 'kwargs': {'encrypt': {'type': 'sha256'}}}]}}
         with mock.patch('importlib.util.find_spec', side_effect=find_spec_missing('pikepdf')):
             with self.assertRaises(JmcomicException):
                 JmOption.construct(dic5)
@@ -160,8 +205,7 @@ class Test_Plugin(JmTestConfigurable):
         from jmcomic import JmOption, JmcomicException
 
         for bad in ('enabled', True, 1):
-            dic = {'plugins': {'strict_dependencies': True,
-                               'after_album': [{'plugin': 'zip',
+            dic = {'plugins': {'after_album': [{'plugin': 'zip',
                                                 'kwargs': {'zip_dir': './', 'encrypt': bad}}]}}
             # 不能是 AttributeError
             try:
@@ -174,8 +218,7 @@ class Test_Plugin(JmTestConfigurable):
                 self.fail(f'encrypt={bad!r} 应当抛配置错误，实际构建成功')
         print('✅ non-mapping encrypt rejected with a readable config error.')
 
-        # 未开启 strict_dependencies 时，construct 阶段不校验插件配置，
-        # 但真正调用 zip 插件时应抛出可读的配置错误，而不是 AttributeError
+        # 真正调用 zip 插件时也应抛出可读的配置错误，而不是 AttributeError
         from jmcomic import JmModuleConfig
 
         zip_cls = JmModuleConfig.REGISTRY_PLUGIN['zip']

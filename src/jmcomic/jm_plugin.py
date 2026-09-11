@@ -20,20 +20,126 @@ class PluginValidationException(Exception):
 
 class JmOptionPlugin:
     plugin_key: str
-    # 插件运行所需的非核心依赖库（import名）。
-    # 声明后，开启 plugins.strict_dependencies 的option会在初始化阶段统一校验。
-    optional_dependencies: tuple = ()
+    # 插件运行所需的依赖库。
+    # 元素可以是 import 模块名（如 'psutil'），或者元组 (import_name, pip_pkg_name)。
+    plugin_dependencies: tuple = ()
 
     @classmethod
     def required_dependencies_for(cls, kwargs: dict) -> tuple:
         """
-        返回该插件在给定 kwargs 配置下实际需要的可选库，供 strict_dependencies 校验使用。
+        返回该插件在给定 kwargs 配置下实际需要的依赖库，供依赖策略校验使用。
 
-        默认返回类声明的 optional_dependencies。
+        默认返回类声明的 plugin_dependencies。
         插件可按配置重写此方法，避免对合法配置误报
         （如未加密的 zip 用标准库 zipfile 即可，无需 pyzipper/py7zr）。
         """
-        return cls.optional_dependencies
+        return cls.plugin_dependencies
+
+    @classmethod
+    def parse_dependency_spec(cls, dep: Union[str, Tuple[str, str]]) -> Tuple[str, str]:
+        """
+        解析依赖规格，返回 (import_name, pip_pkg_name)。
+        """
+        if isinstance(dep, tuple):
+            return dep[0], dep[1]
+        return dep, dep
+
+    @classmethod
+    def check_plugin_dependency(cls, kwargs: dict, strategy: str = 'failed-fast') -> None:
+        """
+        检查当前插件在给定配置下所需的依赖库是否已安装，并按全局策略处理缺失情况。
+
+        该方法由 JmOption 初始化（__init__）阶段在执行 after_init 之前统一触发，
+        确保依赖问题在任务启动伊始即被捕获或解决。
+
+        :param kwargs: 当前插件在 option 中配置的参数字典，用于动态推断依赖
+        :param strategy: 依赖处理策略，对应配置 plugins.dependencies_strategy：
+            - 'failed-fast': 快速失败（默认），抛出异常并提示具体的解决方案；
+            - 'auto-install': 自动通过 pip 安装缺失的依赖包，安装失败严格报错；
+            - 'ignore-only-log': 仅输出 warning 日志，不阻断运行。
+        """
+        import importlib.util
+
+        # 1. 获取当前插件在特定配置下实际需要的可选依赖列表（如未加密 zip 无需额外库）
+        req_deps = cls.required_dependencies_for(kwargs)
+        if not req_deps:
+            return
+
+        # 2. 逐项检查依赖模块是否可用，收集所有缺失项 (import_name, pip_pkg_name)
+        missing: List[Tuple[str, str]] = []
+        for dep in req_deps:
+            import_name, pip_name = cls.parse_dependency_spec(dep)
+            if importlib.util.find_spec(import_name) is None:
+                missing.append((import_name, pip_name))
+
+        # 全部依赖已就绪，无需后续处理
+        if not missing:
+            return
+
+        # 3. 整理缺失模块名与 pip 安装包名，拼接命令与提示文案
+        missing_import_names = [m[0] for m in missing]
+        missing_pip_names = [m[1] for m in missing]
+        import_names_str = ', '.join(missing_import_names)
+        pip_install_cmd = 'pip install ' + ' '.join(missing_pip_names)
+
+        # 4. 根据策略分发处理：
+        if strategy == 'auto-install':
+            # 策略一：自动安装。以插件为单位排队调用 pip 安装缺失包
+            cls.install_missing_dependencies(missing_pip_names)
+        elif strategy == 'ignore-only-log':
+            # 策略二：仅打日志。记录警告信息，不抛出异常，保持最大容错
+            jm_log(
+                topic=f'plugin.{cls.plugin_key}.dependency',
+                msg=f'插件 [{cls.plugin_key}] 缺少依赖库 [{import_names_str}]，'
+                    f'可能会影响该插件执行。安装命令: [{pip_install_cmd}]'
+            )
+        else:
+            # 策略三：failed-fast（默认）。阻断执行并输出包含3种方案的用户指引
+            error_msg = (
+                f"插件 [{cls.plugin_key}] 缺少依赖库 [{import_names_str}]，无法执行插件。有3种解决方案需要你选择一种手动执行：\n"
+                f"1. 仅安装该库，手动执行: {pip_install_cmd}\n"
+                f"2. 一键安装jmcomic插件依赖全家桶，手动执行: pip install jmcomic[plugins]\n"
+                f"3. 修改option，让jmcomic自动安装或不要报错\n"
+                f"plugins:\n"
+                f"    dependencies_strategy: failed-fast # 👈当前默认配置，可配置为以下值\n"
+                f"    # auto-install  # 缺失时自动安装依赖\n"
+                f"    # ignore-only-log # 缺失时仅打印失败日志不报错"
+            )
+            ExceptionTool.raises(error_msg)
+
+    @classmethod
+    def install_missing_dependencies(cls, pip_packages: List[str]) -> None:
+        """
+        通过 pip 自动安装缺失的依赖包。如果安装失败则严格抛出异常。
+        """
+        import sys
+        import subprocess
+        import importlib
+
+        cmd = [sys.executable, '-m', 'pip', 'install'] + pip_packages
+        jm_log(
+            topic=f'plugin.{cls.plugin_key}.dependency',
+            msg=f'检测到插件 [{cls.plugin_key}] 缺少依赖，auto-install 策略正在自动安装: {" ".join(cmd)}'
+        )
+
+        try:
+            res = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            if res.stdout:
+                jm_log(topic=f'plugin.{cls.plugin_key}.dependency', msg=res.stdout.strip())
+            # 刷新导入缓存，保证后续 import 能够正常找到新装的包
+            importlib.invalidate_caches()
+            jm_log(
+                topic=f'plugin.{cls.plugin_key}.dependency',
+                msg=f'插件 [{cls.plugin_key}] 依赖安装成功: {" ".join(pip_packages)}'
+            )
+        except Exception as e:
+            err_output = getattr(e, 'stderr', '') or str(e)
+            ExceptionTool.raises(
+                f'插件 [{cls.plugin_key}] 自动安装依赖 [{" ".join(pip_packages)}] 失败。\n'
+                f'执行命令: {" ".join(cmd)}\n'
+                f'错误详情: {err_output}\n'
+                f'请排查网络/权限问题，或手动执行: pip install {" ".join(pip_packages)}'
+            )
 
     def __init__(self, option: JmOption):
         self.option = option
@@ -189,7 +295,7 @@ class JmLoginPlugin(JmOptionPlugin):
 
 class UsageLogPlugin(JmOptionPlugin):
     plugin_key = 'usage_log'
-    optional_dependencies = ('psutil',)
+    plugin_dependencies = ('psutil',)
 
     def invoke(self, **kwargs) -> None:
         import threading
@@ -340,7 +446,7 @@ class ZipPlugin(JmOptionPlugin):
 
     plugin_key = 'zip'
     # zip 依赖取决于加密配置：未加密用标准库 zipfile，加密 zip 用 pyzipper，7z 用 py7zr
-    optional_dependencies = ()
+    plugin_dependencies = ()
 
     @classmethod
     def required_dependencies_for(cls, kwargs: dict) -> tuple:
@@ -973,7 +1079,7 @@ class AsyncProgressDownloader(JmAsyncDownloader):
 
 class DownloadProgressPlugin(JmOptionPlugin):
     plugin_key = 'download_progress'
-    optional_dependencies = ('rich',)
+    plugin_dependencies = ('rich',)
     log_file = 'jmcomic-download.log'
 
     @staticmethod
@@ -1083,7 +1189,7 @@ class DownloadProgressPlugin(JmOptionPlugin):
 
 class AutoSetBrowserCookiesPlugin(JmOptionPlugin):
     plugin_key = 'auto_set_browser_cookies'
-    optional_dependencies = ('browser_cookie3',)
+    plugin_dependencies = ('browser_cookie3',)
 
     accepted_cookies_keys = str_to_set('''
     yuo1
@@ -1260,13 +1366,13 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
 class Img2pdfPlugin(JmOptionPlugin):
     plugin_key = 'img2pdf'
     # img2pdf 总是需要；pikepdf 仅在加密 pdf 时需要
-    optional_dependencies = ('img2pdf',)
+    plugin_dependencies = ('img2pdf',)
 
     @classmethod
     def required_dependencies_for(cls, kwargs: dict) -> tuple:
         if kwargs.get('encrypt'):
-            return cls.optional_dependencies + ('pikepdf',)
-        return cls.optional_dependencies
+            return cls.plugin_dependencies + ('pikepdf',)
+        return cls.plugin_dependencies
 
     def invoke(self,
                photo: JmPhotoDetail = None,
