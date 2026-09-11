@@ -1104,7 +1104,9 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
         self.zip_filepath = os.path.abspath(zip_filepath)
         self.zip_password = zip_password
         self.delete_original_file = delete_original_file
-        self.max_retry = max(1, int(max_retry))
+        # max_retry 表示「首次失败后的重试次数」，所以总尝试次数是 max_retry + 1。
+        # 允许配 0 表示不重试（只尝试一次），不要把它强行抬成 1。
+        self.max_retry = max(0, int(max_retry))
         self.files = []
         self.failed_folders = []
 
@@ -1130,26 +1132,26 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
             apply_each_obj_func=bind_jm_task_context(self.handle_folder),
         )
 
+        # 压缩导出的文件（放在失败检查之前：即便有收藏夹失败，
+        # 已经成功抓下来的那部分也应该照常打包，不能因为一个收藏夹失败就丢掉整批数据）
+        if self.zip_enable:
+            self.require_param(self.zip_filepath, '如果开启zip，请指定zip_filepath参数（压缩文件保存路径）')
+
+            if self.zip_password is None:
+                self.zip_folder_without_password(self.files, self.zip_filepath)
+            else:
+                self.zip_with_password()
+
+            self.execute_deletion(self.files)
+
         # 汇总导出失败的收藏夹，避免数据静默缺失
         self.raise_if_failed_folders()
-
-        if not self.zip_enable:
-            return
-
-        # 压缩导出的文件
-        self.require_param(self.zip_filepath, '如果开启zip，请指定zip_filepath参数（压缩文件保存路径）')
-
-        if self.zip_password is None:
-            self.zip_folder_without_password(self.files, self.zip_filepath)
-        else:
-            self.zip_with_password()
-
-        self.execute_deletion(self.files)
 
     def handle_folder(self, fid: str, fname: str):
         self.log(f'【收藏夹: {fname}, fid: {fid}】开始获取数据')
 
-        for attempt in range(1, self.max_retry + 1):
+        # 第 0 次是首次尝试，之后每次都是重试；总共 1 + max_retry 次
+        for attempt in range(self.max_retry + 1):
             try:
                 # 获取收藏夹数据
                 page_data = self.fetch_folder_page_data(fid)
@@ -1159,13 +1161,13 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
             except Exception as e:
                 # 单个收藏夹失败不应该中断其他收藏夹，
                 # 但也不能无声无息地丢掉这份数据，这里记录并在结束后统一汇报
-                self.log(f'【收藏夹: {fname}, fid: {fid}】第 {attempt}/{self.max_retry} 次获取失败: [{e}]')
+                self.log(f'【收藏夹: {fname}, fid: {fid}】第 {attempt + 1}/{self.max_retry + 1} 次获取失败: [{e}]')
 
                 if attempt >= self.max_retry:
                     self.failed_folders.append((fid, fname, e))
                     return
 
-                self.retry_backoff(attempt)
+                self.retry_backoff(attempt + 1)
                 continue
 
             if filepath is None:
@@ -1185,6 +1187,7 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
         """
         import time
 
+        # attempt 从 1 开始，首次重试等 2s，之后 4s、8s，上限 10s
         time.sleep(min(2 ** attempt, 10))
 
     def raise_if_failed_folders(self):

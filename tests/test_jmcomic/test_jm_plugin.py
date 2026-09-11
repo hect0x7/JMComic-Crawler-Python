@@ -149,7 +149,7 @@ class Test_Plugin(JmTestConfigurable):
         source: https://github.com/hect0x7/JMComic-Crawler-Python/issues/447
 
         收藏夹导出时，单个收藏夹抓取失败不应该被静默丢掉：
-        1. 失败的收藏夹会按 max_retry 重试
+        1. 失败的收藏夹会按 max_retry 重试（max_retry 指重试次数，总尝试次数是 max_retry + 1）
         2. 重试仍失败的收藏夹会被汇总抛出，而不是无声无息
         3. 成功的收藏夹不受影响
         """
@@ -191,8 +191,8 @@ class Test_Plugin(JmTestConfigurable):
                 plugin.handle_folder('good', '正常收藏夹')
                 plugin.handle_folder('bad', '坏掉的收藏夹')
 
-                # 正常收藏夹只取一次，失败的收藏夹重试 max_retry 次
-                self.assertEqual(['good', 'bad', 'bad', 'bad'], fetch_calls)
+                # 正常收藏夹只取一次；失败的收藏夹共尝试 max_retry + 1 次（首次 + 3 次重试）
+                self.assertEqual(['good', 'bad', 'bad', 'bad', 'bad'], fetch_calls)
                 self.assertEqual([os.path.join(tmp, 'good.csv')], plugin.files)
                 self.assertEqual(1, len(plugin.failed_folders))
                 self.assertEqual('bad', plugin.failed_folders[0][0])
@@ -236,5 +236,111 @@ class Test_Plugin(JmTestConfigurable):
             self.assertEqual([], plugin.failed_folders)
             plugin.raise_if_failed_folders()
             print('✅ Successful export raises nothing.')
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_favorite_folder_export_max_retry_zero(self):
+        """
+        max_retry=0 表示不重试：只尝试一次，失败后直接记进 failed_folders。
+        """
+        import tempfile
+        import shutil
+        from unittest.mock import patch
+
+        from jmcomic.jm_plugin import FavoriteFolderExportPlugin
+
+        option = self.new_option()
+        tmp = tempfile.mkdtemp(prefix='jm_test_fav_zero_')
+        try:
+            plugin = FavoriteFolderExportPlugin(option)
+            plugin.save_dir = tmp
+            plugin.zip_enable = False
+            plugin.zip_filepath = os.path.abspath(os.path.join(tmp, 'export.zip'))
+            plugin.max_retry = 0
+            plugin.files = []
+            plugin.failed_folders = []
+
+            fetch_calls = []
+
+            def fake_fetch(fid):
+                fetch_calls.append(fid)
+                raise RuntimeError('会话已失效')
+
+            with (
+                patch.object(plugin, 'fetch_folder_page_data', side_effect=fake_fetch),
+                patch.object(plugin, 'retry_backoff'),
+            ):
+                plugin.handle_folder('bad', '坏掉的收藏夹')
+
+            # max_retry=0 → 只尝试一次，不应出现重试
+            self.assertEqual(['bad'], fetch_calls)
+            self.assertEqual(1, len(plugin.failed_folders))
+            print('✅ max_retry=0 means no retry, single attempt only.')
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_favorite_folder_export_zips_successful_files_before_raising(self):
+        """
+        开启 zip 时，即使有收藏夹导出失败，成功抓下来的文件也应该先打包完成，
+        再统一抛出失败汇总——不能因为一个收藏夹失败就把整批已成功的数据丢掉。
+        """
+        import tempfile
+        import shutil
+        from unittest.mock import patch
+
+        from jmcomic.jm_plugin import FavoriteFolderExportPlugin, PluginValidationException
+
+        option = self.new_option()
+        tmp = tempfile.mkdtemp(prefix='jm_test_fav_zip_')
+        try:
+            plugin = FavoriteFolderExportPlugin(option)
+            plugin.save_dir = tmp
+            plugin.zip_enable = True
+            plugin.zip_filepath = os.path.abspath(os.path.join(tmp, 'export.zip'))
+            plugin.zip_password = None
+            plugin.delete_original_file = False
+            plugin.max_retry = 0
+            plugin.files = []
+            plugin.failed_folders = []
+
+            # 模拟 main() 里的收藏夹枚举结果
+            class FakePage:
+                def iter_folder_id_name(self):
+                    return [('good', '正常收藏夹'), ('bad', '坏掉的收藏夹')]
+
+            class FakeClient:
+                def favorite_folder(self):
+                    return FakePage()
+
+            zipped = []
+            deleted = []
+
+            def fake_fetch(fid):
+                if fid == 'bad':
+                    raise RuntimeError('会话已失效')
+                return ['page']
+
+            def fake_zip(files, filepath):
+                zipped.append(list(files))
+
+            with (
+                patch.object(plugin, 'build_client', create=True, return_value=FakeClient()),
+                patch.object(plugin, 'fetch_folder_page_data', side_effect=fake_fetch),
+                patch.object(plugin, 'save_folder_page_data_to_file',
+                             side_effect=lambda page_data, fid, fname: os.path.join(tmp, f'{fid}.csv')),
+                patch.object(plugin, 'zip_folder_without_password', side_effect=fake_zip),
+                patch.object(plugin, 'execute_deletion', side_effect=lambda files: deleted.append(list(files))),
+            ):
+                # main() 里通过 option.build_jm_client 拿 client，这里直接替换 option 的方法
+                with patch.object(plugin.option, 'build_jm_client', return_value=FakeClient()):
+                    with self.assertRaises(PluginValidationException):
+                        plugin.main()
+
+            # 成功的文件必须先被打包，且打包发生在抛错之前
+            self.assertEqual(1, len(zipped))
+            self.assertIn(os.path.join(tmp, 'good.csv'), zipped[0])
+            self.assertNotIn(os.path.join(tmp, 'bad.csv'), zipped[0])
+            self.assertEqual(1, len(deleted))
+            print('✅ Successful files zipped before the failure summary is raised.')
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
