@@ -1898,13 +1898,16 @@ class CalibreMetadataPlugin(JmOptionPlugin):
 
         opf_path = self.decide_filepath(album, photo, None, None, None, dir_rule)
 
+        # 处理封面下载
+        if include_cover:
+            cover_path = os.path.join(os.path.dirname(opf_path), 'cover.jpg')
+            self.download_cover_if_needed(album.id, cover_path, downloader)
+
         jmcomic_calibre.export_opf(
             album=album,
             opf_path=opf_path,
             fields=fields,
             include_cover=include_cover,
-            download_cover=lambda cover_path: self.download_cover_if_needed(
-                album.id, cover_path, downloader),
             on_ignored=lambda key, allowed: self.log(
                 f'calibre_metadata: 忽略不支持的fields字段 [{key}]，'
                 f'仅支持Dublin Core元素: {", ".join(sorted(allowed))}', 'warning'),
