@@ -717,6 +717,10 @@ class Test_Download_Manifest(unittest.TestCase):
                     'works': [],
                     'actors': [],
                     'related_list': [],
+                    'total_photos': '0',
+                    'addtime': '0',
+                    'is_favorite': False,
+                    'liked': False,
                 }
 
             async def req_api(_url, **_kwargs):

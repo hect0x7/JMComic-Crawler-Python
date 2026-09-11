@@ -32,7 +32,7 @@ class Test_CheckIn(unittest.TestCase):
             params={'daily_id': '99'},
         )
         self.assertEqual(resp.json()['dateArray'], [5])
-        self.assertEqual(resp.model().daily_id, 99)
+        self.assertEqual(resp.model().oldStep, 1)
 
     def test_html_client_daily_checkin_success(self):
         client = object.__new__(JmHtmlClient)

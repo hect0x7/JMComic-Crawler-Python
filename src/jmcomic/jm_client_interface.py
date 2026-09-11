@@ -370,7 +370,6 @@ class JmUserClient:
 
         1. HTML 客户端 (JmJsonResp.json() / JmJsonResp.model()):
         {
-          "daily_id": 72,                              # 签到活动ID（已注入对齐）
           "dateArray": [11],                           # 当月已签到的日期数组
           "dateMiss": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], # 当月漏签的日期数组
           "dateEvent": [                               # 特殊活动/双倍奖励日期
