@@ -36,6 +36,107 @@ class Test_Plugin(JmTestConfigurable):
         download_photo(photo_id, option, downloader=DoNotDownloadImage)
         print('✅ All folder rule plugins assert completed safely without KeyError.')
 
+    def test_strict_dependencies(self):
+        """
+        source: https://github.com/hect0x7/JMComic-Crawler-Python/issues/572
+
+        测试开启 plugins.strict_dependencies 后：
+        1. 启用的插件缺少依赖库时，在 option 初始化（after_init）阶段直接报错
+        2. 未开启时保持原有行为，不校验
+        """
+        from jmcomic import JmOption, JmModuleConfig, JmcomicException
+
+        # 临时给 img2pdf 插件声明一个必然不存在的依赖，保证测试不依赖运行环境装了什么库
+        pclass = JmModuleConfig.REGISTRY_PLUGIN['img2pdf']
+        origin_deps = pclass.optional_dependencies
+        pclass.optional_dependencies = ('__lib_not_exists__',)
+        try:
+            # 1) 开启 strict_dependencies，构建 option 时应直接抛异常
+            dic = {
+                'plugins': {
+                    'strict_dependencies': True,
+                    'after_album': [{'plugin': 'img2pdf'}],
+                }
+            }
+            with self.assertRaises(JmcomicException) as ctx:
+                JmOption.construct(dic)
+            self.assertIn('strict_dependencies', str(ctx.exception))
+            self.assertIn('pip install jmcomic[plugins]', str(ctx.exception))
+            print('✅ strict_dependencies on: missing lib raises at option init.')
+
+            # 2) 未开启时，不做校验，正常构建
+            dic2 = {
+                'plugins': {
+                    'after_album': [{'plugin': 'img2pdf'}],
+                }
+            }
+            option = JmOption.construct(dic2)
+            self.assertIsNotNone(option)
+            print('✅ strict_dependencies off: keeps silent as before.')
+        finally:
+            pclass.optional_dependencies = origin_deps
+
+    def test_strict_dependencies_kwargs_aware(self):
+        """
+        source: https://github.com/hect0x7/JMComic-Crawler-Python/pull/575 (CodeRabbit review)
+
+        校验应感知插件配置（required_dependencies_for），并直接测真实解析器，
+        只 mock importlib.util.find_spec 模拟库缺失，不替换解析器本身：
+        1. 未加密 zip：真实解析器返回 ()，即便 pyzipper/py7zr 缺失也不误报
+        2. 加密 zip（impl=7z）：解析器返回 py7zr，缺失时报错
+        3. 默认加密 zip：解析器返回 pyzipper，缺失时报错
+        4. img2pdf 未加密：解析器返回 (img2pdf,)，不查 pikepdf
+        5. img2pdf 加密：解析器返回 (img2pdf, pikepdf)，缺失时报错
+        """
+        import importlib.util as _iu
+        from unittest import mock
+
+        from jmcomic import JmOption, JmcomicException
+
+        real_find_spec = _iu.find_spec
+
+        def find_spec_missing(*missing):
+            def fake(name, *args, **kwargs):
+                if name in missing:
+                    return None
+                return real_find_spec(name, *args, **kwargs)
+            return fake
+
+        def build_zip(kwargs):
+            return {'plugins': {'strict_dependencies': True,
+                                'after_album': [{'plugin': 'zip', 'kwargs': kwargs}]}}
+
+        # 1) 未加密 zip：不查任何加密库
+        with mock.patch('importlib.util.find_spec', side_effect=find_spec_missing('pyzipper', 'py7zr')):
+            self.assertIsNotNone(JmOption.construct(build_zip({'zip_dir': './'})))
+        print('✅ real resolver: plain zip needs no optional lib.')
+
+        # 2) 加密 zip（impl=7z）：查 py7zr
+        with mock.patch('importlib.util.find_spec', side_effect=find_spec_missing('py7zr')):
+            with self.assertRaises(JmcomicException):
+                JmOption.construct(build_zip({'zip_dir': './', 'encrypt': {'impl': '7z'}}))
+        print('✅ real resolver: 7z zip requires py7zr.')
+
+        # 3) 默认加密 zip：查 pyzipper
+        with mock.patch('importlib.util.find_spec', side_effect=find_spec_missing('pyzipper')):
+            with self.assertRaises(JmcomicException):
+                JmOption.construct(build_zip({'zip_dir': './', 'encrypt': {'type': 'sha256'}}))
+        print('✅ real resolver: encrypted zip requires pyzipper.')
+
+        # 4) img2pdf 未加密：不查 pikepdf
+        dic4 = {'plugins': {'strict_dependencies': True,
+                            'after_album': [{'plugin': 'img2pdf'}]}}
+        with mock.patch('importlib.util.find_spec', side_effect=find_spec_missing('pikepdf')):
+            self.assertIsNotNone(JmOption.construct(dic4))
+
+        # 5) img2pdf 加密：查 pikepdf
+        dic5 = {'plugins': {'strict_dependencies': True,
+                            'after_album': [{'plugin': 'img2pdf', 'kwargs': {'encrypt': {'type': 'sha256'}}}]}}
+        with mock.patch('importlib.util.find_spec', side_effect=find_spec_missing('pikepdf')):
+            with self.assertRaises(JmcomicException):
+                JmOption.construct(dic5)
+        print('✅ real resolver: img2pdf requires pikepdf only when encrypt.')
+
     def test_calibre_metadata(self):
         """
         source: https://github.com/hect0x7/JMComic-Crawler-Python/issues/573

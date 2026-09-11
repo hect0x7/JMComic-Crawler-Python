@@ -203,6 +203,8 @@ class JmOption:
         self.need_wait_plugins = []
 
         if call_after_init_plugin:
+            if self.plugins.src_dict.get('strict_dependencies', False):
+                self.check_plugins_dependencies()
             self.call_all_plugin('after_init', safe=True)
 
     def copy_option(self):
@@ -351,7 +353,9 @@ class JmOption:
             # 意图聚焦：建议配置中只展示相关的 zip 插件，剔除其他无关插件的干扰
             advice_plugins = {}
             for g, plist in plugins.items():
-                zips = [p for p in plist if p.get('plugin') == 'zip']
+                if not isinstance(plist, list):
+                    continue
+                zips = [p for p in plist if isinstance(p, dict) and p.get('plugin') == 'zip']
                 if zips:
                     advice_plugins[g] = zips
 
@@ -632,6 +636,52 @@ class JmOption:
         return await download_photo_async(photo_id, self, *args, **kwargs)
 
     # 下面的方法为调用插件提供支持
+
+    def check_plugins_dependencies(self) -> None:
+        """
+        校验已启用插件的可选依赖库是否安装，缺失则直接报错。
+
+        由 plugins.strict_dependencies 配置项开启，在option初始化（after_init）阶段执行，
+        让依赖问题在任务启动时就暴露，而不是等到插件静默跳过、产物缺失时才发现。
+
+        各插件通过类属性 optional_dependencies 声明所依赖的可选库（import名），
+        也可重写 required_dependencies_for(kwargs) 按插件配置返回实际需要的库
+        （如未加密的 zip 无需 pyzipper/py7zr）。
+        """
+        import importlib.util
+
+        # 保证 jm_plugin.py 被加载
+        from .jm_plugin import JmOptionPlugin
+
+        plugin_registry = JmModuleConfig.REGISTRY_PLUGIN
+        missing: Dict[str, List[str]] = {}
+
+        for group, plist in self.plugins.src_dict.items():
+            if not isinstance(plist, list):
+                continue
+
+            for pinfo in plist:
+                if not isinstance(pinfo, dict):
+                    continue
+
+                pclass: Optional[Type[JmOptionPlugin]] = plugin_registry.get(pinfo.get('plugin'), None)
+                if pclass is None:
+                    continue
+
+                for lib in pclass.required_dependencies_for(pinfo.get('kwargs') or {}):
+                    if importlib.util.find_spec(lib) is None:
+                        missing.setdefault(lib, []).append(pclass.plugin_key)
+
+        if missing:
+            detail = '; '.join(
+                f'库[{lib}] 被插件 {plugin_keys} 使用'
+                for lib, plugin_keys in sorted(missing.items())
+            )
+            ExceptionTool.raises(
+                '插件依赖校验失败（plugins.strict_dependencies = true）: '
+                f'{detail}。'
+                '请安装缺失的依赖库，或一键安装全部插件依赖: pip install jmcomic[plugins]'
+            )
 
     def call_all_plugin(self, group: str, safe=None, **extra):
         plugin_list: List[dict] = self.plugins.get(group, [])
