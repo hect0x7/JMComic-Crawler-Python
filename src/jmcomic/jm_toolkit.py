@@ -1,3 +1,4 @@
+from datetime import datetime
 from html.parser import HTMLParser
 from urllib.parse import unquote, urlparse
 
@@ -61,6 +62,13 @@ class JmcomicText:
     pattern_html_album_views = compile(r'<span>(.*?)</span>\n *<span>(次觀看|观看次数|次观看次数)</span>')
     # 評論(div)
     pattern_html_album_comment_count = compile(r'<div class="badge"[^>]*?id="total_video_comments">(\d+)</div>'), 0
+    # 是否已收藏 (HTML端通过主本子收藏按钮带有 btn-primary 判定)
+    pattern_html_album_is_favorite = compile(
+        r'<a\s+[^>]*?(id="album_favorite_\d+"[^>]*?class="[^"]*?'
+        r'\bbtn-primary\b|class="[^"]*?\bbtn-primary\b[^>]*?id="album_favorite_\d+)[^>]*?>'), False
+    # 是否已点赞/喜欢 (HTML端通过顶栏爱心按钮带有 style="color:red" 判定)
+    pattern_html_album_liked = compile(
+        r'id=[\'"]love_likes_\d+[\'"][^>]*>\s*<i[^>]+style=[\'"][^\'"]*color:\s*(red)[^\'"]*[\'"]'), False
 
     # 提取接口返回值信息
     pattern_ajax_favorite_msg = compile(r'</button>(.*?)</div>')
@@ -68,6 +76,8 @@ class JmcomicText:
     pattern_api_response_json_object = compile(r'\{[\s\S]*?}')
 
     pattern_html_comment_next_page = compile(r'id=["\']p_album_comments_\d+_(\d+)["\']')
+    # 网页端签到活动ID (data-dailyid)
+    pattern_html_daily_id = compile(r'data-dailyid="(\d+)"')
 
     @classmethod
     def parse_to_jm_domain(cls, text: str):
@@ -139,6 +149,19 @@ class JmcomicText:
             "pattern_html_album_",
             JmModuleConfig.album_class()
         )
+
+    @classmethod
+    def parse_daily_id(cls, html: str, default=None) -> Optional[str]:
+        """
+        从网页文本（如禁漫首页）中提取每日签到活动 ID（data-dailyid）
+        """
+        return PatternTool.match_or_default(
+            html,
+            cls.pattern_html_daily_id,
+            default,
+        )
+
+    parse_html_daily_id = parse_daily_id
 
     @classmethod
     def reflect_new_instance(cls, html: str, cls_field_prefix: str, clazz: type):
@@ -948,6 +971,8 @@ class JmApiAdaptTool:
             'related_list',
             'name',
             'description',
+            'is_favorite',
+            'liked',
             ('id', 'album_id'),
             ('author', 'authors'),
             ('total_views', 'views'),
@@ -1003,7 +1028,10 @@ class JmApiAdaptTool:
                 (chapter.id, chapter.sort, chapter.name)
             )
         fields['episode_list'] = episode_list
-        for it in 'scramble_id', 'page_count', 'pub_date', 'update_date':
+        fields['page_count'] = int(data['total_photos'])
+        fields['pub_date'] = datetime.fromtimestamp(int(data['addtime'])).strftime('%Y-%m-%d')
+
+        for it in 'scramble_id', 'update_date':
             fields[it] = '0'
 
     @classmethod

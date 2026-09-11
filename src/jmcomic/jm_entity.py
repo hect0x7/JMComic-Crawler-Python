@@ -481,6 +481,8 @@ class JmAlbumDetail(DetailEntity, Downloadable):
                  tags,
                  related_list=None,
                  description='',
+                 is_favorite=False,
+                 liked=False,
                  ):
         super().__init__()
         self.album_id: str = str(album_id)
@@ -498,6 +500,8 @@ class JmAlbumDetail(DetailEntity, Downloadable):
         self.actors: List[str] = actors  # 登場人物
         self.tags: List[str] = tags  # 標籤
         self.authors: List[str] = authors  # 作者
+        self.is_favorite: bool = bool(is_favorite)  # 是否已收藏
+        self.liked: bool = bool(liked)  # 是否已点赞/喜欢
 
         # 有的 album 没有章节，则自成一章。
         episode_list: List[Tuple[str, str, str]]
