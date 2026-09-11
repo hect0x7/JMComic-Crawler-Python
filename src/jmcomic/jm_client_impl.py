@@ -32,6 +32,7 @@ class AbstractJmClient(
         self.domain_retry_strategy = domain_retry_strategy
         self.CLIENT_CACHE = None
         self._username = None  # help for favorite_folder method
+        self._user_id = None  # help for check_in / get_daily method
         if domain_retry_strategy:
             domain_retry_strategy(self)
         self.enable_cache()
@@ -488,6 +489,12 @@ class JmHtmlClient(AbstractJmClient):
         # 解析cookies，可能需要用到 phpserialize，比较麻烦，暂不实现
         pass
 
+    def get_daily(self, user_id: str | None = None):
+        raise NotImplementedError
+
+    def daily_checkin(self, daily_id: str | None = None, user_id: str | None = None):
+        raise NotImplementedError
+
     def get_jm_html(self, url, require_200=True, **kwargs):
         """
         请求禁漫网页的入口
@@ -694,6 +701,8 @@ class JmApiClient(AbstractJmClient):
     API_SCRAMBLE = '/chapter_view_template'
     API_FAVORITE = '/favorite'
     API_FORUM = '/forum'
+    API_DAILY = '/daily'
+    API_DAILY_CHK = '/daily_chk'
 
     def search(self,
                search_query: str,
@@ -917,9 +926,12 @@ class JmApiClient(AbstractJmClient):
             'password': password,
         })
 
+        res_data = resp.res_data
         cookies = dict(resp.resp.cookies)
-        cookies.update({'AVS': resp.res_data['s']})
+        cookies.update({'AVS': res_data['s']})
         self['cookies'] = cookies
+        self._username = username
+        self._user_id = str(res_data['uid']) if 'uid' in res_data else None
 
         return resp
 
@@ -1030,6 +1042,47 @@ class JmApiClient(AbstractJmClient):
         如果当前未收藏，将抛出异常以保证取消收藏语义明确。
         """
         return self.toggle_favorite_album(album_id, folder_id, expected_type='remove')
+
+    def get_daily(self,
+                  user_id: str | None = None,
+                  ) -> JmApiResp:
+        """
+        获取每日签到信息与日历打卡记录
+        :param user_id: 用户ID，默认读取当前登录用户的uid
+        """
+        if user_id is None:
+            ExceptionTool.require_true(self._user_id is not None, '签到需要传入 user_id 参数，或者先调用 login 方法')
+            user_id = self._user_id
+
+        return self.req_api(self.API_DAILY, params={'user_id': user_id})
+
+    def daily_checkin(self,
+                      daily_id: str | None = None,
+                      user_id: str | None = None,
+                      ) -> JmApiResp:
+        """
+        执行每日打卡签到
+        :param daily_id: 打卡任务ID，未提供时会自动请求 get_daily 获取
+        :param user_id: 用户ID，默认读取当前登录用户的uid
+        :return: JmApiResp
+        """
+        if user_id is None:
+            ExceptionTool.require_true(self._user_id is not None, '签到需要传入 user_id 参数，或者先调用 login 方法')
+            user_id = self._user_id
+
+        if daily_id is None:
+            daily_resp = self.get_daily(user_id)
+            daily_id = daily_resp.res_data.get('daily_id')
+            ExceptionTool.require_true(bool(daily_id), f'未获取到 daily_id，无法签到: {getattr(daily_resp, "text", str(daily_resp.res_data))}')
+
+        return self.req_api(
+            self.API_DAILY_CHK,
+            get=False,
+            data={
+                'user_id': user_id,
+                'daily_id': daily_id,
+            },
+        )
 
     # noinspection PyMethodMayBeStatic
     def require_resp_status_ok(self, resp: JmApiResp):

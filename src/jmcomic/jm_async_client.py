@@ -49,6 +49,8 @@ class AsyncJmApiClient(AsyncJmcomicClient):
     API_SCRAMBLE = '/chapter_view_template'
     API_FAVORITE = '/favorite'
     API_FORUM = '/forum'
+    API_DAILY = '/daily'
+    API_DAILY_CHK = '/daily_chk'
 
     # 缓存未命中标记
     _SENTINEL = object()
@@ -81,6 +83,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
         # 缓存默认关闭，由外部配置决定是否启用。
         self._cache: dict | None = None
         self._username: str | None = None
+        self._user_id: str | None = None
 
         # 接收并保存额外的会话级元数据参数
         self._meta_kwargs = kwargs
@@ -618,13 +621,15 @@ class AsyncJmApiClient(AsyncJmcomicClient):
             'username': username,
             'password': password,
         })
+        res_data = resp.res_data
         cookies = dict(resp.resp.cookies)
-        cookies.update({'AVS': resp.res_data['s']})
+        cookies.update({'AVS': res_data['s']})
         # noinspection PyUnresolvedReferences,PyTypeChecker
         self._session.cookies.update(cookies)
         # 同步到 Option 配置，确保 cookies 持久化
         self.option.update_cookies(cookies)
         self._username = username
+        self._user_id = str(res_data['uid']) if 'uid' in res_data else None
         return resp
 
     async def favorite_folder(self,
@@ -719,6 +724,42 @@ class AsyncJmApiClient(AsyncJmcomicClient):
         如果当前未收藏，将抛出异常以保证取消收藏语义明确。
         """
         return await self.toggle_favorite_album(album_id, folder_id, expected_type='remove')
+
+    async def get_daily(self, user_id: str | None = None) -> JmApiResp:
+        """
+        获取每日签到信息与日历打卡记录
+        :param user_id: 用户ID，默认读取当前登录用户的uid
+        """
+        if user_id is None:
+            ExceptionTool.require_true(self._user_id is not None, '签到需要传入 user_id 参数，或者先调用 login 方法')
+            user_id = self._user_id
+
+        return await self.req_api(self.API_DAILY, params={'user_id': user_id})
+
+    async def daily_checkin(self, daily_id: str | None = None, user_id: str | None = None) -> JmApiResp:
+        """
+        执行每日打卡签到
+        :param daily_id: 打卡任务ID，未提供时会自动请求 get_daily 获取
+        :param user_id: 用户ID，默认读取当前登录用户的uid
+        :return: JmApiResp
+        """
+        if user_id is None:
+            ExceptionTool.require_true(self._user_id is not None, '签到需要传入 user_id 参数，或者先调用 login 方法')
+            user_id = self._user_id
+
+        if daily_id is None:
+            daily_resp = await self.get_daily(user_id)
+            daily_id = daily_resp.res_data.get('daily_id')
+            ExceptionTool.require_true(bool(daily_id), f'未获取到 daily_id，无法签到: {getattr(daily_resp, "text", str(daily_resp.res_data))}')
+
+        return await self.req_api(
+            self.API_DAILY_CHK,
+            get=False,
+            data={
+                'user_id': user_id,
+                'daily_id': daily_id,
+            },
+        )
 
     async def album_comment(self,
                             video_id,

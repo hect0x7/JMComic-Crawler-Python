@@ -96,6 +96,22 @@ class JmJsonResp(JmResp):
 
 
 class JmApiResp(JmJsonResp):
+    """
+    移动端 API 响应包装类。
+
+    原始响应示例（resp.text）：
+        {"code": 200, "data": "abc123XYZ..."}
+
+    内部数据流动机制：
+    1. encoded_data: 从原始响应 JSON 中提取 resp.json()['data']（服务端经 AES 加密后的 Base64 密文字符串）。
+       示例: "abc123XYZ..."
+    2. decoded_data: 将 encoded_data 经 Base64 解码 + AES-ECB 解密并去除 Padding 后，得到的明文字符串（通常为 JSON 字符串）。
+       示例: '{"msg": "Jcoin:40 EXP:40"}'
+    3. res_data: 通过 json.loads 将 decoded_data 解析为 Python 字典/列表（Any）。
+       示例: {'msg': 'Jcoin:40 EXP:40'}
+    4. model_data: 将 res_data 包装为便于属性访问的 AdvancedDict 字典对象。
+       示例: model_data.msg -> 'Jcoin:40 EXP:40'
+    """
 
     def __init__(self, resp, ts: str):
         super().__init__(resp)
@@ -124,6 +140,8 @@ class JmApiResp(JmJsonResp):
 
     def require_have_data(self):
         data = self.encoded_data
+        if data is None:
+            ExceptionTool.raises_resp(f'响应数据为空: {self.text}', self)
         if isinstance(data, list) and len(data) == 0 and self.json().get('errorMsg', None):
             ExceptionTool.raises_resp(f'data返回值异常: {self.text}', self)
 
@@ -318,6 +336,26 @@ class JmUserClient:
                               ):
         """
         从收藏夹移除漫画
+        """
+        raise NotImplementedError
+
+    def get_daily(self,
+                  user_id: str | None = None,
+                  ) -> JmApiResp:
+        """
+        获取每日签到信息与日历打卡记录
+        :param user_id: 用户ID，默认读取当前登录用户的uid
+        """
+        raise NotImplementedError
+
+    def daily_checkin(self,
+                      daily_id: str | None = None,
+                      user_id: str | None = None,
+                      ) -> JmApiResp:
+        """
+        执行每日打卡签到
+        :param daily_id: 打卡任务ID，未提供时会自动请求 get_daily 获取
+        :param user_id: 用户ID，默认读取当前登录用户的uid
         """
         raise NotImplementedError
 
@@ -1059,6 +1097,21 @@ class AsyncJmcomicClient:
         raise NotImplementedError
 
     async def delete_favorite_album(self, album_id, folder_id='0'):
+        raise NotImplementedError
+
+    async def get_daily(self, user_id: str | None = None) -> JmApiResp:
+        """
+        获取每日签到信息与日历打卡记录
+        :param user_id: 用户ID，默认读取当前登录用户的uid
+        """
+        raise NotImplementedError
+
+    async def daily_checkin(self, daily_id: str | None = None, user_id: str | None = None) -> JmApiResp:
+        """
+        执行每日打卡签到
+        :param daily_id: 打卡任务ID，未提供时会自动请求 get_daily 获取
+        :param user_id: 用户ID，默认读取当前登录用户的uid
+        """
         raise NotImplementedError
 
     async def album_comment(self,
