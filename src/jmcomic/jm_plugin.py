@@ -1911,6 +1911,9 @@ class CalibreMetadataPlugin(JmOptionPlugin):
     通常挂在 after_album 上，每个本子在其目录下生成一份 metadata.opf，
     Calibre 导入（从 OPF 读元数据）时可以自动带上书名、作者、标签、简介和封面。
 
+    OPF 的生成逻辑由 jmcomic-calibre 提供（pip install jmcomic-calibre），
+    避免同一份 XML 拼接逻辑在两处各维护一份。
+
     配置示例：
 
     ```yml
@@ -1933,13 +1936,6 @@ class CalibreMetadataPlugin(JmOptionPlugin):
     """
     plugin_key = 'calibre_metadata'
 
-    # fields 允许的 Dublin Core 元素名（核心15元素），避免非法元素名生成无效 XML
-    DUBLIN_CORE_ELEMENTS = frozenset({
-        'title', 'creator', 'subject', 'description', 'publisher', 'contributor',
-        'date', 'type', 'format', 'identifier', 'source', 'language', 'relation',
-        'coverage', 'rights',
-    })
-
     def invoke(self,
                dir_rule: dict,
                album: JmAlbumDetail = None,
@@ -1948,66 +1944,30 @@ class CalibreMetadataPlugin(JmOptionPlugin):
                include_cover=False,
                fields=None,
                **kwargs) -> None:
-        from xml.sax.saxutils import escape
-
         self.require_param(album, '本插件需在after_album阶段使用，需要album参数')
+
+        try:
+            import jmcomic_calibre
+        except ImportError:
+            self.warning_lib_not_install('jmcomic-calibre')
+            return
+
         opf_path = self.decide_filepath(album, photo, None, None, None, dir_rule)
-        opf_dir = os.path.dirname(opf_path)
 
-        fields = dict(fields or {})
-
-        # 标题与作者，允许通过 fields 覆盖；作者为空时由 album.author 兜底为 DEFAULT_AUTHOR
-        title = str(fields.pop('title', album.title))
-        author = str(fields.pop('author', album.author))
-
-        # 封面：与 metadata.opf 同目录存放 cover.jpg，并在 OPF 中引用
-        cover_line = ''
-        manifest_line = ''
+        # 处理封面下载
         if include_cover:
-            cover_path = os.path.join(opf_dir, 'cover.jpg')
+            cover_path = os.path.join(os.path.dirname(opf_path), 'cover.jpg')
             self.download_cover_if_needed(album.id, cover_path, downloader)
-            manifest_line = (
-                '  <manifest>\n'
-                '    <item id="cover-image" href="cover.jpg" media-type="image/jpeg"/>\n'
-                '  </manifest>\n'
-            )
-            cover_line = '  <meta name="cover" content="cover-image"/>\n'
 
-        subject_lines = ''.join(
-            f'  <dc:subject>{escape(str(tag))}</dc:subject>\n'
-            for tag in (album.tags or [])
+        jmcomic_calibre.export_opf(
+            album=album,
+            opf_path=opf_path,
+            fields=fields,
+            include_cover=include_cover,
+            on_ignored=lambda key, allowed: self.log(
+                f'calibre_metadata: 忽略不支持的fields字段 [{key}]，'
+                f'仅支持Dublin Core元素: {", ".join(sorted(allowed))}', 'warning'),
         )
-
-        extra_lines = ''
-        for key, value in fields.items():
-            key = str(key)
-            if key not in self.DUBLIN_CORE_ELEMENTS:
-                self.log(f'calibre_metadata: 忽略不支持的fields字段 [{key}]，'
-                         f'仅支持Dublin Core元素: {", ".join(sorted(self.DUBLIN_CORE_ELEMENTS))}', 'warning')
-                continue
-            extra_lines += f'  <dc:{key}>{escape(str(value))}</dc:{key}>\n'
-
-        xml = (
-            '<?xml version="1.0" encoding="utf-8"?>\n'
-            '<package version="2.0" xmlns="http://www.idpf.org/2007/opf"\n'
-            '        xmlns:dc="http://purl.org/dc/elements/1.1/"\n'
-            '        xmlns:opf="http://www.idpf.org/2007/opf">\n'
-            '  <metadata>\n'
-            f'    <dc:title>{escape(title)}</dc:title>\n'
-            f'    <dc:creator opf:role="aut">{escape(author)}</dc:creator>\n'
-            f'{subject_lines}'
-            f'    <dc:identifier opf:scheme="JMCOMIC">jmcomic:{album.id}</dc:identifier>\n'
-            f'    <dc:description>{escape(album.description)}</dc:description>\n'
-            f'{extra_lines}'
-            f'{cover_line}'
-            '  </metadata>\n'
-            f'{manifest_line}'
-            '</package>\n'
-        )
-
-        mkdir_if_not_exists(opf_dir)
-        with open(opf_path, 'w', encoding='utf-8') as f:
-            f.write(xml)
         self.log(f'已生成Calibre元数据文件 → [{opf_path}]')
 
     def download_cover_if_needed(self, album_id: str, cover_path: str, downloader):
