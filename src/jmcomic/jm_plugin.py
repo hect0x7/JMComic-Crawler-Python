@@ -1872,10 +1872,17 @@ class CalibreMetadataPlugin(JmOptionPlugin):
 
     说明：
     - identifier 固定写为 jmcomic:{album_id}，可在 Calibre 中反查回禁漫的 album_id
-    - fields 中的 title/author 可覆盖默认取值，其余键值对按 dc:{key} 写入
+    - fields 中的 title/author 可覆盖默认取值，其余键值对须为 Dublin Core 元素名（如 language/publisher/date），按 dc:{key} 写入，不支持的键会忽略并告警
     - include_cover 依赖 downloader（after_album 阶段自动传入）
     """
     plugin_key = 'calibre_metadata'
+
+    # fields 允许的 Dublin Core 元素名（核心15元素），避免非法元素名生成无效 XML
+    DUBLIN_CORE_ELEMENTS = frozenset({
+        'title', 'creator', 'subject', 'description', 'publisher', 'contributor',
+        'date', 'type', 'format', 'identifier', 'source', 'language', 'relation',
+        'coverage', 'rights',
+    })
 
     def invoke(self,
                dir_rule: dict,
@@ -1915,10 +1922,14 @@ class CalibreMetadataPlugin(JmOptionPlugin):
             for tag in (album.tags or [])
         )
 
-        extra_lines = ''.join(
-            f'  <dc:{escape(str(key))}>{escape(str(value))}</dc:{escape(str(key))}>\n'
-            for key, value in fields.items()
-        )
+        extra_lines = ''
+        for key, value in fields.items():
+            key = str(key)
+            if key not in self.DUBLIN_CORE_ELEMENTS:
+                self.log(f'calibre_metadata: 忽略不支持的fields字段 [{key}]，'
+                         f'仅支持Dublin Core元素: {", ".join(sorted(self.DUBLIN_CORE_ELEMENTS))}', 'warning')
+                continue
+            extra_lines += f'  <dc:{key}>{escape(str(value))}</dc:{key}>\n'
 
         xml = (
             '<?xml version="1.0" encoding="utf-8"?>\n'

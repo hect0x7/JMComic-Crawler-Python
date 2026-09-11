@@ -82,7 +82,7 @@ class Test_Plugin(JmTestConfigurable):
                                     'rule': 'Bd/Atitle/metadata.opf',
                                     'base_dir': tmp,
                                 },
-                                'fields': {'language': 'zh'},
+                                'fields': {'language': 'zh', 'series index': '1'},
                             },
                         },
                     ],
@@ -107,6 +107,8 @@ class Test_Plugin(JmTestConfigurable):
             )
             self.assertEqual(root.find('.//dc:identifier', ns).text, 'jmcomic:123456')
             self.assertEqual(root.find('.//dc:language', ns).text, 'zh')
+            self.assertIsNone(root.find('.//dc:series_index', ns), '非法Dublin Core元素名应被忽略')
+            self.assertIsNone(root.find('.//{"series index"}', ns))
             self.assertEqual(root.find('.//dc:description', ns).text, '简介 <b>含XML特殊字符</b>')
             self.assertIsNone(root.find('.//{*}manifest'), 'include_cover=False 时不应有 manifest')
             print('✅ metadata.opf generated with escaped title/tags/identifier/fields.')
