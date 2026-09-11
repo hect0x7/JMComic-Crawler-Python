@@ -20,6 +20,20 @@ class PluginValidationException(Exception):
 
 class JmOptionPlugin:
     plugin_key: str
+    # 插件运行所需的非核心依赖库（import名）。
+    # 声明后，开启 plugins.strict_dependencies 的option会在初始化阶段统一校验。
+    optional_dependencies: tuple = ()
+
+    @classmethod
+    def required_dependencies_for(cls, kwargs: dict) -> tuple:
+        """
+        返回该插件在给定 kwargs 配置下实际需要的可选库，供 strict_dependencies 校验使用。
+
+        默认返回类声明的 optional_dependencies。
+        插件可按配置重写此方法，避免对合法配置误报
+        （如未加密的 zip 用标准库 zipfile 即可，无需 pyzipper/py7zr）。
+        """
+        return cls.optional_dependencies
 
     def __init__(self, option: JmOption):
         self.option = option
@@ -175,6 +189,7 @@ class JmLoginPlugin(JmOptionPlugin):
 
 class UsageLogPlugin(JmOptionPlugin):
     plugin_key = 'usage_log'
+    optional_dependencies = ('psutil',)
 
     def invoke(self, **kwargs) -> None:
         import threading
@@ -324,6 +339,35 @@ class ZipPlugin(JmOptionPlugin):
     """
 
     plugin_key = 'zip'
+    # zip 依赖取决于加密配置：未加密用标准库 zipfile，加密 zip 用 pyzipper，7z 用 py7zr
+    optional_dependencies = ()
+
+    @classmethod
+    def required_dependencies_for(cls, kwargs: dict) -> tuple:
+        encrypt = cls.check_encrypt_param(kwargs.get('encrypt'))
+        if not encrypt:
+            return ()
+        if encrypt.get('impl', '') == '7z':
+            return ('py7zr',)
+        return ('pyzipper',)
+
+    @staticmethod
+    def check_encrypt_param(encrypt):
+        """
+        校验 encrypt 配置的类型，返回规范化后的值（未配置时返回 None）。
+
+        encrypt 必须是映射（如 {type: sha256, password: xxx}），
+        写成真值标量（encrypt: enabled）时后续的 encrypt.get(...) 会抛
+        AttributeError，绕过了配置校验机制、报错也难以理解，这里统一拦掉。
+        """
+        if encrypt is None:
+            return None
+        if not isinstance(encrypt, dict):
+            ExceptionTool.raises(
+                f'zip插件的encrypt参数类型有误，预期为映射（如 {{type: sha256, password: xxx}}），'
+                f'实际类型为{type(encrypt)}'
+            )
+        return encrypt
 
     # noinspection PyAttributeOutsideInit
     def invoke(self,
@@ -347,6 +391,8 @@ class ZipPlugin(JmOptionPlugin):
             level = 'album' if album is not None else 'photo'
         self.level = level
         self.delete_original_file = delete_original_file
+        # 未开启 strict_dependencies 时也拦掉非法的 encrypt 类型
+        encrypt = self.check_encrypt_param(encrypt)
 
         # 确保压缩文件所在文件夹存在
         zip_dir = JmcomicText.parse_to_abspath(zip_dir)
@@ -927,6 +973,7 @@ class AsyncProgressDownloader(JmAsyncDownloader):
 
 class DownloadProgressPlugin(JmOptionPlugin):
     plugin_key = 'download_progress'
+    optional_dependencies = ('rich',)
     log_file = 'jmcomic-download.log'
 
     @staticmethod
@@ -1036,6 +1083,7 @@ class DownloadProgressPlugin(JmOptionPlugin):
 
 class AutoSetBrowserCookiesPlugin(JmOptionPlugin):
     plugin_key = 'auto_set_browser_cookies'
+    optional_dependencies = ('browser_cookie3',)
 
     accepted_cookies_keys = str_to_set('''
     yuo1
@@ -1211,6 +1259,14 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
 
 class Img2pdfPlugin(JmOptionPlugin):
     plugin_key = 'img2pdf'
+    # img2pdf 总是需要；pikepdf 仅在加密 pdf 时需要
+    optional_dependencies = ('img2pdf',)
+
+    @classmethod
+    def required_dependencies_for(cls, kwargs: dict) -> tuple:
+        if kwargs.get('encrypt'):
+            return cls.optional_dependencies + ('pikepdf',)
+        return cls.optional_dependencies
 
     def invoke(self,
                photo: JmPhotoDetail = None,
