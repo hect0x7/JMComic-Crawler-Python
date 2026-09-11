@@ -1140,7 +1140,7 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
             if self.zip_password is None:
                 self.zip_folder_without_password(self.files, self.zip_filepath)
             else:
-                self.zip_with_password()
+                self.zip_with_password(self.files, self.zip_filepath)
 
             self.execute_deletion(self.files)
 
@@ -1248,11 +1248,27 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
             for file in files:
                 zipf.write(file, arcname=of_file_name(file))
 
-    def zip_with_password(self):
-        # 构造shell命令
+    def zip_with_password(self, files, zip_path):
+        """
+        用 7z 打包指定文件并加密。
+
+        只打包传入的 files，不打包整个 save_dir：否则会连上一轮遗留的旧导出、
+        以及失败收藏夹写了一半的 csv 一起塞进包里，而这些文件并不在
+        execute_deletion 的删除范围内，等于往产物里混入无关数据。
+
+        :param files: 要压缩的文件的绝对路径的列表
+        :param zip_path: 压缩文件的保存路径
+        """
+        import shlex
+
+        # 逐个列举待打包文件，-spf 保留绝对路径（避免依赖 cwd）
+        file_args = ' '.join(
+            shlex.quote(of_file_name(f)) for f in files
+        )
+
         cmd_list = f'''
         cd {self.save_dir}
-        7z a "{self.zip_filepath}" "./" -p{self.zip_password} -mhe=on > "../7z_output.txt"
+        7z a "{zip_path}" {file_args} -p{self.zip_password} -mhe=on > "../7z_output.txt"
         
         '''
         self.log(f'运行命令: {cmd_list}')

@@ -303,7 +303,9 @@ class Test_Plugin(JmTestConfigurable):
             plugin.files = []
             plugin.failed_folders = []
 
-            # 模拟 main() 里的收藏夹枚举结果
+            # 模拟 main() 里的收藏夹枚举结果。
+            # 注意 '0'（特殊收藏栏【全部】）也会被 main() 枚举到，
+            # 所以这里必须显式让它无数据，否则会平白多出一个导出文件。
             class FakePage:
                 def iter_folder_id_name(self):
                     return [('good', '正常收藏夹'), ('bad', '坏掉的收藏夹')]
@@ -314,22 +316,27 @@ class Test_Plugin(JmTestConfigurable):
 
             zipped = []
             deleted = []
+            events = []
 
             def fake_fetch(fid):
-                if fid == 'bad':
+                if fid in ('bad', '0'):
                     raise RuntimeError('会话已失效')
                 return ['page']
 
             def fake_zip(files, filepath):
                 zipped.append(list(files))
+                events.append('zip')
+
+            def fake_delete(files):
+                deleted.append(list(files))
+                events.append('delete')
 
             with (
-                patch.object(plugin, 'build_client', create=True, return_value=FakeClient()),
                 patch.object(plugin, 'fetch_folder_page_data', side_effect=fake_fetch),
                 patch.object(plugin, 'save_folder_page_data_to_file',
                              side_effect=lambda page_data, fid, fname: os.path.join(tmp, f'{fid}.csv')),
                 patch.object(plugin, 'zip_folder_without_password', side_effect=fake_zip),
-                patch.object(plugin, 'execute_deletion', side_effect=lambda files: deleted.append(list(files))),
+                patch.object(plugin, 'execute_deletion', side_effect=fake_delete),
             ):
                 # main() 里通过 option.build_jm_client 拿 client，这里直接替换 option 的方法
                 with patch.object(plugin.option, 'build_jm_client', return_value=FakeClient()):
@@ -338,9 +345,111 @@ class Test_Plugin(JmTestConfigurable):
 
             # 成功的文件必须先被打包，且打包发生在抛错之前
             self.assertEqual(1, len(zipped))
-            self.assertIn(os.path.join(tmp, 'good.csv'), zipped[0])
-            self.assertNotIn(os.path.join(tmp, 'bad.csv'), zipped[0])
+            self.assertEqual([os.path.join(tmp, 'good.csv')], zipped[0])
             self.assertEqual(1, len(deleted))
+            # 打包必须先于删源，否则删源会把还没进包的源文件删掉
+            self.assertEqual(['zip', 'delete'], events)
             print('✅ Successful files zipped before the failure summary is raised.')
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_favorite_folder_export_encrypted_zip_only_includes_exported_files(self):
+        """
+        zip_password 非空时走 7z 加密打包，同样只能打包本次导出的文件。
+
+        原实现是 `7z a "{zip}" "./"`，会把 save_dir 下的一切都卷进去：
+        上一轮遗留的旧导出、失败收藏夹写了一半的 csv。
+        这些文件不在 execute_deletion 的删除范围内，等于往产物里混入无关数据。
+        """
+        import tempfile
+        import shutil
+        from unittest.mock import patch
+
+        from jmcomic.jm_plugin import FavoriteFolderExportPlugin, PluginValidationException
+
+        option = self.new_option()
+        tmp = tempfile.mkdtemp(prefix='jm_test_fav_enc_')
+        try:
+            # 干扰项：历史遗留导出 + 失败留下的半截文件
+            stale = os.path.join(tmp, 'old_export.csv')
+            half = os.path.join(tmp, 'bad.csv')
+            with open(stale, 'w', encoding='utf-8') as f:
+                f.write('id,author,name\n9,z,w\n')
+            with open(half, 'w', encoding='utf-8') as f:
+                f.write('id,author,name\n2,b,y\n')
+
+            plugin = FavoriteFolderExportPlugin(option)
+            plugin.save_dir = tmp
+            plugin.zip_enable = True
+            plugin.zip_filepath = os.path.abspath(os.path.join(tmp, 'export.zip'))
+            plugin.zip_password = 'secret'
+            plugin.delete_original_file = False
+            plugin.max_retry = 0
+            plugin.files = []
+            plugin.failed_folders = []
+
+            class FakePage:
+                def iter_folder_id_name(self):
+                    return [('good', '正常收藏夹'), ('bad', '坏掉的收藏夹')]
+
+            class FakeClient:
+                def favorite_folder(self):
+                    return FakePage()
+
+            def fake_fetch(fid):
+                if fid in ('bad', '0'):
+                    raise RuntimeError('会话已失效')
+                return ['page']
+
+            captured = {}
+
+            def fake_zip_with_password(files, zip_path):
+                captured['files'] = list(files)
+
+            with (
+                patch.object(plugin, 'fetch_folder_page_data', side_effect=fake_fetch),
+                patch.object(plugin, 'save_folder_page_data_to_file',
+                             side_effect=lambda page_data, fid, fname: os.path.join(tmp, f'{fid}.csv')),
+                patch.object(plugin, 'zip_with_password', side_effect=fake_zip_with_password),
+                patch.object(plugin, 'execute_deletion'),
+            ):
+                with patch.object(plugin.option, 'build_jm_client', return_value=FakeClient()):
+                    with self.assertRaises(PluginValidationException):
+                        plugin.main()
+
+            self.assertEqual([os.path.join(tmp, 'good.csv')], captured['files'])
+            self.assertNotIn(stale, captured['files'])
+            self.assertNotIn(half, captured['files'])
+            print('✅ Encrypted zip receives only this run\'s exported files.')
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_zip_with_password_does_not_archive_whole_save_dir(self):
+        """7z 命令必须逐个列举文件，不能再用 './' 打包整个 save_dir。"""
+        import tempfile
+        import shutil
+        from unittest.mock import patch
+
+        from jmcomic.jm_plugin import FavoriteFolderExportPlugin
+
+        option = self.new_option()
+        tmp = tempfile.mkdtemp(prefix='jm_test_7z_cmd_')
+        try:
+            plugin = FavoriteFolderExportPlugin(option)
+            plugin.save_dir = tmp
+            plugin.zip_filepath = os.path.abspath(os.path.join(tmp, 'out.zip'))
+            plugin.zip_password = 'secret'
+
+            good = os.path.join(tmp, 'good.csv')
+            cmds = []
+            with patch.object(plugin, 'execute_multi_line_cmd', side_effect=cmds.append):
+                plugin.zip_with_password([good], plugin.zip_filepath)
+
+            self.assertEqual(1, len(cmds))
+            cmd = cmds[0]
+            self.assertIn('good.csv', cmd)
+            self.assertNotIn('"./"', cmd)
+            self.assertNotIn("'./'", cmd)
+            print('✅ 7z command enumerates files instead of archiving "./".')
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
