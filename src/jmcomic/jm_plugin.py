@@ -1097,13 +1097,16 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
                zip_filepath=None,
                zip_password=None,
                delete_original_file=False,
+               max_retry=2,
                ):
         self.save_dir = os.path.abspath(save_dir if save_dir is not None else (os.getcwd() + '/export/'))
         self.zip_enable = zip_enable
         self.zip_filepath = os.path.abspath(zip_filepath)
         self.zip_password = zip_password
         self.delete_original_file = delete_original_file
+        self.max_retry = max(1, int(max_retry))
         self.files = []
+        self.failed_folders = []
 
         mkdir_if_not_exists(self.save_dir)
         mkdir_if_not_exists(of_dir_path(self.zip_filepath))
@@ -1127,6 +1130,9 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
             apply_each_obj_func=bind_jm_task_context(self.handle_folder),
         )
 
+        # 汇总导出失败的收藏夹，避免数据静默缺失
+        self.raise_if_failed_folders()
+
         if not self.zip_enable:
             return
 
@@ -1143,18 +1149,61 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
     def handle_folder(self, fid: str, fname: str):
         self.log(f'【收藏夹: {fname}, fid: {fid}】开始获取数据')
 
-        # 获取收藏夹数据
-        page_data = self.fetch_folder_page_data(fid)
+        for attempt in range(1, self.max_retry + 1):
+            try:
+                # 获取收藏夹数据
+                page_data = self.fetch_folder_page_data(fid)
 
-        # 序列化到文件
-        filepath = self.save_folder_page_data_to_file(page_data, fid, fname)
+                # 序列化到文件
+                filepath = self.save_folder_page_data_to_file(page_data, fid, fname)
+            except Exception as e:
+                # 单个收藏夹失败不应该中断其他收藏夹，
+                # 但也不能无声无息地丢掉这份数据，这里记录并在结束后统一汇报
+                self.log(f'【收藏夹: {fname}, fid: {fid}】第 {attempt}/{self.max_retry} 次获取失败: [{e}]')
 
-        if filepath is None:
-            self.log(f'【收藏夹: {fname}, fid: {fid}】收藏夹无数据')
+                if attempt >= self.max_retry:
+                    self.failed_folders.append((fid, fname, e))
+                    return
+
+                self.retry_backoff(attempt)
+                continue
+
+            if filepath is None:
+                self.log(f'【收藏夹: {fname}, fid: {fid}】收藏夹无数据')
+                return
+
+            self.log(f'【收藏夹: {fname}, fid: {fid}】保存文件成功 → [{filepath}]')
+            self.files.append(filepath)
             return
 
-        self.log(f'【收藏夹: {fname}, fid: {fid}】保存文件成功 → [{filepath}]')
-        self.files.append(filepath)
+    # noinspection PyMethodMayBeStatic
+    def retry_backoff(self, attempt: int):
+        """
+        重试前的等待，避免短时间内反复请求加剧服务端限流。
+
+        :param attempt: 当前是第几次尝试（从 1 开始）
+        """
+        import time
+
+        time.sleep(min(2 ** attempt, 10))
+
+    def raise_if_failed_folders(self):
+        """
+        导出结束后统一检查失败的收藏夹。
+
+        收藏夹数据量大、耗时长时，登录态可能在服务端被提前过期，
+        导致个别收藏夹抓取失败；这类失败此前会被静默吞掉，导出的结果看起来
+        是成功的、实际却缺了数据。这里统一抛错，交由 option 的 safe 策略处理，
+        保证失败不会被忽略。
+        """
+        if not self.failed_folders:
+            return
+
+        detail = '、'.join(f'【{fname}】(fid={fid})' for fid, fname, _ in self.failed_folders)
+        msg = (f'以下 {len(self.failed_folders)} 个收藏夹导出失败（已重试 {self.max_retry} 次）: {detail}。'
+               f'可稍后重新执行导出以补全这部分数据。')
+        self.log(msg)
+        raise PluginValidationException(self, msg)
 
     def fetch_folder_page_data(self, fid):
         # 一页一页获取，不使用并行

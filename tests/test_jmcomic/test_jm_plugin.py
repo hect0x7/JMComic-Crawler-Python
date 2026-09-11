@@ -143,3 +143,98 @@ class Test_Plugin(JmTestConfigurable):
             print('✅ author falls back to DEFAULT_AUTHOR when authors is empty.')
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_favorite_folder_export_retry_and_failure_report(self):
+        """
+        source: https://github.com/hect0x7/JMComic-Crawler-Python/issues/447
+
+        收藏夹导出时，单个收藏夹抓取失败不应该被静默丢掉：
+        1. 失败的收藏夹会按 max_retry 重试
+        2. 重试仍失败的收藏夹会被汇总抛出，而不是无声无息
+        3. 成功的收藏夹不受影响
+        """
+        import tempfile
+        import shutil
+        from unittest.mock import patch
+
+        from jmcomic.jm_plugin import FavoriteFolderExportPlugin, PluginValidationException
+
+        option = self.new_option()
+        tmp = tempfile.mkdtemp(prefix='jm_test_fav_export_')
+        try:
+            plugin = FavoriteFolderExportPlugin(option)
+            plugin.save_dir = tmp
+            plugin.zip_enable = False
+            plugin.zip_filepath = os.path.abspath(os.path.join(tmp, 'export.zip'))
+            plugin.zip_password = None
+            plugin.delete_original_file = False
+            plugin.max_retry = 3
+            plugin.files = []
+            plugin.failed_folders = []
+
+            fetch_calls = []
+
+            def fake_fetch(fid):
+                fetch_calls.append(fid)
+                if fid == 'bad':
+                    raise RuntimeError('会话已失效')
+                return ['page']
+
+            def fake_save(page_data, fid, fname):
+                return os.path.join(tmp, f'{fid}.csv')
+
+            with (
+                patch.object(plugin, 'fetch_folder_page_data', side_effect=fake_fetch),
+                patch.object(plugin, 'save_folder_page_data_to_file', side_effect=fake_save),
+                patch.object(plugin, 'retry_backoff'),
+            ):
+                plugin.handle_folder('good', '正常收藏夹')
+                plugin.handle_folder('bad', '坏掉的收藏夹')
+
+                # 正常收藏夹只取一次，失败的收藏夹重试 max_retry 次
+                self.assertEqual(['good', 'bad', 'bad', 'bad'], fetch_calls)
+                self.assertEqual([os.path.join(tmp, 'good.csv')], plugin.files)
+                self.assertEqual(1, len(plugin.failed_folders))
+                self.assertEqual('bad', plugin.failed_folders[0][0])
+
+                # 导出结束后应抛出明确异常，而不是静默返回
+                with self.assertRaises(PluginValidationException) as ctx:
+                    plugin.raise_if_failed_folders()
+                self.assertIn('坏掉的收藏夹', ctx.exception.msg)
+                self.assertIn('导出失败', ctx.exception.msg)
+            print('✅ Failed folder retried and reported instead of being dropped silently.')
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_favorite_folder_export_all_success_does_not_raise(self):
+        """全部成功时导出不应抛出异常。"""
+        import tempfile
+        import shutil
+        from unittest.mock import patch
+
+        from jmcomic.jm_plugin import FavoriteFolderExportPlugin
+
+        option = self.new_option()
+        tmp = tempfile.mkdtemp(prefix='jm_test_fav_ok_')
+        try:
+            plugin = FavoriteFolderExportPlugin(option)
+            plugin.save_dir = tmp
+            plugin.zip_enable = False
+            plugin.zip_filepath = os.path.abspath(os.path.join(tmp, 'export.zip'))
+            plugin.max_retry = 2
+            plugin.files = []
+            plugin.failed_folders = []
+
+            saved = os.path.join(tmp, '1.csv')
+            with (
+                patch.object(plugin, 'fetch_folder_page_data', return_value=['page']),
+                patch.object(plugin, 'save_folder_page_data_to_file', return_value=saved),
+            ):
+                plugin.handle_folder('1', '收藏夹1')
+
+            self.assertEqual([saved], plugin.files)
+            self.assertEqual([], plugin.failed_folders)
+            plugin.raise_if_failed_folders()
+            print('✅ Successful export raises nothing.')
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
