@@ -319,6 +319,16 @@ plugins:
         title: jmcomic # 标题
         content: jmcomic finished !!! # 内容
 
+    # impl by @yifenliwu
+    - plugin: calibre_metadata # 生成 Calibre 元数据
+      kwargs:
+        dir_rule:
+          rule: 'Bd/Aid/metadata.opf' # 保存到 base_dir/本子ID/metadata.opf
+          base_dir: './'
+        include_cover: true # 同时下载封面
+        fields:
+          language: zh # 自定义元数据字段
+
   main:
     - plugin: favorite_folder_export # 导出收藏夹插件
       log: false

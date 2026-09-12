@@ -236,6 +236,58 @@ for page in client.forum_pagination_gen(page=1):
         print(f'本子 {comment.album_id} | {comment}')
 ```
 
+## 登录
+
+登录可以下载某些特定本子，以及访问收藏夹、签到、查看本子的收藏与点赞状态。
+
+你可以使用代码或者插件来登录。
+
+
+### 1、配置登录插件
+
+下载本子时推荐使用这种方式，简单直接。
+
+```yaml
+plugins:
+  after_init:
+    - plugin: login
+      kwargs:
+        username: '你的用户名'
+        password: '你的密码'
+```
+
+配置以后，使用option下载/创建client都自带登录状态
+
+```python
+from jmcomic import create_option_by_file, download_album
+
+option = create_option_by_file('op.yml')
+
+# 创建client会自动获得登录状态
+client = option.build_jm_client()
+
+# 下载本子，也会已登录状态下载
+download_album(123, option)
+```
+
+### 2、代码写法
+
+```python
+from jmcomic import JmOption
+
+option = JmOption.default()
+
+# 创建一个新的client，此时是无登录状态的
+client = option.new_jm_client()
+
+# 登录
+client.login('你的用户名', '你的密码')
+
+# 后续使用这个 client 时，就是带上登录状态的了
+album = client.get_album_detail(123)
+print(f'本子 {album.title}，是否收藏: {album.is_favorite}，是否点赞: {album.liked}')
+```
+
 ## 获取收藏夹
 
 可参考discussions: https://github.com/hect0x7/JMComic-Crawler-Python/discussions/235
