@@ -1165,7 +1165,7 @@ class JmApiClient(AbstractJmClient):
         else:
             ExceptionTool.raises_resp(f'签到失败：{msg or res_data}', resp)
 
-        return JmDailyCheckinResp(resp, code, msg, res_data)
+        return JmDailyCheckinResp(resp.resp, code, msg, res_data)
 
     # noinspection PyMethodMayBeStatic
     def require_resp_status_ok(self, resp: JmApiResp):

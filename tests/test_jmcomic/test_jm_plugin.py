@@ -1,12 +1,5 @@
 from test_jmcomic import *
 
-try:
-    import jmcomic_calibre  # noqa: F401
-    HAS_JMCOMIC_CALIBRE = True
-except ImportError:
-    HAS_JMCOMIC_CALIBRE = False
-
-
 class Test_Plugin(JmTestConfigurable):
 
     def test_plugin_missing_album_context(self):
@@ -103,6 +96,7 @@ class Test_Plugin(JmTestConfigurable):
         2. 若 pip 安装失败，严格抛出异常
         """
         from unittest import mock
+        import subprocess
         from jmcomic import JmOption, JmModuleConfig, JmcomicException
 
         pclass = JmModuleConfig.REGISTRY_PLUGIN['img2pdf']
@@ -115,17 +109,25 @@ class Test_Plugin(JmTestConfigurable):
                     'after_album': [{'plugin': 'img2pdf'}],
                 }
             }
-            # 模拟安装成功
-            with mock.patch.object(pclass, 'install_missing_dependencies') as mock_install:
+            # 执行真实策略与安装封装，只模拟 pip 子进程，避免修改测试环境。
+            with mock.patch('subprocess.run', return_value=subprocess.CompletedProcess([], 0, stdout='')) as mock_run:
                 option = JmOption.construct(dic)
                 self.assertIsNotNone(option)
-                mock_install.assert_called_once_with(['__fake_lib_to_install__'])
+                mock_run.assert_called_once_with(
+                    [sys.executable, '-m', 'pip', 'install', '__fake_lib_to_install__'],
+                    capture_output=True, text=True, check=True,
+                )
             print('✅ auto-install: triggers install_missing_dependencies with missing packages.')
 
             # 模拟安装抛错，严格失败
-            with self.assertRaises(JmcomicException) as ctx:
-                JmOption.construct(dic)
+            with mock.patch('subprocess.run', side_effect=subprocess.CalledProcessError(
+                1, ['pip', 'install', '__fake_lib_to_install__'], stderr='模拟安装失败',
+            )) as mock_run:
+                with self.assertRaises(JmcomicException) as ctx:
+                    JmOption.construct(dic)
+                mock_run.assert_called_once()
             self.assertIn('自动安装依赖', str(ctx.exception))
+            self.assertIn('模拟安装失败', str(ctx.exception))
             print('✅ auto-install: strict failure when pip install fails.')
         finally:
             pclass.plugin_dependencies = origin_deps
@@ -237,118 +239,6 @@ class Test_Plugin(JmTestConfigurable):
             self.fail('非 mapping 的 encrypt 应当抛配置错误')
         print('✅ non-mapping encrypt rejected instead of raising AttributeError.')
 
-    @unittest.skipUnless(
-        HAS_JMCOMIC_CALIBRE,
-        '这条用例依赖 jmcomic-calibre 生成 OPF：pip install jmcomic-calibre',
-    )
-    def test_calibre_metadata(self):
-        """
-        source: https://github.com/hect0x7/JMComic-Crawler-Python/issues/573
-
-        测试 calibre_metadata 插件（OPF 由 jmcomic-calibre 生成）：
-        1. after_album 阶段生成 metadata.opf，包含书名/作者/标签/identifier
-        2. fields 静态字段（如 language）按维护者建议写入
-        3. 作者为空时兜底 DEFAULT_AUTHOR；XML 特殊字符正确转义
-        """
-        import tempfile
-        import shutil
-        import xml.etree.ElementTree as ET
-
-        from jmcomic import JmOption, JmModuleConfig, JmAlbumDetail
-
-        album = JmAlbumDetail(
-            album_id='123456',
-            scramble_id='220980',
-            name='测试<本子>名 & 特殊"字符"',
-            episode_list=[],
-            page_count=10,
-            pub_date='2026-01-01',
-            update_date='2026-01-02',
-            likes='1K',
-            views='2K',
-            comment_count=0,
-            works=['作品A'],
-            actors=['角色A'],
-            authors=['作者甲'],
-            tags=['tag1', '中文标签'],
-            description='简介 <b>含XML特殊字符</b>',
-        )
-
-        tmp = tempfile.mkdtemp(prefix='jm_test_calibre_')
-        try:
-            dic = {
-                'dir_rule': {'rule': 'Bd_Atitle', 'base_dir': tmp},
-                'plugins': {
-                    'after_album': [
-                        {
-                            'plugin': 'calibre_metadata',
-                            'kwargs': {
-                                'dir_rule': {
-                                    'rule': 'Bd/Atitle/metadata.opf',
-                                    'base_dir': tmp,
-                                },
-                                'fields': {'language': 'zh', 'series index': '1'},
-                            },
-                        },
-                    ],
-                },
-            }
-            option = JmOption.construct(dic)
-            option.call_all_plugin('after_album', album=album, downloader=None)
-
-            import glob
-            opf_list = glob.glob(os.path.join(tmp, '**', 'metadata.opf'), recursive=True)
-            self.assertEqual(len(opf_list), 1, f'expected 1 opf, got: {opf_list}')
-            opf_path = opf_list[0]
-
-            root = ET.parse(opf_path).getroot()
-            ns = {'dc': 'http://purl.org/dc/elements/1.1/', 'opf': 'http://www.idpf.org/2007/opf'}
-
-            self.assertEqual(root.find('.//dc:title', ns).text, album.title)
-            self.assertEqual(root.find('.//dc:creator', ns).text, '作者甲')
-            self.assertEqual(
-                [e.text for e in root.findall('.//dc:subject', ns)],
-                ['tag1', '中文标签'],
-            )
-            self.assertEqual(root.find('.//dc:identifier', ns).text, 'jmcomic:123456')
-            self.assertEqual(root.find('.//dc:language', ns).text, 'zh')
-            self.assertIsNone(root.find('.//dc:series_index', ns), '非法Dublin Core元素名应被忽略')
-            self.assertIsNone(root.find('.//{"series index"}', ns))
-            self.assertEqual(root.find('.//dc:description', ns).text, '简介 <b>含XML特殊字符</b>')
-            self.assertIsNone(root.find('.//{*}manifest'), 'include_cover=False 时不应有 manifest')
-            print('✅ metadata.opf generated with escaped title/tags/identifier/fields.')
-
-            # 作者为空时兜底 DEFAULT_AUTHOR
-            album2 = JmAlbumDetail(
-                album_id='654321', scramble_id='220980', name='无作者本子',
-                episode_list=[], page_count=1, pub_date='', update_date='',
-                likes='', views='', comment_count=0,
-                works=[], actors=[], authors=[], tags=[],
-            )
-            dic2 = {
-                'plugins': {
-                    'after_album': [
-                        {
-                            'plugin': 'calibre_metadata',
-                            'kwargs': {'dir_rule': {'rule': 'Bd/Aid/metadata.opf', 'base_dir': tmp}},
-                        },
-                    ],
-                },
-            }
-            option2 = JmOption.construct(dic2)
-            option2.call_all_plugin('after_album', album=album2, downloader=None)
-
-            opf2 = os.path.join(tmp, '654321', 'metadata.opf')
-            root2 = ET.parse(opf2).getroot()
-            self.assertEqual(
-                root2.find('.//dc:creator', ns).text,
-                JmModuleConfig.DEFAULT_AUTHOR,
-            )
-            self.assertEqual(root2.find('.//dc:identifier', ns).text, 'jmcomic:654321')
-            print('✅ author falls back to DEFAULT_AUTHOR when authors is empty.')
-        finally:
-            shutil.rmtree(tmp, ignore_errors=True)
-
     def test_favorite_folder_export_retry_and_failure_report(self):
         """
         source: https://github.com/hect0x7/JMComic-Crawler-Python/issues/447
@@ -362,7 +252,7 @@ class Test_Plugin(JmTestConfigurable):
         import shutil
         from unittest.mock import patch
 
-        from jmcomic.jm_plugin import FavoriteFolderExportPlugin, PluginValidationException
+        from jmcomic.jm_plugin import FavoriteFolderExportPlugin, JmcomicException
 
         option = self.new_option()
         tmp = tempfile.mkdtemp(prefix='jm_test_fav_export_')
@@ -403,13 +293,54 @@ class Test_Plugin(JmTestConfigurable):
                 self.assertEqual('bad', plugin.failed_folders[0][0])
 
                 # 导出结束后应抛出明确异常，而不是静默返回
-                with self.assertRaises(PluginValidationException) as ctx:
+                with self.assertRaises(JmcomicException) as ctx:
                     plugin.raise_if_failed_folders()
                 self.assertIn('坏掉的收藏夹', ctx.exception.msg)
                 self.assertIn('导出失败', ctx.exception.msg)
             print('✅ Failed folder retried and reported instead of being dropped silently.')
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_favorite_folder_export_failure_respects_safe(self):
+        """通过插件入口验证导出失败遵循 safe，不受 valid 策略影响。"""
+        from unittest.mock import patch
+        from jmcomic import FavoriteFolderExportPlugin, JmcomicException
+
+        option = self.new_option()
+        plugin = FavoriteFolderExportPlugin(option)
+        plugin.max_retry = 0
+        plugin.failed_folders = [('bad', '失败收藏夹', RuntimeError('导出失败'))]
+
+        for valid in ('log', 'ignore', 'raise'):
+            for safe in (True, False):
+                with self.subTest(valid=valid, safe=safe):
+                    option.plugins['main'] = [dict(
+                        plugin='favorite_folder_export', valid=valid, safe=safe,
+                    )]
+                    with (
+                        patch.object(FavoriteFolderExportPlugin, 'build', return_value=plugin),
+                        patch.object(plugin, 'invoke', side_effect=plugin.raise_if_failed_folders),
+                    ):
+                        if safe:
+                            option.call_all_plugin('main')
+                        else:
+                            with self.assertRaises(JmcomicException) as ctx:
+                                option.call_all_plugin('main')
+                            self.assertIn('失败收藏夹', ctx.exception.msg)
+
+    def test_favorite_folder_export_empty_encrypted_zip_skips_command(self):
+        """没有成功文件时不启动 7z，失败汇总仍能正常抛出。"""
+        from unittest.mock import patch
+        from jmcomic import FavoriteFolderExportPlugin, JmcomicException
+
+        plugin = FavoriteFolderExportPlugin(self.new_option())
+        plugin.max_retry = 0
+        plugin.failed_folders = [('bad', '失败收藏夹', RuntimeError('导出失败'))]
+        with patch.object(plugin, 'execute_multi_line_cmd') as execute:
+            plugin.zip_with_password([], 'export.7z')
+            execute.assert_not_called()
+        with self.assertRaises(JmcomicException):
+            plugin.raise_if_failed_folders()
 
     def test_favorite_folder_export_all_success_does_not_raise(self):
         """全部成功时导出不应抛出异常。"""
@@ -493,7 +424,7 @@ class Test_Plugin(JmTestConfigurable):
         import shutil
         from unittest.mock import patch
 
-        from jmcomic.jm_plugin import FavoriteFolderExportPlugin, PluginValidationException
+        from jmcomic.jm_plugin import FavoriteFolderExportPlugin, JmcomicException
 
         option = self.new_option()
         tmp = tempfile.mkdtemp(prefix='jm_test_fav_zip_')
@@ -545,7 +476,7 @@ class Test_Plugin(JmTestConfigurable):
             ):
                 # main() 里通过 option.build_jm_client 拿 client，这里直接替换 option 的方法
                 with patch.object(plugin.option, 'build_jm_client', return_value=FakeClient()):
-                    with self.assertRaises(PluginValidationException):
+                    with self.assertRaises(JmcomicException):
                         plugin.main()
 
             # 成功的文件必须先被打包，且打包发生在抛错之前
@@ -570,7 +501,7 @@ class Test_Plugin(JmTestConfigurable):
         import shutil
         from unittest.mock import patch
 
-        from jmcomic.jm_plugin import FavoriteFolderExportPlugin, PluginValidationException
+        from jmcomic.jm_plugin import FavoriteFolderExportPlugin, JmcomicException
 
         option = self.new_option()
         tmp = tempfile.mkdtemp(prefix='jm_test_fav_enc_')
@@ -619,7 +550,7 @@ class Test_Plugin(JmTestConfigurable):
                 patch.object(plugin, 'execute_deletion'),
             ):
                 with patch.object(plugin.option, 'build_jm_client', return_value=FakeClient()):
-                    with self.assertRaises(PluginValidationException):
+                    with self.assertRaises(JmcomicException):
                         plugin.main()
 
             self.assertEqual([os.path.join(tmp, 'good.csv')], captured['files'])

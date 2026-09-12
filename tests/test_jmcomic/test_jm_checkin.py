@@ -6,11 +6,24 @@ from unittest.mock import AsyncMock, Mock
 from jmcomic import (
     AsyncJmApiClient,
     JmApiClient,
+    JmApiResp,
     JmHtmlClient,
     JmcomicText,
     JmDailyCheckinResp,
 )
 from jmcomic.jm_exception import JmcomicException
+
+
+class _CheckinApiResp(JmApiResp):
+    """保留真实响应继承链，仅替换与本测试无关的解密数据。"""
+
+    def __init__(self, res_data):
+        super().__init__(SimpleNamespace(status_code=200, content=b'{}', text='{}'), '0')
+        self._data = res_data
+
+    @property
+    def res_data(self):
+        return self._data
 
 
 class Test_CheckIn(unittest.TestCase):
@@ -140,7 +153,7 @@ class Test_CheckIn(unittest.TestCase):
     def test_api_get_daily_success(self):
         client = object.__new__(JmApiClient)
         client._user_id = '123456'
-        daily_resp = SimpleNamespace(res_data={'daily_id': '88', 'signed': False})
+        daily_resp = _CheckinApiResp(res_data={'daily_id': '88', 'signed': False})
         client.req_api = Mock(return_value=daily_resp)
 
         resp = JmApiClient.get_daily(client)
@@ -153,10 +166,11 @@ class Test_CheckIn(unittest.TestCase):
     def test_api_check_in_success(self):
         client = object.__new__(JmApiClient)
         client._user_id = '123456'
-        chk_resp = SimpleNamespace(res_data={'status': 'ok', 'msg': 'Jcoin:100 EXP:50'})
+        chk_resp = _CheckinApiResp(res_data={'status': 'ok', 'msg': 'Jcoin:100 EXP:50'})
         client.req_api = Mock(return_value=chk_resp)
 
         resp = JmApiClient.daily_checkin(client, daily_id='999')
+        self.assertIs(resp.resp, chk_resp.resp)
         self.assertIsInstance(resp, JmDailyCheckinResp)
         self.assertEqual(resp.code, JmDailyCheckinResp.CODE_SUCCESS)
         self.assertEqual(resp.status, 0)
@@ -170,10 +184,11 @@ class Test_CheckIn(unittest.TestCase):
     def test_api_check_in_already_checked_in(self):
         client = object.__new__(JmApiClient)
         client._user_id = '123456'
-        chk_resp = SimpleNamespace(res_data={'msg': '今天已經簽到過了'})
+        chk_resp = _CheckinApiResp(res_data={'msg': '今天已經簽到過了'})
         client.req_api = Mock(return_value=chk_resp)
 
         resp = JmApiClient.daily_checkin(client, daily_id='999')
+        self.assertIs(resp.resp, chk_resp.resp)
         self.assertIsInstance(resp, JmDailyCheckinResp)
         self.assertEqual(resp.code, JmDailyCheckinResp.CODE_ALREADY_CHECKED_IN)
         self.assertEqual(resp.status, 1)
@@ -182,7 +197,7 @@ class Test_CheckIn(unittest.TestCase):
     def test_api_check_in_unexpected_msg_raises(self):
         client = object.__new__(JmApiClient)
         client._user_id = '123456'
-        chk_resp = SimpleNamespace(res_data={'msg': '账号异常'})
+        chk_resp = _CheckinApiResp(res_data={'msg': '账号异常'})
         client.req_api = Mock(return_value=chk_resp)
 
         with self.assertRaises(JmcomicException):
@@ -194,9 +209,9 @@ class Test_CheckIn(unittest.TestCase):
 
         def mock_req(url, get=True, **kwargs):
             if url == client.API_DAILY:
-                return SimpleNamespace(res_data={'daily_id': '88', 'signed': False})
+                return _CheckinApiResp(res_data={'daily_id': '88', 'signed': False})
             if url == client.API_DAILY_CHK:
-                return SimpleNamespace(res_data={'status': 'ok', 'msg': 'Jcoin:100 EXP:50'})
+                return _CheckinApiResp(res_data={'status': 'ok', 'msg': 'Jcoin:100 EXP:50'})
             raise AssertionError(f'unexpected url: {url}')
 
         client.req_api = Mock(side_effect=mock_req)
@@ -214,7 +229,7 @@ class Test_CheckIn(unittest.TestCase):
     def test_api_check_in_missing_daily_id_raises(self):
         client = object.__new__(JmApiClient)
         client._user_id = '123456'
-        daily_resp = SimpleNamespace(res_data={}, text='{}')
+        daily_resp = _CheckinApiResp(res_data={})
         client.req_api = Mock(return_value=daily_resp)
 
         with self.assertRaises(KeyError):
@@ -244,7 +259,7 @@ class Test_CheckIn(unittest.TestCase):
     def test_async_api_get_daily_success(self):
         client = object.__new__(AsyncJmApiClient)
         client._user_id = '654321'
-        daily_resp = SimpleNamespace(res_data={'daily_id': '77', 'signed': True})
+        daily_resp = _CheckinApiResp(res_data={'daily_id': '77', 'signed': True})
         client.req_api = AsyncMock(return_value=daily_resp)
 
         resp = asyncio.run(AsyncJmApiClient.get_daily(client))
@@ -257,10 +272,11 @@ class Test_CheckIn(unittest.TestCase):
     def test_async_api_check_in_success(self):
         client = object.__new__(AsyncJmApiClient)
         client._user_id = '654321'
-        chk_resp = SimpleNamespace(res_data={'status': 'ok', 'msg': 'Jcoin:100 EXP:50'})
+        chk_resp = _CheckinApiResp(res_data={'status': 'ok', 'msg': 'Jcoin:100 EXP:50'})
         client.req_api = AsyncMock(return_value=chk_resp)
 
         resp = asyncio.run(AsyncJmApiClient.daily_checkin(client, daily_id='77'))
+        self.assertIs(resp.resp, chk_resp.resp)
         self.assertIsInstance(resp, JmDailyCheckinResp)
         self.assertEqual(resp.code, JmDailyCheckinResp.CODE_SUCCESS)
         self.assertEqual(resp.status, 0)
@@ -274,10 +290,11 @@ class Test_CheckIn(unittest.TestCase):
     def test_async_api_check_in_already_checked_in(self):
         client = object.__new__(AsyncJmApiClient)
         client._user_id = '654321'
-        chk_resp = SimpleNamespace(res_data={'msg': '今天已經簽到過了'})
+        chk_resp = _CheckinApiResp(res_data={'msg': '今天已經簽到過了'})
         client.req_api = AsyncMock(return_value=chk_resp)
 
         resp = asyncio.run(AsyncJmApiClient.daily_checkin(client, daily_id='77'))
+        self.assertIs(resp.resp, chk_resp.resp)
         self.assertIsInstance(resp, JmDailyCheckinResp)
         self.assertEqual(resp.code, JmDailyCheckinResp.CODE_ALREADY_CHECKED_IN)
         self.assertEqual(resp.status, 1)
@@ -286,7 +303,7 @@ class Test_CheckIn(unittest.TestCase):
     def test_async_api_check_in_unexpected_msg_raises(self):
         client = object.__new__(AsyncJmApiClient)
         client._user_id = '654321'
-        chk_resp = SimpleNamespace(res_data={'msg': '系统异常'})
+        chk_resp = _CheckinApiResp(res_data={'msg': '系统异常'})
         client.req_api = AsyncMock(return_value=chk_resp)
 
         with self.assertRaises(JmcomicException):
@@ -298,9 +315,9 @@ class Test_CheckIn(unittest.TestCase):
 
         async def mock_req(url, get=True, **kwargs):
             if url == client.API_DAILY:
-                return SimpleNamespace(res_data={'daily_id': '99', 'signed': False})
+                return _CheckinApiResp(res_data={'daily_id': '99', 'signed': False})
             if url == client.API_DAILY_CHK:
-                return SimpleNamespace(res_data={'status': 'ok', 'msg': 'Jcoin:40 EXP:40'})
+                return _CheckinApiResp(res_data={'status': 'ok', 'msg': 'Jcoin:40 EXP:40'})
             raise AssertionError(f'unexpected url: {url}')
 
         client.req_api = AsyncMock(side_effect=mock_req)
@@ -318,7 +335,7 @@ class Test_CheckIn(unittest.TestCase):
     def test_async_api_check_in_missing_daily_id_raises(self):
         client = object.__new__(AsyncJmApiClient)
         client._user_id = '654321'
-        daily_resp = SimpleNamespace(res_data={}, text='{}')
+        daily_resp = _CheckinApiResp(res_data={})
         client.req_api = AsyncMock(return_value=daily_resp)
 
         with self.assertRaises(KeyError):

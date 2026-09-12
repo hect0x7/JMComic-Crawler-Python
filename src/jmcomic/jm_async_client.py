@@ -774,7 +774,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
         else:
             ExceptionTool.raises_resp(f'签到失败：{msg or res_data}', resp)
 
-        return JmDailyCheckinResp(resp, code, msg, res_data)
+        return JmDailyCheckinResp(resp.resp, code, msg, res_data)
 
     async def album_comment(self,
                             video_id,

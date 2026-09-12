@@ -1350,8 +1350,8 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
 
         收藏夹数据量大、耗时长时，登录态可能在服务端被提前过期，
         导致个别收藏夹抓取失败；这类失败此前会被静默吞掉，导出的结果看起来
-        是成功的、实际却缺了数据。这里统一抛错，交由 option 的 safe 策略处理，
-        保证失败不会被忽略。
+        是成功的、实际却缺了数据。这里抛出运行时异常，交由 option 的 safe
+        策略决定记录后继续或向外抛出，不走参数校验的 valid 策略。
         """
         if not self.failed_folders:
             return
@@ -1360,7 +1360,7 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
         msg = (f'以下 {len(self.failed_folders)} 个收藏夹导出失败（已重试 {self.max_retry} 次）: {detail}。'
                f'可稍后重新执行导出以补全这部分数据。')
         self.log(msg)
-        raise PluginValidationException(self, msg)
+        ExceptionTool.raises(msg)
 
     def fetch_folder_page_data(self, fid):
         # 一页一页获取，不使用并行
@@ -1413,9 +1413,13 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
         :param files: 要压缩的文件的绝对路径的列表
         :param zip_path: 压缩文件的保存路径
         """
+        # 未指定输入文件时，7z 会默认打包整个目录。
+        if not files:
+            return
+
         import shlex
 
-        # 逐个列举待打包文件，-spf 保留绝对路径（避免依赖 cwd）
+        # 在 save_dir 中逐个列举本次成功导出的文件。
         file_args = ' '.join(
             shlex.quote(of_file_name(f)) for f in files
         )

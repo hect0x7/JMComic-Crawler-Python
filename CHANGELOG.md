@@ -5,46 +5,47 @@
 条目分类参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [2.7.7] - 2026-09-11
+## [2.7.7] - 2026-09-12
 
 ### Summary
 
-本次更新新增 `calibre_metadata` 插件为 Calibre 用户生成元数据文件，引入插件依赖声明与三种依赖策略，提供 `pip install jmcomic[plugins]` 一键安装全部插件可选依赖，实现网页端每日签到打卡，修复 HTML 登录状态码校验缺陷，并为本子详情实体增加 `is_favorite` 与 `liked` 字段。
+本次更新新增签到及打卡日历接口，为本子详情增加收藏与点赞状态，修复 HTML 登录结果校验。引入插件依赖声明、依赖策略，并完善收藏夹导出插件的失败重试与汇总提示，新增
+Calibre metadata 插件。
 
 ### Added
 
-#### 插件系统
-
-| 功能 | 说明 |
-|:---|:---|
-| `calibre_metadata` 插件 | 挂在 `after_album` 阶段为每个本子生成 Calibre 可识别的 `metadata.opf`，OPF 生成由 `jmcomic-calibre` 包提供；支持 `include_cover` 下载封面、`fields` 追加自定义 Dublin Core 元素。 |
-| `plugin_dependencies` 声明 | 插件基类新增 `plugin_dependencies` 类属性声明运行时依赖，并提供 `required_dependencies_for(kwargs)` 钩子按配置动态扩展（如 `zip` 按加密方式追加 `pyzipper`/`py7zr`，`img2pdf` 启用加密时追加 `pikepdf`）。 |
-| `dependencies_strategy` 配置 | 新增 `plugins.dependencies_strategy`，支持三种策略：`failed-fast`（默认，缺失即报错并给出安装指引）、`auto-install`（自动 pip 安装）、`ignore-only-log`（仅警告不阻断）。 |
-| `[plugins]` extras | `pyproject.toml` 新增 extras，`pip install jmcomic[plugins]` 一次性安装全部插件可选依赖（`img2pdf`、`pikepdf`、`psutil`、`py7zr`、`pyzipper`、`rich`、`browser_cookie3`）。 |
-| 已有插件依赖补齐 | 为 `usage_log`、`download_progress`、`auto_set_browser_cookies` 等已有插件补齐 `plugin_dependencies` 声明。 |
-
 #### 每日签到
 
-| 功能 | 说明 |
-|:---|:---|
+| 功能                          | 说明                                                                                                                                                |
+|:------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------|
 | `get_daily` / `daily_checkin` | 网页端 HTML 客户端获取每日签到信息与打卡日历（`/ajax/user_daily_event`）、每日签到（`/ajax/user_daily_sign`），未提供 `daily_id` 时自动从首页提取。 |
-| `JmDailyCheckinResp` | 双端统一返回标准打卡状态（`code=0` 签到成功，`code=1` 今日重复打卡，透传服务端 `msg`），其余失败直接抛异常。 |
+| `JmDailyCheckinResp`          | 双端统一返回标准打卡状态（`code=0` 签到成功，`code=1` 今日重复打卡，透传服务端 `msg`），其余失败直接抛异常。                                        |
 
 #### 实体字段
 
-| 字段 | 说明 |
-|:---|:---|
-| `JmAlbumDetail.is_favorite` | `bool`，HTML 网页端与 API 移动端双端识别本子收藏状态。 |
-| `JmAlbumDetail.liked` | `bool`，HTML 网页端与 API 移动端双端识别本子点赞/喜欢状态。 |
+| 字段                        | 说明                                                        |
+|:----------------------------|:------------------------------------------------------------|
+| `JmAlbumDetail.is_favorite` | `bool`，HTML 网页端与 API 移动端双端识别本子收藏状态。      |
+| `JmAlbumDetail.liked`       | `bool`，HTML 网页端与 API 移动端双端识别本子点赞/喜欢状态。 |
+
+#### 插件系统
+
+| 功能                         | 说明                                                                                                                                                                                                       |
+|:-----------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `plugin_dependencies` 声明   | 插件基类新增 `plugin_dependencies` 类属性声明运行时依赖，并提供 `required_dependencies_for(kwargs)` 钩子按配置动态扩展（如 `zip` 按加密方式追加 `pyzipper`/`py7zr`，`img2pdf` 启用加密时追加 `pikepdf`）。 |
+| `dependencies_strategy` 配置 | 新增 `plugins.dependencies_strategy`，支持三种策略：`failed-fast`（默认，缺失即报错并给出安装指引）、`auto-install`（自动 pip 安装）、`ignore-only-log`（仅警告不阻断）。                                  |
+| `[plugins]` extras           | `pyproject.toml` 新增 extras，`pip install jmcomic[plugins]` 一次性安装全部插件可选依赖（`img2pdf`、`pikepdf`、`psutil`、`py7zr`、`pyzipper`、`rich`、`browser_cookie3`）。                                |
+| 已有插件依赖补齐             | 为 `usage_log`、`download_progress`、`auto_set_browser_cookies` 等已有插件补齐 `plugin_dependencies` 声明。                                                                                                |
+| `calibre_metadata` 插件      | 在 `after_album` 阶段生成 Calibre 可识别的 `metadata.opf`，支持 `include_cover` 下载封面、`fields` 自定义元数据；OPF 生成由 `jmcomic-calibre` 提供。impl by [@yifenliwu](https://github.com/yifenliwu)。   |
 
 ### Changed
 
-| 变更点 | 说明 |
-|:---|:---|
-| `zip` 插件 `encrypt` 校验 | 新增参数类型校验，非法标量（如 `encrypt: enabled`）在初始化阶段即拦截并给出清晰报错，不再等到运行时抛出 `AttributeError`。 |
-| HTML 登录接口返回值更新 | `POST /login` 密码错误时 HTTP 200 误判为成功，增加 `status == 1` 严格校验并提取错误信息。 |
-| API `page_count` / `pub_date` 字段适配最新返回值 | `page_count` 正确映射为全本总图片数（`total_photos`），`pub_date` 格式化为发布日期。 |
-| `PhotoConcurrentFetcherProxy` 代理委托 | 补齐 `__getattr__` 委托，修复底层客户端方法丢失的问题。 |
+| 变更点                                           | 说明                                                                                                                       |
+|:-------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------|
+| `zip` 插件 `encrypt` 校验                        | 新增参数类型校验，非法标量（如 `encrypt: enabled`）在初始化阶段即拦截并给出清晰报错，不再等到运行时抛出 `AttributeError`。 |
+| HTML 登录接口返回值更新                          | `POST /login` 密码错误时 HTTP 200 误判为成功，增加 `status == 1` 严格校验并提取错误信息。                                  |
+| API `page_count` / `pub_date` 字段适配最新返回值 | `page_count` 正确映射为全本总图片数（`total_photos`），`pub_date` 格式化为发布日期。                                       |
+| `PhotoConcurrentFetcherProxy` 代理委托           | 补齐 `__getattr__` 委托，修复底层客户端方法丢失的问题。                                                                    |
 
 ## [2.7.6] - 2026-09-09
 
