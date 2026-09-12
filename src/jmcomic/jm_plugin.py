@@ -1251,13 +1251,18 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
                zip_filepath=None,
                zip_password=None,
                delete_original_file=False,
+               max_retry=2,
                ):
         self.save_dir = os.path.abspath(save_dir if save_dir is not None else (os.getcwd() + '/export/'))
         self.zip_enable = zip_enable
         self.zip_filepath = os.path.abspath(zip_filepath)
         self.zip_password = zip_password
         self.delete_original_file = delete_original_file
+        # max_retry 表示「首次失败后的重试次数」，所以总尝试次数是 max_retry + 1。
+        # 允许配 0 表示不重试（只尝试一次），不要把它强行抬成 1。
+        self.max_retry = max(0, int(max_retry))
         self.files = []
+        self.failed_folders = []
 
         mkdir_if_not_exists(self.save_dir)
         mkdir_if_not_exists(of_dir_path(self.zip_filepath))
@@ -1281,34 +1286,81 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
             apply_each_obj_func=bind_jm_task_context(self.handle_folder),
         )
 
-        if not self.zip_enable:
-            return
+        # 压缩导出的文件（放在失败检查之前：即便有收藏夹失败，
+        # 已经成功抓下来的那部分也应该照常打包，不能因为一个收藏夹失败就丢掉整批数据）
+        if self.zip_enable:
+            self.require_param(self.zip_filepath, '如果开启zip，请指定zip_filepath参数（压缩文件保存路径）')
 
-        # 压缩导出的文件
-        self.require_param(self.zip_filepath, '如果开启zip，请指定zip_filepath参数（压缩文件保存路径）')
+            if self.zip_password is None:
+                self.zip_folder_without_password(self.files, self.zip_filepath)
+            else:
+                self.zip_with_password(self.files, self.zip_filepath)
 
-        if self.zip_password is None:
-            self.zip_folder_without_password(self.files, self.zip_filepath)
-        else:
-            self.zip_with_password()
+            self.execute_deletion(self.files)
 
-        self.execute_deletion(self.files)
+        # 汇总导出失败的收藏夹，避免数据静默缺失
+        self.raise_if_failed_folders()
 
     def handle_folder(self, fid: str, fname: str):
         self.log(f'【收藏夹: {fname}, fid: {fid}】开始获取数据')
 
-        # 获取收藏夹数据
-        page_data = self.fetch_folder_page_data(fid)
+        # 第 0 次是首次尝试，之后每次都是重试；总共 1 + max_retry 次
+        for attempt in range(self.max_retry + 1):
+            try:
+                # 获取收藏夹数据
+                page_data = self.fetch_folder_page_data(fid)
 
-        # 序列化到文件
-        filepath = self.save_folder_page_data_to_file(page_data, fid, fname)
+                # 序列化到文件
+                filepath = self.save_folder_page_data_to_file(page_data, fid, fname)
+            except Exception as e:
+                # 单个收藏夹失败不应该中断其他收藏夹，
+                # 但也不能无声无息地丢掉这份数据，这里记录并在结束后统一汇报
+                self.log(f'【收藏夹: {fname}, fid: {fid}】第 {attempt + 1}/{self.max_retry + 1} 次获取失败: [{e}]')
 
-        if filepath is None:
-            self.log(f'【收藏夹: {fname}, fid: {fid}】收藏夹无数据')
+                if attempt >= self.max_retry:
+                    self.failed_folders.append((fid, fname, e))
+                    return
+
+                self.retry_backoff(attempt + 1)
+                continue
+
+            if filepath is None:
+                self.log(f'【收藏夹: {fname}, fid: {fid}】收藏夹无数据')
+                return
+
+            self.log(f'【收藏夹: {fname}, fid: {fid}】保存文件成功 → [{filepath}]')
+            self.files.append(filepath)
             return
 
-        self.log(f'【收藏夹: {fname}, fid: {fid}】保存文件成功 → [{filepath}]')
-        self.files.append(filepath)
+    # noinspection PyMethodMayBeStatic
+    def retry_backoff(self, attempt: int):
+        """
+        重试前的等待，避免短时间内反复请求加剧服务端限流。
+
+        :param attempt: 当前是第几次尝试（从 1 开始）
+        """
+        import time
+
+        # attempt 从 1 开始，首次重试等 2s，之后 4s、8s，上限 10s
+        time.sleep(min(2 ** attempt, 10))
+
+    def raise_if_failed_folders(self):
+        """
+        导出结束后统一检查失败的收藏夹。
+
+        收藏夹数据量大、耗时长时，登录态可能在服务端被提前过期，
+        导致个别收藏夹抓取失败；这类失败此前会被静默吞掉，导出的结果看起来
+        是成功的、实际却缺了数据。这里统一抛错，交由 option 的 safe 策略处理，
+        保证失败不会被忽略。
+        """
+        if not self.failed_folders:
+            return
+
+        detail = '、'.join(f'【{fname}】(fid={fid})' for fid, fname, _ in self.failed_folders)
+        msg = (f'以下 {len(self.failed_folders)} 个收藏夹导出失败（已重试 {self.max_retry} 次）: {detail}。'
+               f'可稍后重新执行导出以补全这部分数据。')
+        self.log(msg)
+        raise PluginValidationException(self, msg)
 
     def fetch_folder_page_data(self, fid):
         # 一页一页获取，不使用并行
@@ -1350,11 +1402,27 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
             for file in files:
                 zipf.write(file, arcname=of_file_name(file))
 
-    def zip_with_password(self):
-        # 构造shell命令
+    def zip_with_password(self, files, zip_path):
+        """
+        用 7z 打包指定文件并加密。
+
+        只打包传入的 files，不打包整个 save_dir：否则会连上一轮遗留的旧导出、
+        以及失败收藏夹写了一半的 csv 一起塞进包里，而这些文件并不在
+        execute_deletion 的删除范围内，等于往产物里混入无关数据。
+
+        :param files: 要压缩的文件的绝对路径的列表
+        :param zip_path: 压缩文件的保存路径
+        """
+        import shlex
+
+        # 逐个列举待打包文件，-spf 保留绝对路径（避免依赖 cwd）
+        file_args = ' '.join(
+            shlex.quote(of_file_name(f)) for f in files
+        )
+
         cmd_list = f'''
         cd {self.save_dir}
-        7z a "{self.zip_filepath}" "./" -p{self.zip_password} -mhe=on > "../7z_output.txt"
+        7z a "{zip_path}" {file_args} -p{self.zip_password} -mhe=on > "../7z_output.txt"
         
         '''
         self.log(f'运行命令: {cmd_list}')
