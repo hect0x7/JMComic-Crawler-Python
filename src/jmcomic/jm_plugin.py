@@ -2113,7 +2113,7 @@ class CalibreMetadataPlugin(JmOptionPlugin):
     - include_cover 依赖 downloader（after_album 阶段自动传入）
     """
     plugin_key = 'calibre_metadata'
-    # 本版本发布时 jmcomic-calibre 尚未上架 PyPI，因此暂不声明插件依赖或加入 extras。
+    plugin_dependencies = (('jmcomic_calibre', 'jmcomic-calibre'),)
 
     def invoke(self,
                dir_rule: dict,

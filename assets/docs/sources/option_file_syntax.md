@@ -333,6 +333,7 @@ plugins:
     - plugin: favorite_folder_export # 导出收藏夹插件
       log: false
       kwargs:
+        max_retry: 2 # 失败后重试次数，0 表示不重试
         zip_enable: true # 对导出文件进行压缩
         zip_filepath: ${JM_DOWNLOAD_DIR}/export.zip # 压缩文件路径
         zip_password: ${ZIP_PASSWORD} # 压缩密码
