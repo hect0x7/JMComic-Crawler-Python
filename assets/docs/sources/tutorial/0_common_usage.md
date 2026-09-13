@@ -236,6 +236,58 @@ for page in client.forum_pagination_gen(page=1):
         print(f'本子 {comment.album_id} | {comment}')
 ```
 
+## 登录
+
+登录可以下载某些特定本子，以及访问收藏夹、签到、查看本子的收藏与点赞状态。
+
+你可以使用代码或者插件来登录。
+
+
+### 1、配置登录插件
+
+下载本子时推荐使用这种方式，简单直接。
+
+```yaml
+plugins:
+  after_init:
+    - plugin: login
+      kwargs:
+        username: '你的用户名'
+        password: '你的密码'
+```
+
+配置以后，使用option下载/创建client都自带登录状态
+
+```python
+from jmcomic import create_option_by_file, download_album
+
+option = create_option_by_file('op.yml')
+
+# 创建client会自动获得登录状态
+client = option.build_jm_client()
+
+# 下载本子，也会已登录状态下载
+download_album(123, option)
+```
+
+### 2、代码写法
+
+```python
+from jmcomic import JmOption
+
+option = JmOption.default()
+
+# 创建一个新的client，此时是无登录状态的
+client = option.new_jm_client()
+
+# 登录
+client.login('你的用户名', '你的密码')
+
+# 后续使用这个 client 时，就是带上登录状态的了
+album = client.get_album_detail(123)
+print(f'本子 {album.title}，是否收藏: {album.is_favorite}，是否点赞: {album.liked}')
+```
+
 ## 获取收藏夹
 
 可参考discussions: https://github.com/hect0x7/JMComic-Crawler-Python/discussions/235
@@ -292,7 +344,7 @@ page = client.favorite_folder(page=1,
 
 ### 添加与取消收藏
 
-支持直接通过本子 ID 添加或取消收藏（HTML 网页端与 API 端均支持）：
+支持直接通过本子 ID 添加或取消收藏：
 
 ```python
 # 把本子加入收藏
@@ -300,6 +352,33 @@ client.add_favorite_album('438696')
 
 # 从收藏夹移除本子
 client.delete_favorite_album('438696')
+```
+
+## 每日签到与打卡日历
+
+```python
+from jmcomic import *
+
+client = JmOption.default().build_jm_client()
+
+# 先登录（打卡和获取签到日历都需要登录）
+client.login('你的用户名', '你的密码')  # 也支持在 option.yml 中启用自动登录插件
+
+# 获取当月每日签到与打卡日历信息（包含已签到、漏签等个人签到记录）
+daily_resp = client.get_daily()
+# 不同客户端实现的返回值不一样，不好统一，因此具体json格式请查看 get_daily() 的方法注释。
+print(daily_resp)
+
+# 执行今日签到打卡
+try:
+    checkin_resp: JmDailyCheckinResp = client.daily_checkin()
+    # code: [0]-签到成功，[1]-今日重复签到，其余失败情况会直接抛出异常。
+    if checkin_resp.code == 0:
+        print(f'签到成功: {checkin_resp.msg}')
+    elif checkin_resp.code == 1:
+        print(f'今日重复签到: {checkin_resp.msg}')
+except JmcomicException as e:
+    print(f'签到失败: {e}')
 ```
 
 ## 分类 / 排行榜

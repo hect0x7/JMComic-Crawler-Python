@@ -50,6 +50,39 @@ class Test_Client(JmTestConfigurable):
             },
         )
 
+    def test_html_login_success(self):
+        client = object.__new__(JmHtmlClient)
+        response = SimpleNamespace(
+            status_code=200,
+            url='https://example.com/login',
+            text='{"status": 1, "msg": "ok"}',
+            json=lambda: {'status': 1, 'msg': 'ok'},
+            cookies={'AVS': 'test_avs'},
+        )
+        client.post = Mock(return_value=response)
+        client.postman = {}
+        client.get_meta_data = Mock(return_value={})
+        client._meta_data = {}
+
+        result = JmHtmlClient.login(client, 'test_user', 'test_pass')
+        self.assertIs(result, response)
+        self.assertEqual(client._username, 'test_user')
+
+    def test_html_login_failure_raises(self):
+        client = object.__new__(JmHtmlClient)
+        response = SimpleNamespace(
+            status_code=200,
+            url='https://example.com/login',
+            text='{"status": 2, "errors": ["用户名称与密码不符合。"]}',
+            json=lambda: {'status': 2, 'errors': ['用户名称与密码不符合。']},
+            cookies={},
+        )
+        client.post = Mock(return_value=response)
+        client.get_meta_data = Mock(return_value={})
+
+        with self.assertRaises(JmcomicException):
+            JmHtmlClient.login(client, 'test_user', 'wrong_pass')
+
     def test_download_image(self):
         jm_photo_id = 'JM438516'
         photo = self.client.get_photo_detail(jm_photo_id)

@@ -242,10 +242,7 @@ Please check the documentation homepage → [jmcomic.readthedocs.io (Chinese lan
   - Supports custom callbacks before/after downloading albums/chapters/images
   - Customizable objects: `Downloader` `Option` `Client` `Entities`, etc.
   - Supports custom logging and exception listener mechanics
-  - **Embedded with powerful core Plugins** to easily extend features or inject others':
-    - `Login Plugin`, `Filter-new-chapter plugin`, `Export favorites to CSV plugin`
-    - `Merge images into PDF plugin`, `Merge images into Long png plugin`
-    - `Zip-files plugin`, `Auto fetch browser cookies plugin`, `Subscribe album update plugin`, etc.
+  - **Supports plugin extensions, with 21 useful built-in plugins**, including `download progress display`, `image-to-PDF conversion`, `long-image stitching`, `ZIP/7z compression`, `browser cookie extraction`, `album update subscriptions`, `favorites export`, and `cover downloads`.
 
 ## Prerequisites
 

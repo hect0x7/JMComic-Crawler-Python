@@ -188,7 +188,33 @@ async def main():
 asyncio.run(main())
 ```
 
-## 7. 异步分类 / 排行榜
+## 7. 异步每日签到与打卡日历
+
+登录后可以查询打卡日历，并执行今日签到：
+
+```python
+import asyncio
+from jmcomic import JmOption, JmcomicException
+
+async def main():
+    async with JmOption.default().new_jm_async_client() as cl:
+        await cl.login('你的用户名', '你的密码')
+        daily = await cl.get_daily()
+        print(daily.res_data)  # 移动端返回的打卡日历数据
+
+        try:
+            result = await cl.daily_checkin()
+            if result.code == 0:
+                print(f'签到成功: {result.msg}')
+            elif result.code == 1:
+                print(f'今日已签到: {result.msg}')
+        except JmcomicException as e:
+            print(f'签到失败: {e}')
+
+asyncio.run(main())
+```
+
+## 8. 异步分类 / 排行榜
 
 分类和排行榜本质上都是过滤请求，可以使用 `categories_filter` 获取单页，或使用
 `categories_filter_gen` 异步生成器自动翻页。
@@ -220,7 +246,7 @@ async def main():
 asyncio.run(main())
 ```
 
-## 8. 关于 `async_impl` 配置
+## 9. 关于 `async_impl` 配置
 
 注意：仅仅在 `option.yml` 中增加配置**并不能**让代码自动变成异步，你必须要在代码中改为调用 `_async` 相关方法（如上文所示）。
 
@@ -234,7 +260,7 @@ client:
   async_impl: async_api
 ```
 
-## 9. 查看下载耗时
+## 10. 查看下载耗时
 
 异步下载完成后，可以直接查看自己总共等了多久，也可以继续查看具体是哪个本子、章节或图片比较慢。所有 `duration` 的单位都是秒。
 

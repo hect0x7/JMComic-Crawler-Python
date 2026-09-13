@@ -202,6 +202,9 @@ class JmOption:
         # 需要主线程等待完成的插件
         self.need_wait_plugins = []
 
+        # 依赖策略预检/处理
+        self.check_plugins_dependencies()
+
         if call_after_init_plugin:
             self.call_all_plugin('after_init', safe=True)
 
@@ -351,7 +354,9 @@ class JmOption:
             # 意图聚焦：建议配置中只展示相关的 zip 插件，剔除其他无关插件的干扰
             advice_plugins = {}
             for g, plist in plugins.items():
-                zips = [p for p in plist if p.get('plugin') == 'zip']
+                if not isinstance(plist, list):
+                    continue
+                zips = [p for p in plist if isinstance(p, dict) and p.get('plugin') == 'zip']
                 if zips:
                     advice_plugins[g] = zips
 
@@ -632,6 +637,37 @@ class JmOption:
         return await download_photo_async(photo_id, self, *args, **kwargs)
 
     # 下面的方法为调用插件提供支持
+
+    def check_plugins_dependencies(self) -> None:
+        """
+        根据 plugins.dependencies_strategy 策略校验或安装已启用插件所需的依赖库。
+
+        支持的策略值：
+        - failed-fast（默认）：缺失依赖时快速失败，抛出带清晰解决方案指引的异常。
+        - auto-install：缺失依赖时以插件为维度自动调用 pip 安装缺失包。
+        - ignore-only-log：缺失依赖时仅打印 warning 日志，不阻断运行。
+
+        具体检查、安装与错误处理逻辑收口于 JmOptionPlugin.check_plugin_dependency。
+        """
+        # 保证 jm_plugin.py 被加载
+        from .jm_plugin import JmOptionPlugin
+
+        strategy = self.plugins.dependencies_strategy
+        plugin_registry = JmModuleConfig.REGISTRY_PLUGIN
+
+        for group, plist in self.plugins.src_dict.items():
+            if not isinstance(plist, list):
+                continue
+
+            for pinfo in plist:
+                if not isinstance(pinfo, dict):
+                    continue
+
+                pclass: Optional[Type[JmOptionPlugin]] = plugin_registry.get(pinfo.get('plugin'), None)
+                if pclass is None:
+                    continue
+
+                pclass.check_plugin_dependency(pinfo.get('kwargs') or {}, strategy=strategy)
 
     def call_all_plugin(self, group: str, safe=None, **extra):
         plugin_list: List[dict] = self.plugins.get(group, [])

@@ -32,6 +32,17 @@ dependencies = [
 ]
 dynamic = ["version"]
 
+[project.optional-dependencies]
+plugins = [
+    "img2pdf",
+    "pikepdf",
+    "psutil",
+    "py7zr",
+    "pyzipper",
+    "rich",
+    "browser_cookie3",
+]
+
 [project.urls]
 Homepage = "https://github.com/hect0x7/JMComic-Crawler-Python"
 Documentation = "https://jmcomic.readthedocs.io"
