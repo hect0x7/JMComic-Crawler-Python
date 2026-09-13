@@ -20,6 +20,126 @@ class PluginValidationException(Exception):
 
 class JmOptionPlugin:
     plugin_key: str
+    # 插件运行所需的依赖库。
+    # 元素可以是 import 模块名（如 'psutil'），或者元组 (import_name, pip_pkg_name)。
+    plugin_dependencies: tuple = ()
+
+    @classmethod
+    def required_dependencies_for(cls, kwargs: dict) -> tuple:
+        """
+        返回该插件在给定 kwargs 配置下实际需要的依赖库，供依赖策略校验使用。
+
+        默认返回类声明的 plugin_dependencies。
+        插件可按配置重写此方法，避免对合法配置误报
+        （如未加密的 zip 用标准库 zipfile 即可，无需 pyzipper/py7zr）。
+        """
+        return cls.plugin_dependencies
+
+    @classmethod
+    def parse_dependency_spec(cls, dep: Union[str, Tuple[str, str]]) -> Tuple[str, str]:
+        """
+        解析依赖规格，返回 (import_name, pip_pkg_name)。
+        """
+        if isinstance(dep, tuple):
+            return dep[0], dep[1]
+        return dep, dep
+
+    @classmethod
+    def check_plugin_dependency(cls, kwargs: dict, strategy: str = 'failed-fast') -> None:
+        """
+        检查当前插件在给定配置下所需的依赖库是否已安装，并按全局策略处理缺失情况。
+
+        该方法由 JmOption 初始化（__init__）阶段在执行 after_init 之前统一触发，
+        确保依赖问题在任务启动伊始即被捕获或解决。
+
+        :param kwargs: 当前插件在 option 中配置的参数字典，用于动态推断依赖
+        :param strategy: 依赖处理策略，对应配置 plugins.dependencies_strategy：
+            - 'failed-fast': 快速失败（默认），抛出异常并提示具体的解决方案；
+            - 'auto-install': 自动通过 pip 安装缺失的依赖包，安装失败严格报错；
+            - 'ignore-only-log': 仅输出 warning 日志，不阻断运行。
+        """
+        import importlib.util
+
+        # 1. 获取当前插件在特定配置下实际需要的可选依赖列表（如未加密 zip 无需额外库）
+        req_deps = cls.required_dependencies_for(kwargs)
+        if not req_deps:
+            return
+
+        # 2. 逐项检查依赖模块是否可用，收集所有缺失项 (import_name, pip_pkg_name)
+        missing: List[Tuple[str, str]] = []
+        for dep in req_deps:
+            import_name, pip_name = cls.parse_dependency_spec(dep)
+            if importlib.util.find_spec(import_name) is None:
+                missing.append((import_name, pip_name))
+
+        # 全部依赖已就绪，无需后续处理
+        if not missing:
+            return
+
+        # 3. 整理缺失模块名与 pip 安装包名，拼接命令与提示文案
+        missing_import_names = [m[0] for m in missing]
+        missing_pip_names = [m[1] for m in missing]
+        import_names_str = ', '.join(missing_import_names)
+        pip_install_cmd = 'pip install ' + ' '.join(missing_pip_names)
+
+        # 4. 根据策略分发处理：
+        if strategy == 'auto-install':
+            # 策略一：自动安装。以插件为单位排队调用 pip 安装缺失包
+            cls.install_missing_dependencies(missing_pip_names)
+        elif strategy == 'ignore-only-log':
+            # 策略二：仅打日志。记录警告信息，不抛出异常，保持最大容错
+            jm_log(
+                topic=f'plugin.{cls.plugin_key}.dependency',
+                msg=f'插件 [{cls.plugin_key}] 缺少依赖库 [{import_names_str}]，'
+                    f'可能会影响该插件执行。安装命令: [{pip_install_cmd}]'
+            )
+        else:
+            # 策略三：failed-fast（默认）。阻断执行并输出包含3种方案的用户指引
+            error_msg = (
+                f"插件 [{cls.plugin_key}] 缺少依赖库 [{import_names_str}]，无法执行插件。有3种解决方案需要你选择一种手动执行：\n"
+                f"1. 仅安装该库，手动执行: {pip_install_cmd}\n"
+                f"2. 一键安装jmcomic插件依赖全家桶，手动执行: pip install jmcomic[plugins]\n"
+                f"3. 修改option，让jmcomic自动安装或不要报错\n"
+                f"plugins:\n"
+                f"    dependencies_strategy: failed-fast # 👈当前默认配置，可配置为以下值\n"
+                f"    # auto-install  # 缺失时自动安装依赖\n"
+                f"    # ignore-only-log # 缺失时仅打印失败日志不报错"
+            )
+            ExceptionTool.raises(error_msg)
+
+    @classmethod
+    def install_missing_dependencies(cls, pip_packages: List[str]) -> None:
+        """
+        通过 pip 自动安装缺失的依赖包。如果安装失败则严格抛出异常。
+        """
+        import sys
+        import subprocess
+        import importlib
+
+        cmd = [sys.executable, '-m', 'pip', 'install'] + pip_packages
+        jm_log(
+            topic=f'plugin.{cls.plugin_key}.dependency',
+            msg=f'检测到插件 [{cls.plugin_key}] 缺少依赖，auto-install 策略正在自动安装: {" ".join(cmd)}'
+        )
+
+        try:
+            res = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            if res.stdout:
+                jm_log(topic=f'plugin.{cls.plugin_key}.dependency', msg=res.stdout.strip())
+            # 刷新导入缓存，保证后续 import 能够正常找到新装的包
+            importlib.invalidate_caches()
+            jm_log(
+                topic=f'plugin.{cls.plugin_key}.dependency',
+                msg=f'插件 [{cls.plugin_key}] 依赖安装成功: {" ".join(pip_packages)}'
+            )
+        except Exception as e:
+            err_output = getattr(e, 'stderr', '') or str(e)
+            ExceptionTool.raises(
+                f'插件 [{cls.plugin_key}] 自动安装依赖 [{" ".join(pip_packages)}] 失败。\n'
+                f'执行命令: {" ".join(cmd)}\n'
+                f'错误详情: {err_output}\n'
+                f'请排查网络/权限问题，或手动执行: pip install {" ".join(pip_packages)}'
+            )
 
     def __init__(self, option: JmOption):
         self.option = option
@@ -175,6 +295,7 @@ class JmLoginPlugin(JmOptionPlugin):
 
 class UsageLogPlugin(JmOptionPlugin):
     plugin_key = 'usage_log'
+    plugin_dependencies = ('psutil',)
 
     def invoke(self, **kwargs) -> None:
         import threading
@@ -324,6 +445,35 @@ class ZipPlugin(JmOptionPlugin):
     """
 
     plugin_key = 'zip'
+    # zip 依赖取决于加密配置：未加密用标准库 zipfile，加密 zip 用 pyzipper，7z 用 py7zr
+    plugin_dependencies = ()
+
+    @classmethod
+    def required_dependencies_for(cls, kwargs: dict) -> tuple:
+        encrypt = cls.check_encrypt_param(kwargs.get('encrypt'))
+        if not encrypt:
+            return ()
+        if encrypt.get('impl', '') == '7z':
+            return ('py7zr',)
+        return ('pyzipper',)
+
+    @staticmethod
+    def check_encrypt_param(encrypt):
+        """
+        校验 encrypt 配置的类型，返回规范化后的值（未配置时返回 None）。
+
+        encrypt 必须是映射（如 {type: sha256, password: xxx}），
+        写成真值标量（encrypt: enabled）时后续的 encrypt.get(...) 会抛
+        AttributeError，绕过了配置校验机制、报错也难以理解，这里统一拦掉。
+        """
+        if encrypt is None:
+            return None
+        if not isinstance(encrypt, dict):
+            ExceptionTool.raises(
+                f'zip插件的encrypt参数类型有误，预期为映射（如 {{type: sha256, password: xxx}}），'
+                f'实际类型为{type(encrypt)}'
+            )
+        return encrypt
 
     # noinspection PyAttributeOutsideInit
     def invoke(self,
@@ -347,6 +497,8 @@ class ZipPlugin(JmOptionPlugin):
             level = 'album' if album is not None else 'photo'
         self.level = level
         self.delete_original_file = delete_original_file
+        # 未开启 strict_dependencies 时也拦掉非法的 encrypt 类型
+        encrypt = self.check_encrypt_param(encrypt)
 
         # 确保压缩文件所在文件夹存在
         zip_dir = JmcomicText.parse_to_abspath(zip_dir)
@@ -927,6 +1079,7 @@ class AsyncProgressDownloader(JmAsyncDownloader):
 
 class DownloadProgressPlugin(JmOptionPlugin):
     plugin_key = 'download_progress'
+    plugin_dependencies = ('rich',)
     log_file = 'jmcomic-download.log'
 
     @staticmethod
@@ -1036,6 +1189,7 @@ class DownloadProgressPlugin(JmOptionPlugin):
 
 class AutoSetBrowserCookiesPlugin(JmOptionPlugin):
     plugin_key = 'auto_set_browser_cookies'
+    plugin_dependencies = ('browser_cookie3',)
 
     accepted_cookies_keys = str_to_set('''
     yuo1
@@ -1097,13 +1251,18 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
                zip_filepath=None,
                zip_password=None,
                delete_original_file=False,
+               max_retry=2,
                ):
         self.save_dir = os.path.abspath(save_dir if save_dir is not None else (os.getcwd() + '/export/'))
         self.zip_enable = zip_enable
         self.zip_filepath = os.path.abspath(zip_filepath)
         self.zip_password = zip_password
         self.delete_original_file = delete_original_file
+        # max_retry 表示「首次失败后的重试次数」，所以总尝试次数是 max_retry + 1。
+        # 允许配 0 表示不重试（只尝试一次），不要把它强行抬成 1。
+        self.max_retry = max(0, int(max_retry))
         self.files = []
+        self.failed_folders = []
 
         mkdir_if_not_exists(self.save_dir)
         mkdir_if_not_exists(of_dir_path(self.zip_filepath))
@@ -1127,34 +1286,81 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
             apply_each_obj_func=bind_jm_task_context(self.handle_folder),
         )
 
-        if not self.zip_enable:
-            return
+        # 压缩导出的文件（放在失败检查之前：即便有收藏夹失败，
+        # 已经成功抓下来的那部分也应该照常打包，不能因为一个收藏夹失败就丢掉整批数据）
+        if self.zip_enable:
+            self.require_param(self.zip_filepath, '如果开启zip，请指定zip_filepath参数（压缩文件保存路径）')
 
-        # 压缩导出的文件
-        self.require_param(self.zip_filepath, '如果开启zip，请指定zip_filepath参数（压缩文件保存路径）')
+            if self.zip_password is None:
+                self.zip_folder_without_password(self.files, self.zip_filepath)
+            else:
+                self.zip_with_password(self.files, self.zip_filepath)
 
-        if self.zip_password is None:
-            self.zip_folder_without_password(self.files, self.zip_filepath)
-        else:
-            self.zip_with_password()
+            self.execute_deletion(self.files)
 
-        self.execute_deletion(self.files)
+        # 汇总导出失败的收藏夹，避免数据静默缺失
+        self.raise_if_failed_folders()
 
     def handle_folder(self, fid: str, fname: str):
         self.log(f'【收藏夹: {fname}, fid: {fid}】开始获取数据')
 
-        # 获取收藏夹数据
-        page_data = self.fetch_folder_page_data(fid)
+        # 第 0 次是首次尝试，之后每次都是重试；总共 1 + max_retry 次
+        for attempt in range(self.max_retry + 1):
+            try:
+                # 获取收藏夹数据
+                page_data = self.fetch_folder_page_data(fid)
 
-        # 序列化到文件
-        filepath = self.save_folder_page_data_to_file(page_data, fid, fname)
+                # 序列化到文件
+                filepath = self.save_folder_page_data_to_file(page_data, fid, fname)
+            except Exception as e:
+                # 单个收藏夹失败不应该中断其他收藏夹，
+                # 但也不能无声无息地丢掉这份数据，这里记录并在结束后统一汇报
+                self.log(f'【收藏夹: {fname}, fid: {fid}】第 {attempt + 1}/{self.max_retry + 1} 次获取失败: [{e}]')
 
-        if filepath is None:
-            self.log(f'【收藏夹: {fname}, fid: {fid}】收藏夹无数据')
+                if attempt >= self.max_retry:
+                    self.failed_folders.append((fid, fname, e))
+                    return
+
+                self.retry_backoff(attempt + 1)
+                continue
+
+            if filepath is None:
+                self.log(f'【收藏夹: {fname}, fid: {fid}】收藏夹无数据')
+                return
+
+            self.log(f'【收藏夹: {fname}, fid: {fid}】保存文件成功 → [{filepath}]')
+            self.files.append(filepath)
             return
 
-        self.log(f'【收藏夹: {fname}, fid: {fid}】保存文件成功 → [{filepath}]')
-        self.files.append(filepath)
+    # noinspection PyMethodMayBeStatic
+    def retry_backoff(self, attempt: int):
+        """
+        重试前的等待，避免短时间内反复请求加剧服务端限流。
+
+        :param attempt: 当前是第几次尝试（从 1 开始）
+        """
+        import time
+
+        # attempt 从 1 开始，首次重试等 2s，之后 4s、8s，上限 10s
+        time.sleep(min(2 ** attempt, 10))
+
+    def raise_if_failed_folders(self):
+        """
+        导出结束后统一检查失败的收藏夹。
+
+        收藏夹数据量大、耗时长时，登录态可能在服务端被提前过期，
+        导致个别收藏夹抓取失败；这类失败此前会被静默吞掉，导出的结果看起来
+        是成功的、实际却缺了数据。这里抛出运行时异常，交由 option 的 safe
+        策略决定记录后继续或向外抛出，不走参数校验的 valid 策略。
+        """
+        if not self.failed_folders:
+            return
+
+        detail = '、'.join(f'【{fname}】(fid={fid})' for fid, fname, _ in self.failed_folders)
+        msg = (f'以下 {len(self.failed_folders)} 个收藏夹导出失败（已重试 {self.max_retry} 次）: {detail}。'
+               f'可稍后重新执行导出以补全这部分数据。')
+        self.log(msg)
+        ExceptionTool.raises(msg)
 
     def fetch_folder_page_data(self, fid):
         # 一页一页获取，不使用并行
@@ -1196,11 +1402,31 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
             for file in files:
                 zipf.write(file, arcname=of_file_name(file))
 
-    def zip_with_password(self):
-        # 构造shell命令
+    def zip_with_password(self, files, zip_path):
+        """
+        用 7z 打包指定文件并加密。
+
+        只打包传入的 files，不打包整个 save_dir：否则会连上一轮遗留的旧导出、
+        以及失败收藏夹写了一半的 csv 一起塞进包里，而这些文件并不在
+        execute_deletion 的删除范围内，等于往产物里混入无关数据。
+
+        :param files: 要压缩的文件的绝对路径的列表
+        :param zip_path: 压缩文件的保存路径
+        """
+        # 未指定输入文件时，7z 会默认打包整个目录。
+        if not files:
+            return
+
+        import shlex
+
+        # 在 save_dir 中逐个列举本次成功导出的文件。
+        file_args = ' '.join(
+            shlex.quote(of_file_name(f)) for f in files
+        )
+
         cmd_list = f'''
         cd {self.save_dir}
-        7z a "{self.zip_filepath}" "./" -p{self.zip_password} -mhe=on > "../7z_output.txt"
+        7z a "{zip_path}" {file_args} -p{self.zip_password} -mhe=on > "../7z_output.txt"
         
         '''
         self.log(f'运行命令: {cmd_list}')
@@ -1211,6 +1437,14 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
 
 class Img2pdfPlugin(JmOptionPlugin):
     plugin_key = 'img2pdf'
+    # img2pdf 总是需要；pikepdf 仅在加密 pdf 时需要
+    plugin_dependencies = ('img2pdf',)
+
+    @classmethod
+    def required_dependencies_for(cls, kwargs: dict) -> tuple:
+        if kwargs.get('encrypt'):
+            return cls.plugin_dependencies + ('pikepdf',)
+        return cls.plugin_dependencies
 
     def invoke(self,
                photo: JmPhotoDetail = None,
@@ -1846,3 +2080,78 @@ class DownloadCoverPlugin(JmOptionPlugin):
             self.log(f'album-{album_id}的封面已存在，跳过下载: [{save_path}]', 'skip')
             return
         downloader.client.download_album_cover(album_id, save_path, size)
+
+
+class CalibreMetadataPlugin(JmOptionPlugin):
+    """
+    功能：为本子生成 Calibre 可识别的元数据文件 metadata.opf。
+
+    通常挂在 after_album 上，每个本子在其目录下生成一份 metadata.opf，
+    Calibre 导入（从 OPF 读元数据）时可以自动带上书名、作者、标签、简介和封面。
+
+    OPF 的生成逻辑由 jmcomic-calibre 提供，
+    避免同一份 XML 拼接逻辑在两处各维护一份。
+
+    配置示例：
+
+    ```yml
+    plugins:
+      after_album:
+        - plugin: calibre_metadata
+          kwargs:
+            dir_rule:
+              rule: "Bd/Aid/metadata.opf"
+              base_dir: "./"
+            include_cover: true
+            fields: # 追加静态字段
+              language: "zh"
+    ```
+
+    说明：
+    - identifier 固定写为 jmcomic:{album_id}，可在 Calibre 中反查回禁漫的 album_id
+    - fields 中的 title/author 可覆盖默认取值，其余键值对须为 Dublin Core 元素名（如 language/publisher/date），按 dc:{key} 写入，不支持的键会忽略并告警
+    - include_cover 依赖 downloader（after_album 阶段自动传入）
+    """
+    plugin_key = 'calibre_metadata'
+    # 本版本发布时 jmcomic-calibre 尚未上架 PyPI，因此暂不声明插件依赖或加入 extras。
+
+    def invoke(self,
+               dir_rule: dict,
+               album: JmAlbumDetail = None,
+               photo: JmPhotoDetail = None,
+               downloader=None,
+               include_cover=False,
+               fields=None,
+               **kwargs) -> None:
+        self.require_param(album, '本插件需在after_album阶段使用，需要album参数')
+
+        try:
+            import jmcomic_calibre
+        except ImportError:
+            self.warning_lib_not_install('jmcomic-calibre')
+            return
+
+        opf_path = self.decide_filepath(album, photo, None, None, None, dir_rule)
+
+        # 处理封面下载
+        if include_cover:
+            cover_path = os.path.join(os.path.dirname(opf_path), 'cover.jpg')
+            self.download_cover_if_needed(album.id, cover_path, downloader)
+
+        jmcomic_calibre.export_opf(
+            album=album,
+            opf_path=opf_path,
+            fields=fields,
+            include_cover=include_cover,
+            on_ignored=lambda key, allowed: self.log(
+                f'calibre_metadata: 忽略不支持的fields字段 [{key}]，'
+                f'仅支持Dublin Core元素: {", ".join(sorted(allowed))}', 'warning'),
+        )
+        self.log(f'已生成Calibre元数据文件 → [{opf_path}]')
+
+    def download_cover_if_needed(self, album_id: str, cover_path: str, downloader):
+        if self.option.download.cache and os.path.exists(cover_path):
+            self.log(f'album-{album_id}的封面已存在，跳过下载: [{cover_path}]', 'skip')
+            return
+        self.require_param(downloader, 'include_cover=true时需要downloader参数（after_album阶段会自动传入）')
+        downloader.client.download_album_cover(album_id, cover_path, '')

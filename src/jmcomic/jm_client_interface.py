@@ -96,6 +96,22 @@ class JmJsonResp(JmResp):
 
 
 class JmApiResp(JmJsonResp):
+    """
+    移动端 API 响应包装类。
+
+    原始响应示例（resp.text）：
+        {"code": 200, "data": "abc123XYZ..."}
+
+    内部数据流动机制：
+    1. encoded_data: 从原始响应 JSON 中提取 resp.json()['data']（服务端经 AES 加密后的 Base64 密文字符串）。
+       示例: "abc123XYZ..."
+    2. decoded_data: 将 encoded_data 经 Base64 解码 + AES-ECB 解密并去除 Padding 后，得到的明文字符串（通常为 JSON 字符串）。
+       示例: '{"msg": "Jcoin:40 EXP:40"}'
+    3. res_data: 通过 json.loads 将 decoded_data 解析为 Python 字典/列表（Any）。
+       示例: {'msg': 'Jcoin:40 EXP:40'}
+    4. model_data: 将 res_data 包装为便于属性访问的 AdvancedDict 字典对象。
+       示例: model_data.msg -> 'Jcoin:40 EXP:40'
+    """
 
     def __init__(self, resp, ts: str):
         super().__init__(resp)
@@ -124,6 +140,8 @@ class JmApiResp(JmJsonResp):
 
     def require_have_data(self):
         data = self.encoded_data
+        if data is None:
+            ExceptionTool.raises_resp(f'响应数据为空: {self.text}', self)
         if isinstance(data, list) and len(data) == 0 and self.json().get('errorMsg', None):
             ExceptionTool.raises_resp(f'data返回值异常: {self.text}', self)
 
@@ -147,6 +165,24 @@ class JmAlbumCommentResp(JmJsonResp):
     @property
     def is_success(self) -> bool:
         return super().is_success and self.json()['err'] is False
+
+
+class JmDailyCheckinResp(JmResp):
+    """
+    每日签到打卡响应类
+    """
+    CODE_SUCCESS = 0             # 签到成功
+    CODE_ALREADY_CHECKED_IN = 1  # 重复签到（今日已签）
+
+    def __init__(self, resp, code: int, msg: str, raw_data: dict = None):
+        super().__init__(resp)
+        self.code: int = code      # 0=签到成功, 1=重复签到
+        self.status: int = code    # 兼容字段，值等同于 code
+        self.msg: str = msg        # 透传服务端的提示信息或奖励内容
+        self.raw_data: dict = raw_data or {}
+
+    def __repr__(self):
+        return f'<JmDailyCheckinResp code={self.code} msg={self.msg!r}>'
 
 
 """
@@ -318,6 +354,75 @@ class JmUserClient:
                               ):
         """
         从收藏夹移除漫画
+        """
+        raise NotImplementedError
+
+    def get_daily(self,
+                  user_id: str | None = None,
+                  ) -> Union[JmApiResp, JmJsonResp]:
+        """
+        获取每日签到信息与日历打卡记录。
+        两端均返回包含活动信息、打卡记录、背景图与打卡状态的完整响应对象：
+        - HTML 客户端 (JmJsonResp)：明文 JSON，可通过 resp.json() 获取字典，或 resp.model() 属性访问。
+        - API 客户端 (JmApiResp)：加密响应，可通过 resp.res_data 获取解密字典，或 resp.model_data 属性访问。
+
+        两端返回数据结构示例：
+
+        1. HTML 客户端 (JmJsonResp.json() / JmJsonResp.model()):
+        {
+          "dateArray": [11],                           # 当月已签到的日期数组
+          "dateMiss": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], # 当月漏签的日期数组
+          "dateEvent": [                               # 特殊活动/双倍奖励日期
+            "2026-09-05 00:00:00",
+            "2026-09-06 00:00:00"
+          ],
+          "oldStep": 1,                                # 连续签到天数
+          "error": "finished",                         # 今日打卡状态（若今日已签到则为 "finished"）
+          "pc_img": "/media/logo/pc/9PC.jpg",          # 签到弹窗 PC 背景图
+          "mb_img": "/media/logo/phone/9PH.jpg"        # 签到弹窗移动端背景图
+        }
+
+        2. API 客户端 (JmApiResp.res_data / JmApiResp.model_data):
+        {
+          "daily_id": 72,                              # 当前签到活动ID
+          "event_name": "9月-签到活动",                # 活动标题
+          "currentProgress": "14.3%",                  # 连续进度百分比
+          "three_days_coin": "150",                    # 满3天奖励金币
+          "three_days_exp": "150",                     # 满3天奖励经验
+          "seven_days_coin": "350",                    # 满7天奖励金币
+          "seven_days_exp": "350",                     # 满7天奖励经验
+          "background_pc": "/media/logo/pc/9PC.jpg",   # 背景图路径
+          "background_phone": "/media/logo/phone/9PH.jpg",
+          "record": [                                  # 按周划分的完整签到日历矩阵
+            [
+              {"date": "01", "signed": false, "bonus": false},
+              {"date": "02", "signed": false, "bonus": false}
+            ],
+            [
+              {"date": "11", "signed": true, "bonus": false},
+              {"date": "12", "signed": null, "bonus": true}
+            ]
+          ]
+        }
+
+        :param user_id: 用户ID，API 客户端默认读取当前登录用户的uid
+        """
+        raise NotImplementedError
+
+    def daily_checkin(self,
+                      daily_id: str | None = None,
+                      user_id: str | None = None,
+                      ) -> JmDailyCheckinResp:
+        """
+        执行每日打卡签到。
+        返回 JmDailyCheckinResp 对象：
+        - code=0 (或 status=0): 签到成功，msg 包含奖励信息（如金币/经验）
+        - code=1 (或 status=1): 重复签到（今日已完成打卡）
+        - 其余非预期错误（未登录、网络失败、活动失效等）直接抛出异常
+
+        :param daily_id: 打卡任务ID，未提供时会自动获取
+        :param user_id: 用户ID，API 客户端默认读取当前登录用户的uid
+        :return: JmDailyCheckinResp
         """
         raise NotImplementedError
 
@@ -1059,6 +1164,27 @@ class AsyncJmcomicClient:
         raise NotImplementedError
 
     async def delete_favorite_album(self, album_id, folder_id='0'):
+        raise NotImplementedError
+
+    async def get_daily(self, user_id: str | None = None) -> JmApiResp:
+        """
+        获取每日签到信息与日历打卡记录
+        :param user_id: 用户ID，默认读取当前登录用户的uid
+        """
+        raise NotImplementedError
+
+    async def daily_checkin(self, daily_id: str | None = None, user_id: str | None = None) -> JmDailyCheckinResp:
+        """
+        执行每日打卡签到（异步）。
+        返回 JmDailyCheckinResp 对象：
+        - code=0 (或 status=0): 签到成功，msg 包含奖励信息（如金币/经验）
+        - code=1 (或 status=1): 重复签到（今日已完成打卡）
+        - 其余非预期错误（未登录、网络失败、活动失效等）直接抛出异常
+
+        :param daily_id: 打卡任务ID，未提供时会自动请求 get_daily 获取
+        :param user_id: 用户ID，默认读取当前登录用户的uid
+        :return: JmDailyCheckinResp
+        """
         raise NotImplementedError
 
     async def album_comment(self,

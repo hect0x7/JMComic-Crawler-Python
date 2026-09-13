@@ -32,6 +32,7 @@ class AbstractJmClient(
         self.domain_retry_strategy = domain_retry_strategy
         self.CLIENT_CACHE = None
         self._username = None  # help for favorite_folder method
+        self._user_id = None  # help for check_in / get_daily method
         if domain_retry_strategy:
             domain_retry_strategy(self)
         self.enable_cache()
@@ -446,7 +447,12 @@ class JmHtmlClient(AbstractJmClient):
                          )
 
         if resp.status_code != 200:
-            ExceptionTool.raises_resp(f'登录失败，状态码为{resp.status_code}', resp)
+            self.raise_request_error(resp, f'登录失败，状态码为{resp.status_code}')
+
+        res = resp.json()
+        if res.get('status') != 1:
+            errors = res.get('errors') or [res.get('msg', '登录失败')]
+            self.raise_request_error(resp, f'登录失败：{errors[0]}')
 
         orig_cookies = self.get_meta_data('cookies') or {}
         new_cookies = dict(resp.cookies)
@@ -487,6 +493,73 @@ class JmHtmlClient(AbstractJmClient):
         #     ExceptionTool.raises('未登录，无法获取到对应的用户名，请给favorite方法传入username参数')
         # 解析cookies，可能需要用到 phpserialize，比较麻烦，暂不实现
         pass
+
+    def get_or_fetch_daily_id(self, daily_id: str | None = None) -> str:
+        if daily_id is None:
+            resp_home = self.get_jm_html('/')
+            daily_id = JmcomicText.parse_daily_id(resp_home.text)
+            ExceptionTool.require_true(bool(daily_id), '未能从首页获取到 daily_id，请手动传入 daily_id 参数')
+        return str(daily_id)
+
+    def get_daily(self,
+                  user_id: str | None = None,
+                  daily_id: str | None = None
+                  ) -> JmJsonResp:
+        """
+        网页端获取每日签到信息与日历打卡记录。
+        返回值格式参考 JmUserClient.get_daily 文档。
+        :param user_id: 兼容参数，网页端不需要
+        :param daily_id: 如果外界提前获取了，可直接传递参数，使得本方法内部少一次网络请求查询。
+        :return: JmJsonResp
+        """
+        daily_id = self.get_or_fetch_daily_id(daily_id)
+        resp = self.get(
+            '/ajax/user_daily_event',
+            params={'daily_id': daily_id},
+        )
+        ret = JmJsonResp(resp)
+        ret.require_success()
+        return ret
+
+    def daily_checkin(self,
+                      daily_id: str | None = None,
+                      user_id: str | None = None,
+                      old_step: int = 1
+                      ) -> JmDailyCheckinResp:
+        """
+        网页端每日签到。
+        返回 JmDailyCheckinResp 对象：
+        - code=0 (或 status=0): 签到成功
+        - code=1 (或 status=1): 重复签到（今日已完成打卡）
+        - 其余失败情况直接抛出异常
+        :param daily_id: 打卡任务ID，未提供时会自动从首页提取
+        :param user_id: 兼容参数，网页端不需要
+        :param old_step: 连续签到天数阶段，默认为 1
+        :return: JmDailyCheckinResp
+        """
+        daily_id = self.get_or_fetch_daily_id(daily_id)
+        resp = self.post(
+            '/ajax/user_daily_sign',
+            data={
+                'daily_id': daily_id,
+                'oldStep': str(old_step),
+            },
+        )
+        if resp.status_code != 200:
+            self.raise_request_error(resp, f'签到请求失败，HTTP状态码: {resp.status_code}')
+
+        res = resp.json()
+        status = res.get('status')
+        msg = str(res.get('msg', ''))
+
+        if status == 1:
+            code = JmDailyCheckinResp.CODE_SUCCESS
+        elif status == 0 and any(kw in msg for kw in ('已完成打卡', '今天已经签到', '今日已完成', '已签到', '已打卡')):
+            code = JmDailyCheckinResp.CODE_ALREADY_CHECKED_IN
+        else:
+            self.raise_request_error(resp, f'签到失败：{msg or status}')
+
+        return JmDailyCheckinResp(resp, code, msg, res)
 
     def get_jm_html(self, url, require_200=True, **kwargs):
         """
@@ -694,6 +767,8 @@ class JmApiClient(AbstractJmClient):
     API_SCRAMBLE = '/chapter_view_template'
     API_FAVORITE = '/favorite'
     API_FORUM = '/forum'
+    API_DAILY = '/daily'
+    API_DAILY_CHK = '/daily_chk'
 
     def search(self,
                search_query: str,
@@ -917,9 +992,12 @@ class JmApiClient(AbstractJmClient):
             'password': password,
         })
 
+        res_data = resp.res_data
         cookies = dict(resp.resp.cookies)
-        cookies.update({'AVS': resp.res_data['s']})
+        cookies.update({'AVS': res_data['s']})
         self['cookies'] = cookies
+        self._username = username
+        self._user_id = str(res_data['uid']) if 'uid' in res_data else None
 
         return resp
 
@@ -1030,6 +1108,66 @@ class JmApiClient(AbstractJmClient):
         如果当前未收藏，将抛出异常以保证取消收藏语义明确。
         """
         return self.toggle_favorite_album(album_id, folder_id, expected_type='remove')
+
+    def get_daily(self,
+                  user_id: str | None = None,
+                  ) -> JmApiResp:
+        """
+        移动端获取每日签到信息与日历打卡记录。
+        返回值格式参考 JmUserClient.get_daily 文档。
+        :param user_id: 用户ID，默认读取当前登录用户的uid
+        :return: JmApiResp
+        """
+        if user_id is None:
+            ExceptionTool.require_true(self._user_id is not None, '签到需要传入 user_id 参数，或者先调用 login 方法')
+            user_id = self._user_id
+
+        return self.req_api(self.API_DAILY, params={'user_id': user_id})
+
+    def daily_checkin(self,
+                      daily_id: str | None = None,
+                      user_id: str | None = None,
+                      ) -> JmDailyCheckinResp:
+        """
+        执行每日打卡签到。
+        返回 JmDailyCheckinResp 对象：
+        - code=0 (或 status=0): 签到成功
+        - code=1 (或 status=1): 重复签到（今日已完成打卡）
+        - 其余失败情况直接抛出异常
+        :param daily_id: 打卡任务ID，未提供时会自动请求 get_daily 获取
+        :param user_id: 用户ID，默认读取当前登录用户的uid
+        :return: JmDailyCheckinResp
+        """
+        if user_id is None:
+            ExceptionTool.require_true(self._user_id is not None, '签到需要传入 user_id 参数，或者先调用 login 方法')
+            user_id = self._user_id
+
+        if daily_id is None:
+            daily_resp = self.get_daily(user_id)
+            if 'daily_id' not in daily_resp.res_data:
+                ExceptionTool.raises_resp('签到失败：签到信息缺少 daily_id', daily_resp)
+            daily_id = daily_resp.res_data['daily_id']
+
+        resp: JmApiResp = self.req_api(
+            self.API_DAILY_CHK,
+            get=False,
+            data={
+                'user_id': user_id,
+                'daily_id': daily_id,
+            },
+        )
+
+        res_data = resp.res_data
+        msg = str(res_data.get('msg', ''))
+
+        if any(kw in msg for kw in ('今天已經簽到過了', '已簽到', '簽到過', '已完成', '已签到')):
+            code = JmDailyCheckinResp.CODE_ALREADY_CHECKED_IN
+        elif 'Jcoin' in msg or 'EXP' in msg or res_data.get('status') == 'ok' or '成功' in msg:
+            code = JmDailyCheckinResp.CODE_SUCCESS
+        else:
+            ExceptionTool.raises_resp(f'签到失败：{msg or res_data}', resp)
+
+        return JmDailyCheckinResp(resp.resp, code, msg, res_data)
 
     # noinspection PyMethodMayBeStatic
     def require_resp_status_ok(self, resp: JmApiResp):
@@ -1375,3 +1513,6 @@ class PhotoConcurrentFetcherProxy(JmcomicClient):
             photo.scramble_id = scramble_id
 
         return photo
+
+    def __getattr__(self, item):
+        return getattr(self.client, item)
