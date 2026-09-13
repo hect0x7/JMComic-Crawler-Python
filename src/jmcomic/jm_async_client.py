@@ -753,6 +753,8 @@ class AsyncJmApiClient(AsyncJmcomicClient):
 
         if daily_id is None:
             daily_resp = await self.get_daily(user_id)
+            if 'daily_id' not in daily_resp.res_data:
+                ExceptionTool.raises_resp('签到失败：签到信息缺少 daily_id', daily_resp)
             daily_id = daily_resp.res_data['daily_id']
 
         resp: JmApiResp = await self.req_api(

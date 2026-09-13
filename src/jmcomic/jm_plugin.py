@@ -2089,7 +2089,7 @@ class CalibreMetadataPlugin(JmOptionPlugin):
     通常挂在 after_album 上，每个本子在其目录下生成一份 metadata.opf，
     Calibre 导入（从 OPF 读元数据）时可以自动带上书名、作者、标签、简介和封面。
 
-    OPF 的生成逻辑由 jmcomic-calibre 提供（pip install jmcomic-calibre），
+    OPF 的生成逻辑由 jmcomic-calibre 提供，
     避免同一份 XML 拼接逻辑在两处各维护一份。
 
     配置示例：
@@ -2113,6 +2113,7 @@ class CalibreMetadataPlugin(JmOptionPlugin):
     - include_cover 依赖 downloader（after_album 阶段自动传入）
     """
     plugin_key = 'calibre_metadata'
+    # 本版本发布时 jmcomic-calibre 尚未上架 PyPI，因此暂不声明插件依赖或加入 extras。
 
     def invoke(self,
                dir_rule: dict,

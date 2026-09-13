@@ -232,8 +232,9 @@ class Test_CheckIn(unittest.TestCase):
         daily_resp = _CheckinApiResp(res_data={})
         client.req_api = Mock(return_value=daily_resp)
 
-        with self.assertRaises(KeyError):
+        with self.assertRaisesRegex(JmcomicException, '签到信息缺少 daily_id'):
             JmApiClient.daily_checkin(client)
+        client.req_api.assert_called_once_with(client.API_DAILY, params={'user_id': '123456'})
 
     def test_api_check_in_without_user_id_raises(self):
         client = object.__new__(JmApiClient)
@@ -338,8 +339,9 @@ class Test_CheckIn(unittest.TestCase):
         daily_resp = _CheckinApiResp(res_data={})
         client.req_api = AsyncMock(return_value=daily_resp)
 
-        with self.assertRaises(KeyError):
+        with self.assertRaisesRegex(JmcomicException, '签到信息缺少 daily_id'):
             asyncio.run(AsyncJmApiClient.daily_checkin(client))
+        client.req_api.assert_awaited_once_with(client.API_DAILY, params={'user_id': '654321'})
 
     def test_async_api_check_in_without_user_id_raises(self):
         client = object.__new__(AsyncJmApiClient)

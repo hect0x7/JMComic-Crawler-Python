@@ -319,7 +319,7 @@ plugins:
         title: jmcomic # 标题
         content: jmcomic finished !!! # 内容
 
-    # impl by @yifenliwu
+    # impl by @yifenliwu https://github.com/yifenliwu/jmcomic-calibre
     - plugin: calibre_metadata # 生成 Calibre 元数据
       kwargs:
         dir_rule:
