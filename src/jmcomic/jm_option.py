@@ -667,7 +667,12 @@ class JmOption:
                 if pclass is None:
                     continue
 
-                pclass.check_plugin_dependency(pinfo.get('kwargs') or {}, strategy=strategy)
+                # 与 invoke_plugin 保持一致，先过 fix_kwargs 校验参数类型：
+                # kwargs 写成真值标量（如 kwargs: enabled）时，required_dependencies_for
+                # 里的 kwargs.get(...) 会抛 AttributeError，把这里本该给出的
+                # “kwargs 必须为 dict”配置错误盖掉。
+                plugin_kwargs = self.fix_kwargs(pinfo.get('kwargs'))
+                pclass.check_plugin_dependency(plugin_kwargs, strategy=strategy)
 
     def call_all_plugin(self, group: str, safe=None, **extra):
         plugin_list: List[dict] = self.plugins.get(group, [])

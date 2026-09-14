@@ -336,9 +336,9 @@ class Test_Plugin(JmTestConfigurable):
         plugin = FavoriteFolderExportPlugin(self.new_option())
         plugin.max_retry = 0
         plugin.failed_folders = [('bad', '失败收藏夹', RuntimeError('导出失败'))]
-        with patch.object(plugin, 'execute_multi_line_cmd') as execute:
+        with patch('subprocess.run') as run:
             plugin.zip_with_password([], 'export.7z')
-            execute.assert_not_called()
+            run.assert_not_called()
         with self.assertRaises(JmcomicException):
             plugin.raise_if_failed_folders()
 
@@ -577,15 +577,84 @@ class Test_Plugin(JmTestConfigurable):
             plugin.zip_password = 'secret'
 
             good = os.path.join(tmp, 'good.csv')
-            cmds = []
-            with patch.object(plugin, 'execute_multi_line_cmd', side_effect=cmds.append):
+            calls = []
+            with patch('subprocess.run', side_effect=lambda *a, **kw: calls.append((a, kw))):
                 plugin.zip_with_password([good], plugin.zip_filepath)
 
-            self.assertEqual(1, len(cmds))
-            cmd = cmds[0]
+            self.assertEqual(1, len(calls))
+            args, kwargs = calls[0]
+            cmd = args[0]
+            # 参数列表形式调用，不经过 shell
+            self.assertIsInstance(cmd, list)
+            self.assertEqual('7z', cmd[0])
             self.assertIn('good.csv', cmd)
-            self.assertNotIn('"./"', cmd)
-            self.assertNotIn("'./'", cmd)
-            print('✅ 7z command enumerates files instead of archiving "./".')
+            # 不能再用 './' 或通配把整个 save_dir 打包进去
+            self.assertNotIn('./', cmd)
+            self.assertNotIn('.', cmd)
+            self.assertNotIn('*', cmd)
+            # 工作目录指向 save_dir，且不再走 shell
+            self.assertEqual(tmp, kwargs.get('cwd'))
+            self.assertNotIn('shell', kwargs)
+            print('✅ 7z invoked with an argv list (cwd=save_dir, no shell).')
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_zip_with_password_does_not_go_through_shell(self):
+        """
+        source: https://github.com/hect0x7/JMComic-Crawler-Python/pull/579
+
+        zip_password / save_dir / zip_path 都来自 option 配置。之前拼成 shell 命令串
+        （execute_multi_line_cmd → subprocess.run(shell=True)），密码里带空格或分号
+        就能改变命令语义；shlex.quote 只护住了文件名。改成参数列表后，这些值原样
+        作为单个 argv 元素传下去。
+        """
+        import tempfile
+        import shutil
+        from unittest.mock import patch
+
+        from jmcomic.jm_plugin import FavoriteFolderExportPlugin
+
+        option = self.new_option()
+        tmp = tempfile.mkdtemp(prefix='jm_test_7z_noshell_')
+        try:
+            plugin = FavoriteFolderExportPlugin(option)
+            plugin.save_dir = tmp
+            evil_password = 'p w; rm -rf / #'
+            plugin.zip_password = evil_password
+            good = os.path.join(tmp, 'a.csv')
+            calls = []
+            with patch('subprocess.run', side_effect=lambda *a, **kw: calls.append((a, kw))):
+                plugin.zip_with_password([good], os.path.join(tmp, 'o.7z'))
+
+            args, kwargs = calls[0]
+            cmd = args[0]
+            self.assertIsInstance(cmd, list)
+            self.assertIn(f'-p{evil_password}', cmd)
+            self.assertNotIn('shell', kwargs)
+            # 没有任何一个参数是拼好的整条命令串
+            self.assertFalse(any('7z a' in str(c) for c in cmd))
+            print('✅ 7z receives an argv list; password is never shell-interpreted.')
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_dependencies_reject_non_mapping_kwargs(self):
+        """
+        source: https://github.com/hect0x7/JMComic-Crawler-Python/pull/579
+
+        kwargs 必须是映射。写成真值标量（kwargs: enabled）时，之前的
+        check_plugins_dependencies 直接把字符串丢给 required_dependencies_for，
+        里面 kwargs.get(...) 抛 AttributeError，把「kwargs 必须为 dict」这条
+        配置错误盖掉了。现在前置 fix_kwargs，与 invoke 路径共用同一套校验。
+        """
+        from jmcomic import JmOption, JmcomicException
+
+        dic = {'plugins': {'after_album': [{'plugin': 'zip', 'kwargs': 'enabled'}]}}
+        try:
+            JmOption.construct(dic)
+        except JmcomicException as e:
+            self.assertIn('kwargs', str(e))
+        except AttributeError as e:
+            self.fail(f'非 mapping 的 kwargs 仍抛 AttributeError: {e}')
+        else:
+            self.fail('非 mapping 的 kwargs 应当抛配置错误，实际构建成功')
+        print('✅ non-mapping kwargs rejected with a readable config error.')
