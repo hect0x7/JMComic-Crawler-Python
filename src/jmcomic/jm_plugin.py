@@ -1410,6 +1410,10 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
         以及失败收藏夹写了一半的 csv 一起塞进包里，而这些文件并不在
         execute_deletion 的删除范围内，等于往产物里混入无关数据。
 
+        以参数列表直接调用 7z，不经过 shell：save_dir / zip_path / zip_password
+        都来自 option 配置，拼进 shell 命令串会引入命令注入（密码里带空格或
+        分号就会改变命令语义），shlex.quote 只能护住文件名，护不住这几个值。
+
         :param files: 要压缩的文件的绝对路径的列表
         :param zip_path: 压缩文件的保存路径
         """
@@ -1417,22 +1421,23 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
         if not files:
             return
 
-        import shlex
+        import subprocess
 
-        # 在 save_dir 中逐个列举本次成功导出的文件。
-        file_args = ' '.join(
-            shlex.quote(of_file_name(f)) for f in files
-        )
+        # 以参数列表直接调用 7z，不经过 shell。
+        # save_dir / zip_path / zip_password 都来自 option 配置，拼进 shell 命令串
+        # 会引入命令注入（密码里带空格或分号就会改变命令语义），
+        # shlex.quote 只护得住文件名，护不住这几个值。
+        # 工作目录设为 save_dir，所以传相对 save_dir 的文件名即可。
+        cmd = ['7z', 'a', zip_path]
+        cmd += [of_file_name(f) for f in files]
+        cmd += [f'-p{self.zip_password}', '-mhe=on']
+        self.log(f'运行命令: {cmd}')
 
-        cmd_list = f'''
-        cd {self.save_dir}
-        7z a "{zip_path}" {file_args} -p{self.zip_password} -mhe=on > "../7z_output.txt"
-        
-        '''
-        self.log(f'运行命令: {cmd_list}')
-
-        # 执行
-        self.execute_multi_line_cmd(cmd_list)
+        # 输出重定向位置与原实现一致：save_dir 的上一级
+        output_filepath = os.path.join(self.save_dir, '..', '7z_output.txt')
+        with open(output_filepath, 'w') as out:
+            subprocess.run(cmd, cwd=self.save_dir, stdout=out,
+                           stderr=subprocess.STDOUT, check=True)
 
 
 class Img2pdfPlugin(JmOptionPlugin):
