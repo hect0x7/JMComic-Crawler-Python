@@ -153,6 +153,10 @@ dir_rule:
 >   pip install jmcomic[plugins]
 >   ```
 > - **关注环境体积 / 仅需特定功能的用户**：无需安装全家桶，只需在用到具体插件时按需安装对应依赖即可。也可通过下面的 `plugins.dependencies_strategy` 配置处理策略。
+> - **`calibre_metadata` 插件的依赖不在全家桶里**：`jmcomic-calibre` 暂未发布到 PyPI，需要单独从源码安装：
+>   ```bash
+>   pip install "jmcomic-calibre @ git+https://github.com/yifenliwu/jmcomic-calibre.git"
+>   ```
 
 ```yaml
 # 插件的配置示例

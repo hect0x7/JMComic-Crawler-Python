@@ -11,6 +11,19 @@ from .jm_downloader import JmDownloader
 from .jm_task_context import bind_jm_task_context, get_jm_task_context
 
 
+def format_pip_install_cmd(pip_specs) -> str:
+    """
+    拼接可直接复制执行的 pip 安装命令。
+
+    pip 支持 `包名 @ 来源` 形式的直接引用（例如
+    jmcomic-calibre @ git+https://github.com/yifenliwu/jmcomic-calibre.git），
+    这种规格本身含空格，直接拼进命令行会被 shell 拆成多个参数，所以要整体加引号。
+    """
+    return 'pip install ' + ' '.join(
+        f'"{spec}"' if ' ' in spec else spec for spec in pip_specs
+    )
+
+
 class PluginValidationException(Exception):
 
     def __init__(self, plugin: 'JmOptionPlugin', msg: str):
@@ -80,7 +93,7 @@ class JmOptionPlugin:
         missing_import_names = [m[0] for m in missing]
         missing_pip_names = [m[1] for m in missing]
         import_names_str = ', '.join(missing_import_names)
-        pip_install_cmd = 'pip install ' + ' '.join(missing_pip_names)
+        pip_install_cmd = format_pip_install_cmd(missing_pip_names)
 
         # 4. 根据策略分发处理：
         if strategy == 'auto-install':
@@ -138,7 +151,7 @@ class JmOptionPlugin:
                 f'插件 [{cls.plugin_key}] 自动安装依赖 [{" ".join(pip_packages)}] 失败。\n'
                 f'执行命令: {" ".join(cmd)}\n'
                 f'错误详情: {err_output}\n'
-                f'请排查网络/权限问题，或手动执行: pip install {" ".join(pip_packages)}'
+                f'请排查网络/权限问题，或手动执行: {format_pip_install_cmd(pip_packages)}'
             )
 
     def __init__(self, option: JmOption):
@@ -187,9 +200,17 @@ class JmOptionPlugin:
 
         raise PluginValidationException(self, msg)
 
-    def warning_lib_not_install(self, lib: str, throw=False):
+    def warning_lib_not_install(self, lib: str, throw=False, pip_spec: str = None):
+        """
+        依赖库缺失时的统一提示。
+
+        :param lib: 依赖库名，用于展示
+        :param throw: 为 True 时把提示升级成异常
+        :param pip_spec: 该库在 pip 中的安装规格，缺省与 lib 相同。
+            当包没有发布到 PyPI 时，可传入直接引用（如 git+https://...）
+        """
         msg = (f'插件`{self.plugin_key}`依赖库: {lib}，请先安装{lib}再使用。'
-               f'安装命令: [pip install {lib}]')
+               f'安装命令: [{format_pip_install_cmd([pip_spec or lib])}]')
         import warnings
         warnings.warn(msg)
         self.require_param(throw, msg)
@@ -2096,6 +2117,11 @@ class CalibreMetadataPlugin(JmOptionPlugin):
 
     OPF 的生成逻辑由 jmcomic-calibre 提供，
     避免同一份 XML 拼接逻辑在两处各维护一份。
+    jmcomic-calibre 暂未发布到 PyPI，需要从源码安装：
+
+    ```
+    pip install "jmcomic-calibre @ git+https://github.com/yifenliwu/jmcomic-calibre.git"
+    ```
 
     配置示例：
 
@@ -2118,7 +2144,13 @@ class CalibreMetadataPlugin(JmOptionPlugin):
     - include_cover 依赖 downloader（after_album 阶段自动传入）
     """
     plugin_key = 'calibre_metadata'
-    plugin_dependencies = (('jmcomic_calibre', 'jmcomic-calibre'),)
+    # jmcomic-calibre 还没上 PyPI。这里声明 pip 的直接引用（PEP 508），
+    # 否则 failed-fast 策略给出的 `pip install jmcomic-calibre` 必然装不上，
+    # auto-install 策略也会因为找不到包而直接抛错。
+    plugin_dependencies = ((
+        'jmcomic_calibre',
+        'jmcomic-calibre @ git+https://github.com/yifenliwu/jmcomic-calibre.git',
+    ),)
 
     def invoke(self,
                dir_rule: dict,
@@ -2133,7 +2165,8 @@ class CalibreMetadataPlugin(JmOptionPlugin):
         try:
             import jmcomic_calibre
         except ImportError:
-            self.warning_lib_not_install('jmcomic-calibre')
+            self.warning_lib_not_install(
+                'jmcomic-calibre', pip_spec=self.plugin_dependencies[0][1])
             return
 
         opf_path = self.decide_filepath(album, photo, None, None, None, dir_rule)

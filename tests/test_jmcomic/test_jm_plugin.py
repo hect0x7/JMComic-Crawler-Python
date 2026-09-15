@@ -658,3 +658,62 @@ class Test_Plugin(JmTestConfigurable):
         else:
             self.fail('非 mapping 的 kwargs 应当抛配置错误，实际构建成功')
         print('✅ non-mapping kwargs rejected with a readable config error.')
+
+
+    def test_dependency_install_hint_supports_direct_reference(self):
+        """
+        依赖不在 PyPI 上时，安装指引要给出可用的直接引用（PEP 508），
+        并且含空格的规格要整体加引号，否则复制到 shell 里会被拆成多个参数。
+        """
+        from unittest import mock
+
+        from jmcomic import JmOption, JmModuleConfig, JmcomicException
+        from jmcomic.jm_plugin import format_pip_install_cmd
+
+        # 纯函数：普通包名不加引号，直接引用加引号
+        self.assertEqual('pip install a b', format_pip_install_cmd(['a', 'b']))
+        self.assertEqual(
+            'pip install "a @ git+https://example.com/a.git"',
+            format_pip_install_cmd(['a @ git+https://example.com/a.git']),
+        )
+
+        pclass = JmModuleConfig.REGISTRY_PLUGIN['img2pdf']
+        origin_deps = pclass.plugin_dependencies
+        spec = 'jmcomic-calibre @ git+https://example.com/jmcomic-calibre.git'
+        pclass.plugin_dependencies = (('__lib_not_exists__', spec),)
+        try:
+            dic = {'plugins': {'after_album': [{'plugin': 'img2pdf'}]}}
+            with self.assertRaises(JmcomicException) as ctx:
+                JmOption.construct(dic)
+            err_text = str(ctx.exception)
+            self.assertIn(spec, err_text)
+            self.assertIn(f'pip install "{spec}"', err_text)
+            print('✅ 直接引用规格在安装指引里被完整引用。')
+        finally:
+            pclass.plugin_dependencies = origin_deps
+
+    def test_calibre_metadata_declares_usable_install_source(self):
+        """
+        calibre_metadata 声明的 pip 规格必须指向真实存在的来源：
+        jmcomic-calibre 没上 PyPI，写成裸包名会让 failed-fast 的指引必然装不上。
+        """
+        from unittest import mock
+
+        from jmcomic import JmModuleConfig, JmcomicException
+        from jmcomic.jm_plugin import format_pip_install_cmd
+
+        pclass = JmModuleConfig.REGISTRY_PLUGIN['calibre_metadata']
+        import_name, pip_spec = pclass.parse_dependency_spec(pclass.plugin_dependencies[0])
+
+        self.assertEqual('jmcomic_calibre', import_name)
+        self.assertIn('git+https://github.com/yifenliwu/jmcomic-calibre', pip_spec)
+
+        # 缺库时按 failed-fast 给出的命令必须带上来源
+        with mock.patch('importlib.util.find_spec', return_value=None):
+            with self.assertRaises(JmcomicException) as ctx:
+                pclass.check_plugin_dependency({}, strategy='failed-fast')
+
+        err_text = str(ctx.exception)
+        self.assertIn(format_pip_install_cmd([pip_spec]), err_text)
+        self.assertIn(f'pip install "{pip_spec}"', err_text)
+        print('✅ calibre_metadata 的依赖提示给出了可安装的源码来源。')
