@@ -11,7 +11,7 @@ class Test_Plugin(JmTestConfigurable):
         是否能正确从 photo.from_album 中提取专辑属性，
         避免解析需要 {Atitle} 等本子级占位符时报错 KeyError。
         """
-        photo_id = '350234'
+        photo_id = '123'
         option = self.new_option()
 
         flawed_rule = {

@@ -10,7 +10,7 @@ from jmcomic.jm_task_context import get_jm_task_context
 class Test_Cli(JmTestConfigurable):
     """测试 CLI 命令 (jmcomic + jmv)"""
 
-    album_id = '350234'
+    album_id = '123'
 
     # ========== jmcomic 命令测试 ==========
 
@@ -108,7 +108,7 @@ class Test_Cli(JmTestConfigurable):
         self.assertEqual(ui.photo_id_list, [self.album_id])
 
     def test_jmcomic_download_album(self):
-        """jmcomic 真实下载 album 350234"""
+        """jmcomic 真实下载 album 123"""
         JustDownloadSpecificCountImage.count = 5
         album, _dler = download_album(self.album_id, self.option, downloader=JustDownloadSpecificCountImage)
         self.assertEqual(album.album_id, self.album_id)
@@ -192,7 +192,7 @@ class Test_Cli(JmTestConfigurable):
     # -- 真实网络请求 --
 
     def test_jmv_get_album_detail_real(self):
-        """jmv 真实请求 album 350234 的详情"""
+        """jmv 真实请求 album 123 的详情"""
         album = self.client.get_album_detail(self.album_id)
 
         self.assertEqual(album.album_id, self.album_id)
@@ -200,7 +200,7 @@ class Test_Cli(JmTestConfigurable):
         self.assertTrue(len(album.episode_list) > 0, '章节列表不应为空')
 
     def test_jmv_print_album_detail_real(self):
-        """jmv 真实请求并打印 album 350234 的详情，校验输出内容"""
+        """jmv 真实请求并打印 album 123 的详情，校验输出内容"""
         album = self.client.get_album_detail(self.album_id)
         ui = JmViewUI()
 
@@ -217,7 +217,7 @@ class Test_Cli(JmTestConfigurable):
         self.assertIn(f'章节 ({len(album.episode_list)})', output)
 
     def test_jmv_print_truncates_real(self):
-        """jmv 真实请求 album 350234，验证超长列表被截断"""
+        """jmv 真实请求 album 123，验证超长列表被截断"""
         album = self.client.get_album_detail(self.album_id)
         ui = JmViewUI()
 
@@ -225,7 +225,7 @@ class Test_Cli(JmTestConfigurable):
             ui.print_album_detail(album)
             output = mock_out.getvalue()
 
-        # 350234 的作者/标签数量非常多，应触发截断
+        # 作者/标签数量如果非常多，应触发截断
         if len(album.authors) > 10:
             self.assertIn(f'...等{len(album.authors)}个', output)
         if len(album.tags) > 10:
