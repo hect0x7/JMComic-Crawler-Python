@@ -22,7 +22,7 @@ class Test_Async_Plugin(JmAsyncTestConfigurable):
         应能从 photo.from_album 中提取专辑属性，避免 KeyError。
         sync 和 async 在此场景下的行为应一致（均不抛出）。
         """
-        photo_id = '350234'
+        photo_id = '123'
         option = self.new_option()
 
         flawed_rule = {
