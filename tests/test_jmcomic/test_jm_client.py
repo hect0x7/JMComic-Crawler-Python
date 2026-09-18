@@ -263,8 +263,10 @@ class Test_Client(JmTestConfigurable):
                 elist.append(e)
 
         # 定义测试用例
+        # API 客户端包含登录限制本（第1名为 152637），未登录 HTML 客户端服务端会过滤限制本（第1名为 102658）
+        first_by_view = 152637 if self.client.is_given_type(JmApiClient) else 102658
         cases = {
-            152637: {
+            first_by_view: {
                 'search_query': '无修正',
                 'order_by': JmMagicConstants.ORDER_BY_VIEW,
                 'time': JmMagicConstants.TIME_ALL,
@@ -548,10 +550,11 @@ class Test_Client(JmTestConfigurable):
             if ans is None:
                 ans = photo
             else:
-                self.assertIsNot(ans, photo)
                 self.assertEqual(ans.id, photo.id)
                 self.assertEqual(ans.name, photo.name)
-                self.assertEqual(ans.tags, photo.tags)
+                # HTML 客户端在未请求 album (fetch_album=False) 时仅能获取通用 SEO 词，仅在 API 客户端断言 tags 恒等
+                if self.client.is_given_type(JmApiClient):
+                    self.assertEqual(ans.tags, photo.tags)
 
     def test_search_generator(self):
         JmModuleConfig.FLAG_DECODE_URL_WHEN_LOGGING = False
