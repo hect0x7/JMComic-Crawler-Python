@@ -303,7 +303,7 @@ class Test_Client(JmTestConfigurable):
             )
 
     def test_album_pagination(self):
-        album_id = '302820'
+        album_id = '438516'
         api_client = self.option.new_jm_client(impl='api')
         html_client = self.option.new_jm_client(impl='html')
 
