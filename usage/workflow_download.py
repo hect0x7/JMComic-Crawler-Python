@@ -34,15 +34,95 @@ def env(name, default, trim=('[]', '""', "''")):
     return value
 
 
+def parse_id_items(val):
+    if not val:
+        return set()
+    if isinstance(val, (list, tuple, set)):
+        res = set()
+        for item in val:
+            res.update(parse_id_items(str(item)))
+        return res
+    if not isinstance(val, str):
+        val = str(val)
+    res = set()
+    for line in val.replace(',', '\n').splitlines():
+        line = line.split('#', 1)[0].strip()
+        if line:
+            res.add(line)
+    return res
+
+
 def get_id_set(env_name, given):
     aid_set = set()
-    for text in [
-        given,
-        (env(env_name, '')).replace('-', '\n'),
-    ]:
-        aid_set.update(str_to_set(text))
-
+    aid_set.update(parse_id_items(given))
+    env_val = env(env_name, '').replace('-', '\n')
+    aid_set.update(parse_id_items(env_val))
     return aid_set
+
+
+def extract_ids_from_text(source: str):
+    """
+    从源码文本中提取 jm_albums 和 jm_photos 的配置
+    """
+    import ast
+    import re
+
+    albums_str, photos_str = '', ''
+
+    def ast_to_str(val_node):
+        if val_node is None:
+            return ''
+        if isinstance(val_node, ast.Constant):
+            return str(val_node.value)
+        if isinstance(val_node, (ast.List, ast.Tuple, ast.Set)):
+            return '\n'.join(str(e.value) for e in val_node.elts if isinstance(e, ast.Constant))
+        return ''
+
+    try:
+        tree = ast.parse(source)
+        for node in tree.body:
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        if target.id == 'jm_albums':
+                            albums_str = ast_to_str(node.value)
+                        elif target.id == 'jm_photos':
+                            photos_str = ast_to_str(node.value)
+    except Exception:
+        pass
+
+    if not albums_str:
+        m = re.search(r"jm_albums\s*=\s*('''|\"\"\")(.*?)\1", source, re.DOTALL)
+        if m:
+            albums_str = m.group(2)
+    if not photos_str:
+        m = re.search(r"jm_photos\s*=\s*('''|\"\"\")(.*?)\1", source, re.DOTALL)
+        if m:
+            photos_str = m.group(2)
+
+    return albums_str, photos_str
+
+
+def get_id_set_from_git():
+    """
+    当工作区脚本被上游同步覆盖时，尝试从当前 git commit (HEAD) 自动恢复用户在 commit 中填写的 ID
+    """
+    import subprocess
+    try:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        res = subprocess.run(
+            ['git', 'show', 'HEAD:usage/workflow_download.py'],
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='ignore',
+            cwd=script_dir
+        )
+        if res.returncode == 0 and res.stdout:
+            return extract_ids_from_text(res.stdout)
+    except Exception:
+        pass
+    return '', ''
 
 
 def format_file_size(size):
@@ -181,6 +261,28 @@ class WorkflowImageCompressSummaryPlugin(JmOptionPlugin):
 def main():
     album_id_set = get_id_set('JM_ALBUM_IDS', jm_albums)
     photo_id_set = get_id_set('JM_PHOTO_IDS', jm_photos)
+
+    # 兜底恢复：若本地变量与环境变量均未指定任何 ID，尝试从 git commit (HEAD) 自动恢复
+    if len(album_id_set) == 0 and len(photo_id_set) == 0:
+        git_albums, git_photos = get_id_set_from_git()
+        if git_albums:
+            album_id_set.update(parse_id_items(git_albums))
+        if git_photos:
+            photo_id_set.update(parse_id_items(git_photos))
+        if len(album_id_set) > 0 or len(photo_id_set) > 0:
+            jm_log('workflow', f'检测到工作区脚本被上游同步覆盖，已自动从 commit (HEAD) 恢复下载配置: '
+                               f'album={list(album_id_set)}, photo={list(photo_id_set)}')
+
+    # 防御性校验：若仍没有任何 ID，直接报错阻断，避免生成 247B 空压缩包误导用户
+    if len(album_id_set) == 0 and len(photo_id_set) == 0:
+        if env('GITHUB_REPOSITORY', '') == env('UPSTREAM_REPO', 'hect0x7/JMComic-Crawler-Python'):
+            jm_log('workflow', '主仓库未配置任何本子或章节 ID，跳过下载')
+            return
+
+        ExceptionTool.raises(
+            '未配置任何本子或章节 ID！请在 usage/workflow_download.py 中填写 jm_albums / jm_photos，'
+            '或在 GitHub Actions 中配置环境变量 JM_ALBUM_IDS / JM_PHOTO_IDS。'
+        )
 
     helper = JmcomicUI()
     helper.album_id_list = list(album_id_set)

@@ -23,6 +23,10 @@ jobs:
       EMAIL_TITLE: ${{ secrets.EMAIL_TITLE }}
       EMAIL_CONTENT: ${{ secrets.EMAIL_CONTENT }}
       
+      # 上游同步配置
+      UPSTREAM_REPO: 'hect0x7/JMComic-Crawler-Python'
+      UPSTREAM_REF: 'master'
+
       # 固定值
       JM_DOWNLOAD_DIR: /home/runner/work/jmcomic/download/
       ZIP_NAME: '本子.tar.gz'
@@ -51,11 +55,16 @@ jobs:
           pip install -e ./
 
       - name: Fork 同步上游下载脚本
-        if: ${{ github.repository != 'hect0x7/JMComic-Crawler-Python' }}
+        if: ${{ github.repository != env.UPSTREAM_REPO || github.ref_name != env.UPSTREAM_REF }}
+        continue-on-error: true
         run: |
           curl --fail --silent --show-error --location \
-            https://raw.githubusercontent.com/hect0x7/JMComic-Crawler-Python/master/usage/workflow_download.py \
-            --output usage/workflow_download.py
+            "https://raw.githubusercontent.com/${{ env.UPSTREAM_REPO }}/${{ env.UPSTREAM_REF }}/usage/workflow_download.py" \
+            --output usage/upstream_workflow_download.py || true
+
+          if [ -f "usage/upstream_workflow_download.py" ] && [ -s "usage/upstream_workflow_download.py" ]; then
+            mv usage/upstream_workflow_download.py usage/workflow_download.py
+          fi
 
       - name: 运行下载脚本
         run: |
