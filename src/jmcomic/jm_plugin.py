@@ -1427,9 +1427,11 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
         cmd_list = f'''
         cd {self.save_dir}
         7z a "{zip_path}" {file_args} -p{self.zip_password} -mhe=on > "../7z_output.txt"
-        
+
         '''
-        self.log(f'运行命令: {cmd_list}')
+        # 日志里打码密码，避免 zip 密码明文进入 stdout / 日志文件
+        redacted = cmd_list.replace(f'-p{self.zip_password}', '-p****')
+        self.log(f'运行命令: {redacted}')
 
         # 执行
         self.execute_multi_line_cmd(cmd_list)
