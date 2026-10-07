@@ -337,16 +337,14 @@ class AsyncJmApiClient(AsyncJmcomicClient):
             # /chapter_view_template 这个接口不是返回json数据，不做检查
             return
 
-        # 检查响应的第一个有效字符是否为 '{'（JSON 格式）
-        text = resp.text
-        for char in text:
-            if char not in (' ', '\n', '\t'):
-                ExceptionTool.require_true(
-                    char == '{',
-                    f'请求不是json格式，强制重试！响应文本: [{JmcomicText.limit_text(text, 200)}]'
-                )
-                return
-        ExceptionTool.raises_resp(f'响应无数据！', resp)
+        try:
+            JmcomicText.try_parse_json_object(getattr(resp, 'text', ''))
+        except Exception:
+            text = getattr(resp, 'text', '')
+            ExceptionTool.raises_resp(
+                f'请求不是json格式，强制重试！响应文本: [{JmcomicText.limit_text(text, 200)}]',
+                resp,
+            )
 
     @staticmethod
     def _require_resp_success(resp: JmApiResp):

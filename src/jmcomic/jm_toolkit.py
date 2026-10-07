@@ -408,7 +408,7 @@ class JmcomicText:
     @classmethod
     def try_parse_json_object(cls, resp_text: str) -> dict:
         import json
-        text = resp_text.strip()
+        text = resp_text.strip().lstrip('\ufeff')
         if text.startswith('{') and text.endswith('}'):
             # fast case
             return json.loads(text)

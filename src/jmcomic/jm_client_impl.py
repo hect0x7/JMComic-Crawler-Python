@@ -1244,9 +1244,6 @@ class JmApiClient(AbstractJmClient):
         """
         该方法会判断resp返回值是否是json格式，
         如果不是，大概率是禁漫内部异常，需要进行重试
-
-        由于完整的json格式校验会有性能开销，所以只做简单的检查，
-        只校验第一个有效字符是不是 '{'，如果不是，就认为异常数据，需要重试
         """
         resp = super().raise_if_resp_should_retry(resp, is_image)
 
@@ -1266,17 +1263,14 @@ class JmApiClient(AbstractJmClient):
             # /chapter_view_template 这个接口不是返回json数据，不做检查
             return resp
 
-        text = resp.text
-        for char in text:
-            if char not in (' ', '\n', '\t'):
-                # 找到第一个有效字符
-                ExceptionTool.require_true(
-                    char == '{',
-                    f'请求不是json格式，强制重试！响应文本: [{JmcomicText.limit_text(text, 200)}]'
-                )
-                return resp
-
-        ExceptionTool.raises_resp(f'响应无数据！request_url=[{url}]', resp)
+        try:
+            JmcomicText.try_parse_json_object(resp.text)
+            return resp
+        except Exception:
+            ExceptionTool.raises_resp(
+                f'请求不是json格式，强制重试！响应文本: [{JmcomicText.limit_text(resp.text, 200)}]',
+                resp,
+            )
 
     def after_init(self):
         # 自动更新禁漫API域名
