@@ -72,12 +72,20 @@ jobs:
           python workflow_download.py
 
       - name: 压缩文件
+        id: compress
         run: |
+          if [ ! -d "$JM_DOWNLOAD_DIR" ] || [ -z "$(ls -A "$JM_DOWNLOAD_DIR")" ]; then
+            echo "has_files=false" >> $GITHUB_OUTPUT
+            echo "下载目录不存在或为空，跳过压缩"
+            exit 0
+          fi
           cd $JM_DOWNLOAD_DIR
           tar -zcvf "../$ZIP_NAME" ./
           mv "../$ZIP_NAME" .
+          echo "has_files=true" >> $GITHUB_OUTPUT
 
       - name: 上传结果
+        if: steps.compress.outputs.has_files == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.UPLOAD_NAME }}

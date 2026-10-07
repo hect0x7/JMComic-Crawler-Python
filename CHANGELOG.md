@@ -4,6 +4,16 @@
 
 条目分类参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
+## [2.7.8] - 2026-10-07
+
+### Summary
+
+本次更新修复禁漫 API 响应携带 UTF-8 BOM 导致 JSON 解析与校验失败的问题（#585），并兼容空下载场景下的 GitHub Actions 工作流。
+
+### Fixed
+
+- **API 响应 UTF-8 BOM 兼容与校验统一**：在 `JmcomicText.try_parse_json_object` 中增加对 UTF-8 BOM 字符（`\ufeff`）的过滤剥离，并在同步/异步客户端中统一使用该方法进行 API 响应合法性校验，彻底解决因 BOM 导致客户端误判为非 JSON 响应并反复重试耗尽的问题（[#585](https://github.com/hect0x7/JMComic-Crawler-Python/issues/585)）。
+- **下载 Actions 工作流空目录保护**：在 `download.yml` 与 `download_dispatch.yml` 中增加对 `$JM_DOWNLOAD_DIR` 是否存在及是否非空的判断；在无本子下载时跳过压缩和构件上传，避免目录不存在导致工作流异常中断。
 
 ## [2.7.7] - 2026-09-12
 
