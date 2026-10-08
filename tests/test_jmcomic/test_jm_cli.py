@@ -12,6 +12,24 @@ class Test_Cli(JmTestConfigurable):
 
     album_id = '123'
 
+    def test_dry_run_skips_option_and_real_downloads(self):
+        ui = JmcomicUI()
+        with patch('sys.argv', ['jmcomic', '100001', 'p200001', '--dry-run', '--option', 'unused.yml']), \
+                patch('jmcomic.cli.importlib.util.find_spec', return_value=object()), \
+                patch('jmcomic.api.create_option', side_effect=AssertionError('不能读取配置')), \
+                patch('jmcomic.api.JmOption.default', side_effect=AssertionError('不能创建 Option')), \
+                patch.object(ui, 'run', side_effect=AssertionError('不能执行真实下载')), \
+                patch('jmcomic.jm_plugin.DownloadProgressPlugin.preview') as preview:
+            ui.main()
+        preview.assert_called_once_with(['100001'], ['200001'])
+
+    def test_dry_run_rejects_no_progress(self):
+        with patch('sys.argv', ['jmcomic', '--dry-run', '--no-progress']), \
+                patch('sys.stderr', StringIO()):
+            with self.assertRaises(SystemExit) as caught:
+                JmcomicUI().parse_arg()
+        self.assertEqual(2, caught.exception.code)
+
     # ========== jmcomic 命令测试 ==========
 
     def test_jmcomic_progress_enabled_by_default(self):

@@ -752,6 +752,8 @@ class ProgressDownloader(JmDownloader):
     progress_console = None
     progress_log_lines = deque(maxlen=6)
     active_progresses = set()
+    displayed_progresses = []
+    progress_live = None
     progress_ui_lock = RLock()
 
     @staticmethod
@@ -761,10 +763,11 @@ class ProgressDownloader(JmDownloader):
 
     @classmethod
     def get_progress_console(cls):
-        if cls.progress_console is None:
-            from rich.console import Console
-            cls.progress_console = Console()
-        return cls.progress_console
+        with cls.progress_ui_lock:
+            if cls.progress_console is None:
+                from rich.console import Console
+                cls.progress_console = Console()
+            return cls.progress_console
 
     @classmethod
     def reset_progress_logs(cls):
@@ -780,24 +783,61 @@ class ProgressDownloader(JmDownloader):
     def append_progress_log(cls, message):
         with cls.progress_ui_lock:
             cls.progress_log_lines.append(message)
-            progresses = tuple(cls.active_progresses)
+            cls.refresh_progress_ui()
 
-        for progress in progresses:
-            try:
-                progress.refresh()
-            except Exception:
-                pass
+    @classmethod
+    def refresh_progress_ui(cls):
+        from rich.console import Group
+
+        with cls.progress_ui_lock:
+            if cls.progress_live is not None:
+                cls.progress_live.update(
+                    Group(cls.build_log_panel(), *cls.displayed_progresses),
+                    refresh=True,
+                )
 
     @classmethod
     def register_progress(cls, progress):
         if progress.console.is_interactive:
+            from rich.live import Live
+
             with cls.progress_ui_lock:
+                if progress in cls.active_progresses:
+                    return
                 cls.active_progresses.add(progress)
+                cls.displayed_progresses.append(progress)
+                live_created = cls.progress_live is None
+                try:
+                    if live_created:
+                        # 所有下载器只提供进度内容，终端刷新由唯一的 Live 管理。
+                        cls.progress_live = Live(console=progress.console, auto_refresh=False)
+                        cls.progress_live.start()
+                    cls.refresh_progress_ui()
+                except BaseException:
+                    # 启动或首帧渲染失败时撤销注册，让后续下载能重新建立界面。
+                    cls.active_progresses.discard(progress)
+                    cls.displayed_progresses.remove(progress)
+                    if live_created and cls.progress_live is not None:
+                        try:
+                            cls.progress_live.stop()
+                        finally:
+                            cls.progress_live = None
+                    raise
 
     @classmethod
     def unregister_progress(cls, progress):
         with cls.progress_ui_lock:
             cls.active_progresses.discard(progress)
+            if cls.progress_live is not None and not cls.active_progresses:
+                try:
+                    # 已结束任务保留到最后一个下载器退出，再统一留下最终画面。
+                    cls.refresh_progress_ui()
+                finally:
+                    try:
+                        cls.progress_live.stop()
+                    finally:
+                        cls.progress_live = None
+                        cls.displayed_progresses.clear()
 
     @classmethod
     def build_log_panel(cls):
@@ -833,12 +873,7 @@ class ProgressDownloader(JmDownloader):
             TimeElapsedColumn,
         )
 
-        class ProgressWithLogs(Progress):
-            def get_renderables(self):
-                yield cls.build_log_panel()
-                yield from super().get_renderables()
-
-        return ProgressWithLogs(
+        return Progress(
             SpinnerColumn(style='bright_cyan'),
             TextColumn('{task.description}'),
             BarColumn(
@@ -857,7 +892,7 @@ class ProgressDownloader(JmDownloader):
 
     def refresh_progress(self):
         if self.progress.console.is_interactive:
-            self.progress.refresh()
+            ProgressDownloader.refresh_progress_ui()
 
     def print_non_interactive_summary(self, photo_id=None):
         if self.progress.console.is_interactive:
@@ -900,10 +935,9 @@ class ProgressDownloader(JmDownloader):
         self.chapter_done = {}
         self.chapter_total = {}
         self.chapter_tasks = {}
-        console = self.get_progress_console()
+        console = ProgressDownloader.get_progress_console()
         self.progress = self.new_rich_progress(console)
-        self.progress.start()
-        self.register_progress(self.progress)
+        ProgressDownloader.register_progress(self.progress)
         self.album_task = None
         if album_total is not None:
             self.album_task = self.progress.add_task(
@@ -970,14 +1004,16 @@ class ProgressDownloader(JmDownloader):
         progress = getattr(self, 'progress', None)
         if progress is None:
             return
-        self.unregister_progress(progress)
-        if progress.console.is_interactive:
-            progress.stop()
-        self.progress = None
+        try:
+            ProgressDownloader.unregister_progress(progress)
+        finally:
+            self.progress = None
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.stop_progress()
-        return super().__exit__(exc_type, exc_val, exc_tb)
+        try:
+            self.stop_progress()
+        finally:
+            super().__exit__(exc_type, exc_val, exc_tb)
 
 
 # noinspection attribute-outside-init
@@ -995,7 +1031,6 @@ class AsyncProgressDownloader(JmAsyncDownloader):
         self.chapter_tasks = {}
         console = ProgressDownloader.get_progress_console()
         self.progress = ProgressDownloader.new_rich_progress(console)
-        self.progress.start()
         ProgressDownloader.register_progress(self.progress)
         self.album_task = None
         if album_total is not None:
@@ -1067,20 +1102,116 @@ class AsyncProgressDownloader(JmAsyncDownloader):
         progress = getattr(self, 'progress', None)
         if progress is None:
             return
-        ProgressDownloader.unregister_progress(progress)
-        if progress.console.is_interactive:
-            progress.stop()
-        self.progress = None
+        try:
+            ProgressDownloader.unregister_progress(progress)
+        finally:
+            self.progress = None
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        self.stop_progress()
-        return await super().__aexit__(exc_type, exc_val, exc_tb)
+        try:
+            self.stop_progress()
+        finally:
+            await super().__aexit__(exc_type, exc_val, exc_tb)
 
 
 class DownloadProgressPlugin(JmOptionPlugin):
     plugin_key = 'download_progress'
     plugin_dependencies = ('rich',)
     log_file = 'jmcomic-download.log'
+
+    @staticmethod
+    def preview(album_ids, photo_ids):
+        """使用模拟任务预览真实进度界面，不创建 Client、Option 或文件。"""
+        from datetime import datetime
+        from random import Random
+        from time import sleep
+
+        random = Random()
+
+        def log(topic, message, worker):
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            ProgressDownloader.append_progress_log(
+                f'{timestamp} [mock-worker-{worker}] [{topic}] {message}'
+            )
+
+        if not album_ids and not photo_ids:
+            album_ids = ['100001', '100002']
+        console = ProgressDownloader.get_progress_console()
+        console.print('模拟下载：不请求网络、不写入图片或日志文件，也不加载 --option 配置。')
+        previews = []
+        ProgressDownloader.reset_progress_logs()
+        try:
+            for kind, ids in (('本子', album_ids), ('章节', photo_ids)):
+                for entity_id in ids:
+                    progress = ProgressDownloader.new_rich_progress(console)
+                    name = f'{kind}-{ProgressDownloader.display_id(entity_id)}'
+                    album_task = progress.add_task(name, total=2) if kind == '本子' else None
+                    chapters = []
+                    for index in range(2 if album_task is not None else 1):
+                        chapter_name = f'章节-JM{entity_id}{index + 1:02}' if album_task is not None else name
+                        total = random.randint(12, 32)
+                        task_id = progress.add_task(
+                            f'  {chapter_name}' if album_task is not None else chapter_name,
+                            total=total, start=False,
+                        )
+                        chapters.append({
+                            'task_id': task_id, 'name': chapter_name,
+                            'next_tick': random.randint(0, 8),
+                            'interval': random.randint(1, 3),
+                            'started': False, 'retried': False,
+                        })
+                    worker = len(previews) + 1
+                    previews.append((progress, album_task, chapters, name, worker))
+                    ProgressDownloader.register_progress(progress)
+                    if album_task is not None:
+                        log('album.before', f'本子获取成功: [{entity_id}], 章节数: [2], 标题: [模拟本子]', worker)
+
+            tick = 0
+            while any(not task.finished for progress, _, _, _, _ in previews for task in progress.tasks):
+                if console.is_interactive:
+                    sleep(random.uniform(0.08, 0.16))
+                for progress, album_task, chapters, name, worker in previews:
+                    tasks = {task.id: task for task in progress.tasks}
+                    for chapter in chapters:
+                        task = tasks[chapter['task_id']]
+                        if task.finished or tick < chapter['next_tick']:
+                            continue
+                        chapter_name = chapter['name']
+                        if not chapter['started']:
+                            progress.start_task(task.id)
+                            chapter['started'] = True
+                            log('photo.before', f'开始下载章节: {chapter_name}, 图片数为[{int(task.total)}]', worker)
+                        elif not chapter['retried'] and random.random() < 0.08:
+                            chapter['retried'] = True
+                            chapter['next_tick'] = tick + random.randint(3, 6)
+                            log('image.retry', f'{chapter_name} 图片 {int(task.completed) + 1:05}.jpg 请求超时，准备重试', worker)
+                            continue
+                        advance = min(random.randint(1, 3), int(task.total - task.completed))
+                        for page in range(int(task.completed) + 1, int(task.completed) + advance + 1):
+                            progress.advance(task.id)
+                            log('image.after', f'图片下载完成: {chapter_name}/{page:05}.jpg [{page}/{int(task.total)}]', worker)
+                        chapter['next_tick'] = tick + chapter['interval'] + random.randint(0, 1)
+                        if task.finished:
+                            progress.update(task.id, description=f'✓ {task.description}')
+                            log('photo.after', f'章节下载完成: [{chapter_name}], 图片 {int(task.total)}/{int(task.total)}', worker)
+                    if album_task is not None:
+                        was_finished = tasks[album_task].finished
+                        done = sum(tasks[chapter['task_id']].finished for chapter in chapters)
+                        progress.update(album_task, completed=done)
+                        if done == len(chapters) and not was_finished:
+                            progress.update(album_task, description=f'✓ {name}')
+                            log('album.after', f'本子下载完成: [{name}], 章节 {done}/{len(chapters)}', worker)
+                    ProgressDownloader.refresh_progress_ui()
+                tick += 1
+
+            if not console.is_interactive:
+                for progress, album_task, chapters, name, worker in previews:
+                    console.print(f'模拟完成：{name}')
+        finally:
+            for progress, album_task, chapters, name, worker in previews:
+                ProgressDownloader.unregister_progress(progress)
+            ProgressDownloader.reset_progress_logs()
+        console.print('模拟结束，未下载任何文件。')
 
     @staticmethod
     def cli_no_progress_notice():
