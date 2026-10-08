@@ -1,11 +1,14 @@
-import os
-import inspect
 from functools import wraps
 from typing import NamedTuple
 from time import perf_counter
 
 from .jm_option import *
-from .jm_task_context import bind_jm_task_context, get_jm_task_context, jm_task_context
+from .jm_runtime import JmSimpleRuntime, JmSyncRuntime
+from .jm_task_context import (
+    bind_jm_task_context,
+    JTC,
+    jm_task_context,
+)
 
 
 def record_download_duration(context_key: str, clock=None):
@@ -28,7 +31,7 @@ def record_download_duration(context_key: str, clock=None):
                 entity = get_entity(args, kwargs)
                 detail_call = isinstance(entity, Downloadable)
                 # 顶层 ID 下载负责完整耗时，内部 detail 调用复用同一个计时上下文。
-                if detail_call and get_jm_task_context().get(context_key) is not None:
+                if detail_call and JTC.get_context_value(context_key) is not None:
                     return await func(*args, **kwargs)
 
                 started_at = get_time()
@@ -46,7 +49,7 @@ def record_download_duration(context_key: str, clock=None):
             entity = get_entity(args, kwargs)
             detail_call = isinstance(entity, Downloadable)
             # 顶层 ID 下载负责完整耗时，内部 detail 调用复用同一个计时上下文。
-            if detail_call and get_jm_task_context().get(context_key) is not None:
+            if detail_call and JTC.get_context_value(context_key) is not None:
                 return func(*args, **kwargs)
 
             started_at = get_time()
@@ -79,9 +82,12 @@ def catch_exception(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         self: JmDownloader
+        self.raise_if_cancelled()
         try:
             return func(self, *args, **kwargs)
         except Exception as e:
+            if isinstance(e, DownloadCancelledException):
+                raise
             detail: JmBaseEntity = args[0]
             if detail.is_image():
                 detail: JmImageDetail
@@ -93,6 +99,7 @@ def catch_exception(func):
                 jm_log('photo.failed', f'章节下载失败: [{detail.id}], 异常: [{e}]', e)
                 self.download_failed_photo.append((detail, e))
 
+            self.raise_if_cancelled()
             raise e
 
     return wrapper
@@ -196,9 +203,29 @@ class BaseDownloader(DownloadCallback):
     def has_download_failures(self):
         return len(self.download_failed_image) != 0 or len(self.download_failed_photo) != 0
 
+    @property
+    def is_cancelled(self) -> bool:
+        control = JTC.get_control()
+        return control is not None and control.is_cancelled
+
+    @classmethod
+    def raise_if_cancelled(cls) -> None:
+        """在当前下载作用域已取消时抛出异常，子类可重写该检查点。"""
+        control = JTC.get_control()
+        if control is None or not control.is_cancelled:
+            return
+        raise DownloadCancelledException(
+            control.reason,
+            {
+                ExceptionTool.CONTEXT_KEY_CONTROL: control,
+                ExceptionTool.CONTEXT_KEY_REASON: control.reason,
+            },
+        )
+
     # 下面是回调方法
 
     def before_album(self, album: JmAlbumDetail):
+        self.raise_if_cancelled()
         super().before_album(album)
         self.download_success_dict.setdefault(album, {})
         self.option.call_all_plugin(
@@ -206,18 +233,22 @@ class BaseDownloader(DownloadCallback):
             album=album,
             downloader=self,
         )
+        self.raise_if_cancelled()
 
     def after_album(self, album: JmAlbumDetail):
+        self.raise_if_cancelled()
         super().after_album(album)
         self.option.call_all_plugin(
             'after_album',
             album=album,
             downloader=self,
         )
+        self.raise_if_cancelled()
         # 触发匹配 after_album 的 Feature
         self._invoke_features_for('after_album', album=album, downloader=self)
 
     def before_photo(self, photo: JmPhotoDetail):
+        self.raise_if_cancelled()
         super().before_photo(photo)
         self.download_success_dict.setdefault(photo.from_album, {})
         self.download_success_dict[photo.from_album].setdefault(photo, [])
@@ -226,35 +257,49 @@ class BaseDownloader(DownloadCallback):
             photo=photo,
             downloader=self,
         )
+        self.raise_if_cancelled()
 
     def after_photo(self, photo: JmPhotoDetail):
+        self.raise_if_cancelled()
         super().after_photo(photo)
         self.option.call_all_plugin(
             'after_photo',
             photo=photo,
             downloader=self,
         )
+        self.raise_if_cancelled()
         # 触发匹配 after_photo 的 Feature
         self._invoke_features_for('after_photo', photo=photo, downloader=self)
 
     def before_image(self, image: JmImageDetail, img_save_path):
+        self.raise_if_cancelled()
         super().before_image(image, img_save_path)
         self.option.call_all_plugin(
             'before_image',
             image=image,
             downloader=self,
         )
+        self.raise_if_cancelled()
 
     def after_image(self, image: JmImageDetail, img_save_path):
+        # 1. 图片已成功落盘（或命中本地缓存），第一时间登记入成功清单
+        photo = image.from_photo
+        album = photo.from_album
+        if album in self.download_success_dict:
+            self.download_success_dict[album].setdefault(photo, []).append((image.save_path, image))
+
+        # 2. 日志回调
         super().after_image(image, img_save_path)
+
+        # 3. 取消检查
+        self.raise_if_cancelled()
+
+        # 4. 插件回调
         self.option.call_all_plugin(
             'after_image',
             image=image,
             downloader=self,
         )
-        photo = image.from_photo
-        album = photo.from_album
-        self.download_success_dict.get(album).get(photo).append((image.save_path, image))
 
     def begin_manifest(self, detail: DetailEntity) -> DownloadManifest:
         manifest = DownloadManifest()
@@ -310,7 +355,7 @@ class BaseDownloader(DownloadCallback):
     def _require_feature_context() -> str:
         from .jm_toolkit import ExceptionTool
 
-        download_type = get_jm_task_context().get('download_type')
+        download_type = JTC.get_context_value('download_type')
         ExceptionTool.require_true(
             download_type in ('album', 'photo'),
             'Feature 注册与执行必须位于下载任务上下文中，请使用 '
@@ -355,12 +400,17 @@ class BaseDownloader(DownloadCallback):
 
         download_type = self._require_feature_context()
         for feature in self._feature_list:
+            self.raise_if_cancelled()
             if feature.should_invoke(when):
                 try:
                     feature.invoke(self.option, when=when, **kwargs)
+                except DownloadCancelledException:
+                    raise
                 except Exception as e:
-                    jm_log('downloader.feature.exception', f'Feature执行失败: [{feature}], 下载类型: [{download_type}], 异常: [{e}]',
+                    jm_log('downloader.feature.exception',
+                           f'Feature执行失败: [{feature}], 下载类型: [{download_type}], 异常: [{e}]',
                            e)
+        self.raise_if_cancelled()
 
     def raise_if_has_exception(self):
         if not self.has_download_failures:
@@ -375,7 +425,7 @@ class BaseDownloader(DownloadCallback):
 
         ExceptionTool.raises(
             '\n'.join(msg_ls),
-            {'downloader': self},
+            {ExceptionTool.CONTEXT_KEY_DOWNLOADER: self},
             PartialDownloadFailedException,
         )
 
@@ -398,6 +448,22 @@ class DownloadResult(NamedTuple):
     def duration(self) -> Optional[float]:
         """顶层下载耗时，单位：秒。"""
         return self.manifest.duration
+
+    @property
+    def album(self):
+        """下载的本子实体。"""
+        from .jm_entity import JmAlbumDetail
+        if isinstance(self.detail, JmAlbumDetail):
+            return self.detail
+        return getattr(self.detail, 'from_album', None)
+
+    @property
+    def photo(self):
+        """下载的章节实体（若为章节下载）。"""
+        from .jm_entity import JmPhotoDetail
+        if isinstance(self.detail, JmPhotoDetail):
+            return self.detail
+        return None
 
 
 class BatchResult(set):
@@ -438,7 +504,12 @@ class JmDownloader(BaseDownloader):
 
     @record_download_duration('album_started_at')
     def download_album(self, album_id):
-        album = self.client.get_album_detail(album_id)
+        self.raise_if_cancelled()
+        try:
+            album = self.client.get_album_detail(album_id)
+        except Exception:
+            self.raise_if_cancelled()
+            raise
         self.begin_manifest(album)
         try:
             self.download_by_album_detail(album)
@@ -455,13 +526,19 @@ class JmDownloader(BaseDownloader):
         self.execute_on_condition(
             iter_objs=album,
             apply=self.download_by_photo_detail,
-            count_batch=self.option.decide_photo_batch_count(album)
+            count_batch=self.option.decide_photo_batch_count(album),
+            level='photo',
         )
         self.after_album(album)
 
     @record_download_duration('photo_started_at')
     def download_photo(self, photo_id):
-        photo = self.client.get_photo_detail(photo_id)
+        self.raise_if_cancelled()
+        try:
+            photo = self.client.get_photo_detail(photo_id)
+        except Exception:
+            self.raise_if_cancelled()
+            raise
         self.begin_manifest(photo)
         try:
             self.download_by_photo_detail(photo)
@@ -480,7 +557,8 @@ class JmDownloader(BaseDownloader):
         self.execute_on_condition(
             iter_objs=photo,
             apply=self.download_by_image_detail,
-            count_batch=self.option.decide_image_batch_count(photo)
+            count_batch=self.option.decide_image_batch_count(photo),
+            level='image',
         )
         self.after_photo(photo)
 
@@ -509,35 +587,41 @@ class JmDownloader(BaseDownloader):
 
         self.after_image(image, img_save_path)
 
-    def execute_on_condition(self,
-                             iter_objs: DetailEntity,
-                             apply: Callable,
-                             count_batch: int,
-                             ):
-        """
-        调度本子/章节的下载
-        """
-        iter_objs = self.do_filter(iter_objs)
-        count_real = len(iter_objs)
+    def execute_on_condition(self, iter_objs, apply, count_batch, level=None):
+        """使用当前 Runtime 调度本子或章节的下载。"""
+        runtime = JTC.get_runtime()
+        ExceptionTool.require_true(
+            runtime is None or isinstance(runtime, JmSyncRuntime),
+            'sync downloader requires JmSyncRuntime',
+        )
 
-        if count_real == 0:
+        iter_objs = self.do_filter(iter_objs)
+        if len(iter_objs) == 0:
             return
 
-        apply = bind_jm_task_context(apply)
+        ExceptionTool.require_true(
+            not isinstance(count_batch, bool) and isinstance(count_batch, int) and count_batch > 0,
+            f'local download limit must be > 0, got {count_batch!r}',
+        )
 
-        if count_batch >= count_real:
-            # 一个图/章节 对应 一个线程
-            multi_thread_launcher(
-                iter_objs=iter_objs,
-                apply_each_obj_func=apply,
-            )
+        self.raise_if_cancelled()
+
+        if runtime is None:
+            with JmSimpleRuntime(workers=count_batch) as runtime:
+                runtime.multi_thread_launcher(
+                    iter_objs=iter_objs,
+                    apply_each_obj_func=bind_jm_task_context(apply),
+                )
         else:
-            # 创建batch个线程的线程池
-            thread_pool_executor(
+            runtime.multi_thread_launcher(
                 iter_objs=iter_objs,
-                apply_each_obj_func=apply,
-                max_workers=count_batch,
+                apply_each_obj_func=bind_jm_task_context(apply),
+                level=level,
+                default_workers=count_batch,
             )
+
+        # 批处理线程等待结束后，统一在此处检查取消状态
+        self.raise_if_cancelled()
 
     # 下面是对with语法的支持
 
