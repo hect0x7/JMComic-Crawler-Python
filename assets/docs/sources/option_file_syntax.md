@@ -27,7 +27,7 @@ client:
   # APP端不限ip兼容性好，网页端限制ip地区但效率高
   impl: html
   
-  # async_impl: 指定异步客户端的底层实现类 (目前仅有: async_api)
+  # async_impl: 指定异步客户端的底层实现类，可选 async_api 或 async_html
   # 注意: 配置此项不会自动开启异步下载，你必须在代码中调用 _async 相关方法
   async_impl: async_api
 

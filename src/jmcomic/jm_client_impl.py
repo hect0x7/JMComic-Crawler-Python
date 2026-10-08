@@ -279,6 +279,7 @@ class JmHtmlClient(AbstractJmClient):
                 'album_id': str(album_id),
                 'fid': str(folder_id),
             },
+            headers={'X-Requested-With': 'XMLHttpRequest'},
         )
 
         res = resp.json()

@@ -250,14 +250,33 @@ asyncio.run(main())
 
 注意：仅仅在 `option.yml` 中增加配置**并不能**让代码自动变成异步，你必须要在代码中改为调用 `_async` 相关方法（如上文所示）。
 
-`async_impl`目前可以不配置，因为配置的作用仅仅是指定底层使用哪种API实现。目前的唯一实现是 `async_api`：
+`async_impl`目前可以不配置，默认使用移动端 `async_api`。如果需要异步请求网页端 HTML，把它改为 `async_html`，并为 `domain.html` 配置网页域名：
 
 ```yaml
 # myoption.yml
 client:
   impl: html
-  # 指定异步客户端的底层实现类 (目前仅有: async_api)
-  async_impl: async_api
+  # 异步客户端实现：async_api 或 async_html
+  async_impl: async_html
+  domain:
+    html:
+      - 18comic.ink
+```
+
+异步 HTML 客户端的调用方式与其他异步客户端相同，使用 `async with` 管理连接：
+
+```python
+import asyncio
+from jmcomic import JmOption
+
+option = JmOption.from_file('myoption.yml')
+
+async def main():
+    async with option.new_jm_async_client() as client:
+        album = await client.get_album_detail('438516')
+        print(album.name)
+
+asyncio.run(main())
 ```
 
 ## 10. 下载返回值

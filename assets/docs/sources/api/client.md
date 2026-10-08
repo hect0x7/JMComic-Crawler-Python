@@ -15,3 +15,8 @@
     options:
       members:
       - AsyncJmApiClient
+
+::: jmcomic.jm_async_html_client
+    options:
+      members:
+      - AsyncJmHtmlClient
