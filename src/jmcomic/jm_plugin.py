@@ -8,7 +8,7 @@ from threading import RLock
 from .jm_option import *
 from .jm_async_downloader import JmAsyncDownloader
 from .jm_downloader import JmDownloader
-from .jm_task_context import bind_jm_task_context, get_jm_task_context
+from .jm_task_context import bind_jm_task_context, JTC
 
 
 class PluginValidationException(Exception):
@@ -156,7 +156,7 @@ class JmOptionPlugin:
     @property
     def jm_task_context(self) -> dict:
         """Return the current invocation's isolated task-context snapshot."""
-        return get_jm_task_context()
+        return JTC.get_context()
 
     @classmethod
     def build(cls, option: JmOption) -> 'JmOptionPlugin':
@@ -1193,7 +1193,8 @@ class DownloadProgressPlugin(JmOptionPlugin):
                         chapter['next_tick'] = tick + chapter['interval'] + random.randint(0, 1)
                         if task.finished:
                             progress.update(task.id, description=f'✓ {task.description}')
-                            log('photo.after', f'章节下载完成: [{chapter_name}], 图片 {int(task.total)}/{int(task.total)}', worker)
+                            log('photo.after', f'章节下载完成: [{chapter_name}], 图片 {int(task.total)}/{int(task.total)}',
+                                worker)
                     if album_task is not None:
                         was_finished = tasks[album_task].finished
                         done = sum(tasks[chapter['task_id']].finished for chapter in chapters)
@@ -1215,7 +1216,7 @@ class DownloadProgressPlugin(JmOptionPlugin):
 
     @staticmethod
     def cli_no_progress_notice():
-        if not get_jm_task_context().get('cli_no_progress'):
+        if not JTC.get_context_value('cli_no_progress'):
             return ''
 
         return (
