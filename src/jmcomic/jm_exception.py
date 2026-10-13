@@ -231,24 +231,20 @@ class ExceptionTool:
         )
 
     @classmethod
-    def require_true(cls, case: bool, msg: str, etype=None):
+    def require_true(cls, case: bool, msg: str):
         if case:
             return
 
-        cls.raises(msg, etype=etype)
+        cls.raises(msg)
 
     @classmethod
     def replace_old_exception_executor(cls, raises: Callable[[Callable, str, dict], None]):
         old = cls.raises
 
-        def new(msg, context=None, etype=None):
+        def new(msg, context=None, _etype=None):
             if context is None:
                 context = {}
-
-            def raise_original(msg, context=None, etype=etype):
-                return old(msg, context, etype)
-
-            raises(raise_original, msg, context)
+            raises(old, msg, context)
 
         cls.raises = new
 

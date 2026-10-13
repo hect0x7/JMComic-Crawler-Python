@@ -275,16 +275,15 @@ class BaseDownloader(DownloadCallback):
         self.raise_if_cancelled()
 
     def after_image(self, image: JmImageDetail, img_save_path):
-        # 1. 图片已成功落盘（或命中本地缓存），第一时间登记入成功清单
+        # 1. 记录下载成功图片
         photo = image.from_photo
         album = photo.from_album
-        if album in self.download_success_dict:
-            self.download_success_dict[album].setdefault(photo, []).append((image.save_path, image))
+        self.download_success_dict[album][photo].append((image.save_path, image))
 
         # 2. 日志回调
         super().after_image(image, img_save_path)
 
-        # 3. 取消检查
+        # 3. 检查取消
         self.raise_if_cancelled()
 
         # 4. 插件回调

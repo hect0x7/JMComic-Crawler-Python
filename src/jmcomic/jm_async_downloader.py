@@ -360,13 +360,18 @@ class JmAsyncDownloader(BaseDownloader):
         self.raise_if_cancelled()
 
     async def after_image(self, image: JmImageDetail, img_save_path: str):
+        # 1. 记录下载成功图片
         photo = image.from_photo
         album = photo.from_album
-        if album in self.download_success_dict:
-            self.download_success_dict[album].setdefault(photo, []).append((image.save_path, image))
+        self.download_success_dict[album][photo].append((image.save_path, image))
 
+        # 2. 日志回调
         DownloadCallback.after_image(self, image, img_save_path)
+
+        # 3. 检查取消
         self.raise_if_cancelled()
+
+        # 4. 插件回调
         await self._dispatch_plugin('after_image', image=image, downloader=self)
 
     def shutdown(self):
