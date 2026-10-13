@@ -3,7 +3,11 @@ from typing import Dict, NamedTuple, Union
 from time import perf_counter
 
 from .jm_option import *
-from .jm_runtime import JmTempRuntime, JmSyncRuntime
+from .jm_runtime import (
+    JmRuntime,
+    JmSyncRuntime,
+    JmTempRuntime,
+)
 from .jm_task_context import (
     bind_jm_task_context,
     JTC,
@@ -547,7 +551,7 @@ class JmDownloader(BaseDownloader):
             iter_objs=album,
             apply=self.download_by_photo_detail,
             count_batch=self.option.decide_photo_batch_count(album),
-            level='photo',
+            level=JmRuntime.LEVEL_PHOTO,
         )
         self.after_album(album)
 
@@ -575,7 +579,7 @@ class JmDownloader(BaseDownloader):
             iter_objs=photo,
             apply=self.download_by_image_detail,
             count_batch=self.option.decide_image_batch_count(photo),
-            level='image',
+            level=JmRuntime.LEVEL_IMAGE,
         )
         self.after_photo(photo)
 
@@ -623,19 +627,18 @@ class JmDownloader(BaseDownloader):
 
         self.raise_if_cancelled()
 
-        if runtime is None:
-            with JmTempRuntime(workers=count_batch) as runtime:
-                runtime.multi_thread_launcher(
-                    iter_objs=iter_objs,
-                    apply_each_obj_func=bind_jm_task_context(apply),
-                )
-        else:
+        if runtime is not None and level is not None and runtime.has_executor(level):
             runtime.multi_thread_launcher(
                 iter_objs=iter_objs,
                 apply_each_obj_func=bind_jm_task_context(apply),
                 level=level,
-                default_workers=count_batch,
             )
+        else:
+            with JmTempRuntime(workers=count_batch) as temp_launcher:
+                temp_launcher.multi_thread_launcher(
+                    iter_objs=iter_objs,
+                    apply_each_obj_func=bind_jm_task_context(apply),
+                )
 
         # 批处理线程等待结束后，统一在此处检查取消状态
         self.raise_if_cancelled()

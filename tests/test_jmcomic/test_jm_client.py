@@ -291,7 +291,7 @@ class Test_Client(JmTestConfigurable):
         raise AssertionError(elist)
 
     def test_comment_count(self):
-        aid = '350234'
+        aid = '438516'
         album = self.client.get_album_detail(aid)
         self.assertGreater(album.comment_count, 0)
 

@@ -11,6 +11,7 @@ __all__ = (
     'JM_TASK_CONTEXT',
     'DownloadControl',
     'JTC',
+    'JmTaskContext',
     'get_jm_task_context',
     'jm_task_context',
     'bind_jm_task_context',
@@ -129,8 +130,7 @@ class JTC:
 # 兼容已发布的上下文查询入口，内部统一使用 JTC。
 get_jm_task_context = JTC.get_context
 
-
-class jm_task_context:
+class JmTaskContext:
     """
     临时绑定任务字段；只传播 Option/Runtime/Control，不管理资源生命周期。
 
@@ -146,16 +146,9 @@ class jm_task_context:
 
     def __enter__(self):
         context = JTC.get_context()
-        parent_runtime = context.get('runtime')
 
         if self.runtime is not None and not isinstance(self.runtime, JmRuntime):
             raise TypeError(f'runtime must be JmRuntime or None, got {type(self.runtime)}')
-        if (
-                self.runtime is not None
-                and parent_runtime is not None
-                and self.runtime is not parent_runtime
-        ):
-            raise RuntimeError('another JmRuntime is already active in this task context')
 
         if self.control is not None and not isinstance(self.control, DownloadControl):
             raise TypeError(f'control must be DownloadControl, got {type(self.control)}')
@@ -181,6 +174,10 @@ class jm_task_context:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         return self.__exit__(exc_type, exc_val, exc_tb)
+
+
+# 保持向下兼容的小写别名
+jm_task_context = JmTaskContext
 
 
 def bind_jm_task_context(func: Callable, context: Optional[Mapping] = None) -> Callable:

@@ -17,7 +17,7 @@ from .jm_entity import JmAlbumDetail, JmPhotoDetail, JmImageDetail
 from .jm_toolkit import JmImageTool
 from .jm_config import JmModuleConfig, jm_log
 from .jm_exception import DownloadCancelledException
-from .jm_runtime import JmAsyncRuntime
+from .jm_runtime import JmAsyncRuntime, JmRuntime
 from .jm_task_context import (
     bind_jm_task_context,
     JTC,
@@ -88,7 +88,7 @@ class JmAsyncDownloader(BaseDownloader):
     async def _run_in_decode_pool(self, func, *args):
         runtime = JTC.get_runtime()
         if isinstance(runtime, JmAsyncRuntime):
-            executor = runtime.executor('decode', self._decode_worker)
+            executor = runtime.executor(JmRuntime.LEVEL_DECODE)
         else:
             if self._decode_pool is None:
                 self._decode_pool = ThreadPoolExecutor(
@@ -368,8 +368,6 @@ class JmAsyncDownloader(BaseDownloader):
         DownloadCallback.after_image(self, image, img_save_path)
         self.raise_if_cancelled()
         await self._dispatch_plugin('after_image', image=image, downloader=self)
-        self.raise_if_cancelled()
-        await self._dispatch_feature('after_image', image=image, downloader=self)
 
     def shutdown(self):
         """关闭解密线程池"""

@@ -8,6 +8,7 @@ from threading import RLock
 from .jm_option import *
 from .jm_async_downloader import JmAsyncDownloader
 from .jm_downloader import JmDownloader
+from .jm_runtime import JmTempRuntime
 from .jm_task_context import bind_jm_task_context, JTC
 
 
@@ -1413,10 +1414,11 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
         folders.setdefault('0', '全部')
 
         # 一个收藏夹一个线程，导出收藏夹数据到文件
-        multi_thread_launcher(
-            iter_objs=folders.items(),
-            apply_each_obj_func=bind_jm_task_context(self.handle_folder),
-        )
+        with JmTempRuntime(workers=len(folders)) as launcher:
+            launcher.multi_thread_launcher(
+                iter_objs=folders.items(),
+                apply_each_obj_func=bind_jm_task_context(self.handle_folder),
+            )
 
         # 压缩导出的文件（放在失败检查之前：即便有收藏夹失败，
         # 已经成功抓下来的那部分也应该照常打包，不能因为一个收藏夹失败就丢掉整批数据）

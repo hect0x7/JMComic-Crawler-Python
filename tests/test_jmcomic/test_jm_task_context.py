@@ -21,6 +21,7 @@ from jmcomic import (
     JmModuleConfig,
     JmOption,
     JmOptionPlugin,
+    JmRuntime,
     JM_TASK_CONTEXT,
     PhotoConcurrentFetcherProxy,
     PrettyFormatter,
@@ -33,6 +34,7 @@ from jmcomic import (
     download_batch_async,
     download_photo_async,
     jm_log,
+    JmTaskContext,
     jm_task_context,
     jm_logger,
 )
@@ -129,11 +131,10 @@ class Test_Jm_Task_Context(unittest.TestCase):
         inner = JmSyncRuntime(album_workers=1)
         try:
             with jm_task_context(runtime=outer):
-                with jm_task_context(runtime=outer):
-                    self.assertIs(JTC.get_runtime(), outer)
-                with self.assertRaisesRegex(RuntimeError, 'already active'):
-                    with jm_task_context(runtime=inner):
-                        self.fail('nested runtime must be rejected')
+                self.assertIs(JTC.get_runtime(), outer)
+                with jm_task_context(runtime=inner):
+                    self.assertIs(JTC.get_runtime(), inner)
+                self.assertIs(JTC.get_runtime(), outer)
         finally:
             outer.close()
             inner.close()
@@ -200,35 +201,56 @@ class Test_Jm_Task_Context(unittest.TestCase):
         finally:
             runtime.close()
 
-    def test_sync_runtime_accepts_call_site_worker_defaults(self):
+    def test_sync_runtime_has_executor_and_on_demand_initialization(self):
         with ThreadPoolExecutor(max_workers=1) as album_executor:
             runtime = JmSyncRuntime(album_executor=album_executor)
             try:
+                self.assertTrue(runtime.has_executor(JmRuntime.LEVEL_ALBUM))
+                self.assertFalse(runtime.has_executor(JmRuntime.LEVEL_PHOTO))
+                self.assertFalse(runtime.has_executor(JmRuntime.LEVEL_IMAGE))
+
                 with jm_task_context(runtime=runtime):
                     photo_futures = runtime.multi_thread_launcher(
                         [1, 2],
                         lambda item: item * 2,
-                        level='photo',
-                        default_workers=2,
+                        level=JmRuntime.LEVEL_PHOTO,
                     )
                     self.assertEqual(
                         [future.result() for future in photo_futures],
                         [2, 4],
                     )
+                    self.assertTrue(runtime.has_executor(JmRuntime.LEVEL_PHOTO))
+
                     image_futures = runtime.multi_thread_launcher(
                         [1],
                         lambda item: item + 1,
-                        level='image',
-                        default_workers=4,
+                        level=JmRuntime.LEVEL_IMAGE,
                     )
                     self.assertEqual(
                         [future.result() for future in image_futures],
                         [2],
                     )
+                    self.assertTrue(runtime.has_executor(JmRuntime.LEVEL_IMAGE))
             finally:
                 runtime.close()
 
             self.assertEqual(album_executor.submit(lambda: 5).result(timeout=1), 5)
+
+    def test_task_context_class_alias_and_nested_runtime_shadowing(self):
+        self.assertIs(jm_task_context, JmTaskContext)
+        rt1 = JmSyncRuntime(album_workers=1)
+        rt2 = JmSyncRuntime(album_workers=2)
+        try:
+            self.assertIsNone(JTC.get_runtime())
+            with JmTaskContext(runtime=rt1):
+                self.assertIs(JTC.get_runtime(), rt1)
+                with jm_task_context(runtime=rt2):
+                    self.assertIs(JTC.get_runtime(), rt2)
+                self.assertIs(JTC.get_runtime(), rt1)
+            self.assertIsNone(JTC.get_runtime())
+        finally:
+            rt1.close()
+            rt2.close()
 
     def test_download_control_is_propagated_by_public_binder(self):
         control = DownloadControl()
@@ -791,8 +813,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
                 with jm_task_context(session_id='decode-pool'):
                     with jm_task_context(runtime=runtime):
                         future = runtime.executor(
-                            'decode',
-                            1,
+                            JmRuntime.LEVEL_DECODE,
                         ).submit(
                             bind_jm_task_context(JTC.get_context),
                         )
@@ -869,8 +890,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
                 runtime = JmAsyncRuntime(decode_executor=executor)
                 with jm_task_context(session_id='async-runtime', runtime=runtime):
                     future = runtime.executor(
-                        'decode',
-                        1,
+                        JmRuntime.LEVEL_DECODE,
                     ).submit(
                         bind_jm_task_context(
                             lambda: (8, JTC.get_context()['session_id'])
@@ -1015,8 +1035,10 @@ class Test_Jm_Task_Context(unittest.TestCase):
             return aid
 
         input_ids = [456, 123, 456, 789, 123]
-        download_batch(dummy_download, input_ids)
-        self.assertEqual(called_ids, ['456', '123', '789'])
+        result = download_batch(dummy_download, input_ids)
+        self.assertEqual(list(result), ['456', '123', '789'])
+        self.assertEqual(set(called_ids), {'456', '123', '789'})
+        self.assertEqual(len(called_ids), 3)
 
     def test_async_downloader_retains_client_instance_after_exit(self):
         class DummyClient:

@@ -7,8 +7,7 @@ from test_jmcomic import *
 from jmcomic.jm_async_client import AsyncJmApiClient
 from jmcomic.jm_async_downloader import JmAsyncDownloader
 from jmcomic.jm_client_interface import AsyncJmcomicClient
-import asyncio
-from unittest.mock import patch
+from concurrent.futures import ThreadPoolExecutor
 
 
 class Test_Async_Custom(JmAsyncTestConfigurable):
@@ -221,16 +220,9 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
         old_updated_domains = JmModuleConfig.DOMAIN_API_UPDATED_LIST
         old_setup_domain = AsyncJmApiClient._has_setup_domain
 
-        class ProbeAsyncRuntime(JmAsyncRuntime):
-            instances = []
-
-            def __init__(self):
-                super().__init__(decode_workers=1)
-                self.instances.append(self)
-
         loop = asyncio.new_event_loop()
         downloader = None
-        runtime = None
+        fake_pool = None
         try:
             JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = False
             JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES = True
@@ -250,21 +242,16 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
                 photo_concurrency=1,
                 decode_worker=1,
             )
-            with patch(
-                    'jmcomic.jm_async_downloader.JmAsyncRuntime',
-                    ProbeAsyncRuntime,
-            ):
-                with self.assertRaises(RequestRetryAllFailException):
-                    loop.run_until_complete(downloader.__aenter__())
+            fake_pool = downloader._decode_pool = ThreadPoolExecutor(max_workers=1)
+            with self.assertRaises(RequestRetryAllFailException):
+                loop.run_until_complete(downloader.__aenter__())
 
-            runtime = ProbeAsyncRuntime.instances[0]
             self.assertIsNone(downloader.client)
-            self.assertIsNone(JTC.get_runtime())
-            with self.assertRaisesRegex(RuntimeError, 'JmRuntime is closed'):
-                runtime.executor('decode', 1)
+            self.assertIsNone(downloader._decode_pool)
+            self.assertTrue(fake_pool._shutdown)
         finally:
-            if runtime is not None:
-                runtime.close()
+            if fake_pool is not None and not fake_pool._shutdown:
+                fake_pool.shutdown(wait=False)
             loop.close()
             JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = old_auto_update
             JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES = old_require_cookies

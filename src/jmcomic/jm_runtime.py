@@ -65,6 +65,12 @@ class JmRuntime:
        绝不会自动关闭。必须由调用方显式调用 runtime.close()，或作为长效单例常驻复用。
     """
 
+    LEVEL_ALBUM = 'album'
+    LEVEL_PHOTO = 'photo'
+    LEVEL_IMAGE = 'image'
+    LEVEL_DECODE = 'decode'
+    LEVEL_DEFAULT = 'default'
+
     def __init__(
             self,
             configs: Dict[str, Tuple[Optional[int], Optional[Executor]]],
@@ -82,22 +88,24 @@ class JmRuntime:
         self._closed = False
         self._ctx_cm = None
 
-    def executor(
-            self,
-            level: Optional[str] = None,
-            default_workers: Optional[int] = None,
-    ) -> Executor:
+    def has_executor(self, level: Optional[str] = None) -> bool:
         """
-        返回指定层级的 Executor；未配置时按调用点给出的默认并发数创建。
+        检查指定层级是否已由外部显式配置（workers 或 executor），或已初始化 Executor。
         """
         if level is None:
             raise TypeError('level is required for this Runtime')
+        with self._lock:
+            return self._workers.get(level) is not None or self._executors.get(level) is not None
 
-        if default_workers is not None:
-            default_workers = validate_jm_workers(
-                f'{level}_default_workers',
-                default_workers,
-            )
+    def executor(
+            self,
+            level: Optional[str] = None,
+    ) -> Executor:
+        """
+        返回指定层级的 Executor；未显式配置 workers 时按系统默认并发数创建。
+        """
+        if level is None:
+            raise TypeError('level is required for this Runtime')
 
         with self._lock:
             if self._closed:
@@ -112,10 +120,6 @@ class JmRuntime:
                 return executor
 
             workers = self._workers[level]
-            if workers is None:
-                workers = default_workers
-                self._workers[level] = workers
-
             if workers is None:
                 executor = ThreadPoolExecutor(thread_name_prefix=f'jm-{level}')
             else:
@@ -135,12 +139,11 @@ class JmRuntime:
             wait_finish=True,
             *,
             level: Optional[str] = None,
-            default_workers: Optional[int] = None,
     ):
         """
         使用指定层级的 Executor 批量提交任务，并按需等待完成。
         """
-        executor = self.executor(level, default_workers)
+        executor = self.executor(level)
         futures = []
 
         try:
@@ -209,16 +212,18 @@ class JmTempRuntime(JmRuntime):
 
         super().__init__(
             configs={
-                'default': (workers, executor),
+                JmRuntime.LEVEL_DEFAULT: (workers, executor),
             },
         )
 
+    def has_executor(self, level: Optional[str] = JmRuntime.LEVEL_DEFAULT) -> bool:
+        return super().has_executor(level or JmRuntime.LEVEL_DEFAULT)
+
     def executor(
             self,
-            level: Optional[str] = 'default',
-            default_workers: Optional[int] = None,
+            level: Optional[str] = JmRuntime.LEVEL_DEFAULT,
     ) -> Executor:
-        return super().executor(level or 'default', default_workers)
+        return super().executor(level or JmRuntime.LEVEL_DEFAULT)
 
     def __enter__(self):
         return self
@@ -267,15 +272,15 @@ class JmSyncRuntime(JmRuntime):
                 'as sharing one executor across nested levels causes thread pool starvation deadlock'
             )
 
-        album_config = normalize_jm_executor_config('album', album_workers, album_executor)
+        album_config = normalize_jm_executor_config(JmRuntime.LEVEL_ALBUM, album_workers, album_executor)
         super().__init__(
             configs={
-                'album': album_config,
-                'photo': normalize_jm_executor_config(
-                    'photo', photo_workers, photo_executor
+                JmRuntime.LEVEL_ALBUM: album_config,
+                JmRuntime.LEVEL_PHOTO: normalize_jm_executor_config(
+                    JmRuntime.LEVEL_PHOTO, photo_workers, photo_executor
                 ),
-                'image': normalize_jm_executor_config(
-                    'image', image_workers, image_executor
+                JmRuntime.LEVEL_IMAGE: normalize_jm_executor_config(
+                    JmRuntime.LEVEL_IMAGE, image_workers, image_executor
                 ),
             },
         )
@@ -294,15 +299,17 @@ class JmAsyncRuntime(JmRuntime):
     ):
         super().__init__(
             configs={
-                'decode': normalize_jm_executor_config(
-                    'decode', decode_workers, decode_executor
+                JmRuntime.LEVEL_DECODE: normalize_jm_executor_config(
+                    JmRuntime.LEVEL_DECODE, decode_workers, decode_executor
                 ),
             },
         )
 
+    def has_executor(self, level: Optional[str] = JmRuntime.LEVEL_DECODE) -> bool:
+        return super().has_executor(level or JmRuntime.LEVEL_DECODE)
+
     def executor(
             self,
-            level: Optional[str] = 'decode',
-            default_workers: Optional[int] = None,
+            level: Optional[str] = JmRuntime.LEVEL_DECODE,
     ) -> Executor:
-        return super().executor(level or 'decode', default_workers)
+        return super().executor(level or JmRuntime.LEVEL_DECODE)

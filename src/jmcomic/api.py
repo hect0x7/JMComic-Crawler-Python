@@ -3,7 +3,12 @@ from time import perf_counter
 
 from .jm_downloader import *
 from .jm_exception import DownloadCancelledException, ExceptionTool
-from .jm_runtime import JmAsyncRuntime, JmSyncRuntime
+from .jm_runtime import (
+    JmAsyncRuntime,
+    JmRuntime,
+    JmSyncRuntime,
+    JmTempRuntime,
+)
 from .jm_task_context import (
     bind_jm_task_context,
     JTC,
@@ -155,14 +160,13 @@ def download_batch(
         cancellation_error = None
         worker = bind_jm_task_context(_download_one)
 
-        # 3. 调度本子层并发：外部有 JmSyncRuntime 则复用；没有则使用单层局部 Runtime 调度本子列表，不向下渗透污染子任务
-        if runtime is not None:
+        # 3. 调度本子层并发：外部 JmSyncRuntime 显式配置了 album 层则复用；未配置则使用独立 JmTempRuntime，避免将首批数量固化为常驻池容量
+        if runtime is not None and runtime.has_executor(JmRuntime.LEVEL_ALBUM):
             futures = runtime.multi_thread_launcher(
                 iter_objs=jm_ids,
                 apply_each_obj_func=worker,
                 wait_finish=True,
-                level='album',
-                default_workers=len(jm_ids),
+                level=JmRuntime.LEVEL_ALBUM,
             )
         else:
             with JmTempRuntime(workers=len(jm_ids)) as launcher:

@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from jmcomic import (
     DownloadCancelledException,
     JmAsyncRuntime,
+    JmRuntime,
     JmTempRuntime,
     JmSyncRuntime,
     download_batch,
@@ -275,6 +276,47 @@ class Test_Jm_Runtime(unittest.TestCase):
         with ThreadPoolExecutor(max_workers=2) as shared_executor:
             with self.assertRaisesRegex(ValueError, 'starvation deadlock'):
                 JmSyncRuntime(photo_executor=shared_executor, image_executor=shared_executor)
+
+    def test_sync_runtime_unset_album_workers_does_not_fix_batch_pool(self):
+        """CR-3 / Mode B: 当 JmSyncRuntime 未配置 album 层时，download_batch 不会固化 album 线程池，各批次独立"""
+        runtime = JmSyncRuntime(image_workers=10)
+        try:
+            self.assertFalse(runtime.has_executor(JmRuntime.LEVEL_ALBUM))
+            self.assertFalse(runtime.has_executor(JmRuntime.LEVEL_PHOTO))
+            self.assertTrue(runtime.has_executor(JmRuntime.LEVEL_IMAGE))
+
+            with jm_task_context(runtime=runtime):
+                res1 = download_batch(lambda aid, *_: aid, ['1', '2'], option=object())
+                self.assertEqual({'1', '2'}, set(res1))
+                # 依然未配置 album executor，没有被污染
+                self.assertFalse(runtime.has_executor(JmRuntime.LEVEL_ALBUM))
+
+                res2 = download_batch(lambda aid, *_: aid, ['3', '4', '5'], option=object())
+                self.assertEqual({'3', '4', '5'}, set(res2))
+                self.assertFalse(runtime.has_executor(JmRuntime.LEVEL_ALBUM))
+        finally:
+            runtime.close()
+
+    def test_runtime_level_constants_and_has_executor_behavior(self):
+        self.assertEqual('album', JmRuntime.LEVEL_ALBUM)
+        self.assertEqual('photo', JmRuntime.LEVEL_PHOTO)
+        self.assertEqual('image', JmRuntime.LEVEL_IMAGE)
+        self.assertEqual('decode', JmRuntime.LEVEL_DECODE)
+        self.assertEqual('default', JmRuntime.LEVEL_DEFAULT)
+
+        temp = JmTempRuntime(workers=2)
+        try:
+            self.assertTrue(temp.has_executor())
+            self.assertTrue(temp.has_executor(JmRuntime.LEVEL_DEFAULT))
+        finally:
+            temp.close()
+
+        async_rt = JmAsyncRuntime(decode_workers=4)
+        try:
+            self.assertTrue(async_rt.has_executor())
+            self.assertTrue(async_rt.has_executor(JmRuntime.LEVEL_DECODE))
+        finally:
+            async_rt.close()
 
 
 if __name__ == '__main__':

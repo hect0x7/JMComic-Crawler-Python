@@ -586,6 +586,46 @@ my_control.cancel("不想要了，取消掉吧")
 t.join()
 ```
 
+### 进阶：连用取消控制、共享线程池与任务上下文
+
+若需同时**控制取消**、**限制并发（共享线程池）**与**绑定任务ID（日志追踪）**，使用 Python 原生复合 `with` 语法即可：
+
+```python
+from threading import Thread
+from time import sleep
+from jmcomic import (
+    download_album,
+    DownloadCancelledException,
+    DownloadControl,
+    JmSyncRuntime,
+    jm_task_context,
+)
+
+# 1. 创建取消控制器
+control = DownloadControl()
+
+def run_download():
+    try:
+        # 2. 复合使用三项功能：
+        #    - JmSyncRuntime: 管理并发线程池，退出 with 作用域自动关闭并回收所有线程
+        #    - jm_task_context: 绑定取消控制器 control 与业务追踪字段 task_id 到当前调用栈
+        with JmSyncRuntime(image_workers=10) as rt, jm_task_context(control=control, task_id='task_001'):
+            download_album(['123456', '789012'])
+    except DownloadCancelledException as e:
+        print(f'下载已取消: {e.reason}')
+        print(f'已完成本子: {[res.album.id for res in e.completed_results]}')
+        print(f'未完成本子: {e.unfinished_ids}')
+
+# 在子线程中执行下载任务
+t = Thread(target=run_download)
+t.start()
+
+# 模拟 2 秒后外部触发取消
+sleep(2)
+control.cancel("用户主动取消下载")
+t.join()
+```
+
 ## 下载返回值
 
 `download_album` 和 `download_photo` 下载完成后，单个 ID 返回 `DownloadResult`，多个 ID 返回 `BatchResult`。
@@ -701,7 +741,7 @@ from jmcomic import download_album, DownloadResult
 # 同时下载多个本子
 batch_result = download_album(['123', '456', '789'])
 
-# BatchResult 继承 set，直接遍历是只遍历成功结果
+# BatchResult 按输入顺序保存成功结果，直接遍历只遍历成功结果；也支持 batch_result['123'] 按车号检索
 for result in batch_result:
     result: DownloadResult
     # result 的用法同上    
