@@ -7,7 +7,7 @@ from test_jmcomic import *
 from jmcomic.jm_async_client import AsyncJmApiClient
 from jmcomic.jm_async_downloader import JmAsyncDownloader
 from jmcomic.jm_client_interface import AsyncJmcomicClient
-import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 
 class Test_Async_Custom(JmAsyncTestConfigurable):
@@ -213,7 +213,7 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
             AsyncJmApiClient._has_setup_domain = old_setup_domain
 
     def test_async_downloader_cleanup_when_setup_fails(self):
-        """真实 AsyncSession 初始化失败时，downloader 应回收 client 和线程池"""
+        """真实会话初始化失败时，也要关闭 Downloader 自建线程池。"""
         old_auto_update = JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN
         old_require_cookies = JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES
         old_app_cookies = JmModuleConfig.APP_COOKIES
@@ -222,6 +222,7 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
 
         loop = asyncio.new_event_loop()
         downloader = None
+        fake_pool = None
         try:
             JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = False
             JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES = True
@@ -241,14 +242,16 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
                 photo_concurrency=1,
                 decode_worker=1,
             )
+            fake_pool = downloader._decode_pool = ThreadPoolExecutor(max_workers=1)
             with self.assertRaises(RequestRetryAllFailException):
                 loop.run_until_complete(downloader.__aenter__())
 
             self.assertIsNone(downloader.client)
-            self.assertTrue(downloader._decode_pool._shutdown)
+            self.assertIsNone(downloader._decode_pool)
+            self.assertTrue(fake_pool._shutdown)
         finally:
-            if downloader is not None and not downloader._decode_pool._shutdown:
-                downloader.shutdown()
+            if fake_pool is not None and not fake_pool._shutdown:
+                fake_pool.shutdown(wait=False)
             loop.close()
             JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = old_auto_update
             JmModuleConfig.FLAG_API_CLIENT_REQUIRE_COOKIES = old_require_cookies

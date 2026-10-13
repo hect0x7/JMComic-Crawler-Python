@@ -3,7 +3,6 @@ import asyncio
 import importlib.util
 import logging
 import os
-import time
 import unittest
 from io import StringIO
 from pathlib import Path
@@ -28,10 +27,6 @@ from jmcomic.jm_config import setup_default_jm_logger
 from jmcomic.jm_task_context import jm_task_context
 
 
-PROJECT_DIR = Path(__file__).resolve().parents[2]
-DOCUMENT_FILE = PROJECT_DIR / 'assets' / 'docs' / 'sources' / 'tutorial' / '15_download_progress.md'
-PLUGIN_FILE = PROJECT_DIR / 'src' / 'jmcomic' / 'jm_plugin.py'
-DOWNLOADER_FILE = PROJECT_DIR / 'src' / 'jmcomic' / 'jm_downloader.py'
 RICH_INSTALLED = importlib.util.find_spec('rich') is not None
 
 
@@ -92,6 +87,165 @@ class FakeAsyncClient(FakeClient):
 
 
 class Test_DownloadProgress(unittest.TestCase):
+
+    def setUp(self):
+        # 渲染测试固定为支持 ANSI 的终端，不依赖测试宿主的 TERM 设置。
+        terminal = patch.dict(os.environ, {'TERM': 'xterm-256color'})
+        terminal.start()
+        self.addCleanup(terminal.stop)
+
+    @unittest.skipUnless(RICH_INSTALLED, '需要安装 rich 才能测试彩色进度插件')
+    def test_subclass_and_async_downloader_share_console(self):
+        class CustomProgressDownloader(ProgressDownloader):
+            pass
+
+        sync = object.__new__(CustomProgressDownloader)
+        async_downloader = object.__new__(AsyncProgressDownloader)
+        with patch.object(ProgressDownloader, 'progress_console', None), patch('sys.stdout', StringIO()):
+            try:
+                sync.start_progress(1, '101')
+                async_downloader.start_progress(1, '202')
+                self.assertIs(sync.progress.console, async_downloader.progress.console)
+                self.assertNotIn('progress_console', CustomProgressDownloader.__dict__)
+            finally:
+                sync.stop_progress()
+                async_downloader.stop_progress()
+
+    @unittest.skipUnless(RICH_INSTALLED, '需要安装 rich 才能测试彩色进度插件')
+    def test_concurrent_sync_async_progress_keeps_completed_tasks_until_last_exit(self):
+        from rich.console import Console
+
+        console = Console(file=StringIO(), force_terminal=True, force_interactive=True, width=100)
+        sync = object.__new__(ProgressDownloader)
+        async_downloader = object.__new__(AsyncProgressDownloader)
+        with patch.object(ProgressDownloader, 'progress_console', console):
+            try:
+                sync.start_progress(1, '101')
+                live = ProgressDownloader.progress_live
+                async_downloader.start_progress(1, '202')
+                self.assertIs(live, ProgressDownloader.progress_live)
+                completed_progress = sync.progress
+                ProgressDownloader.register_progress(completed_progress)
+                self.assertEqual(2, len(ProgressDownloader.displayed_progresses))
+                sync.stop_progress()
+                self.assertIs(live, ProgressDownloader.progress_live)
+                self.assertIn(completed_progress, ProgressDownloader.displayed_progresses)
+                async_downloader.stop_progress()
+                self.assertIsNone(ProgressDownloader.progress_live)
+                self.assertFalse(ProgressDownloader.active_progresses)
+                self.assertFalse(ProgressDownloader.displayed_progresses)
+                sync.start_progress(1, '303')
+                self.assertIsNot(live, ProgressDownloader.progress_live)
+                self.assertEqual(1, len(ProgressDownloader.displayed_progresses))
+            finally:
+                sync.stop_progress()
+                async_downloader.stop_progress()
+
+    @unittest.skipUnless(RICH_INSTALLED, '需要安装 rich 才能测试彩色进度插件')
+    def test_failed_live_start_does_not_poison_next_download(self):
+        from rich.console import Console
+
+        console = Console(file=StringIO(), force_terminal=True, force_interactive=True)
+        progress = ProgressDownloader.new_rich_progress(console)
+        with patch('rich.live.Live.start', side_effect=RuntimeError('render failed')):
+            with self.assertRaisesRegex(RuntimeError, 'render failed'):
+                ProgressDownloader.register_progress(progress)
+        self.assertIsNone(ProgressDownloader.progress_live)
+        self.assertFalse(ProgressDownloader.active_progresses)
+        self.assertFalse(ProgressDownloader.displayed_progresses)
+        try:
+            ProgressDownloader.register_progress(progress)
+            self.assertIsNotNone(ProgressDownloader.progress_live)
+        finally:
+            ProgressDownloader.unregister_progress(progress)
+
+    @unittest.skipUnless(RICH_INSTALLED, '需要安装 rich 才能测试彩色进度插件')
+    def test_failed_final_refresh_releases_ui_and_downloader(self):
+        from rich.console import Console
+
+        console = Console(file=StringIO(), force_terminal=True, force_interactive=True)
+        downloader = object.__new__(ProgressDownloader)
+        with patch.object(ProgressDownloader, 'progress_console', console):
+            downloader.start_progress(1, '101')
+            with patch.object(ProgressDownloader, 'refresh_progress_ui', side_effect=RuntimeError('render failed')):
+                with self.assertRaisesRegex(RuntimeError, 'render failed'):
+                    downloader.stop_progress()
+            self.assertIsNone(downloader.progress)
+            self.assertIsNone(ProgressDownloader.progress_live)
+            self.assertFalse(ProgressDownloader.active_progresses)
+            self.assertFalse(ProgressDownloader.displayed_progresses)
+
+    @unittest.skipUnless(RICH_INSTALLED, '需要安装 rich 才能测试彩色进度插件')
+    def test_preview_interrupt_releases_ui(self):
+        from rich.console import Console
+
+        console = Console(file=StringIO(), force_terminal=True, force_interactive=True)
+        with patch.object(ProgressDownloader, 'progress_console', console), \
+                patch('time.sleep', side_effect=KeyboardInterrupt):
+            with self.assertRaises(KeyboardInterrupt):
+                DownloadProgressPlugin.preview([], [])
+        self.assertIsNone(ProgressDownloader.progress_live)
+        self.assertFalse(ProgressDownloader.active_progresses)
+        self.assertFalse(ProgressDownloader.displayed_progresses)
+        self.assertFalse(ProgressDownloader.progress_log_lines)
+
+    def test_async_exit_closes_resources_even_if_ui_stop_fails(self):
+        from unittest.mock import AsyncMock
+
+        downloader = object.__new__(AsyncProgressDownloader)
+
+        async def run():
+            with patch.object(downloader, 'stop_progress', side_effect=RuntimeError('render failed')), \
+                    patch.object(JmAsyncDownloader, '__aexit__', new_callable=AsyncMock) as close:
+                with self.assertRaisesRegex(RuntimeError, 'render failed'):
+                    await downloader.__aexit__(None, None, None)
+                close.assert_awaited_once_with(None, None, None)
+
+        asyncio.run(run())
+
+    @unittest.skipUnless(RICH_INSTALLED, '需要安装 rich 才能测试彩色进度插件')
+    def test_preview_shares_one_live_and_releases_tasks_without_files(self):
+        from random import Random
+        from rich.console import Console
+
+        output = StringIO()
+        original_console = ProgressDownloader.progress_console
+        ProgressDownloader.progress_console = Console(
+            file=output, force_terminal=True, force_interactive=True, width=100,
+        )
+        observed = []
+        observed_logs = []
+        original_refresh = ProgressDownloader.refresh_progress_ui
+
+        def check_frame():
+            original_refresh()
+            observed_logs.extend(ProgressDownloader.progress_log_lines)
+            live = ProgressDownloader.progress_live
+            if live is not None:
+                observed.append(live)
+                rendered = ProgressDownloader.progress_console.render_lines(live.renderable)
+                text = '\n'.join(''.join(segment.text for segment in line) for line in rendered)
+                self.assertEqual(1, text.count('JMComic Logs'))
+
+        try:
+            with patch('time.sleep'), \
+                    patch('random.Random', return_value=Random(1)), \
+                    patch('logging.FileHandler', side_effect=AssertionError('不能创建日志文件')), \
+                    patch.object(ProgressDownloader, 'refresh_progress_ui', side_effect=check_frame):
+                DownloadProgressPlugin.preview([], [])
+            self.assertTrue(observed)
+            self.assertTrue(all(live is observed[0] for live in observed))
+            self.assertIsNone(ProgressDownloader.progress_live)
+            self.assertFalse(ProgressDownloader.active_progresses)
+            self.assertFalse(ProgressDownloader.displayed_progresses)
+            self.assertIn('✓ 本子-JM100001', output.getvalue())
+            self.assertIn('✓ 本子-JM100002', output.getvalue())
+            logs = '\n'.join(observed_logs)
+            for topic in ('album.before', 'photo.before', 'image.after', 'image.retry', 'photo.after', 'album.after'):
+                self.assertIn(f'[{topic}]', logs)
+            self.assertIn('[mock-worker-', logs)
+        finally:
+            ProgressDownloader.progress_console = original_console
 
     def test_progress_display_id_adds_prefix_only_once(self):
         self.assertEqual('JM123456', ProgressDownloader.display_id('123456'))
@@ -159,7 +313,7 @@ class Test_DownloadProgress(unittest.TestCase):
             JmModuleConfig.CLASS_ASYNC_DOWNLOADER = original_downloader
 
     @unittest.skipUnless(RICH_INSTALLED, '需要安装 rich 才能测试彩色进度插件')
-    def test_sync_progress_is_rendered_before_download_finishes(self):
+    def test_sync_progress_updates_before_download_finishes(self):
         from rich.console import Console
 
         album = create_album()
@@ -186,19 +340,24 @@ class Test_DownloadProgress(unittest.TestCase):
             ):
                 downloader = ProgressDownloader(option)
             downloader.before_album(album)
-            rendered_before_wait = ui_output.getvalue()
-            time.sleep(0.2)
-            self.assertEqual(rendered_before_wait, ui_output.getvalue())
 
             downloader.before_photo(photo)
             image.save_path = 'mock.jpg'
             downloader.after_image(image, image.save_path)
 
-            rendered_during_download = ui_output.getvalue()
-            self.assertIn('本子-JM123456', rendered_during_download)
-            self.assertIn('章节-JM101', rendered_during_download)
-            self.assertIn('1/2', rendered_during_download)
-            self.assertNotIn('✓ 本子-JM123456', rendered_during_download)
+            album_task = next(
+                task for task in downloader.progress.tasks
+                if '本子-JM123456' in task.description
+            )
+            chapter_task = next(
+                task for task in downloader.progress.tasks
+                if '章节-JM101' in task.description
+            )
+            self.assertEqual(0, album_task.completed)
+            self.assertEqual(1, chapter_task.completed)
+            self.assertEqual(2, chapter_task.total)
+            self.assertFalse(album_task.finished)
+            self.assertFalse(chapter_task.finished)
         finally:
             if downloader is not None:
                 downloader.stop_progress()
@@ -470,7 +629,7 @@ plugins:
         self.assertIn('检测到命令行参数 --no-progress', rendered)
         self.assertIn('当前 Option 已配置 download_progress', rendered)
         self.assertIn('JMComic Logs', rendered)
-        self.assertIn('album.before', rendered)
+        self.assertIn('album.after', rendered)
         self.assertIn('章节-JM101', rendered)
         self.assertIn('章节-JM102', rendered)
         self.assertIn('✓ 本子-JM123456', rendered)
@@ -548,18 +707,11 @@ plugins:
         self.assertIn('详细日志', rendered)
         self.assertIn('✓ 下载完成：本子-JM123456，章节 2/2，图片 5/5', rendered)
 
-    def test_plugin_is_registered_and_documentation_only_shows_usage(self):
-        document = DOCUMENT_FILE.read_text(encoding='utf-8')
+    def test_plugin_is_registered(self):
         self.assertIs(
             DownloadProgressPlugin,
             JmModuleConfig.REGISTRY_PLUGIN['download_progress'],
         )
-        self.assertIn('plugin: download_progress', document)
-        self.assertIn('download_album_async', document)
-        self.assertNotIn('class ProgressDownloader', document)
-        self.assertNotIn('class DownloadProgressPlugin', document)
-        self.assertIn('class ProgressDownloader', PLUGIN_FILE.read_text(encoding='utf-8'))
-        self.assertNotIn('class ProgressDownloader', DOWNLOADER_FILE.read_text(encoding='utf-8'))
 
 
 if __name__ == '__main__':

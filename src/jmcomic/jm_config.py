@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import logging
-
 from common import time_stamp, field_cache, ProxyBuilder
 
-from .jm_task_context import JM_TASK_CONTEXT, get_jm_task_context
+from .jm_task_context import JM_TASK_CONTEXT, JTC
 
 jm_logger = logging.getLogger('jmcomic')
 
@@ -68,7 +67,7 @@ def default_jm_logging(topic: str, msg, e: BaseException | None = None):
         msg = str(msg)
     extra = {
         'topic': topic,
-        JM_TASK_CONTEXT.name: get_jm_task_context(),
+        JM_TASK_CONTEXT.name: JTC.get_context(),
     }
     if e is not None:
         jm_logger.error(msg, extra=extra, exc_info=e)
@@ -517,7 +516,7 @@ class JmModuleConfig:
             'cache': True,
             'image': {'decode': True, 'suffix': None},
             'threading': {
-                'image': 30,
+                'image': 20,
                 'photo': None,
             },
         },

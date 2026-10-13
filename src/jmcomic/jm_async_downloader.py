@@ -12,11 +12,16 @@ import asyncio
 import os
 from concurrent.futures import ThreadPoolExecutor
 
-from .jm_downloader import BaseDownloader, record_download_duration
+from .jm_downloader import BaseDownloader, DownloadCallback, record_download_duration
 from .jm_entity import JmAlbumDetail, JmPhotoDetail, JmImageDetail
 from .jm_toolkit import JmImageTool
 from .jm_config import JmModuleConfig, jm_log
-from .jm_task_context import bind_jm_task_context
+from .jm_exception import DownloadCancelledException
+from .jm_runtime import JmAsyncRuntime, JmRuntime
+from .jm_task_context import (
+    bind_jm_task_context,
+    JTC,
+)
 from .jm_option import JmOption
 
 
@@ -50,8 +55,19 @@ class JmAsyncDownloader(BaseDownloader):
         self._image_semaphore = asyncio.Semaphore(image_concurrency)
         self._photo_semaphore = asyncio.Semaphore(photo_concurrency)
 
-        # 解密线程池（CPU 密集操作卸载）
-        self._decode_pool = ThreadPoolExecutor(max_workers=decode_worker, thread_name_prefix='jm-async-decode')
+        if decode_worker is None:
+            # 对齐 ThreadPoolExecutor 的默认容量，并由调用点明确交给 Runtime。
+            decode_worker = min(32, (os.cpu_count() or 1) + 4)
+        elif (
+                isinstance(decode_worker, bool)
+                or not isinstance(decode_worker, int)
+                or decode_worker <= 0
+        ):
+            raise ValueError(
+                f'decode_worker must be a positive integer, got {decode_worker!r}'
+            )
+        self._decode_worker = decode_worker
+        self._decode_pool: ThreadPoolExecutor | None = None
 
     @classmethod
     def use(cls, *args, **kwargs):
@@ -70,17 +86,38 @@ class JmAsyncDownloader(BaseDownloader):
     # ======================================================================
 
     async def _run_in_decode_pool(self, func, *args):
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            self._decode_pool,
-            bind_jm_task_context(func),
-            *args,
-        )
+        runtime = JTC.get_runtime()
+        if isinstance(runtime, JmAsyncRuntime):
+            executor = runtime.executor(JmRuntime.LEVEL_DECODE)
+        else:
+            if self._decode_pool is None:
+                self._decode_pool = ThreadPoolExecutor(
+                    max_workers=self._decode_worker,
+                    thread_name_prefix='jm-async-decode',
+                )
+            executor = self._decode_pool
+
+        worker = bind_jm_task_context(func)
+        future = executor.submit(worker, *args)
+        waiter = asyncio.wrap_future(future)
+        try:
+            return await asyncio.shield(waiter)
+        except asyncio.CancelledError:
+            # 线程任务无法可靠中断，协程取消后仍需等待写盘等操作收尾。
+            try:
+                await waiter
+            except (asyncio.CancelledError, DownloadCancelledException):
+                pass
+            except BaseException as drain_error:
+                jm_log('dler.cancel.drain.exception', drain_error)
+            raise
 
     @record_download_duration('album_started_at')
     async def download_album(self, album_id) -> JmAlbumDetail:
         """对齐 sync JmDownloader.download_album"""
+        self.raise_if_cancelled()
         album = await self.client.get_album_detail(album_id)
+        self.raise_if_cancelled()
         self.begin_manifest(album)
         try:
             await self.download_by_album_detail(album)
@@ -106,7 +143,9 @@ class JmAsyncDownloader(BaseDownloader):
         if photos:
             # photo 级并发由 _photo_semaphore 控制（默认 3），包裹整段 photo 下载（见 download_by_photo_detail）。
             photo_tasks = [self._safe_download_photo(photo) for photo in photos]
-            await asyncio.gather(*photo_tasks)
+            # 对齐 sync 最大容错：普通异常由子任务记录，取消异常等待全部结束后再检查
+            await asyncio.gather(*photo_tasks, return_exceptions=True)
+            self.raise_if_cancelled()
 
         await self.after_album(album)
 
@@ -114,14 +153,19 @@ class JmAsyncDownloader(BaseDownloader):
         """包装 download_by_photo_detail，对齐 sync @catch_exception 的异常记录"""
         try:
             await self.download_by_photo_detail(photo)
+        except DownloadCancelledException:
+            raise
         except Exception as e:
             jm_log('photo.failed', f'章节下载失败: [{photo.id}], 异常: [{e}]', e)
             self.download_failed_photo.append((photo, e))
+            self.raise_if_cancelled()
 
     @record_download_duration('photo_started_at')
     async def download_photo(self, photo_id) -> JmPhotoDetail:
         """对齐 sync JmDownloader.download_photo"""
+        self.raise_if_cancelled()
         photo = await self.client.get_photo_detail(photo_id)
+        self.raise_if_cancelled()
         self.begin_manifest(photo)
         try:
             await self.download_by_photo_detail(photo)
@@ -135,11 +179,14 @@ class JmAsyncDownloader(BaseDownloader):
         异步下载一个章节的所有图片。
         对齐 sync JmDownloader.download_by_photo_detail 的回调链路。
         """
+        self.raise_if_cancelled()
         photo.save_path = self.option.decide_image_save_dir(photo)
         # _photo_semaphore 包裹整段 photo 下载（check_photo + 全部图片），
         # 真正限制「同时下载的章节数」（对齐 sync：每个 photo 占用 photo 线程池一个槽位）。
         # 章节内图片再由共享的 _image_semaphore 二级限流。
         async with self._photo_semaphore:
+            # 排队期间可能被取消；执行 I/O 前必须再次检查。
+            self.raise_if_cancelled()
             await self.client.check_photo(photo)
 
             await self.before_photo(photo)
@@ -156,7 +203,9 @@ class JmAsyncDownloader(BaseDownloader):
                     self._safe_download_image(image)
                     for image in image_list
                 ]
-                await asyncio.gather(*download_tasks)
+                # 对齐 sync 最大容错：普通异常由子任务记录，取消异常等待全部结束后再检查
+                await asyncio.gather(*download_tasks, return_exceptions=True)
+                self.raise_if_cancelled()
 
             await self.after_photo(photo)
 
@@ -167,9 +216,12 @@ class JmAsyncDownloader(BaseDownloader):
         """
         try:
             await self._download_single_image(image)
+        except DownloadCancelledException:
+            raise
         except Exception as e:
             jm_log('image.failed', f'图片下载失败: [{image.download_url}], 异常: [{e}]', e)
             self.download_failed_image.append((image, e))
+            self.raise_if_cancelled()
 
     @record_download_duration('image_started_at')
     async def _download_single_image(self, image: JmImageDetail):
@@ -194,6 +246,8 @@ class JmAsyncDownloader(BaseDownloader):
 
         # 异步下载图片（受 image semaphore 限流，并将解密写盘过程也锁入信号量范围内，防大字节积压）
         async with self._image_semaphore:
+            # 排队期间可能被取消；执行 I/O 前必须再次检查。
+            self.raise_if_cancelled()
             img_resp = await self.client.get_jm_image(image.download_url)
             img_bytes = img_resp.content
 
@@ -259,36 +313,83 @@ class JmAsyncDownloader(BaseDownloader):
     # 生命周期
     # ======================================================================
 
+    async def _dispatch_plugin(self, group: str, **kwargs):
+        plugins = getattr(self.option, 'plugins', None)
+        if plugins is not None and not plugins.get(group):
+            return
+        await asyncio.to_thread(self.option.call_all_plugin, group, **kwargs)
+
+    async def _dispatch_feature(self, when: str, **kwargs):
+        if len(self._feature_list) == 0:
+            return
+        await asyncio.to_thread(self._invoke_features_for, when, **kwargs)
+
     async def before_album(self, album: JmAlbumDetail):
-        await self._run_in_decode_pool(super().before_album, album)
+        self.raise_if_cancelled()
+        DownloadCallback.before_album(self, album)
+        self.download_success_dict.setdefault(album, {})
+        await self._dispatch_plugin('before_album', album=album, downloader=self)
+        self.raise_if_cancelled()
 
     async def after_album(self, album: JmAlbumDetail):
-        await self._run_in_decode_pool(super().after_album, album)
+        self.raise_if_cancelled()
+        DownloadCallback.after_album(self, album)
+        await self._dispatch_plugin('after_album', album=album, downloader=self)
+        self.raise_if_cancelled()
+        await self._dispatch_feature('after_album', album=album, downloader=self)
 
     async def before_photo(self, photo: JmPhotoDetail):
-        await self._run_in_decode_pool(super().before_photo, photo)
+        self.raise_if_cancelled()
+        DownloadCallback.before_photo(self, photo)
+        self.download_success_dict.setdefault(photo.from_album, {})
+        self.download_success_dict[photo.from_album].setdefault(photo, [])
+        await self._dispatch_plugin('before_photo', photo=photo, downloader=self)
+        self.raise_if_cancelled()
 
     async def after_photo(self, photo: JmPhotoDetail):
-        await self._run_in_decode_pool(super().after_photo, photo)
+        self.raise_if_cancelled()
+        DownloadCallback.after_photo(self, photo)
+        await self._dispatch_plugin('after_photo', photo=photo, downloader=self)
+        self.raise_if_cancelled()
+        await self._dispatch_feature('after_photo', photo=photo, downloader=self)
 
     async def before_image(self, image: JmImageDetail, img_save_path: str):
-        await self._run_in_decode_pool(super().before_image, image, img_save_path)
+        self.raise_if_cancelled()
+        DownloadCallback.before_image(self, image, img_save_path)
+        await self._dispatch_plugin('before_image', image=image, downloader=self)
+        self.raise_if_cancelled()
 
     async def after_image(self, image: JmImageDetail, img_save_path: str):
-        await self._run_in_decode_pool(super().after_image, image, img_save_path)
+        # 1. 记录下载成功图片
+        photo = image.from_photo
+        album = photo.from_album
+        self.download_success_dict[album][photo].append((image.save_path, image))
+
+        # 2. 日志回调
+        DownloadCallback.after_image(self, image, img_save_path)
+
+        # 3. 检查取消
+        self.raise_if_cancelled()
+
+        # 4. 插件回调
+        await self._dispatch_plugin('after_image', image=image, downloader=self)
 
     def shutdown(self):
         """关闭解密线程池"""
-        self._decode_pool.shutdown(wait=False)
+        if self._decode_pool is not None:
+            self._decode_pool.shutdown(wait=False)
+            self._decode_pool = None
 
     async def __aenter__(self):
-        # 创建并独占一个 async client（含 AsyncSession）。
-        self.client = self.option.new_jm_async_client(max_clients=self._image_concurrency)
+        self.client = self.option.new_jm_async_client(
+            max_clients=self._image_concurrency
+        )
         try:
             await self.client.setup()
         except BaseException:
             try:
-                await self.client.close()
+                if self.client is not None:
+                    await self.client.close()
             except BaseException as cleanup_error:
                 jm_log('dler.cleanup.exception',
                        f'初始化失败后的资源清理也发生异常: {cleanup_error}', cleanup_error)
@@ -299,13 +400,10 @@ class JmAsyncDownloader(BaseDownloader):
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        # 关闭顺序：先关网络 client（释放 AsyncSession / libcurl multi handle / 后台任务），
-        # 再关解密线程池。两者都要在异常路径下保证释放。
         try:
             if self.client is not None:
                 await self.client.close()
         finally:
-            self.client = None
             self.shutdown()
 
         if exc_type is not None:

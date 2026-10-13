@@ -1,6 +1,5 @@
 from collections.abc import Sequence
 from functools import lru_cache
-
 from common import *
 
 from .jm_config import *

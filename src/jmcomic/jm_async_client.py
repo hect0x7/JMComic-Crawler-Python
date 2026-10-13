@@ -10,7 +10,6 @@ import json
 from copy import deepcopy
 from typing import Sequence
 from urllib.parse import urlencode
-
 from curl_cffi.requests import AsyncSession
 
 from .jm_client_interface import (

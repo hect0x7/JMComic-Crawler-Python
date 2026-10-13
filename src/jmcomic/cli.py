@@ -31,6 +31,7 @@ class JmcomicUI:
     def __init__(self) -> None:
         self.option_path: Optional[str] = None
         self.progress_enabled = True
+        self.dry_run = False
         self.raw_id_list: List[str] = []
         self.album_id_list: List[str] = []
         self.photo_id_list: List[str] = []
@@ -59,7 +60,16 @@ class JmcomicUI:
             help='do not automatically enable the download progress plugin',
         )
 
+        parser.add_argument(
+            '--dry-run',
+            action='store_true',
+            help='preview mock downloads without network requests or file writes; ignores --option',
+        )
+
         args = parser.parse_args()
+        if args.dry_run and not args.progress_enabled:
+            parser.error('--dry-run 用于预览进度条，不能与 --no-progress 同时使用')
+        self.dry_run = args.dry_run
         self.progress_enabled = args.progress_enabled
         option = args.option
         if len(option) == 0 or option == "''":
@@ -91,6 +101,13 @@ class JmcomicUI:
 
     def main(self):
         self.parse_arg()
+        if self.dry_run:
+            if importlib.util.find_spec('rich') is None:
+                raise SystemExit('预览进度条需要 rich，请先执行：pip install rich')
+            from .jm_plugin import DownloadProgressPlugin
+            DownloadProgressPlugin.preview(self.album_id_list, self.photo_id_list)
+            return
+
         from .api import create_option, JmOption
         from .jm_task_context import jm_task_context
         with jm_task_context(cli_no_progress=not self.progress_enabled):
@@ -135,6 +152,7 @@ class JmcomicUI:
 
     def run(self, option):
         from .api import download_album, download_photo
+        from .jm_task_context import bind_jm_task_context
         from common import MultiTaskLauncher
 
         if len(self.album_id_list) == 0:
@@ -146,11 +164,11 @@ class JmcomicUI:
             launcher = MultiTaskLauncher()
 
             launcher.create_task(
-                target=download_album,
+                target=bind_jm_task_context(download_album),
                 args=(self.album_id_list, option)
             )
             launcher.create_task(
-                target=download_photo,
+                target=bind_jm_task_context(download_photo),
                 args=(self.photo_id_list, option)
             )
 

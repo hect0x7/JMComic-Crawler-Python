@@ -1,7 +1,6 @@
 from datetime import datetime
 from html.parser import HTMLParser
 from urllib.parse import unquote, urlparse
-
 from PIL import Image
 
 from .jm_exception import *
