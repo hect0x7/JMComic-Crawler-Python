@@ -14,12 +14,10 @@ jobs:
       contents: write
     if: startsWith(github.event.head_commit.message, 'v')
     steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
+      - uses: actions/checkout@v4
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -35,7 +33,7 @@ jobs:
           python -m build
 
       - name: Create Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
