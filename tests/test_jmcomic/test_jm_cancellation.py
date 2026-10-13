@@ -137,12 +137,17 @@ class Test_Cancellation(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(DownloadCancelledException):
                 download_batch(cancel_first, ['123', '456'], option=object())
 
-    def test_sync_batch_propagates_manual_cancellation_without_control(self):
-        def stop(_jmid, *_args, **_kwargs):
-            raise DownloadCancelledException('manual stop')
+    def test_sync_batch_cancellation_with_control(self):
+        control = DownloadControl()
 
-        with self.assertRaisesRegex(DownloadCancelledException, 'manual stop'):
-            download_batch(stop, ['123'], option=object())
+        def stop(_jmid, *_args, **_kwargs):
+            control.cancel('manual stop')
+            BaseDownloader.raise_if_cancelled()
+
+        with jm_task_context(control=control):
+            with self.assertRaisesRegex(DownloadCancelledException, 'manual stop'):
+                download_batch(stop, ['123'], option=object())
+
 
     def test_sync_batch_cancellation_exposes_completed_results_and_unfinished_ids(self):
         control = DownloadControl()

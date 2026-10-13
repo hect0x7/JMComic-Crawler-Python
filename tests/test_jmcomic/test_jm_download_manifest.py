@@ -227,26 +227,28 @@ class Test_Download_Manifest(unittest.TestCase):
         with TemporaryDirectory() as temp_dir:
             asyncio.run(run_test(temp_dir))
 
-    def test_after_image_direct_cancellation_keeps_saved_image(self):
+    def test_after_image_cancellation_keeps_saved_image(self):
         with TemporaryDirectory() as temp_dir:
             album, photo, images = new_album_photo_images()
             option = ContractOption(temp_dir)
             downloader = ContractSyncDownloader(option, album, photo, images)
-            error = DownloadCancelledException('image plugin cancelled')
+            control = DownloadControl()
 
             def cancel(_image):
-                raise error
+                control.cancel('image plugin cancelled')
 
             option.after_image_callback = cancel
-            with self.assertRaises(DownloadCancelledException) as caught:
-                downloader.download_album(album.id)
+            with jm_task_context(control=control):
+                with self.assertRaises(DownloadCancelledException) as caught:
+                    downloader.download_album(album.id)
 
-            self.assertIs(caught.exception, error)
+            self.assertEqual(caught.exception.reason, 'image plugin cancelled')
             self.assertEqual(downloader.download_failed_image, [])
             self.assertEqual(
                 downloader.manifest_dict[album].image_filepath_list,
                 [images[0].save_path],
             )
+
 
     def test_current_sync_image_is_recorded_before_cancellation(self):
         with TemporaryDirectory() as temp_dir:
