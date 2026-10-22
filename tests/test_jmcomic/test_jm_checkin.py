@@ -319,7 +319,7 @@ class Test_CheckIn(unittest.TestCase):
         rollback_resp = _CheckinApiResp(res_data={'status': 'ok', 'type': 'add', 'msg': '已加入收藏'})
         client.req_api = Mock(side_effect=[mismatch_resp, rollback_resp])
 
-        with self.assertRaisesRegex(JmcomicException, '收藏操作不符合预期'):
+        with self.assertRaisesRegex(JmcomicException, '已自动回滚还原收藏状态'):
             JmApiClient.add_favorite_album(client, '12345')
 
         self.assertEqual(client.req_api.call_count, 2)
@@ -330,13 +330,19 @@ class Test_CheckIn(unittest.TestCase):
             JmApiClient.add_favorite_album(client, '12345', rollback_when_mismatch=False)
         self.assertEqual(client.req_api.call_count, 1)
 
+        # 回滚响应本身 status != 'ok' 或 type 未反转时，异常信息包含回滚失败详情
+        bad_rollback_resp = _CheckinApiResp(res_data={'status': 'ok', 'type': 'remove', 'msg': '仍为移除'})
+        client.req_api = Mock(side_effect=[mismatch_resp, bad_rollback_resp])
+        with self.assertRaisesRegex(JmcomicException, '且自动回滚失败'):
+            JmApiClient.add_favorite_album(client, '12345')
+
     def test_async_api_favorite_mismatch_rolls_back(self):
         client = object.__new__(AsyncJmApiClient)
         mismatch_resp = _CheckinApiResp(res_data={'status': 'ok', 'type': 'remove', 'msg': '已取消收藏'})
         rollback_resp = _CheckinApiResp(res_data={'status': 'ok', 'type': 'add', 'msg': '已加入收藏'})
         client.req_api = AsyncMock(side_effect=[mismatch_resp, rollback_resp])
 
-        with self.assertRaisesRegex(JmcomicException, '收藏操作不符合预期'):
+        with self.assertRaisesRegex(JmcomicException, '已自动回滚还原收藏状态'):
             asyncio.run(AsyncJmApiClient.add_favorite_album(client, '12345'))
 
         self.assertEqual(client.req_api.await_count, 2)
@@ -346,6 +352,12 @@ class Test_CheckIn(unittest.TestCase):
         with self.assertRaisesRegex(JmcomicException, '收藏操作不符合预期'):
             asyncio.run(AsyncJmApiClient.add_favorite_album(client, '12345', rollback_when_mismatch=False))
         self.assertEqual(client.req_api.await_count, 1)
+
+        # 回滚响应本身 status != 'ok' 或 type 未反转时，异常信息包含回滚失败详情
+        bad_rollback_resp = _CheckinApiResp(res_data={'status': 'error', 'type': '', 'msg': '服务异常'})
+        client.req_api = AsyncMock(side_effect=[mismatch_resp, bad_rollback_resp])
+        with self.assertRaisesRegex(JmcomicException, '且自动回滚失败'):
+            asyncio.run(AsyncJmApiClient.add_favorite_album(client, '12345'))
 
     def test_custom_daily_already_checked_in_keywords(self):
         self.assertIs(JmApiClient.DAILY_ALREADY_CHECKED_IN_KEYWORDS, JmUserClient.DAILY_ALREADY_CHECKED_IN_KEYWORDS)

@@ -705,22 +705,36 @@ class AsyncJmApiClient(AsyncJmcomicClient):
         if data.status != 'ok':
             ExceptionTool.raises_resp(data.msg, resp)
 
-        if expected_type is not None:
-            actual_type = data.type
-            if actual_type != expected_type:
-                # 移动端 /favorite 为 Toggle 接口，不匹配说明服务端已翻转了收藏状态，需再次请求回滚还原
-                if rollback_when_mismatch and actual_type in ('add', 'remove'):
-                    await self.req_api(
-                        self.API_FAVORITE,
-                        get=False,
-                        data={'aid': album_id},
-                    )
-                ExceptionTool.raises_resp(
-                    f'收藏操作不符合预期，期望 [{expected_type}]，实际为 [{actual_type}]: {data.msg}',
-                    resp
-                )
+        if expected_type is None or data.type == expected_type:
+            return resp
 
-        return resp
+        actual_type = data.type
+        if not (rollback_when_mismatch and actual_type in ('add', 'remove')):
+            ExceptionTool.raises_resp(
+                f'收藏操作不符合预期，期望 [{expected_type}]，实际为 [{actual_type}]: {data.msg}',
+                resp
+            )
+
+        # 移动端 /favorite 为 Toggle 接口，不匹配说明服务端已翻转了收藏状态，需再次请求回滚还原
+        rollback_resp = await self.req_api(
+            self.API_FAVORITE,
+            get=False,
+            data={'aid': album_id},
+        )
+        rollback_data = rollback_resp.model_data
+        expected_rollback_type = 'remove' if actual_type == 'add' else 'add'
+        if rollback_data.status != 'ok' or rollback_data.type != expected_rollback_type:
+            ExceptionTool.raises_resp(
+                f'收藏操作不符合预期（期望 [{expected_type}]，实际为 [{actual_type}]），'
+                f'且自动回滚失败（期望回滚为 [{expected_rollback_type}]，'
+                f'实际 status=[{rollback_data.status}], type=[{rollback_data.type}]）: {rollback_data.msg}',
+                rollback_resp,
+            )
+
+        ExceptionTool.raises_resp(
+            f'收藏操作不符合预期，期望 [{expected_type}]，实际为 [{actual_type}]（已自动回滚还原收藏状态）: {data.msg}',
+            resp
+        )
 
     async def add_favorite_album(self, album_id, folder_id='0', rollback_when_mismatch: bool = True):
         """
