@@ -124,6 +124,7 @@ class Test_Album_Favorite(unittest.TestCase):
             'actors': [],
             'related_list': [],
             'series': [],
+            'series_id': '0',
             'total_photos': 120,
             'addtime': 1745337600,
             'is_favorite': True,

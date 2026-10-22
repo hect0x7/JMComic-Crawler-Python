@@ -280,7 +280,7 @@ class JmOption:
         if image.is_gif:
             return False
 
-        return self.download.image.decode
+        return self.download.image.decode and JmImageTool.get_num_by_detail(image) != 0
 
     """
     下面是创建对象相关方法

@@ -416,9 +416,14 @@ class AsyncJmApiClient(AsyncJmcomicClient):
         self._cache_set(cache_key, deepcopy(result))
         return result
 
-    async def get_album_detail(self, album_id) -> JmAlbumDetail:
+    async def get_album_detail(self, album_id, allow_redirect=True) -> JmAlbumDetail:
         """获取本子详情信息"""
-        return await self._fetch_detail_entity(album_id, JmModuleConfig.album_class())
+        album: JmAlbumDetail = await self._fetch_detail_entity(album_id, JmModuleConfig.album_class())
+        if allow_redirect and album.series_id not in ('0', '', album.album_id):
+            jm_log('api.album_redirect',
+                   f'请求本子详情传入的ID[{album.album_id}]实为章节ID，自动重定向到所属本子ID[{album.series_id}]')
+            return await self.get_album_detail(album.series_id, allow_redirect=False)
+        return album
 
     async def get_photo_detail(self,
                                photo_id,
@@ -682,12 +687,14 @@ class AsyncJmApiClient(AsyncJmcomicClient):
                                     album_id,
                                     folder_id='0',
                                     expected_type: Optional[str] = None,
+                                    rollback_when_mismatch: bool = True,
                                     ):
         """
         切换本子的收藏状态（移动端接口底层为 Toggle 逻辑）。
         :param album_id: 本子ID
         :param folder_id: 移动端没有提供 folder_id 参数，保留参数兼容
         :param expected_type: 期望的操作类型 ('add' | 'remove')，如果不匹配则抛异常
+        :param rollback_when_mismatch: 当实际操作与 expected_type 不匹配时，是否再次请求回滚还原收藏状态
         """
         resp = await self.req_api(
             self.API_FAVORITE,
@@ -698,29 +705,52 @@ class AsyncJmApiClient(AsyncJmcomicClient):
         if data.status != 'ok':
             ExceptionTool.raises_resp(data.msg, resp)
 
-        if expected_type is not None:
-            actual_type = data.type
-            if actual_type != expected_type:
-                ExceptionTool.raises_resp(
-                    f'收藏操作不符合预期，期望 [{expected_type}]，实际为 [{actual_type}]: {data.msg}',
-                    resp
-                )
+        if expected_type is None or data.type == expected_type:
+            return resp
 
-        return resp
+        actual_type = data.type
+        if not (rollback_when_mismatch and actual_type in ('add', 'remove')):
+            ExceptionTool.raises_resp(
+                f'收藏操作不符合预期，期望 [{expected_type}]，实际为 [{actual_type}]: {data.msg}',
+                resp
+            )
 
-    async def add_favorite_album(self, album_id, folder_id='0'):
+        # 移动端 /favorite 为 Toggle 接口，不匹配说明服务端已翻转了收藏状态，需再次请求回滚还原
+        rollback_resp = await self.req_api(
+            self.API_FAVORITE,
+            get=False,
+            data={'aid': album_id},
+        )
+        rollback_data = rollback_resp.model_data
+        expected_rollback_type = 'remove' if actual_type == 'add' else 'add'
+        if rollback_data.status != 'ok' or rollback_data.type != expected_rollback_type:
+            ExceptionTool.raises_resp(
+                f'收藏操作不符合预期（期望 [{expected_type}]，实际为 [{actual_type}]），'
+                f'且自动回滚失败（期望回滚为 [{expected_rollback_type}]，'
+                f'实际 status=[{rollback_data.status}], type=[{rollback_data.type}]）: {rollback_data.msg}',
+                rollback_resp,
+            )
+
+        ExceptionTool.raises_resp(
+            f'收藏操作不符合预期，期望 [{expected_type}]，实际为 [{actual_type}]（已自动回滚还原收藏状态）: {data.msg}',
+            resp
+        )
+
+    async def add_favorite_album(self, album_id, folder_id='0', rollback_when_mismatch: bool = True):
         """
         将指定本子加入用户的收藏夹。
-        如果当前已收藏，将抛出异常以保证收藏语义明确。
+        如果当前已收藏，将回滚并抛出异常以保证收藏语义明确。
         """
-        return await self.toggle_favorite_album(album_id, folder_id, expected_type='add')
+        return await self.toggle_favorite_album(album_id, folder_id, expected_type='add',
+                                                rollback_when_mismatch=rollback_when_mismatch)
 
-    async def delete_favorite_album(self, album_id, folder_id='0'):
+    async def delete_favorite_album(self, album_id, folder_id='0', rollback_when_mismatch: bool = True):
         """
         将指定本子移出用户的收藏夹。
-        如果当前未收藏，将抛出异常以保证取消收藏语义明确。
+        如果当前未收藏，将回滚并抛出异常以保证取消收藏语义明确。
         """
-        return await self.toggle_favorite_album(album_id, folder_id, expected_type='remove')
+        return await self.toggle_favorite_album(album_id, folder_id, expected_type='remove',
+                                                rollback_when_mismatch=rollback_when_mismatch)
 
     async def get_daily(self, user_id: str | None = None) -> JmApiResp:
         """
@@ -766,7 +796,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
         res_data = resp.res_data
         msg = str(res_data.get('msg', ''))
 
-        if any(kw in msg for kw in ('今天已經簽到過了', '已簽到', '簽到過', '已完成', '已签到')):
+        if any(kw in msg for kw in self.DAILY_ALREADY_CHECKED_IN_KEYWORDS):
             code = JmDailyCheckinResp.CODE_ALREADY_CHECKED_IN
         elif 'Jcoin' in msg or 'EXP' in msg or res_data.get('status') == 'ok' or '成功' in msg:
             code = JmDailyCheckinResp.CODE_SUCCESS

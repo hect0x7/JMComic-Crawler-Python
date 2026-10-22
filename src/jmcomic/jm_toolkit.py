@@ -972,6 +972,7 @@ class JmApiAdaptTool:
             'description',
             'is_favorite',
             'liked',
+            'series_id',
             ('id', 'album_id'),
             ('author', 'authors'),
             ('total_views', 'views'),

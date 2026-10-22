@@ -728,3 +728,15 @@ class Test_Client(JmTestConfigurable):
             # So we take an item from iter() to test __contains__
             first_item = next(iter(page))
             self.assertTrue(first_item in page)
+
+    def test_get_album_detail_by_chapter_id_redirect(self):
+        # 275013 是本子 43164 的第 90 话；1236387 是本子 1228973 的第 2 话
+        api_client = self.option.new_jm_client(impl='api')
+        for chapter_id, expected_album_id in [('275013', '43164'), ('1236387', '1228973')]:
+            album = api_client.get_album_detail(chapter_id)
+            self.assertEqual(album.album_id, expected_album_id)
+            self.assertNotEqual(album.authors, ['filename'])
+
+            raw_album = api_client.get_album_detail(chapter_id, allow_redirect=False)
+            self.assertEqual(raw_album.album_id, chapter_id)
+            self.assertEqual(raw_album.series_id, expected_album_id)
