@@ -482,9 +482,11 @@ class JmAlbumDetail(DetailEntity, Downloadable):
                  description='',
                  is_favorite=False,
                  liked=False,
+                 series_id='0',
                  ):
         super().__init__()
         self.album_id: str = str(album_id)
+        self.series_id: str = str(series_id)
         self.scramble_id: str = str(scramble_id)
         self.name: str = str(name).strip()
         self.description = str(description).strip()

@@ -5,6 +5,28 @@
 条目分类参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [2.7.10] - 2026-10-22
+
+### Summary
+
+本次更新支持 API 客户端在 `get_album_detail` 传入章节 ID 时自动重定向至父本子，新增收藏状态不匹配时的自动回滚保护，提取每日签到判重关键字为可配置类字段并补齐简体文案，优化免分割图片下载判断，并同步禁漫 APP `2.1.12` 版本号与内置 API 域名。
+
+### Added
+
+- `JmAlbumDetail` 新增 `series_id` 字段；同步与异步 API 客户端的 `get_album_detail` 新增 `allow_redirect: bool = True` 参数，当传入多章本子的子章节 ID 时默认打印 `api.album_redirect` 提示日志并自动重定向获取所属父本子详情。
+- `JmUserClient` 与 `AsyncJmcomicClient` 新增 `DAILY_ALREADY_CHECKED_IN_KEYWORDS` 类字段，统一管理每日签到重复打卡匹配关键字，方便外部自定义扩展。
+- 同步与异步 API 客户端的 `toggle_favorite_album`、`add_favorite_album`、`delete_favorite_album` 新增 `rollback_when_mismatch: bool = True` 参数，在底层 Toggle 接口返回类型与预期不符时默认自动再次请求回滚服务端状态后再抛出异常。
+
+### Changed
+
+- 更新禁漫移动端版本号 `JmMagicConstants.APP_VERSION` 至 `2.1.12`，并同步更新内置 API 域名列表 `JmModuleConfig.DOMAIN_API_LIST`。
+- 优化 `JmOption.need_to_decode_image` 判断逻辑：当图片分割数计算结果为 `0`（无需拼接还原）时直接返回 `False`，避免无效解码开销。
+
+### Fixed
+
+- 修复移动端 `daily_checkin` 在服务端返回简体中文 `"今天已经签到过了"` 以及网页端返回 `{"error": "finished"}` 时未能识别为重复签到（`CODE_ALREADY_CHECKED_IN`）而误抛异常的问题。
+- 修复移动端对已收藏本子调用 `add_favorite_album`（或对未收藏本子调用 `delete_favorite_album`）时，底层 Toggle 接口直接翻转服务端收藏状态且未回滚的问题。
+
 ## [2.7.9] - 2026-10-13
 
 ### Summary

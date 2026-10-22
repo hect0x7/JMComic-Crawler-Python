@@ -313,7 +313,7 @@ class JmHtmlClient(AbstractJmClient):
 
         return resp
 
-    def get_album_detail(self, album_id) -> JmAlbumDetail:
+    def get_album_detail(self, album_id, allow_redirect=True) -> JmAlbumDetail:
         return self.fetch_detail_entity(album_id, 'album')
 
     def get_photo_detail(self,
@@ -550,14 +550,18 @@ class JmHtmlClient(AbstractJmClient):
 
         res = resp.json()
         status = res.get('status')
+        error = res.get('error')
         msg = str(res.get('msg', ''))
 
+        # 网页端 /ajax/user_daily_sign 实测返回格式：
+        # - 重复签到: {"msg": "", "error": "finished"} 或 {"status": 0, "msg": "...已签到..."}
+        # - 签到成功: {"status": 1, "msg": "..."}
         if status == 1:
             code = JmDailyCheckinResp.CODE_SUCCESS
-        elif status == 0 and any(kw in msg for kw in ('已完成打卡', '今天已经签到', '今日已完成', '已签到', '已打卡')):
+        elif error == 'finished' or (status == 0 and any(kw in msg for kw in self.DAILY_ALREADY_CHECKED_IN_KEYWORDS)):
             code = JmDailyCheckinResp.CODE_ALREADY_CHECKED_IN
         else:
-            self.raise_request_error(resp, f'签到失败：{msg or status}')
+            self.raise_request_error(resp, f'签到失败：{msg or error or status}')
 
         return JmDailyCheckinResp(resp, code, msg, res)
 
@@ -830,10 +834,16 @@ class JmApiClient(AbstractJmClient):
 
         return JmPageTool.parse_api_to_search_page(resp.model_data, page)
 
-    def get_album_detail(self, album_id) -> JmAlbumDetail:
-        return self.fetch_detail_entity(album_id,
-                                        JmModuleConfig.album_class(),
-                                        )
+    def get_album_detail(self, album_id, allow_redirect=True) -> JmAlbumDetail:
+        album: JmAlbumDetail = self.fetch_detail_entity(
+            album_id,
+            JmModuleConfig.album_class(),
+        )
+        if allow_redirect and album.series_id not in ('0', '', album.album_id):
+            jm_log('api.album_redirect',
+                   f'请求本子详情传入的ID[{album.album_id}]实为章节ID，自动重定向到所属本子ID[{album.series_id}]')
+            return self.get_album_detail(album.series_id, allow_redirect=False)
+        return album
 
     def get_photo_detail(self,
                          photo_id,
@@ -1062,12 +1072,19 @@ class JmApiClient(AbstractJmClient):
                               album_id,
                               folder_id='0',
                               expected_type: Optional[str] = None,
+                              rollback_when_mismatch: bool = True,
                               ):
         """
         切换本子的收藏状态（移动端接口底层为 Toggle 逻辑）。
+
+        移动端 POST /favorite 实测返回格式（resp.res_data）：
+        - 加入收藏: {"status": "ok", "msg": "漫畫添加到您最喜愛的清單！", "type": "add"}
+        - 移除收藏: {"status": "ok", "msg": "已移除收藏", "type": "remove"}
+
         :param album_id: 本子ID
         :param folder_id: 移动端没有提供 folder_id 参数，保留参数兼容
         :param expected_type: 期望的操作类型 ('add' | 'remove')，如果不匹配则抛异常
+        :param rollback_when_mismatch: 当实际操作与 expected_type 不匹配时，是否再次请求回滚还原收藏状态
         """
         resp = self.req_api(
             self.API_FAVORITE,
@@ -1082,6 +1099,15 @@ class JmApiClient(AbstractJmClient):
         if expected_type is not None:
             actual_type = resp.model_data.type
             if actual_type != expected_type:
+                # 移动端 /favorite 为 Toggle 接口，不匹配说明服务端已翻转了收藏状态，需再次请求回滚还原
+                if rollback_when_mismatch and actual_type in ('add', 'remove'):
+                    self.req_api(
+                        self.API_FAVORITE,
+                        get=False,
+                        data={
+                            'aid': album_id,
+                        },
+                    )
                 ExceptionTool.raises_resp(
                     f'收藏操作不符合预期，期望 [{expected_type}]，实际为 [{actual_type}]: {resp.model_data.msg}',
                     resp
@@ -1092,22 +1118,26 @@ class JmApiClient(AbstractJmClient):
     def add_favorite_album(self,
                            album_id,
                            folder_id='0',
+                           rollback_when_mismatch: bool = True,
                            ):
         """
         把本子加入收藏夹。
-        如果当前已收藏，将抛出异常以保证收藏语义明确。
+        如果当前已收藏，将回滚并抛出异常以保证收藏语义明确。
         """
-        return self.toggle_favorite_album(album_id, folder_id, expected_type='add')
+        return self.toggle_favorite_album(album_id, folder_id, expected_type='add',
+                                          rollback_when_mismatch=rollback_when_mismatch)
 
     def delete_favorite_album(self,
                               album_id,
                               folder_id='0',
+                              rollback_when_mismatch: bool = True,
                               ):
         """
         从收藏夹移除本子。
-        如果当前未收藏，将抛出异常以保证取消收藏语义明确。
+        如果当前未收藏，将回滚并抛出异常以保证取消收藏语义明确。
         """
-        return self.toggle_favorite_album(album_id, folder_id, expected_type='remove')
+        return self.toggle_favorite_album(album_id, folder_id, expected_type='remove',
+                                          rollback_when_mismatch=rollback_when_mismatch)
 
     def get_daily(self,
                   user_id: str | None = None,
@@ -1130,6 +1160,12 @@ class JmApiClient(AbstractJmClient):
                       ) -> JmDailyCheckinResp:
         """
         执行每日打卡签到。
+
+        移动端 POST /daily_chk 实测返回格式：
+        外层 JSON 固定为 {"code": 200, "data": "..."}，解密后的 resp.res_data 仅有 msg 字段，无内层状态码：
+        - 签到成功: {"msg": "Jcoin:10 EXP:10"}
+        - 重复签到: {"msg": "今天已經簽到過了"} 或 {"msg": "今天已经签到过了"}
+
         返回 JmDailyCheckinResp 对象：
         - code=0 (或 status=0): 签到成功
         - code=1 (或 status=1): 重复签到（今日已完成打卡）
@@ -1160,7 +1196,7 @@ class JmApiClient(AbstractJmClient):
         res_data = resp.res_data
         msg = str(res_data.get('msg', ''))
 
-        if any(kw in msg for kw in ('今天已經簽到過了', '已簽到', '簽到過', '已完成', '已签到')):
+        if any(kw in msg for kw in self.DAILY_ALREADY_CHECKED_IN_KEYWORDS):
             code = JmDailyCheckinResp.CODE_ALREADY_CHECKED_IN
         elif 'Jcoin' in msg or 'EXP' in msg or res_data.get('status') == 'ok' or '成功' in msg:
             code = JmDailyCheckinResp.CODE_SUCCESS
@@ -1433,10 +1469,11 @@ class PhotoConcurrentFetcherProxy(JmcomicClient):
             ):
                 setattr(self, method, getattr(client, method))
 
-    def get_album_detail(self, album_id) -> JmAlbumDetail:
+    def get_album_detail(self, album_id, allow_redirect=True) -> JmAlbumDetail:
         album_id = JmcomicText.parse_to_jm_id(album_id)
-        cache_key = f'album_{album_id}'
-        future = self.get_future(cache_key, task=lambda: self.client.get_album_detail(album_id))
+        cache_key = f'album_{album_id}_{allow_redirect}'
+        future = self.get_future(cache_key,
+                                 task=lambda: self.client.get_album_detail(album_id, allow_redirect=allow_redirect))
         return future.result()
 
     def get_future(self, cache_key, task):

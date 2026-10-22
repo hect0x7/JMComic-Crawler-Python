@@ -171,14 +171,14 @@ class JmDailyCheckinResp(JmResp):
     """
     每日签到打卡响应类
     """
-    CODE_SUCCESS = 0             # 签到成功
+    CODE_SUCCESS = 0  # 签到成功
     CODE_ALREADY_CHECKED_IN = 1  # 重复签到（今日已签）
 
     def __init__(self, resp, code: int, msg: str, raw_data: dict = None):
         super().__init__(resp)
-        self.code: int = code      # 0=签到成功, 1=重复签到
-        self.status: int = code    # 兼容字段，值等同于 code
-        self.msg: str = msg        # 透传服务端的提示信息或奖励内容
+        self.code: int = code  # 0=签到成功, 1=重复签到
+        self.status: int = code  # 兼容字段，值等同于 code
+        self.msg: str = msg  # 透传服务端的提示信息或奖励内容
         self.raw_data: dict = raw_data or {}
 
     def __repr__(self):
@@ -194,7 +194,7 @@ Client Interface
 
 class JmDetailClient:
 
-    def get_album_detail(self, album_id) -> JmAlbumDetail:
+    def get_album_detail(self, album_id, allow_redirect=True) -> JmAlbumDetail:
         raise NotImplementedError
 
     def get_photo_detail(self,
@@ -228,6 +228,20 @@ class JmDetailClient:
 
 
 class JmUserClient:
+    DAILY_ALREADY_CHECKED_IN_KEYWORDS = (
+        '今天已經簽到過了',
+        '今天已经签到过了',
+        '已完成打卡',
+        '今天已经签到',
+        '今日已完成',
+        '已簽到',
+        '簽到過',
+        '已完成',
+        '已签到',
+        '签到过',
+        '已经签到',
+        '已打卡',
+    )
 
     def login(self,
               username: str,
@@ -915,7 +929,7 @@ class AsyncJmcomicClient:
 
     # -- JmDetailClient --
 
-    async def get_album_detail(self, album_id) -> JmAlbumDetail:
+    async def get_album_detail(self, album_id, allow_redirect=True) -> JmAlbumDetail:
         raise NotImplementedError
 
     async def get_photo_detail(self,
@@ -1124,6 +1138,8 @@ class AsyncJmcomicClient:
                                             JmMagicConstants.ORDER_BY_VIEW)
 
     # -- JmUserClient --
+
+    DAILY_ALREADY_CHECKED_IN_KEYWORDS = JmUserClient.DAILY_ALREADY_CHECKED_IN_KEYWORDS
 
     async def login(self, username: str, password: str):
         raise NotImplementedError

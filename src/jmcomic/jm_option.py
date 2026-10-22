@@ -280,7 +280,7 @@ class JmOption:
         if image.is_gif:
             return False
 
-        return self.download.image.decode
+        return self.download.image.decode and JmImageTool.get_num_by_detail(image) != 0
 
     """
     下面是创建对象相关方法
@@ -364,7 +364,8 @@ class JmOption:
             if not advice_plugins:
                 return
 
-            plugins_yml = yaml.dump({'plugins': advice_plugins}, default_flow_style=False, indent=2, sort_keys=False).strip()
+            plugins_yml = yaml.dump({'plugins': advice_plugins}, default_flow_style=False, indent=2,
+                                    sort_keys=False).strip()
 
             jm_log('option.migrate',
                    f'[zip 插件迁移] level 参数已过时，建议直接删除。'

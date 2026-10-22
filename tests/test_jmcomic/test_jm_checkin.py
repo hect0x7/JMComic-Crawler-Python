@@ -8,6 +8,8 @@ from jmcomic import (
     JmApiClient,
     JmApiResp,
     JmHtmlClient,
+    JmModuleConfig,
+    JmUserClient,
     JmcomicText,
     JmDailyCheckinResp,
 )
@@ -18,7 +20,9 @@ class _CheckinApiResp(JmApiResp):
     """保留真实响应继承链，仅替换与本测试无关的解密数据。"""
 
     def __init__(self, res_data):
-        super().__init__(SimpleNamespace(status_code=200, content=b'{}', text='{}'), '0')
+        super().__init__(
+            SimpleNamespace(status_code=200, content=b'{"code": 200, "data": "1"}', text='{"code": 200, "data": "1"}'),
+            '0')
         self._data = res_data
 
     @property
@@ -65,17 +69,21 @@ class Test_CheckIn(unittest.TestCase):
         )
 
     def test_html_client_daily_checkin_already_checked_in(self):
-        client = object.__new__(JmHtmlClient)
-        text = '{"status": 0, "msg": "您今日已完成打卡"}'
-        mock_raw_resp = Mock(status_code=200, text=text, content=text.encode('utf-8'))
-        mock_raw_resp.json = Mock(return_value={"status": 0, "msg": "您今日已完成打卡"})
-        client.post = Mock(return_value=mock_raw_resp)
+        for payload in (
+            {"status": 0, "msg": "您今日已完成打卡"},
+            {"msg": "", "error": "finished"},
+        ):
+            with self.subTest(payload=payload):
+                client = object.__new__(JmHtmlClient)
+                text = str(payload)
+                mock_raw_resp = Mock(status_code=200, text=text, content=text.encode('utf-8'))
+                mock_raw_resp.json = Mock(return_value=payload)
+                client.post = Mock(return_value=mock_raw_resp)
 
-        resp = JmHtmlClient.daily_checkin(client, daily_id='72')
-        self.assertIsInstance(resp, JmDailyCheckinResp)
-        self.assertEqual(resp.code, JmDailyCheckinResp.CODE_ALREADY_CHECKED_IN)
-        self.assertEqual(resp.status, 1)
-        self.assertEqual(resp.msg, '您今日已完成打卡')
+                resp = JmHtmlClient.daily_checkin(client, daily_id='72')
+                self.assertIsInstance(resp, JmDailyCheckinResp)
+                self.assertEqual(resp.code, JmDailyCheckinResp.CODE_ALREADY_CHECKED_IN)
+                self.assertEqual(resp.status, 1)
 
     def test_html_client_daily_checkin_other_status_raises(self):
         client = object.__new__(JmHtmlClient)
@@ -129,7 +137,6 @@ class Test_CheckIn(unittest.TestCase):
         self.assertIsNone(JmcomicText.parse_daily_id('<html>no daily id</html>'))
         self.assertEqual(JmcomicText.parse_daily_id('<html>no daily id</html>', default='default_id'), 'default_id')
 
-
     def test_api_login_records_user_id(self):
         client = object.__new__(JmApiClient)
         client.postman = {}
@@ -182,17 +189,19 @@ class Test_CheckIn(unittest.TestCase):
         )
 
     def test_api_check_in_already_checked_in(self):
-        client = object.__new__(JmApiClient)
-        client._user_id = '123456'
-        chk_resp = _CheckinApiResp(res_data={'msg': '今天已經簽到過了'})
-        client.req_api = Mock(return_value=chk_resp)
+        for msg_text in ('今天已經簽到過了', '今天已经签到过了'):
+            with self.subTest(msg=msg_text):
+                client = object.__new__(JmApiClient)
+                client._user_id = '123456'
+                chk_resp = _CheckinApiResp(res_data={'msg': msg_text})
+                client.req_api = Mock(return_value=chk_resp)
 
-        resp = JmApiClient.daily_checkin(client, daily_id='999')
-        self.assertIs(resp.resp, chk_resp.resp)
-        self.assertIsInstance(resp, JmDailyCheckinResp)
-        self.assertEqual(resp.code, JmDailyCheckinResp.CODE_ALREADY_CHECKED_IN)
-        self.assertEqual(resp.status, 1)
-        self.assertEqual(resp.msg, '今天已經簽到過了')
+                resp = JmApiClient.daily_checkin(client, daily_id='999')
+                self.assertIs(resp.resp, chk_resp.resp)
+                self.assertIsInstance(resp, JmDailyCheckinResp)
+                self.assertEqual(resp.code, JmDailyCheckinResp.CODE_ALREADY_CHECKED_IN)
+                self.assertEqual(resp.status, 1)
+                self.assertEqual(resp.msg, msg_text)
 
     def test_api_check_in_unexpected_msg_raises(self):
         client = object.__new__(JmApiClient)
@@ -289,17 +298,230 @@ class Test_CheckIn(unittest.TestCase):
         )
 
     def test_async_api_check_in_already_checked_in(self):
-        client = object.__new__(AsyncJmApiClient)
-        client._user_id = '654321'
-        chk_resp = _CheckinApiResp(res_data={'msg': '今天已經簽到過了'})
-        client.req_api = AsyncMock(return_value=chk_resp)
+        for msg_text in ('今天已經簽到過了', '今天已经签到过了'):
+            with self.subTest(msg=msg_text):
+                client = object.__new__(AsyncJmApiClient)
+                client._user_id = '654321'
+                chk_resp = _CheckinApiResp(res_data={'msg': msg_text})
+                client.req_api = AsyncMock(return_value=chk_resp)
 
-        resp = asyncio.run(AsyncJmApiClient.daily_checkin(client, daily_id='77'))
-        self.assertIs(resp.resp, chk_resp.resp)
-        self.assertIsInstance(resp, JmDailyCheckinResp)
+                resp = asyncio.run(AsyncJmApiClient.daily_checkin(client, daily_id='77'))
+                self.assertIs(resp.resp, chk_resp.resp)
+                self.assertIsInstance(resp, JmDailyCheckinResp)
+                self.assertEqual(resp.code, JmDailyCheckinResp.CODE_ALREADY_CHECKED_IN)
+                self.assertEqual(resp.status, 1)
+                self.assertEqual(resp.msg, msg_text)
+
+    def test_api_favorite_mismatch_rolls_back(self):
+        client = object.__new__(JmApiClient)
+        mismatch_resp = _CheckinApiResp(res_data={'status': 'ok', 'type': 'remove', 'msg': '已取消收藏'})
+        rollback_resp = _CheckinApiResp(res_data={'status': 'ok', 'type': 'add', 'msg': '已加入收藏'})
+        client.req_api = Mock(side_effect=[mismatch_resp, rollback_resp])
+
+        with self.assertRaisesRegex(JmcomicException, '收藏操作不符合预期'):
+            JmApiClient.add_favorite_album(client, '12345')
+
+        self.assertEqual(client.req_api.call_count, 2)
+
+        # rollback_when_mismatch=False 时不触发二次回滚请求
+        client.req_api = Mock(return_value=mismatch_resp)
+        with self.assertRaisesRegex(JmcomicException, '收藏操作不符合预期'):
+            JmApiClient.add_favorite_album(client, '12345', rollback_when_mismatch=False)
+        self.assertEqual(client.req_api.call_count, 1)
+
+    def test_async_api_favorite_mismatch_rolls_back(self):
+        client = object.__new__(AsyncJmApiClient)
+        mismatch_resp = _CheckinApiResp(res_data={'status': 'ok', 'type': 'remove', 'msg': '已取消收藏'})
+        rollback_resp = _CheckinApiResp(res_data={'status': 'ok', 'type': 'add', 'msg': '已加入收藏'})
+        client.req_api = AsyncMock(side_effect=[mismatch_resp, rollback_resp])
+
+        with self.assertRaisesRegex(JmcomicException, '收藏操作不符合预期'):
+            asyncio.run(AsyncJmApiClient.add_favorite_album(client, '12345'))
+
+        self.assertEqual(client.req_api.await_count, 2)
+
+        # rollback_when_mismatch=False 时不触发二次回滚请求
+        client.req_api = AsyncMock(return_value=mismatch_resp)
+        with self.assertRaisesRegex(JmcomicException, '收藏操作不符合预期'):
+            asyncio.run(AsyncJmApiClient.add_favorite_album(client, '12345', rollback_when_mismatch=False))
+        self.assertEqual(client.req_api.await_count, 1)
+
+    def test_custom_daily_already_checked_in_keywords(self):
+        self.assertIs(JmApiClient.DAILY_ALREADY_CHECKED_IN_KEYWORDS, JmUserClient.DAILY_ALREADY_CHECKED_IN_KEYWORDS)
+        self.assertIs(JmHtmlClient.DAILY_ALREADY_CHECKED_IN_KEYWORDS, JmUserClient.DAILY_ALREADY_CHECKED_IN_KEYWORDS)
+        self.assertIs(AsyncJmApiClient.DAILY_ALREADY_CHECKED_IN_KEYWORDS,
+                      JmUserClient.DAILY_ALREADY_CHECKED_IN_KEYWORDS)
+
+        client = object.__new__(JmApiClient)
+        client._user_id = '123456'
+        client.DAILY_ALREADY_CHECKED_IN_KEYWORDS = ('自定义已打卡文案',)
+        chk_resp = _CheckinApiResp(res_data={'msg': '提示：自定义已打卡文案！'})
+        client.req_api = Mock(return_value=chk_resp)
+
+        resp = JmApiClient.daily_checkin(client, daily_id='999')
         self.assertEqual(resp.code, JmDailyCheckinResp.CODE_ALREADY_CHECKED_IN)
-        self.assertEqual(resp.status, 1)
-        self.assertEqual(resp.msg, '今天已經簽到過了')
+
+    @staticmethod
+    def _build_album_api_data(album_id: int, series_id: str, name: str, author=None, tags=None, series=None):
+        return {
+            'id': album_id,
+            'name': name,
+            'author': author if author is not None else ['作者A'],
+            'images': ['00001.webp'],
+            'description': 'desc',
+            'total_views': '100',
+            'total_photos': 10,
+            'addtime': '1700000000',
+            'likes': '10',
+            'series': series if series is not None else [],
+            'series_id': series_id,
+            'comment_total': '2',
+            'tags': tags if tags is not None else ['标签1'],
+            'works': [],
+            'actors': [],
+            'related_list': [],
+            'liked': False,
+            'is_favorite': False,
+        }
+
+    def test_api_fetch_album_redirects_when_given_chapter_id(self):
+        client = object.__new__(JmApiClient)
+        series_list = [
+            {'id': '1228973', 'name': '第1话', 'sort': '1'},
+            {'id': '1236387', 'name': '第2话', 'sort': '2'},
+        ]
+        chapter_as_album = _CheckinApiResp(res_data=self._build_album_api_data(
+            album_id=1236387,
+            series_id='1228973',
+            name='恰如舌咬 2',
+            author=[],
+            tags=[],
+            series=series_list,
+        ))
+        parent_album = _CheckinApiResp(res_data=self._build_album_api_data(
+            album_id=1228973,
+            series_id='1228973',
+            name='恰如舌咬',
+            author=['博'],
+            tags=['青年漫', '劇情向'],
+            series=series_list,
+        ))
+        single_album = _CheckinApiResp(res_data=self._build_album_api_data(
+            album_id=438516,
+            series_id='0',
+            name='单章本子',
+        ))
+
+        def mock_req(url, **kwargs):
+            if 'id=1236387' in url:
+                return chapter_as_album
+            if 'id=1228973' in url:
+                return parent_album
+            if 'id=438516' in url:
+                return single_album
+            raise AssertionError(f'unexpected url: {url}')
+
+        client.req_api = Mock(side_effect=mock_req)
+
+        logs = []
+        orig_log = JmModuleConfig.EXECUTOR_LOG
+        orig_flag = JmModuleConfig.FLAG_ENABLE_JM_LOG
+        JmModuleConfig.FLAG_ENABLE_JM_LOG = True
+        JmModuleConfig.EXECUTOR_LOG = lambda topic, msg: logs.append((topic, msg))
+        try:
+            # 1. 子章节 ID -> 自动重定向到父本子 ID 并打印日志
+            album = JmApiClient.get_album_detail(client, '1236387')
+            self.assertEqual(album.album_id, '1228973')
+            self.assertEqual(album.name, '恰如舌咬')
+            self.assertEqual(album.authors, ['博'])
+            self.assertEqual(len(logs), 1)
+            self.assertEqual(logs[0][0], 'api.album_redirect')
+            self.assertIn('1236387', logs[0][1])
+            self.assertIn('1228973', logs[0][1])
+
+            # 2. 多章父本子 ID (series_id == id) -> 不触发重定向
+            logs.clear()
+            album_parent = JmApiClient.get_album_detail(client, '1228973')
+            self.assertEqual(album_parent.album_id, '1228973')
+            self.assertEqual(len(logs), 0)
+
+            # 3. 单章本子 ID (series_id == '0') -> 不触发重定向
+            album_single = JmApiClient.get_album_detail(client, '438516')
+            self.assertEqual(album_single.album_id, '438516')
+            self.assertEqual(len(logs), 0)
+
+            # 4. allow_redirect=False -> 不触发重定向，保留章节原始返回及 series_id
+            album_no_redirect = JmApiClient.get_album_detail(client, '1236387', allow_redirect=False)
+            self.assertEqual(album_no_redirect.album_id, '1236387')
+            self.assertEqual(album_no_redirect.series_id, '1228973')
+            self.assertEqual(len(logs), 0)
+        finally:
+            JmModuleConfig.EXECUTOR_LOG = orig_log
+            JmModuleConfig.FLAG_ENABLE_JM_LOG = orig_flag
+
+    def test_async_api_fetch_album_redirects_and_caches(self):
+        client = object.__new__(AsyncJmApiClient)
+        client._cache = {}
+        series_list = [
+            {'id': '43164', 'name': '1', 'sort': '1'},
+            {'id': '275013', 'name': '90', 'sort': '31'},
+        ]
+        chapter_as_album = _CheckinApiResp(res_data=self._build_album_api_data(
+            album_id=275013,
+            series_id='43164',
+            name='奈奈与薰的SM日记_第90话.zip',
+            author=['filename'],
+            tags=['filename'],
+            series=series_list,
+        ))
+        parent_album = _CheckinApiResp(res_data=self._build_album_api_data(
+            album_id=43164,
+            series_id='43164',
+            name='奈奈与薰的SM日记',
+            author=['甘詰留太'],
+            tags=['青年漫'],
+            series=series_list,
+        ))
+
+        async def mock_req(url, params=None, **kwargs):
+            aid = str((params or {}).get('id'))
+            if aid == '275013':
+                return chapter_as_album
+            if aid == '43164':
+                return parent_album
+            raise AssertionError(f'unexpected params: {params}')
+
+        client.req_api = AsyncMock(side_effect=mock_req)
+
+        logs = []
+        orig_log = JmModuleConfig.EXECUTOR_LOG
+        orig_flag = JmModuleConfig.FLAG_ENABLE_JM_LOG
+        JmModuleConfig.FLAG_ENABLE_JM_LOG = True
+        JmModuleConfig.EXECUTOR_LOG = lambda topic, msg: logs.append((topic, msg))
+        try:
+            album = asyncio.run(AsyncJmApiClient.get_album_detail(client, '275013'))
+            self.assertEqual(album.album_id, '43164')
+            self.assertEqual(album.authors, ['甘詰留太'])
+            self.assertEqual(client.req_api.await_count, 2)
+            self.assertEqual(len(logs), 1)
+            self.assertEqual(logs[0][0], 'api.album_redirect')
+
+            # 再次请求子章节 ID 或父本子 ID 均直接命中缓存，不再发网络请求
+            album_cached_1 = asyncio.run(AsyncJmApiClient.get_album_detail(client, '275013'))
+            album_cached_2 = asyncio.run(AsyncJmApiClient.get_album_detail(client, '43164'))
+            self.assertEqual(album_cached_1.album_id, '43164')
+            self.assertEqual(album_cached_2.album_id, '43164')
+            self.assertEqual(client.req_api.await_count, 2)
+
+            # allow_redirect=False 时直接返回子章节对应实体，不重定向
+            logs.clear()
+            album_no_redirect = asyncio.run(AsyncJmApiClient.get_album_detail(client, '275013', allow_redirect=False))
+            self.assertEqual(album_no_redirect.album_id, '275013')
+            self.assertEqual(album_no_redirect.series_id, '43164')
+            self.assertEqual(len(logs), 0)
+        finally:
+            JmModuleConfig.EXECUTOR_LOG = orig_log
+            JmModuleConfig.FLAG_ENABLE_JM_LOG = orig_flag
 
     def test_async_api_check_in_unexpected_msg_raises(self):
         client = object.__new__(AsyncJmApiClient)
