@@ -171,14 +171,14 @@ class JmDailyCheckinResp(JmResp):
     """
     每日签到打卡响应类
     """
-    CODE_SUCCESS = 0  # 签到成功
+    CODE_SUCCESS = 0             # 签到成功
     CODE_ALREADY_CHECKED_IN = 1  # 重复签到（今日已签）
 
     def __init__(self, resp, code: int, msg: str, raw_data: dict = None):
         super().__init__(resp)
-        self.code: int = code  # 0=签到成功, 1=重复签到
-        self.status: int = code  # 兼容字段，值等同于 code
-        self.msg: str = msg  # 透传服务端的提示信息或奖励内容
+        self.code: int = code      # 0=签到成功, 1=重复签到
+        self.status: int = code    # 兼容字段，值等同于 code
+        self.msg: str = msg        # 透传服务端的提示信息或奖励内容
         self.raw_data: dict = raw_data or {}
 
     def __repr__(self):

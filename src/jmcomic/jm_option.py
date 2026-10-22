@@ -364,8 +364,7 @@ class JmOption:
             if not advice_plugins:
                 return
 
-            plugins_yml = yaml.dump({'plugins': advice_plugins}, default_flow_style=False, indent=2,
-                                    sort_keys=False).strip()
+            plugins_yml = yaml.dump({'plugins': advice_plugins}, default_flow_style=False, indent=2, sort_keys=False).strip()
 
             jm_log('option.migrate',
                    f'[zip 插件迁移] level 参数已过时，建议直接删除。'

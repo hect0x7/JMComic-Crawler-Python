@@ -1471,7 +1471,7 @@ class PhotoConcurrentFetcherProxy(JmcomicClient):
 
     def get_album_detail(self, album_id, allow_redirect=True) -> JmAlbumDetail:
         album_id = JmcomicText.parse_to_jm_id(album_id)
-        cache_key = f'album_{album_id}_{allow_redirect}'
+        cache_key = f'album_{album_id}'
         future = self.get_future(cache_key,
                                  task=lambda: self.client.get_album_detail(album_id, allow_redirect=allow_redirect))
         return future.result()

@@ -689,7 +689,7 @@ class Test_Client(JmTestConfigurable):
 
     def test_indexed_entity_slice(self):
         from collections.abc import Sequence
-
+        
         # 获取真实的 JmSearchPage 对象
         page = self.client.search_site("中文", page=1)
         empty_page = self.client.search_site("测试很长的不知道什么鬼123", page=1)
@@ -700,7 +700,7 @@ class Test_Client(JmTestConfigurable):
         items = page[:1000]
         self.assertEqual(len(items), len(page))
         self.assertEqual(page[1000:2000], [])
-
+        
         self.assertEqual(empty_page[:10], [])
 
         # 负数切片
@@ -712,7 +712,7 @@ class Test_Client(JmTestConfigurable):
         if len(page) >= 2:
             self.assertEqual(page[-1], page[len(page) - 1])
             self.assertEqual(page[-2], page[len(page) - 2])
-
+        
         with self.assertRaises(IndexError):
             _ = page[len(page) + 10]
         with self.assertRaises(IndexError):

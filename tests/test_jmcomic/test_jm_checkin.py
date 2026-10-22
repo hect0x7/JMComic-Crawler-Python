@@ -137,6 +137,7 @@ class Test_CheckIn(unittest.TestCase):
         self.assertIsNone(JmcomicText.parse_daily_id('<html>no daily id</html>'))
         self.assertEqual(JmcomicText.parse_daily_id('<html>no daily id</html>', default='default_id'), 'default_id')
 
+
     def test_api_login_records_user_id(self):
         client = object.__new__(JmApiClient)
         client.postman = {}
