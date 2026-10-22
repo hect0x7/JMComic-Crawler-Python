@@ -846,6 +846,7 @@ class Test_Download_Manifest(unittest.TestCase):
                     'total_views': '0',
                     'likes': '0',
                     'series': [],
+                    'series_id': '0',
                     'comment_total': '0',
                     'tags': ['tag'],
                     'works': [],

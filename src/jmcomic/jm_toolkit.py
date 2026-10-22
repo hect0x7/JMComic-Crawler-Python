@@ -972,6 +972,7 @@ class JmApiAdaptTool:
             'description',
             'is_favorite',
             'liked',
+            'series_id',
             ('id', 'album_id'),
             ('author', 'authors'),
             ('total_views', 'views'),
@@ -1029,7 +1030,6 @@ class JmApiAdaptTool:
         fields['episode_list'] = episode_list
         fields['page_count'] = int(data['total_photos'])
         fields['pub_date'] = datetime.fromtimestamp(int(data['addtime'])).strftime('%Y-%m-%d')
-        fields['series_id'] = data.get('series_id', '0')
 
         for it in 'scramble_id', 'update_date':
             fields[it] = '0'
