@@ -160,6 +160,7 @@ class JmcomicUI:
             download_album(self.album_id_list, option)
         else:
             # 同时下载album和photo
+            from threading import Thread
             tasks = [
                 Thread(target=bind_jm_task_context(download_album), args=(self.album_id_list, option)),
                 Thread(target=bind_jm_task_context(download_photo), args=(self.photo_id_list, option)),

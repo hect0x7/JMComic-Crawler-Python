@@ -372,38 +372,103 @@ class ProxyBuilder:
 
 
 class Postman:
-    impl_map = {
-        'requests': (False, False),
-        'requests-session': (False, True),
-        'curl_cffi': (True, False),
-        'cffi': (True, False),
-        'curl_cffi_session': (True, True),
-    }
+    postman_key = 'abstract'
 
-    def __init__(self,
-                 meta_data: Optional[dict] = None,
-                 use_cffi: bool = False,
-                 use_session: bool = False,
-                 ):
+    @classmethod
+    def create(cls, **kwargs):
+        return cls(kwargs)
+
+    def __init__(self, meta_data: Optional[dict] = None) -> None:
         if meta_data is None:
             meta_data = {}
         elif not isinstance(meta_data, dict):
             raise AssertionError('meta_data is not a dict')
+        self.meta_data: dict = meta_data
 
-        self.use_cffi = use_cffi
-        self.use_session = use_session
-        if use_session:
-            self.session = self._create_session(meta_data)
-            self.meta_data = self.session.__dict__
-        else:
-            self.session = None
-            self.meta_data = meta_data
+    def before_request(self, kwargs: dict) -> dict:
+        ret = self.meta_data.copy()
+        for k, v in kwargs.items():
+            if v is not None:
+                ret[k] = v
+        return ret
 
-    def _create_session(self, kwargs: dict):
-        if self.use_cffi:
-            from curl_cffi import requests
-            return requests.Session(**kwargs)
+    def get(self, url: str, **kwargs):
+        raise NotImplementedError
 
+    def post(self, url: str, **kwargs):
+        raise NotImplementedError
+
+    def get_meta_data(self, key=None, dv=None) -> Any:
+        if key is None:
+            return self.meta_data
+        return self.meta_data.get(key, dv)
+
+    def __getitem__(self, item):
+        return self.get_meta_data()[item]
+
+    def __setitem__(self, key, value):
+        self.get_meta_data()[key] = value
+
+    def copy(self) -> 'Postman':
+        return self.__class__(self.meta_data.copy())
+
+
+class SessionPostman(Postman):
+    postman_key = 'abstract-session'
+
+    # noinspection PyMissingConstructor
+    def __init__(self, meta_data: Optional[dict] = None) -> None:
+        if meta_data is None:
+            meta_data = {}
+        elif not isinstance(meta_data, dict):
+            raise AssertionError('meta_data is not a dict')
+        self.session = self.create_session(meta_data)
+
+    def create_session(self, kwargs: dict):
+        raise NotImplementedError
+
+    def before_request(self, kwargs: dict) -> dict:
+        return kwargs
+
+    def get(self, url: str, **kwargs):
+        return self.session.get(url, **self.before_request(kwargs))
+
+    def post(self, url: str, **kwargs):
+        return self.session.post(url, **self.before_request(kwargs))
+
+    def get_meta_data(self, key=None, dv=None) -> Any:
+        if key is None:
+            return self.session.__dict__
+        return getattr(self.session, key, dv)
+
+    def __getitem__(self, item):
+        return getattr(self.session, item)
+
+    def __setitem__(self, key, value):
+        setattr(self.session, key, value)
+
+
+class RequestsPostman(Postman):
+    postman_key = 'requests'
+
+    def get(self, url: str, **kwargs):
+        import requests
+        return requests.get(url, **self.before_request(kwargs))
+
+    def post(self, url: str, **kwargs):
+        import requests
+        return requests.post(url, **self.before_request(kwargs))
+
+    def before_request(self, kwargs: dict) -> dict:
+        kwargs = super().before_request(kwargs)
+        kwargs.pop('impersonate', None)
+        return kwargs
+
+
+class RequestsSessionPostman(SessionPostman):
+    postman_key = 'requests-session'
+
+    def create_session(self, kwargs: dict):
         import requests
         session = requests.Session()
         if not kwargs.get('headers'):
@@ -416,61 +481,68 @@ class Postman:
             setattr(session, k, v)
         return session
 
-    def _target(self):
-        if self.session is not None:
-            return self.session
-        if self.use_cffi:
-            from curl_cffi import requests
-            return requests
-        import requests
-        return requests
+    def __setitem__(self, key, value):
+        if key == 'cookies' and isinstance(value, dict):
+            import requests
+            value = requests.sessions.cookiejar_from_dict(value)
+        super().__setitem__(key, value)
 
-    def _prepare_kwargs(self, kwargs: dict) -> dict:
-        if self.session is None:
-            ret = self.meta_data.copy()
-            for k, v in kwargs.items():
-                if v is not None:
-                    ret[k] = v
-            kwargs = ret
-        if not self.use_cffi:
-            kwargs.pop('impersonate', None)
+    def before_request(self, kwargs: dict) -> dict:
+        kwargs = super().before_request(kwargs)
+        kwargs.pop('impersonate', None)
         return kwargs
 
+
+class CurlCffiPostman(Postman):
+    postman_key = 'curl_cffi'
+
     def get(self, url: str, **kwargs):
-        return self._target().get(url, **self._prepare_kwargs(kwargs))
+        from curl_cffi import requests
+        return requests.get(url, **self.before_request(kwargs))
 
     def post(self, url: str, **kwargs):
-        return self._target().post(url, **self._prepare_kwargs(kwargs))
+        from curl_cffi import requests
+        return requests.post(url, **self.before_request(kwargs))
 
-    def get_meta_data(self, key=None, dv=None) -> Any:
-        if self.session is not None:
-            return self.session.__dict__ if key is None else getattr(self.session, key, dv)
-        return self.meta_data if key is None else self.meta_data.get(key, dv)
 
-    def __getitem__(self, item):
-        if self.session is not None:
-            return getattr(self.session, item)
-        return self.meta_data[item]
+class CurlCffiSessionPostman(SessionPostman):
+    postman_key = 'curl_cffi_session'
 
-    def __setitem__(self, key, value):
-        if self.session is not None:
-            if not self.use_cffi and key == 'cookies' and isinstance(value, dict):
-                import requests
-                value = requests.sessions.cookiejar_from_dict(value)
-            setattr(self.session, key, value)
-        else:
-            self.meta_data[key] = value
+    def create_session(self, kwargs: dict):
+        from curl_cffi import requests
+        return requests.Session(**kwargs)
 
-    @classmethod
-    def new_postman(cls, **kwargs) -> 'Postman':
-        return cls(meta_data=kwargs, use_cffi=True, use_session=False)
+
+class Postmans:
+    impl_clazz_dict: Dict[str, Type[Postman]] = {
+        RequestsPostman.postman_key: RequestsPostman,
+        RequestsSessionPostman.postman_key: RequestsSessionPostman,
+        CurlCffiPostman.postman_key: CurlCffiPostman,
+        CurlCffiSessionPostman.postman_key: CurlCffiSessionPostman,
+        'cffi': CurlCffiPostman,
+    }
 
     @classmethod
-    def new_session(cls, **kwargs) -> 'Postman':
-        return cls(meta_data=kwargs, use_cffi=True, use_session=True)
+    def register(cls, clazz: Type[Postman], key: Optional[str] = None):
+        cls.impl_clazz_dict[key or clazz.postman_key] = clazz
 
     @classmethod
-    def create(cls, filepath='./postman.yml', data: Optional[dict] = None) -> 'Postman':
+    def get_impl_clazz(cls, key: str) -> Type[Postman]:
+        clazz = cls.impl_clazz_dict.get(key, None)
+        if clazz is None:
+            raise AssertionError(f'key "{key}" not found in registry of {Postman}')
+        return clazz
+
+    @classmethod
+    def new_session(cls, **kwargs) -> Postman:
+        return cls.get_impl_clazz('curl_cffi_session').create(**kwargs)
+
+    @classmethod
+    def new_postman(cls, **kwargs) -> Postman:
+        return cls.get_impl_clazz('curl_cffi').create(**kwargs)
+
+    @classmethod
+    def create(cls, filepath='./postman.yml', data: Optional[dict] = None) -> Postman:
         if data is None:
             data = PackerUtil.unpack(filepath)[0]
             if data is None:
@@ -485,11 +557,8 @@ class Postman:
             meta_data['proxies'] = ProxyBuilder.build_by_str(proxies)
 
         impl_type = data.get('type', 'requests')
-        if impl_type not in cls.impl_map:
-            raise AssertionError(f'key "{impl_type}" not found in registry of {cls}')
-
-        use_cffi, use_session = cls.impl_map[impl_type]
-        if not use_cffi and 'impersonate' in meta_data:
+        if impl_type.startswith('requests') and 'impersonate' in meta_data:
             meta_data.pop('impersonate')
 
-        return cls(meta_data=meta_data, use_cffi=use_cffi, use_session=use_session)
+        clazz = cls.get_impl_clazz(impl_type)
+        return clazz(meta_data)

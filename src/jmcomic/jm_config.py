@@ -404,7 +404,8 @@ class JmModuleConfig:
             if resp.status_code == 302:
                 url = resp.headers['Location']
                 break
-            raise NotImplementedError(f"status_code = {resp.status_code}")
+            from .jm_toolkit import ExceptionTool
+            ExceptionTool.raises_resp(f'请求失败，访问禁漫永久网域获取可用网址，HTTP状态码为: {resp.status_code}', resp)
 
         cls.jm_log('module.html_url', f'获取禁漫网页URL: [{cls.JM_REDIRECT_URL}] → [{url}]')
         return url
@@ -504,12 +505,12 @@ class JmModuleConfig:
         kwargs.setdefault('headers', JmModuleConfig.new_html_headers())
         kwargs.setdefault('proxies', JmModuleConfig.DEFAULT_PROXIES)
 
-        from .common import Postman
+        from .common import Postmans
 
         if session:
-            return Postman.new_session(**kwargs)
+            return Postmans.new_session(**kwargs)
 
-        return Postman.new_postman(**kwargs)
+        return Postmans.new_postman(**kwargs)
 
     # option 相关的默认配置
     # 一般情况下，建议使用option配置文件来定制配置

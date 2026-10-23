@@ -14,7 +14,7 @@
 ### Changed
 
 - 移除外部 `commonX` 包依赖，按需内聚核心工具至 `jmcomic.common`，统一使用标准库 `json`、`os.path`、`atexit` 与 `traceback`。
-- 收敛 `Postman` 继承体系为单一 `Postman` 类，统一支持 `requests`、`requests-session`、`curl_cffi` 与 `curl_cffi_session` 四种模式；移除冗余的 `RedirectPostman`、`PostmanProxy` 与 `MultiTaskLauncher` 包装层。
+- 精简 `Postman` 与并发工具抽象层次：合并 `Postman` 与 `AbstractPostman` 基类，保留 `Requests`/`CurlCffi` 具体实现类与 `Postmans` 注册扩展机制，移除冗余的 `RedirectPostman`、`PostmanProxy` 与 `MultiTaskLauncher` 包装层。
 
 ### Fixed
 
