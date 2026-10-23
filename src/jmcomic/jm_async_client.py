@@ -204,7 +204,7 @@ class AsyncJmApiClient(AsyncJmcomicClient):
             if proxies is not None:
                 # 字符串形式的代理需经 ProxyBuilder 转 dict
                 if isinstance(proxies, str):
-                    from common import ProxyBuilder
+                    from .common import ProxyBuilder
                     proxies = ProxyBuilder.build_by_str(proxies)
                 kwargs['proxies'] = proxies
 

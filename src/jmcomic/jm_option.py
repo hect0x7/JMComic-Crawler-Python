@@ -510,7 +510,7 @@ class JmOption:
             meta_data.update(kwargs)
 
         # postman
-        postman = Postmans.create(data=postman_conf)
+        postman = Postman.create(data=postman_conf)
 
         # client
         clazz = JmModuleConfig.client_impl_class(impl)

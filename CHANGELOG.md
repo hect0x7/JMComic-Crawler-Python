@@ -5,6 +5,21 @@
 条目分类参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [2.7.11] - 2026-10-23
+
+### Summary
+
+本次更新移除外部 `commonX` 依赖，按需提取并收敛为内置 `jmcomic.common` 模块，精简 HTTP `Postman` 与并发工具的抽象层次，并修复 `requests-session` 在未显式配置请求头时的默认客户端头注入问题。
+
+### Changed
+
+- 移除外部 `commonX` 包依赖，按需内聚核心工具至 `jmcomic.common`，统一使用标准库 `json`、`os.path`、`atexit` 与 `traceback`。
+- 收敛 `Postman` 继承体系为单一 `Postman` 类，统一支持 `requests`、`requests-session`、`curl_cffi` 与 `curl_cffi_session` 四种模式；移除冗余的 `RedirectPostman`、`PostmanProxy` 与 `MultiTaskLauncher` 包装层。
+
+### Fixed
+
+- 修复使用 `requests-session` 类型的 `Postman` 且未显式配置 `headers` 时，`requests.Session()` 自带默认请求头导致 `JmcomicClient` 未能自动注入禁漫默认请求头的问题。
+
 ## [2.7.10] - 2026-10-22
 
 ### Summary

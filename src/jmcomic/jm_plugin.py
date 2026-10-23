@@ -204,7 +204,7 @@ class JmOptionPlugin:
             return
 
         for p in paths:
-            if file_not_exists(p):
+            if not os.path.exists(p):
                 continue
 
             if os.path.isdir(p):
@@ -713,10 +713,19 @@ class SendQQEmailPlugin(JmOptionPlugin):
                ) -> None:
         self.require_param(msg_from and msg_to and password, '发件人、收件人、授权码都不能为空')
 
-        from common import EmailConfig
-        econfig = EmailConfig(msg_from, msg_to, password)
-        epostman = econfig.create_email_postman()
-        epostman.send(content, title)
+        import smtplib
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+
+        msg = MIMEMultipart()
+        msg.attach(MIMEText(content))
+        msg['Subject'] = title or content[:10]
+        msg['From'] = msg_from
+        msg['To'] = msg_to
+
+        with smtplib.SMTP_SSL("smtp.qq.com", 465) as s:
+            s.login(msg_from, password)
+            s.sendmail(msg_from, msg_to, msg.as_string())
 
         self.log('Email sent successfully')
 
@@ -1358,7 +1367,16 @@ class AutoSetBrowserCookiesPlugin(JmOptionPlugin):
         :param domain: 18comic.vip/...
         :return: cookies
         """
-        cookies, e = get_browser_cookies(browser, domain, safe=True)
+        if not browser:
+            raise ValueError('browser参数不能为空')
+
+        try:
+            import browser_cookie3
+            cookie_jar = getattr(browser_cookie3, browser)(domain_name=domain)
+            cookies = {c.name: c.value for c in cookie_jar}
+            e = None
+        except BaseException as err:
+            cookies, e = None, err
 
         if cookies is None:
             if isinstance(e, ImportError):
@@ -1398,7 +1416,7 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
         self.failed_folders = []
 
         mkdir_if_not_exists(self.save_dir)
-        mkdir_if_not_exists(of_dir_path(self.zip_filepath))
+        mkdir_if_not_exists(os.path.dirname(self.zip_filepath))
 
         self.main()
 
@@ -1863,7 +1881,7 @@ class JmServerPlugin(JmOptionPlugin):
             else:
                 # 非debug模式，开新线程启动
                 threading.Thread(target=blocking_run_server, daemon=True).start()
-                atexit_register(self.wait_server_stop)
+                atexit.register(self.wait_server_stop)
                 self.running = True
 
     def warning_wrong_usage_of_debug(self):

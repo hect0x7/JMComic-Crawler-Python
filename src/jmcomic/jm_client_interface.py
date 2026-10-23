@@ -149,8 +149,7 @@ class JmApiResp(JmJsonResp):
     def res_data(self) -> Any:
         self.require_success()
         self.require_have_data()
-        from json import loads
-        return loads(self.decoded_data)
+        return json.loads(self.decoded_data)
 
     @property
     def model_data(self) -> AdvancedDict:
@@ -703,14 +702,14 @@ class JmcomicClient(
         raise NotImplementedError
 
     def get_html_domain(self):
-        return JmModuleConfig.get_html_domain(self.get_root_postman())
+        return JmModuleConfig.get_html_domain(self.postman)
 
     def get_html_domain_all(self):
-        return JmModuleConfig.get_html_domain_all(self.get_root_postman())
+        return JmModuleConfig.get_html_domain_all(self.postman)
 
     def get_html_domain_all_via_github(self):
         """已废弃，请使用 get_html_domain_all。"""
-        return JmModuleConfig.get_html_domain_all_via_github(self.get_root_postman())
+        return JmModuleConfig.get_html_domain_all_via_github(self.postman)
 
     # noinspection PyMethodMayBeStatic
     def do_page_iter(self, params: dict, page: int, get_page_method):

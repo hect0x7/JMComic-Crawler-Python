@@ -20,7 +20,51 @@ def ts():
     return time_stamp(False)
 
 
-skip_time_cost_log = file_exists('./.idea')
+def format_ts(ts: Optional[float] = None, f_time: str = "%Y-%m-%d %H:%M:%S") -> str:
+    return time.strftime(f_time, time.localtime(ts))
+
+
+def print_eye_catching(text, surround='\n', multiple=1, **_kwargs):
+    margin = surround * multiple
+    print(f"{margin}{text}{margin}")
+
+
+def thread_pool_executor(iter_objs: Iterable,
+                         apply_each_obj_func: Callable,
+                         wait_finish=True,
+                         max_workers=None,
+                         **_kwargs
+                         ):
+    from concurrent.futures import ThreadPoolExecutor, wait
+    executor = ThreadPoolExecutor(max_workers=max_workers)
+    futures = [
+        executor.submit(apply_each_obj_func, *args, **kwargs)
+        for args, kwargs in map(process_single_arg_to_args_and_kwargs, iter_objs)
+    ]
+    if wait_finish:
+        wait(futures)
+        executor.shutdown(wait=True)
+    return futures
+
+
+def multi_call(func, iter_objs, launcher=multi_thread_launcher, wait=True):
+    ret_dict = {}
+
+    def get_ret(obj):
+        ret_dict[obj] = func(obj)
+
+    task_ls = launcher(
+        iter_objs=iter_objs,
+        apply_each_obj_func=get_ret,
+        wait_finish=wait,
+    )
+
+    if not wait:
+        return ret_dict, task_ls
+    return ret_dict
+
+
+skip_time_cost_log = os.path.exists('./.idea')
 
 cost_time_dict = {}
 

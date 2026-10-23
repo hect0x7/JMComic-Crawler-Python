@@ -615,7 +615,7 @@ class Test_Client(JmTestConfigurable):
         ):
             self.print_page(page)
 
-        print_sep()
+        print('-' * 70)
         for page in html_cl.categories_filter_gen(
                 page=1,  # 起始页码
                 category=JmMagicConstants.CATEGORY_DOUJIN,

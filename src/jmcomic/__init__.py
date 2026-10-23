@@ -2,7 +2,7 @@
 # 被依赖方 <--- 使用方
 # config <--- entity <--- toolkit <--- client <--- option <--- downloader
 
-__version__ = '2.7.10'
+__version__ = '2.7.11'
 
 from .jm_exception import DownloadCancelledException
 from .jm_runtime import *

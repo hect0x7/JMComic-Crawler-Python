@@ -1080,8 +1080,9 @@ class JmImageTool:
 
     @classmethod
     def save_directly(cls, resp, filepath):
-        from common import save_resp_content
-        save_resp_content(resp, filepath)
+        mkdir_if_not_exists(os.path.dirname(filepath))
+        with open(filepath, 'wb') as f:
+            f.write(resp.content)
 
     @classmethod
     def decode_and_save(cls,

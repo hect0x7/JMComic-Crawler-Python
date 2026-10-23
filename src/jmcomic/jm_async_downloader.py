@@ -265,7 +265,7 @@ class JmAsyncDownloader(BaseDownloader):
                 # 不解密保存。对齐 sync transfer_to(decode_image=False)：
                 # 当目标后缀与原图后缀不一致时，需经 PIL 做格式转换。
                 # 与 sync 一致：比较后缀前先剥离 url 的 ?query 部分，避免 query 干扰后缀判定。
-                from common import suffix_not_equal
+                from .common import suffix_not_equal
                 img_url = image.download_url
                 qi = img_url.find('?')
                 if qi != -1:
