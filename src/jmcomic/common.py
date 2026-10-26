@@ -199,6 +199,12 @@ class AdvancedDict:
     def __iter__(self):
         return iter(self._data)
 
+    def __len__(self):
+        return len(self._data)
+
+    def __bool__(self):
+        return bool(self._data)
+
     def __delitem__(self, key):
         del self._data[key]
 
@@ -416,13 +422,9 @@ class Postman:
 class SessionPostman(Postman):
     postman_key = 'abstract-session'
 
-    # noinspection PyMissingConstructor
     def __init__(self, meta_data: Optional[dict] = None) -> None:
-        if meta_data is None:
-            meta_data = {}
-        elif not isinstance(meta_data, dict):
-            raise AssertionError('meta_data is not a dict')
-        self.session = self.create_session(meta_data)
+        super().__init__(meta_data)
+        self.session = self.create_session(self.meta_data)
 
     def create_session(self, kwargs: dict):
         raise NotImplementedError
@@ -445,6 +447,9 @@ class SessionPostman(Postman):
         return getattr(self.session, item)
 
     def __setitem__(self, key, value):
+        if key == 'cookies' and isinstance(value, dict):
+            self.session.cookies.update(value)
+            return
         setattr(self.session, key, value)
 
 
@@ -480,12 +485,6 @@ class RequestsSessionPostman(SessionPostman):
                 v = requests.sessions.cookiejar_from_dict(v)
             setattr(session, k, v)
         return session
-
-    def __setitem__(self, key, value):
-        if key == 'cookies' and isinstance(value, dict):
-            import requests
-            value = requests.sessions.cookiejar_from_dict(value)
-        super().__setitem__(key, value)
 
     def before_request(self, kwargs: dict) -> dict:
         kwargs = super().before_request(kwargs)

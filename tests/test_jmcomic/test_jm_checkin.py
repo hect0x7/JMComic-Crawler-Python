@@ -254,8 +254,8 @@ class Test_CheckIn(unittest.TestCase):
 
     def test_async_api_login_records_user_id(self):
         client = object.__new__(AsyncJmApiClient)
-        client._session = SimpleNamespace(cookies=SimpleNamespace(update=Mock()))
-        client.option = SimpleNamespace(update_cookies=Mock())
+        client.meta_data = {}
+        client._session = SimpleNamespace(cookies={})
         resp_obj = SimpleNamespace(
             resp=SimpleNamespace(cookies={'session': '1'}),
             res_data={'uid': 654321, 's': 'token_s'},
@@ -266,6 +266,7 @@ class Test_CheckIn(unittest.TestCase):
         self.assertIs(resp, resp_obj)
         self.assertEqual(client._user_id, '654321')
         self.assertEqual(client._username, 'async_user')
+        self.assertEqual(client['cookies'], {'session': '1', 'AVS': 'token_s'})
 
     def test_async_api_get_daily_success(self):
         client = object.__new__(AsyncJmApiClient)

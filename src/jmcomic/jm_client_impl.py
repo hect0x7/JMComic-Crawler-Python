@@ -279,7 +279,6 @@ class JmHtmlClient(AbstractJmClient):
                 'album_id': str(album_id),
                 'fid': str(folder_id),
             },
-            headers={'X-Requested-With': 'XMLHttpRequest'},
         )
 
         res = resp.json()
@@ -531,7 +530,7 @@ class JmHtmlClient(AbstractJmClient):
     def daily_checkin(self,
                       daily_id: str | None = None,
                       user_id: str | None = None,
-                      old_step: int = 1
+                      old_step: int = 1,
                       ) -> JmDailyCheckinResp:
         """
         网页端每日签到。
@@ -1161,7 +1160,7 @@ class JmApiClient(AbstractJmClient):
 
     def get_daily(self,
                   user_id: str | None = None,
-                  ) -> JmApiResp:
+                  daily_id: str | None = None) -> JmApiResp:
         """
         移动端获取每日签到信息与日历打卡记录。
         返回值格式参考 JmUserClient.get_daily 文档。

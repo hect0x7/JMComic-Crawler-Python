@@ -10,8 +10,7 @@ from .jm_task_context import *
 from .api import *
 from .jm_plugin import *
 from .jm_feature import *
-from .jm_async_client import AsyncJmApiClient
-from .jm_async_html_client import AsyncJmHtmlClient
+from .jm_async_client import AbstractAsyncJmClient, AsyncJmHtmlClient, AsyncJmApiClient
 from .jm_async_downloader import JmAsyncDownloader
 
 # 下面进行注册组件（客户端、插件）

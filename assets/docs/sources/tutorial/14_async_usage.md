@@ -36,7 +36,7 @@ if __name__ == '__main__':
 
 ## 2. 使用 Option 定制化异步下载
 
-和同步版本一样，你可以配合 `option` 对象来定制网络请求、代理、下载路径等：
+和同步版本一样，你可以配合 `option` 对象来定制网络请求、代理、下载路径、登录账号（`auth`）等：
 
 ```python
 import asyncio
@@ -168,7 +168,8 @@ from jmcomic import JmOption
 
 async def main():
     async with JmOption.default().new_jm_async_client() as cl:
-        # 先登录
+        # 局部登录：仅当前 cl 生效
+        # 若需 option 全局登录，可在创建 client 前调用 await option.login_with_option_auth_async()
         await cl.login('你的用户名', '你的密码')
 
         # 使用 async for 遍历整个收藏夹的所有页
@@ -250,14 +251,14 @@ asyncio.run(main())
 
 注意：仅仅在 `option.yml` 中增加配置**并不能**让代码自动变成异步，你必须要在代码中改为调用 `_async` 相关方法（如上文所示）。
 
-`async_impl`目前可以不配置，默认使用移动端 `async_api`。如果需要异步请求网页端 HTML，把它改为 `async_html`，并为 `domain.html` 配置网页域名：
+`async_impl` 默认无需配置（自动跟随 `client.impl`：当 `impl` 为 `html` 时对应 `async_html`，其余情况默认使用移动端 `async_api`）。你也可以显式指定 `async_impl` 为 `async_api` 或 `async_html`：
 
 ```yaml
 # myoption.yml
 client:
   impl: html
-  # 异步客户端实现：async_api 或 async_html
-  async_impl: async_html
+  # 异步客户端实现：默认 null（自动跟随上面的 impl），也可显式指定 async_api 或 async_html
+  async_impl: null
   domain:
     html:
       - 18comic.ink

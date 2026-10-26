@@ -278,19 +278,16 @@ class JmLoginPlugin(JmOptionPlugin):
     plugin_key = 'login'
 
     def invoke(self,
-               username: str,
-               password: str,
+               username: Optional[str] = None,
+               password: Optional[str] = None,
                impl=None,
                ) -> None:
+        username = username or self.option.auth.username
+        password = password or self.option.auth.password
         self.require_param(username, '用户名不能为空')
         self.require_param(password, '密码不能为空')
 
-        client = self.option.build_jm_client(impl=impl)
-        client.login(username, password)
-
-        cookies = dict(client['cookies'])
-        self.option.update_cookies(cookies)
-
+        self.option.login_with_option_auth(username=username, password=password, impl=impl)
         self.log('登录成功')
 
 

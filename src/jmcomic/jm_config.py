@@ -522,6 +522,12 @@ class JmModuleConfig:
 
     DEFAULT_OPTION_DICT: dict = {
         'log': None,
+        'auth': {
+            'username': None,
+            'password': None,
+            'cookies': None,
+            'user_id': None,
+        },
         'dir_rule': {'rule': 'Bd_Pname', 'base_dir': None, 'normalize_zh': None},
         'download': {
             'cache': True,
@@ -543,7 +549,7 @@ class JmModuleConfig:
                 }
             },
             'impl': None,
-            'async_impl': 'async_api',  # 异步客户端实现类型
+            'async_impl': None,  # 异步客户端实现类型，默认跟随 impl
             'retry_times': 5,
         },
         'plugins': {

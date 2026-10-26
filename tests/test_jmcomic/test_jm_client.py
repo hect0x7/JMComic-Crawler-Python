@@ -27,7 +27,6 @@ class Test_Client(JmTestConfigurable):
                 'album_id': '21',
                 'fid': '123',
             },
-            headers={'X-Requested-With': 'XMLHttpRequest'},
         )
 
     def test_delete_favorite_album_uses_ajax_form_post(self):

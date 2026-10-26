@@ -18,6 +18,19 @@ JmOption.default().to_file('./option.yml') # 创建默认option，导出为optio
 # 对日志有需求的可进一步参考文档 → https://jmcomic.readthedocs.io/zh-cn/latest/tutorial/11_log_custom/
 log: true
 
+# 帐号与登录配置（默认均为 null，即未登录状态访问 JM）
+# 禁漫大部分本子下载无需登录；少部分敏感题材、个人收藏夹、每日签到需要登录。
+# 支持两种配置方式：
+# 1. 配置账号密码（username + password）：调用 download_album 等下载接口时会自动登录；
+# 2. 直接配置浏览器 cookies（只需配置 AVS；注意：浏览器 cookies 仅适用于网页端 impl: html，且必须与配置的访问域名一致）。
+auth:
+  username: null
+  password: null
+  cookies: null
+  # cookies 示例:
+  # cookies:
+  #   AVS: qkwehjjasdowqeq
+
 # 配置客户端相关
 client:
   # impl: 客户端实现类，不配置默认会使用JmModuleConfig.DEFAULT_CLIENT_IMPL
@@ -27,9 +40,10 @@ client:
   # APP端不限ip兼容性好，网页端限制ip地区但效率高
   impl: html
   
-  # async_impl: 指定异步客户端的底层实现类，可选 async_api 或 async_html
+  # async_impl: 指定异步客户端的底层实现类，默认为 null（自动跟随上面的 impl：html -> async_html，api 及其他 -> async_api）
+  # 也可显式指定为 async_api 或 async_html
   # 注意: 配置此项不会自动开启异步下载，你必须在代码中调用 _async 相关方法
-  async_impl: async_api
+  async_impl: null
 
   # domain: 禁漫域名配置，一般无需配置，jmcomic会根据上面的impl自动设置相应域名
   # 该配置项需要和上面的impl结合使用，因为禁漫网页端和APP端使用的是不同域名，
@@ -68,7 +82,7 @@ client:
       #   https: 127.0.0.1:7890
       proxies: system
 
-      # cookies: 帐号配置，默认是 null，表示未登录状态访问JM。
+      # cookies: 帐号配置（旧写法，仍保持兼容；新配置推荐直接写在顶层 auth.cookies 下，优先级更高），默认是 null，表示未登录状态访问JM。
       # 禁漫的大部分本子，下载是不需要登录的；少部分敏感题材需要登录才能看。
       # 如果你希望以登录状态下载本子，最简单的方式是配置一下浏览器的cookies，
       # 不用全部cookies，只要那个叫 AVS 就行。
