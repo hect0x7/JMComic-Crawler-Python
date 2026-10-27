@@ -541,9 +541,8 @@ class JmOption:
             retry_times=retry_times,
             domain_retry_strategy=domain_retry_strategy,
         )
-        if self.auth:
-            client._username = self.auth.username
-            client._user_id = self.auth.user_id
+        client._username = self.auth.get('username')
+        client._user_id = self.auth.get('user_id')
 
         # enable cache
         CacheRegistry.enable_client_cache_on_condition(self, client, cache)
@@ -559,7 +558,7 @@ class JmOption:
         3. extra_cookies（单次创建客户端显式传参，最高优先级）
         """
         meta_cookies = self.client.postman.meta_data.get('cookies')
-        auth_cookies = self.auth.cookies if self.auth else None
+        auth_cookies = self.auth.get('cookies')
         if meta_cookies is None and auth_cookies is None and extra_cookies is None:
             return None
 
@@ -571,11 +570,11 @@ class JmOption:
         return merged
 
     def _is_auth_logged_in(self, is_api: bool) -> bool:
-        if not self.auth or not self.auth.cookies:
+        if not self.auth.get('cookies'):
             return False
         if is_api:
-            return self.auth.user_id is not None
-        return bool(self.auth.username)
+            return self.auth.get('user_id') is not None
+        return bool(self.auth.get('username'))
 
     def _get_auth_async_lock(self):
         import asyncio
@@ -586,25 +585,15 @@ class JmOption:
         return self._auth_async_lock
 
     def login_with_option_auth(self,
-                               username: Optional[str] = None,
-                               password: Optional[str] = None,
                                impl=None,
                                force: bool = False,
                                ):
         """
         使用 option.auth 的账号密码执行同步登录，并将登录态（cookies、username、user_id）写回 option.auth。
-        默认幂等（force=False）：若当前目标端所需的登录态已就绪且未变更账密，则直接跳过网络请求。
+        默认幂等（force=False）：若当前目标端所需的登录态已就绪，则直接跳过网络请求。
         """
-        if username is not None or password is not None:
-            if not self.auth or (
-                username is not None and username != self.auth.username
-                or password is not None and password != self.auth.password
-            ):
-                force = True
-            self.update_auth(username=username, password=password)
-
-        u = self.auth.username if self.auth else None
-        p = self.auth.password if self.auth else None
+        u = self.auth.get('username')
+        p = self.auth.get('password')
         ExceptionTool.require_true(bool(u), '用户名不能为空')
         ExceptionTool.require_true(bool(p), '密码不能为空')
 
@@ -630,25 +619,15 @@ class JmOption:
             return resp
 
     async def login_with_option_auth_async(self,
-                                           username: Optional[str] = None,
-                                           password: Optional[str] = None,
                                            impl=None,
                                            force: bool = False,
                                            ):
         """
         使用 option.auth 的账号密码执行异步登录，并将登录态（cookies、username、user_id）写回 option.auth。
-        默认幂等（force=False）：若当前目标端所需的登录态已就绪且未变更账密，则直接跳过网络请求。
+        默认幂等（force=False）：若当前目标端所需的登录态已就绪，则直接跳过网络请求。
         """
-        if username is not None or password is not None:
-            if not self.auth or (
-                username is not None and username != self.auth.username
-                or password is not None and password != self.auth.password
-            ):
-                force = True
-            self.update_auth(username=username, password=password)
-
-        u = self.auth.username if self.auth else None
-        p = self.auth.password if self.auth else None
+        u = self.auth.get('username')
+        p = self.auth.get('password')
         ExceptionTool.require_true(bool(u), '用户名不能为空')
         ExceptionTool.require_true(bool(p), '密码不能为空')
 
@@ -678,9 +657,8 @@ class JmOption:
             merged_cookies = self.resolve_auth_cookies()
             if merged_cookies:
                 cached_client['cookies'] = merged_cookies
-            if self.auth:
-                cached_client._username = self.auth.username
-                cached_client._user_id = self.auth.user_id
+            cached_client._username = self.auth.get('username')
+            cached_client._user_id = self.auth.get('user_id')
 
     def update_auth(self,
                     cookies: Optional[dict] = None,
@@ -689,7 +667,7 @@ class JmOption:
                     password: Optional[str] = None,
                     ):
         if cookies is not None:
-            if not self.auth or 'cookies' not in self.auth or self.auth.cookies is None:
+            if not self.auth.get('cookies'):
                 self.auth.cookies = dict(cookies)
             else:
                 self.auth.cookies.src_dict.update(cookies)

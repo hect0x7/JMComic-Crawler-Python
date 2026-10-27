@@ -28,6 +28,10 @@ def _ensure_option(option):
     return JmModuleConfig.option_class().default() if option is None else option
 
 
+def _should_auto_login(option, login: bool) -> bool:
+    return bool(login and option.auth.get('username') and option.auth.get('password'))
+
+
 def _raise_if_cancelled_chain(cause_exc: BaseException):
     """在当前任务已被取消时，将底层异常转换为 DownloadCancelledException 并保留原始异常链。"""
     control = JTC.get_control()
@@ -55,7 +59,7 @@ def _execute_sync_download(
         login: bool = True,
 ):
     option = _ensure_option(option)
-    if login and option.auth and option.auth.username and option.auth.password:
+    if _should_auto_login(option, login):
         option.login_with_option_auth()
     task_started_at = perf_counter()
 
@@ -92,7 +96,7 @@ async def _execute_async_download(
         login: bool = True,
 ):
     option = _ensure_option(option)
-    if login and option.auth and option.auth.username and option.auth.password:
+    if _should_auto_login(option, login):
         await option.login_with_option_auth_async()
     task_started_at = perf_counter()
 
@@ -151,7 +155,7 @@ def download_batch(
     if len(jm_ids) == 0:
         return result
 
-    if login and option.auth and option.auth.username and option.auth.password:
+    if _should_auto_login(option, login):
         option.login_with_option_auth()
     if download_api in (download_album, download_photo):
         kwargs['login'] = False
@@ -468,7 +472,7 @@ async def download_batch_async(
     if len(jm_ids) == 0:
         return result
 
-    if login and option.auth and option.auth.username and option.auth.password:
+    if _should_auto_login(option, login):
         await option.login_with_option_auth_async()
     if download_api in (download_album_async, download_photo_async):
         kwargs['login'] = False

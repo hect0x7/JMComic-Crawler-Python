@@ -496,7 +496,7 @@ class Test_Async_Html_Client(unittest.TestCase):
         fallback_async_client = proxy_opt.new_jm_async_client()
         self.assertIsInstance(fallback_async_client, AsyncJmApiClient)
 
-        # 1b. Constructing JmOption without auth (or cover_default=False) works cleanly when auth is empty
+        # 1b. Constructing JmOption without auth (or partial auth) works cleanly without KeyError
         base_dict = JmOption.default_dict()
         base_dict.pop('auth', None)
         base_dict.pop('log', None)
@@ -505,6 +505,12 @@ class Test_Async_Html_Client(unittest.TestCase):
         self.assertFalse(bool(direct_opt.auth))
         direct_opt.client.domain = ['example.com']
         direct_opt.client.impl = 'html'
+        self.assertIsNotNone(direct_opt.new_jm_client())
+        self.assertIsNotNone(direct_opt.new_jm_async_client())
+        self.assertFalse(direct_opt._is_auth_logged_in(is_api=False))
+        # Setting only username/password via direct_opt.auth.* without cookies/user_id keys does not raise KeyError
+        direct_opt.auth.username = 'partial_u'
+        direct_opt.auth.password = 'partial_p'
         self.assertIsNotNone(direct_opt.new_jm_client())
         self.assertIsNotNone(direct_opt.new_jm_async_client())
         self.assertFalse(direct_opt._is_auth_logged_in(is_api=False))

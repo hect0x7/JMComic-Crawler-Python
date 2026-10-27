@@ -103,8 +103,8 @@ class AbstractAsyncJmClient(AsyncJmcomicClient):
         self._session_lock_loop: asyncio.AbstractEventLoop | None = None
         self._cache: dict | None = None
         self._domain_fail_count: dict[str, int] = {}
-        self._username: str | None = option.auth.username if option.auth else None
-        self._user_id: str | None = option.auth.user_id if option.auth else None
+        self._username: str | None = option.auth.get('username')
+        self._user_id: str | None = option.auth.get('user_id')
         self._has_setup = False
 
     @classmethod

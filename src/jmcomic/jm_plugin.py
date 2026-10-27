@@ -282,12 +282,17 @@ class JmLoginPlugin(JmOptionPlugin):
                password: Optional[str] = None,
                impl=None,
                ) -> None:
-        username = username or self.option.auth.username
-        password = password or self.option.auth.password
-        self.require_param(username, '用户名不能为空')
-        self.require_param(password, '密码不能为空')
+        force = False
+        if username is not None and username != self.option.auth.get('username'):
+            self.option.auth.username = username
+            force = True
+        if password is not None and password != self.option.auth.get('password'):
+            self.option.auth.password = password
+            force = True
+        self.require_param(self.option.auth.get('username'), '用户名不能为空')
+        self.require_param(self.option.auth.get('password'), '密码不能为空')
 
-        self.option.login_with_option_auth(username=username, password=password, impl=impl)
+        self.option.login_with_option_auth(impl=impl, force=force)
         self.log('登录成功')
 
 
