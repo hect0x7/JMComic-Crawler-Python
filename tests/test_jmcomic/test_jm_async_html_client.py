@@ -386,6 +386,76 @@ class Test_Async_Html_Client(unittest.TestCase):
         self.assertEqual(option.auth.src_dict['password'], 'pwd2')
         self.assertEqual(option.new_jm_client()['cookies']['AVS'], 'fresh-avs-3')
 
+    def test_auth_env_placeholder_resolved_and_kept_on_deconstruct(self):
+        env = {'JM_TEST_AUTH_USER': 'env_user', 'JM_TEST_AUTH_PASS': 'env_pass', 'JM_TEST_AUTH_AVS': 'env_avs'}
+        with patch.dict(os.environ, env):
+            option = JmOption.construct({
+                'auth': {
+                    'username': '${JM_TEST_AUTH_USER}',
+                    'password': '${JM_TEST_AUTH_PASS}',
+                    'cookies': {'AVS': '${JM_TEST_AUTH_AVS}'},
+                },
+                'client': {'impl': 'html', 'domain': ['example.com']},
+            })
+
+        # 创建 option 时替换为环境变量的值
+        self.assertEqual(option.auth.username, 'env_user')
+        self.assertEqual(option.auth.password, 'env_pass')
+        self.assertEqual(option.auth.src_dict['cookies']['AVS'], 'env_avs')
+        self.assertEqual(option.new_jm_client()['cookies']['AVS'], 'env_avs')
+
+        # 保存配置时写回 ${} 原始写法，不泄露环境变量的值
+        auth_dict = option.deconstruct()['auth']
+        self.assertEqual(auth_dict['username'], '${JM_TEST_AUTH_USER}')
+        self.assertEqual(auth_dict['password'], '${JM_TEST_AUTH_PASS}')
+        self.assertEqual(option.copy_option().deconstruct()['auth']['password'], '${JM_TEST_AUTH_PASS}')
+
+        # 字段在运行时被改成别的值后，按新值保存
+        option.auth.username = 'other_user'
+        self.assertEqual(option.deconstruct()['auth']['username'], 'other_user')
+
+        # 环境变量未设置：直接报错
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop('JM_TEST_AUTH_MISSING', None)
+            with self.assertRaises(Exception):
+                JmOption.construct({'auth': {'username': '${JM_TEST_AUTH_MISSING}'}})
+
+    def test_favorite_folder_export_logs_in_with_auth(self):
+        from jmcomic import FavoriteFolderExportPlugin
+
+        option = JmOption.construct({
+            'auth': {'username': 'bob', 'password': 'pwd'},
+            'client': {'impl': 'html', 'domain': ['example.com']},
+        })
+        events = []
+
+        def fake_login(*_args, **_kwargs):
+            events.append('login')
+
+        class _StopAfterBuild(Exception):
+            pass
+
+        def fake_build(*_args, **_kwargs):
+            events.append('build_client')
+            raise _StopAfterBuild()
+
+        plugin = FavoriteFolderExportPlugin.build(option)
+        with patch.object(option, 'login_with_option_auth', fake_login), \
+             patch.object(option, 'build_jm_client', fake_build):
+            with self.assertRaises(_StopAfterBuild):
+                plugin.main()
+        self.assertEqual(events, ['login', 'build_client'])
+
+        # 未配置账号密码：不登录
+        no_auth = JmOption.construct({'client': {'impl': 'html', 'domain': ['example.com']}})
+        events.clear()
+        plugin = FavoriteFolderExportPlugin.build(no_auth)
+        with patch.object(no_auth, 'login_with_option_auth', fake_login), \
+             patch.object(no_auth, 'build_jm_client', fake_build):
+            with self.assertRaises(_StopAfterBuild):
+                plugin.main()
+        self.assertEqual(events, ['build_client'])
+
     def test_login_preserves_existing_avs_when_response_omits_it(self):
         client = self.new_client()
         client['cookies'] = {'AVS': 'old-avs'}

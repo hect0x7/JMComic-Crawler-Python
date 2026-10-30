@@ -5,6 +5,11 @@ dir_rule:
   base_dir: ${JM_DOWNLOAD_DIR}
   rule: Bd_Aauthor_Atitle_Pindex
 
+# 登录账号（可选）：从 GitHub Actions 的 secrets 读取，未配置时以未登录状态下载。下载前会用这个账号自动登录
+auth:
+  username: ${JM_USERNAME}
+  password: ${JM_PASSWORD}
+
 client:
   impl: api # 使用api可免登录下载本子
   domain:
@@ -22,11 +27,6 @@ plugins:
       kwargs:
         proxy_client_key: photo_concurrent_fetcher_proxy
         whitelist: [ api, ]
-
-    - plugin: login # 登录插件
-      kwargs:
-        username: ${JM_USERNAME}
-        password: ${JM_PASSWORD}
 
   after_download: # 全部下载完成以后
     - plugin: send_qq_email # 发送邮件，如果未配置下面的前3个环境变量则不会发送。

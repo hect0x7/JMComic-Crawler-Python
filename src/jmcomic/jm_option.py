@@ -201,6 +201,7 @@ class JmOption:
         self.plugins = AdvancedDict(plugins)
         # 认证配置
         self.auth = AdvancedDict(auth or {})
+        self._auth_env_placeholders = self.resolve_auth_env()
         self._auth_sync_lock = RLock()
         self._auth_async_lock = None
         self._auth_async_lock_loop = None
@@ -217,8 +218,46 @@ class JmOption:
         if call_after_init_plugin:
             self.call_all_plugin('after_init', safe=True)
 
+    def resolve_auth_env(self) -> Dict[str, tuple]:
+        """
+        把 auth 中形如 ${ENV_NAME} 的字符串替换为环境变量的值（规则与插件 kwargs 相同），
+        支持 auth 下的字符串字段和 auth.cookies 下的字符串值。
+
+        :returns: 被替换的 auth 字段 {key: (原始写法, 替换后的值)}，
+                  deconstruct 时据此写回原始写法，避免把环境变量里的密钥明文保存到配置文件。
+        """
+        data = self.auth.src_dict
+        placeholders = {}
+        for k, v in list(data.items()):
+            if isinstance(v, str):
+                newv = JmcomicText.parse_dsl_text(v)
+                if newv != v:
+                    data[k] = newv
+                    placeholders[k] = (v, newv)
+
+        cookies = data.get('cookies')
+        if isinstance(cookies, dict):
+            for k, v in list(cookies.items()):
+                if isinstance(v, str):
+                    cookies[k] = JmcomicText.parse_dsl_text(v)
+
+        return placeholders
+
+    def deconstruct_auth(self) -> Dict:
+        """
+        导出 auth：不包含运行时登录态（cookies、user_id）；
+        值仍等于环境变量替换结果的字段，写回原始的 ${ENV_NAME} 写法。
+        """
+        ret = {}
+        for k, v in self.auth.src_dict.items():
+            if k in ('cookies', 'user_id'):
+                continue
+            raw, resolved = self._auth_env_placeholders.get(k, (None, None))
+            ret[k] = raw if raw is not None and v == resolved else v
+        return ret
+
     def copy_option(self):
-        return self.__class__(
+        copied = self.__class__(
             dir_rule={
                 'rule': self.dir_rule.rule_dsl,
                 'base_dir': self.dir_rule.base_dir,
@@ -231,6 +270,8 @@ class JmOption:
             call_after_init_plugin=False,
             auth=self.auth.src_dict,
         )
+        copied._auth_env_placeholders = dict(self._auth_env_placeholders)
+        return copied
 
     """
     下面是decide系列方法，为了支持重写和增加程序动态性。
@@ -422,10 +463,7 @@ class JmOption:
         return {
             'version': JmModuleConfig.JM_OPTION_VER,
             'log': JmModuleConfig.FLAG_ENABLE_JM_LOG,
-            'auth': {
-                k: v for k, v in self.auth.src_dict.items()
-                if k not in ('cookies', 'user_id')
-            },
+            'auth': self.deconstruct_auth(),
             'dir_rule': {
                 'rule': self.dir_rule.rule_dsl,
                 'base_dir': self.dir_rule.base_dir,

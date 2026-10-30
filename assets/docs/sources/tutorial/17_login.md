@@ -51,6 +51,20 @@ auth:
 > [!IMPORTANT]
 > 不要同时配置账号密码和 cookies。在网页端，jmcomic 看到 `auth` 里已有 cookies 和用户名，就认为已经登录，不会再用账号密码登录。如果这份 cookies 已过期，下载会以未登录状态进行。
 
+### 1.3 从环境变量读取账号
+
+不想把密码明文写进配置文件时（例如 GitHub Actions），可以用 `${环境变量名}`：
+
+```yaml
+auth:
+  username: ${JM_USERNAME}
+  password: ${JM_PASSWORD}
+```
+
+- 创建 option 时替换为环境变量的值；环境变量未设置会直接报错。
+- 环境变量的值为空字符串时，等同于没有配置账号，以未登录状态访问。
+- `auth.cookies` 下的值也支持这种写法。
+
 ## 2. 在代码里使用登录态
 
 ### 2.1 让 option 创建的所有 client 都登录
@@ -84,24 +98,12 @@ client = option.new_jm_client()
 client.login('你的用户名', '你的密码')
 ```
 
-### 2.3 在创建 option 时立即登录：`login` 插件
+### 2.3 插件
 
-有些 `after_init` 插件会在创建 option 时就访问需要登录的内容，例如 `find_update`、收藏夹导出。这时要在它们**前面**加上 `login` 插件。插件不用传参数，默认使用 `auth` 里的账号：
+需要登录的内置插件会按 `auth` 自动登录，不需要额外配置：
 
-```yaml
-auth:
-  username: 你的用户名
-  password: 你的密码
-
-plugins:
-  after_init:
-    - plugin: login        # 先登录
-    - plugin: find_update  # 再执行需要登录态的插件
-      kwargs:
-        145504: 290266
-```
-
-`login` 插件每次执行都会**强制登录**，不复用 `auth` 里可能已过期的 cookies。
+- `find_update`：内部调用下载接口，下载前自动登录；
+- `favorite_folder_export`：导出前自动登录。
 
 ## 3. jmcomic 内部做了什么
 
@@ -110,8 +112,8 @@ plugins:
 | 入口 | 是否发起登录 |
 |---|---|
 | `download_album` / `download_photo` / `download_batch` 及对应的异步版本 | `auth` 配了账号密码，并且当前**未登录**时，登录一次；否则不登录。传 `login=False` 可关闭 |
+| `favorite_folder_export` 插件 | 同上 |
 | `option.login_with_option_auth()` / `login_with_option_auth_async()` | 当前**未登录**时登录；传 `force=True` 时总是登录 |
-| `login` 插件 | 总是登录 |
 | `client.login()` | 总是登录，只影响这个 client |
 | `option.new_jm_client()` / `build_jm_client()` / `new_jm_async_client()` | 从不登录，只带上已有的 cookies |
 
@@ -126,7 +128,6 @@ plugins:
 |---|---|
 | `auth.cookies` | 合并写入：同名的 cookie 覆盖，其余保留 |
 | `auth.username`、`auth.user_id` | 覆盖写入 |
-| `auth.username`、`auth.password`（仅 `login` 插件） | 插件传入的账号密码会先写入 `auth`，保证账号和密码对应同一个账号 |
 
 写回后，`option.build_jm_client()` 已缓存的 client 会同步更新，之后新建的 client 也会带上这些登录态。
 
@@ -140,7 +141,11 @@ plugins:
 
 ### 3.4 保存配置文件
 
-`option.to_file()` 会保存 `auth.username`、`auth.password`，但**不会**保存 `auth.cookies` 和 `auth.user_id`，因为它们是运行时登录态。
+`option.to_file()` 保存 `auth` 时：
+
+- 保存 `username`、`password`；
+- **不保存** `cookies` 和 `user_id`，因为它们是运行时登录态；
+- 原本写成 `${环境变量名}` 的字段，保存的仍是 `${环境变量名}`，不会把环境变量的值写进文件。
 
 ### 3.5 多账号
 
@@ -153,7 +158,9 @@ plugins:
 | 旧写法 | 迁移到 |
 |---|---|
 | `client.postman.meta_data.cookies` | `auth.cookies` |
-| `login` 插件里传 `username` / `password` | 账号密码写在 `auth`；只在需要“创建 option 时立即登录”时，保留一个不传参数的 `- plugin: login` |
+| `login` 插件（`- plugin: login`，`kwargs` 传 `username` / `password`） | 账号密码写在 `auth`，删掉 `login` 插件 |
+
+`login` 插件仅为兼容旧配置而保留：执行时把传入的账号密码写入 `auth`，并且每次都强制登录。
 
 ## 5. 常见问题
 

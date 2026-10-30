@@ -23,7 +23,8 @@ log: true
 # 支持两种配置方式：
 # 1. 配置账号密码（username + password）：调用 download_album 等下载接口时会自动登录；
 # 2. 直接配置浏览器 cookies（只需配置 AVS；注意：浏览器 cookies 仅适用于网页端 impl: html，且必须与配置的访问域名一致）。
-# 两种方式二选一，不要同时配置。规范与最佳实践见登录指南 → https://jmcomic.readthedocs.io/zh-cn/latest/tutorial/17_login/
+# 两种方式二选一，不要同时配置。值可以写成 ${环境变量名}，从环境变量读取。
+# 规范与最佳实践见登录指南 → https://jmcomic.readthedocs.io/zh-cn/latest/tutorial/17_login/
 auth:
   username: null
   password: null
@@ -196,11 +197,6 @@ plugins:
       kwargs:
         interval: 0.5 # 间隔时间
         enable_warning: true # 占用过大时发出预警
-
-    - plugin: login # 登录插件：创建 option 时立即登录（每次都强制登录），默认使用顶层 auth 的账号，详见登录指南
-      # kwargs: # 选填（旧写法）。传入的账号密码会写入顶层 auth
-      #   username: un # 用户名
-      #   password: pw # 密码
 
     - plugin: find_update # 只下载新章插件
       kwargs:

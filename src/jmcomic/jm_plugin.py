@@ -1423,6 +1423,10 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
         self.main()
 
     def main(self):
+        # 收藏夹需要登录：auth 配置了账号密码时先确保已登录（已登录则跳过），规则与下载接口一致
+        if self.option.auth.get('username') and self.option.auth.get('password'):
+            self.option.login_with_option_auth()
+
         cl = self.option.build_jm_client()
         # noinspection PyAttributeOutsideInit
         self.cl = cl
