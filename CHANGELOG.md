@@ -15,11 +15,13 @@
 
 - **异步网页端客户端 (`AsyncJmHtmlClient`)**：异步模式现已完整支持网页端（`async_html`），涵盖本子/章节详情、搜索、分类筛选、收藏夹管理、评论互动、每日签到以及自动获取可用网页域名。
 - **顶层 `auth` 登录配置**：配置文件新增顶层 `auth` 项（支持配置 `username`、`password` 或 `cookies`）。配置账号密码后，调用 `download_album` 等下载接口时会自动完成登录；直接使用 `client` 时，也可通过 `option.login_with_option_auth()`（或异步版 `login_with_option_auth_async()`）一键登录并让后续创建的客户端全部自带登录态。
+- **登录指南**：新增文档 [登录指南](https://jmcomic.readthedocs.io/zh-cn/latest/tutorial/17_login/)，说明以顶层 `auth` 为唯一推荐入口，并列出各入口何时登录、登录态写回哪些字段以及旧写法的迁移方式。
 - **异步多域名智能重试**：异步客户端内建多域名轮询与失败降权机制，单次请求失败时自动切换备用域名，并在后续请求中优先使用可用域名。
 
 ### Changed
 
 - **异步客户端默认跟随 `client.impl`**：未显式指定 `client.async_impl` 时，异步模式现在会自动跟随 `client.impl`（配置 `html` 时使用 `async_html`，其余情况使用 `async_api`）。若原配置为 `impl: html` 且希望异步继续使用移动端接口，可显式设置 `async_impl: async_api`。
+- **`login` 插件每次强制登录**：插件执行时总是发起登录，不再因 `auth` 中已有 cookies 而跳过；传入的 `username`/`password` 会写入 `option.auth`，不传则使用 `auth` 中的账号。
 - **单客户端登录状态隔离**：直接调用 `client.login()` 仅对当前客户端实例生效，不再反向修改全局 `option` 配置；如需全局共享登录态，请使用 `auth` 配置配合 `option.login_with_option_auth()`。
 
 ### Fixed

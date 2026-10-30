@@ -23,6 +23,7 @@ log: true
 # 支持两种配置方式：
 # 1. 配置账号密码（username + password）：调用 download_album 等下载接口时会自动登录；
 # 2. 直接配置浏览器 cookies（只需配置 AVS；注意：浏览器 cookies 仅适用于网页端 impl: html，且必须与配置的访问域名一致）。
+# 两种方式二选一，不要同时配置。规范与最佳实践见登录指南 → https://jmcomic.readthedocs.io/zh-cn/latest/tutorial/17_login/
 auth:
   username: null
   password: null
@@ -82,7 +83,7 @@ client:
       #   https: 127.0.0.1:7890
       proxies: system
 
-      # cookies: 帐号配置（旧写法，仍保持兼容；新配置推荐直接写在顶层 auth.cookies 下，优先级更高），默认是 null，表示未登录状态访问JM。
+      # cookies: 帐号配置（旧写法，仍保持兼容；新配置请改写到顶层 auth.cookies，后者优先级更高，详见登录指南），默认是 null，表示未登录状态访问JM。
       # 禁漫的大部分本子，下载是不需要登录的；少部分敏感题材需要登录才能看。
       # 如果你希望以登录状态下载本子，最简单的方式是配置一下浏览器的cookies，
       # 不用全部cookies，只要那个叫 AVS 就行。
@@ -196,10 +197,10 @@ plugins:
         interval: 0.5 # 间隔时间
         enable_warning: true # 占用过大时发出预警
 
-    - plugin: login # 登录插件
-      kwargs:
-        username: un # 用户名
-        password: pw # 密码
+    - plugin: login # 登录插件：创建 option 时立即登录（每次都强制登录），默认使用顶层 auth 的账号，详见登录指南
+      # kwargs: # 选填（旧写法）。传入的账号密码会写入顶层 auth
+      #   username: un # 用户名
+      #   password: pw # 密码
 
     - plugin: find_update # 只下载新章插件
       kwargs:

@@ -273,7 +273,10 @@ class JmOptionPlugin:
 
 class JmLoginPlugin(JmOptionPlugin):
     """
-    功能：登录禁漫，并保存登录后的cookies，让所有client都带上此cookies
+    功能：立即登录禁漫，并把登录态（cookies、username、user_id）写回 option.auth，让后续创建的 client 都带上登录态。
+
+    - 传入 username/password 时，会先写入 option.auth（保证 auth 中账号与密码成对）；不传则使用 option.auth 中已有的账号。
+    - 每次调用都会强制登录，不复用 option.auth 中可能已过期的 cookies。
     """
     plugin_key = 'login'
 
@@ -282,17 +285,14 @@ class JmLoginPlugin(JmOptionPlugin):
                password: Optional[str] = None,
                impl=None,
                ) -> None:
-        force = False
-        if username is not None and username != self.option.auth.get('username'):
+        if username is not None:
             self.option.auth.username = username
-            force = True
-        if password is not None and password != self.option.auth.get('password'):
+        if password is not None:
             self.option.auth.password = password
-            force = True
         self.require_param(self.option.auth.get('username'), '用户名不能为空')
         self.require_param(self.option.auth.get('password'), '密码不能为空')
 
-        self.option.login_with_option_auth(impl=impl, force=force)
+        self.option.login_with_option_auth(impl=impl, force=True)
         self.log('登录成功')
 
 

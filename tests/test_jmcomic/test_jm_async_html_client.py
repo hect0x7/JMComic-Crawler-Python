@@ -354,6 +354,38 @@ class Test_Async_Html_Client(unittest.TestCase):
         self.assertEqual(new_async_client._username, 'bob')
         self.assertEqual(new_async_client._user_id, '9527')
 
+    def test_login_plugin_always_forces_login_and_writes_back_auth(self):
+        from jmcomic import JmHtmlClient, JmLoginPlugin
+
+        login_calls = []
+
+        def fake_html_login(self_client, username, password):
+            login_calls.append((username, password))
+            self_client['cookies'] = {'AVS': f'fresh-avs-{len(login_calls)}'}
+            self_client._username = username
+
+        option = JmOption.construct({
+            'auth': {'username': 'bob', 'password': 'pwd', 'cookies': {'AVS': 'stale-avs'}},
+            'client': {'impl': 'html', 'domain': ['example.com']},
+        })
+
+        with patch.object(JmHtmlClient, 'login', fake_html_login):
+            # auth 已有 cookies 且参数与 auth 相同：仍然发起登录，刷新可能过期的 cookies
+            JmLoginPlugin.build(option).invoke(username='bob', password='pwd')
+            self.assertEqual(option.auth.src_dict['cookies']['AVS'], 'fresh-avs-1')
+
+            # 不传参数：使用 option.auth 中的账号登录
+            JmLoginPlugin.build(option).invoke()
+
+            # 传入新账号：账号与密码一起写回 option.auth
+            JmLoginPlugin.build(option).invoke(username='carol', password='pwd2')
+
+        self.assertEqual(login_calls, [('bob', 'pwd'), ('bob', 'pwd'), ('carol', 'pwd2')])
+        self.assertEqual(option.auth.src_dict['cookies']['AVS'], 'fresh-avs-3')
+        self.assertEqual(option.auth.src_dict['username'], 'carol')
+        self.assertEqual(option.auth.src_dict['password'], 'pwd2')
+        self.assertEqual(option.new_jm_client()['cookies']['AVS'], 'fresh-avs-3')
+
     def test_login_preserves_existing_avs_when_response_omits_it(self):
         client = self.new_client()
         client['cookies'] = {'AVS': 'old-avs'}

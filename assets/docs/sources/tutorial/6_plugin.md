@@ -26,22 +26,26 @@ jmcomic里的内置事件如下：
 
 举例：你可以配置一个login插件，在option对象创建后（`after_init`）时，调用`login`插件，执行登录禁漫的功能。
 
-这样你后续使用option下载本子时，都会处于已登录状态。已登录状态可以让你访问所有禁漫本子。
+这样你后续使用option时，都会处于已登录状态。已登录状态可以让你访问所有禁漫本子。
 
 ## 2. 示例：在after_init时调用login插件
 
-`login`插件功能：登录JM，获取并保存cookies到option内。后续option创建的Client都会携带cookies，即都是登录状态。
+`login`插件功能：立即登录JM（每次都强制登录），并把登录态写回 `option.auth`。后续option创建的Client都会携带登录态。
 
-配置方式：将以下配置写入option文件
+配置方式：将以下配置写入option文件。账号密码写在顶层 `auth`，插件不用传参数。
 
 ```yaml
+auth:
+  username: un # 禁漫帐号
+  password: pw # 密码
+
 plugins: # 插件配置项
   after_init: # 在after_init事件时自动执行插件
     - plugin: login # 插件的key
-      kwargs: # 下面是给插件的参数 (kwargs)，由插件类自定义
-        username: un # 禁漫帐号
-        password: pw # 密码
 ```
+
+> [!NOTE]
+> 只下载本子时，配置 `auth` 就够了，下载接口会自动登录，不需要 `login` 插件。`login` 插件适用于“创建 option 时就要登录”的场景，例如后面还有需要登录态的 `after_init` 插件。详见 [登录指南](./17_login.md)。
 
 有了上述option配置，当你调用下面的代码时，login插件就会执行。
 
@@ -83,12 +87,13 @@ download:
   image:
     suffix: .jpg
 
+auth:
+  username: your_username
+  password: your_password
+
 plugins:
   after_init:
-    - plugin: login
-      kwargs:
-        username: your_username
-        password: your_password
+    - plugin: login  # 使用 auth 中的账号，在 find_update 之前登录
 
     - plugin: find_update
       kwargs:

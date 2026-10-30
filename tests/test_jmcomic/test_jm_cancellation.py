@@ -122,7 +122,7 @@ class Test_Cancellation(unittest.IsolatedAsyncioTestCase):
 
         with jm_task_context(control=control):
             with self.assertRaises(DownloadCancelledException):
-                download_album('123', option=object(), downloader=ProbeDownloader)
+                download_album('123', option=SimpleNamespace(auth={}), downloader=ProbeDownloader)
 
         self.assertEqual(seen, [control])
 
@@ -135,7 +135,7 @@ class Test_Cancellation(unittest.IsolatedAsyncioTestCase):
 
         with jm_task_context(control=control):
             with self.assertRaises(DownloadCancelledException):
-                download_batch(cancel_first, ['123', '456'], option=object())
+                download_batch(cancel_first, ['123', '456'], option=SimpleNamespace(auth={}))
 
     def test_sync_batch_cancellation_with_control(self):
         control = DownloadControl()
@@ -146,7 +146,7 @@ class Test_Cancellation(unittest.IsolatedAsyncioTestCase):
 
         with jm_task_context(control=control):
             with self.assertRaisesRegex(DownloadCancelledException, 'manual stop'):
-                download_batch(stop, ['123'], option=object())
+                download_batch(stop, ['123'], option=SimpleNamespace(auth={}))
 
 
     def test_sync_batch_cancellation_exposes_completed_results_and_unfinished_ids(self):
@@ -182,7 +182,7 @@ class Test_Cancellation(unittest.IsolatedAsyncioTestCase):
 
         with jm_task_context(control=control):
             with self.assertRaises(DownloadCancelledException) as ctx:
-                download_batch(mock_download, ['1', '2', '3'], option=object())
+                download_batch(mock_download, ['1', '2', '3'], option=SimpleNamespace(auth={}))
 
         e = ctx.exception
         self.assertEqual(e.reason, 'stop at 2')
@@ -227,7 +227,7 @@ class Test_Cancellation(unittest.IsolatedAsyncioTestCase):
 
         with jm_task_context(control=control):
             with self.assertRaises(DownloadCancelledException) as ctx:
-                await download_batch_async(mock_download, ['1', '2', '3'], option=object())
+                await download_batch_async(mock_download, ['1', '2', '3'], option=SimpleNamespace(auth={}))
 
         e = ctx.exception
         self.assertEqual(e.reason, 'stop at 2')
@@ -270,11 +270,11 @@ class Test_Cancellation(unittest.IsolatedAsyncioTestCase):
 
         with jm_task_context(control=control):
             self.assertEqual(
-                set(download_batch(lambda *_args: None, [], option=object())),
+                set(download_batch(lambda *_args: None, [], option=SimpleNamespace(auth={}))),
                 set(),
             )
             self.assertEqual(
-                set(await download_batch_async(lambda *_args: None, [], option=object())),
+                set(await download_batch_async(lambda *_args: None, [], option=SimpleNamespace(auth={}))),
                 set(),
             )
 
@@ -285,7 +285,7 @@ class Test_Cancellation(unittest.IsolatedAsyncioTestCase):
             raise DownloadCancelledException('control cancellation')
 
         with self.assertRaisesRegex(DownloadCancelledException, 'control cancellation'):
-            await download_batch_async(stop_differently, ['1', '2'], option=object())
+            await download_batch_async(stop_differently, ['1', '2'], option=SimpleNamespace(auth={}))
 
     async def test_async_batch_waits_for_cancelled_children_to_finish(self):
         ready = asyncio.Event()
@@ -306,9 +306,9 @@ class Test_Cancellation(unittest.IsolatedAsyncioTestCase):
         batch = asyncio.create_task(download_batch_async(
             wait_until_cancelled,
             ['1', '2'],
-            option=object(),
+            option=SimpleNamespace(auth={}),
         ))
-        await ready.wait()
+        await asyncio.wait_for(ready.wait(), timeout=5)
         batch.cancel()
 
         with self.assertRaises(asyncio.CancelledError):
@@ -374,7 +374,7 @@ class Test_Cancellation(unittest.IsolatedAsyncioTestCase):
 
         with jm_task_context(control=control):
             with self.assertRaisesRegex(DownloadCancelledException, '请求期间取消') as ctx:
-                download_album('123', option=object(), downloader=FailingDownloader)
+                download_album('123', option=SimpleNamespace(auth={}), downloader=FailingDownloader)
             self.assertIsInstance(ctx.exception.__cause__, RuntimeError)
             self.assertEqual(str(ctx.exception.__cause__), '请求失败')
 
@@ -418,7 +418,7 @@ class Test_Cancellation(unittest.IsolatedAsyncioTestCase):
 
         with jm_task_context(control=control):
             with self.assertRaisesRegex(DownloadCancelledException, '异步请求期间取消') as ctx:
-                await download_album_async('123', option=object(), downloader=FailingAsyncDownloader)
+                await download_album_async('123', option=SimpleNamespace(auth={}), downloader=FailingAsyncDownloader)
             self.assertIsInstance(ctx.exception.__cause__, RuntimeError)
             self.assertEqual(str(ctx.exception.__cause__), '请求失败')
 
