@@ -127,8 +127,10 @@ class Test_Async_Html_Client(unittest.TestCase):
         from jmcomic import ResponseUnexpectedException
 
         old_domain_html = JmModuleConfig.DOMAIN_HTML
+        old_domain_html_list = JmModuleConfig.DOMAIN_HTML_LIST
         try:
             JmModuleConfig.DOMAIN_HTML = None
+            JmModuleConfig.DOMAIN_HTML_LIST = None
             option = JmOption.default()
             option.client.src_dict['domain'] = {}
             client = AsyncJmHtmlClient(option)
@@ -157,6 +159,7 @@ class Test_Async_Html_Client(unittest.TestCase):
                 self.run_async(client_error.setup())
         finally:
             JmModuleConfig.DOMAIN_HTML = old_domain_html
+            JmModuleConfig.DOMAIN_HTML_LIST = old_domain_html_list
 
     def test_search_cache_avoids_second_request(self):
         client = self.new_client()

@@ -67,12 +67,15 @@ class Test_Custom(JmTestConfigurable):
             else:
                 raise e
 
-        JmModuleConfig.DOMAIN_HTML_LIST = [html_domain]
-
-        self.assertListEqual(
-            JmModuleConfig.DOMAIN_HTML_LIST,
-            self.option.new_jm_client(domain_list=[], impl=MyClient.client_key).get_domain_list()
-        )
+        old_domain_html_list = JmModuleConfig.DOMAIN_HTML_LIST
+        try:
+            JmModuleConfig.DOMAIN_HTML_LIST = [html_domain]
+            self.assertListEqual(
+                JmModuleConfig.DOMAIN_HTML_LIST,
+                self.option.new_jm_client(domain_list=[], impl=MyClient.client_key).get_domain_list()
+            )
+        finally:
+            JmModuleConfig.DOMAIN_HTML_LIST = old_domain_html_list
 
     def test_client_key_missing(self):
         class MyClient(JmcomicClient):

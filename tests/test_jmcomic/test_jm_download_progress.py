@@ -4,6 +4,7 @@ import importlib.util
 import logging
 import os
 import unittest
+from test_jmcomic import mock_option
 from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -307,7 +308,7 @@ class Test_DownloadProgress(unittest.TestCase):
             )
 
             with patch.object(AfterAsyncDownloader, '__init__', return_value=None):
-                downloader = new_async_downloader(option=object())
+                downloader = new_async_downloader(option=mock_option())
             self.assertIsInstance(downloader, AfterAsyncDownloader)
         finally:
             JmModuleConfig.CLASS_ASYNC_DOWNLOADER = original_downloader

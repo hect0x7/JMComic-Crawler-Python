@@ -69,6 +69,17 @@ skip_time_cost_log = os.path.exists('./.idea')
 cost_time_dict = {}
 
 
+
+def mock_option(auth=None, **kwargs):
+    """
+    轻量级 Mock JmOption，满足顶层 API（如 _should_auto_login）对 option.auth 的契约，
+    专用于流程调度、取消与上下文等纯逻辑单元测试。
+    """
+    from types import SimpleNamespace
+    if auth is None:
+        auth = {}
+    return SimpleNamespace(auth=auth, **kwargs)
+
 class JmTestConfigurable(unittest.TestCase):
     option: JmOption = None
     client: JmcomicClient = None
