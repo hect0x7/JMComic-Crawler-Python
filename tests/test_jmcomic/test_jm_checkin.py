@@ -441,7 +441,7 @@ class Test_CheckIn(unittest.TestCase):
         orig_log = JmModuleConfig.EXECUTOR_LOG
         orig_flag = JmModuleConfig.FLAG_ENABLE_JM_LOG
         JmModuleConfig.FLAG_ENABLE_JM_LOG = True
-        JmModuleConfig.EXECUTOR_LOG = lambda topic, msg: logs.append((topic, msg))
+        JmModuleConfig.EXECUTOR_LOG = lambda topic, msg: logs.append((topic, msg)) if topic == 'api.album_redirect' else None
         try:
             # 1. 子章节 ID -> 自动重定向到父本子 ID 并打印日志
             album = JmApiClient.get_album_detail(client, '1236387')
@@ -511,7 +511,7 @@ class Test_CheckIn(unittest.TestCase):
         orig_log = JmModuleConfig.EXECUTOR_LOG
         orig_flag = JmModuleConfig.FLAG_ENABLE_JM_LOG
         JmModuleConfig.FLAG_ENABLE_JM_LOG = True
-        JmModuleConfig.EXECUTOR_LOG = lambda topic, msg: logs.append((topic, msg))
+        JmModuleConfig.EXECUTOR_LOG = lambda topic, msg: logs.append((topic, msg)) if topic == 'api.album_redirect' else None
         try:
             album = asyncio.run(AsyncJmApiClient.get_album_detail(client, '275013'))
             self.assertEqual(album.album_id, '43164')

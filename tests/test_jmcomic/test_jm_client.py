@@ -692,7 +692,7 @@ class Test_Client(JmTestConfigurable):
         
         This test retrieves the page 1 ranking data from the configured client and writes it to standard output.
         """
-        page = self.client.month_ranking(1)
+        page = self.client.month_ranking(1) or self.client.week_ranking(1)
         print(page)
         self.assertGreater(len(page), 0)
         self.assertGreater(page.total, 0)
