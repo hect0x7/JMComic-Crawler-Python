@@ -281,7 +281,7 @@ class JmOptionPlugin:
 
 class JmLoginPlugin(JmOptionPlugin):
     """
-    功能：立即登录禁漫，并把登录态（cookies、username、user_id）写回 option.auth，让后续创建的 client 都带上登录态。
+    功能：立即登录禁漫，并把登录态（cookies、user_id）写回 option.auth，让后续创建的 client 都带上登录态。
 
     - 传入 username/password 时，会先写入 option.auth（保证 auth 中账号与密码成对）；不传则使用 option.auth 中已有的账号。
     - 每次调用都会强制登录，不复用 option.auth 中可能已过期的 cookies。

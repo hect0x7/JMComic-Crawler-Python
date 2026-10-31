@@ -201,7 +201,7 @@ class JmOption:
         self.plugins = AdvancedDict(plugins)
         # 认证配置
         self.auth = AdvancedDict(auth or {})
-        self._auth_env_placeholders = self.resolve_auth_env()
+        self.resolve_auth_env()
         self._auth_sync_lock = RLock()
         self._auth_async_lock = None
         self._auth_async_lock_loop = None
@@ -218,22 +218,15 @@ class JmOption:
         if call_after_init_plugin:
             self.call_all_plugin('after_init', safe=True)
 
-    def resolve_auth_env(self) -> Dict[str, tuple]:
+    def resolve_auth_env(self):
         """
         把 auth 中形如 ${ENV_NAME} 的字符串替换为环境变量的值（规则与插件 kwargs 相同），
         支持 auth 下的字符串字段和 auth.cookies 下的字符串值。
-
-        :returns: 被替换的 auth 字段 {key: (原始写法, 替换后的值)}，
-                  deconstruct 时据此写回原始写法，避免把环境变量里的密钥明文保存到配置文件。
         """
         data = self.auth.src_dict
-        placeholders = {}
         for k, v in list(data.items()):
             if isinstance(v, str):
-                newv = JmcomicText.parse_dsl_text(v)
-                if newv != v:
-                    data[k] = newv
-                    placeholders[k] = (v, newv)
+                data[k] = JmcomicText.parse_dsl_text(v)
 
         cookies = data.get('cookies')
         if isinstance(cookies, dict):
@@ -241,23 +234,18 @@ class JmOption:
                 if isinstance(v, str):
                     cookies[k] = JmcomicText.parse_dsl_text(v)
 
-        return placeholders
-
     def deconstruct_auth(self) -> Dict:
         """
-        导出 auth：不包含运行时登录态（cookies、user_id）；
-        值仍等于环境变量替换结果的字段，写回原始的 ${ENV_NAME} 写法。
+        导出 auth：不包含运行时登录态（cookies、user_id）。
         """
-        ret = {}
-        for k, v in self.auth.src_dict.items():
-            if k in ('cookies', 'user_id'):
-                continue
-            raw, resolved = self._auth_env_placeholders.get(k, (None, None))
-            ret[k] = raw if raw is not None and v == resolved else v
-        return ret
+        return {
+            k: v
+            for k, v in self.auth.src_dict.items()
+            if k not in ('cookies', 'user_id')
+        }
 
     def copy_option(self):
-        copied = self.__class__(
+        return self.__class__(
             dir_rule={
                 'rule': self.dir_rule.rule_dsl,
                 'base_dir': self.dir_rule.base_dir,
@@ -270,8 +258,6 @@ class JmOption:
             call_after_init_plugin=False,
             auth=self.auth.src_dict,
         )
-        copied._auth_env_placeholders = dict(self._auth_env_placeholders)
-        return copied
 
     """
     下面是decide系列方法，为了支持重写和增加程序动态性。
@@ -627,7 +613,7 @@ class JmOption:
                                force: bool = False,
                                ):
         """
-        使用 option.auth 的账号密码执行同步登录，并将登录态（cookies、username、user_id）写回 option.auth。
+        使用 option.auth 的账号密码执行同步登录，并将登录态（cookies、user_id）写回 option.auth。
         默认幂等（force=False）：若当前目标端所需的登录态已就绪，则直接跳过网络请求。
         """
         u = self.auth.get('username')
@@ -651,7 +637,6 @@ class JmOption:
             # noinspection protected-member
             self.update_auth(
                 cookies=dict(client['cookies']),
-                username=client._username,
                 user_id=client._user_id,
             )
             return resp
@@ -661,7 +646,7 @@ class JmOption:
                                            force: bool = False,
                                            ):
         """
-        使用 option.auth 的账号密码执行异步登录，并将登录态（cookies、username、user_id）写回 option.auth。
+        使用 option.auth 的账号密码执行异步登录，并将登录态（cookies、user_id）写回 option.auth。
         默认幂等（force=False）：若当前目标端所需的登录态已就绪，则直接跳过网络请求。
         """
         u = self.auth.get('username')
@@ -684,7 +669,6 @@ class JmOption:
                 # noinspection unresolved-references
                 self.update_auth(
                     cookies=dict(client['cookies']),
-                    username=client._username,
                     user_id=client._user_id,
                 )
                 return resp
@@ -700,24 +684,18 @@ class JmOption:
 
     def update_auth(self,
                     cookies: Optional[dict] = None,
-                    username: Optional[str] = None,
                     user_id: Optional[str] = None,
-                    password: Optional[str] = None,
                     ):
         if cookies is not None:
             if not self.auth.get('cookies'):
                 self.auth.cookies = dict(cookies)
             else:
                 self.auth.cookies.src_dict.update(cookies)
-        if username is not None:
-            self.auth.username = username
         if user_id is not None:
             self.auth.user_id = str(user_id)
-        if password is not None:
-            self.auth.password = password
         self._sync_cached_client_auth()
 
-    def update_cookies(self, cookies: dict, username: Optional[str] = None, user_id: Optional[str] = None):
+    def update_cookies(self, cookies: dict, user_id: Optional[str] = None):
         metadata: dict = self.client.postman.meta_data.src_dict
         orig_cookies: Optional[Dict] = metadata.get('cookies', None)
         if orig_cookies is None:
@@ -725,8 +703,8 @@ class JmOption:
         else:
             orig_cookies.update(cookies)
             metadata['cookies'] = orig_cookies
-        if username is not None or user_id is not None:
-            self.update_auth(username=username, user_id=user_id)
+        if user_id is not None:
+            self.update_auth(user_id=user_id)
         else:
             self._sync_cached_client_auth()
 

@@ -389,7 +389,7 @@ class Test_Async_Html_Client(unittest.TestCase):
         self.assertEqual(option.auth.src_dict['password'], 'pwd2')
         self.assertEqual(option.new_jm_client()['cookies']['AVS'], 'fresh-avs-3')
 
-    def test_auth_env_placeholder_resolved_and_kept_on_deconstruct(self):
+    def test_auth_env_placeholder_resolved(self):
         env = {'JM_TEST_AUTH_USER': 'env_user', 'JM_TEST_AUTH_PASS': 'env_pass', 'JM_TEST_AUTH_AVS': 'env_avs'}
         with patch.dict(os.environ, env):
             option = JmOption.construct({
@@ -407,11 +407,11 @@ class Test_Async_Html_Client(unittest.TestCase):
         self.assertEqual(option.auth.src_dict['cookies']['AVS'], 'env_avs')
         self.assertEqual(option.new_jm_client()['cookies']['AVS'], 'env_avs')
 
-        # 保存配置时写回 ${} 原始写法，不泄露环境变量的值
+        # deconstruct 导出解析后的值，并过滤掉运行时字段 cookies / user_id
         auth_dict = option.deconstruct()['auth']
-        self.assertEqual(auth_dict['username'], '${JM_TEST_AUTH_USER}')
-        self.assertEqual(auth_dict['password'], '${JM_TEST_AUTH_PASS}')
-        self.assertEqual(option.copy_option().deconstruct()['auth']['password'], '${JM_TEST_AUTH_PASS}')
+        self.assertEqual(auth_dict['username'], 'env_user')
+        self.assertEqual(auth_dict['password'], 'env_pass')
+        self.assertEqual(option.copy_option().deconstruct()['auth']['password'], 'env_pass')
 
         # 字段在运行时被改成别的值后，按新值保存
         option.auth.username = 'other_user'

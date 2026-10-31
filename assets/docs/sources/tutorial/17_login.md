@@ -8,7 +8,7 @@
 
 ## 1. 一条原则：账号只写在顶层 `auth`
 
-所有登录相关的配置，都只写在配置文件的顶层 `auth` 下。jmcomic 登录后拿到的 cookies、用户名、用户 ID，也会统一写回 `option.auth`。
+所有登录相关的配置，都只写在配置文件的顶层 `auth` 下。jmcomic 登录后拿到的 cookies、用户 ID，也会统一写回 `option.auth`。
 
 `auth` 有两种写法，**二选一**：
 
@@ -69,7 +69,7 @@ auth:
 
 ### 2.1 让 option 创建的所有 client 都登录
 
-`option.new_jm_client()` 只会带上 `auth` 里已有的 cookies，**不会**自动登录。直接使用 client 时，要先调用一次 `login_with_option_auth()`：
+`option.new_jm_client()` 只会带上 `auth` 里已有的 cookies，**不会**自动登录。使用账号密码时，直接使用 client 前要先调用一次 `login_with_option_auth()`：
 
 ```python
 option = create_option_by_file('op.yml')
@@ -112,7 +112,7 @@ client.login('你的用户名', '你的密码')
 | 入口 | 是否发起登录 |
 |---|---|
 | `download_album` / `download_photo` / `download_batch` 及对应的异步版本 | `auth` 配了账号密码，并且当前**未登录**时，登录一次；否则不登录。传 `login=False` 可关闭 |
-| `favorite_folder_export` 插件 | 同上 |
+| `favorite_folder_export` 插件 | `auth` 配了账号密码，并且当前**未登录**时，登录一次；否则不登录 |
 | `option.login_with_option_auth()` / `login_with_option_auth_async()` | 当前**未登录**时登录；传 `force=True` 时总是登录 |
 | `client.login()` | 总是登录，只影响这个 client |
 | `option.new_jm_client()` / `build_jm_client()` / `new_jm_async_client()` | 从不登录，只带上已有的 cookies |
@@ -127,7 +127,7 @@ client.login('你的用户名', '你的密码')
 | 字段 | 写回方式 |
 |---|---|
 | `auth.cookies` | 合并写入：同名的 cookie 覆盖，其余保留 |
-| `auth.username`、`auth.user_id` | 覆盖写入 |
+| `auth.user_id` | 覆盖写入 |
 
 写回后，`option.build_jm_client()` 已缓存的 client 会同步更新，之后新建的 client 也会带上这些登录态。
 
@@ -144,8 +144,7 @@ client.login('你的用户名', '你的密码')
 `option.to_file()` 保存 `auth` 时：
 
 - 保存 `username`、`password`；
-- **不保存** `cookies` 和 `user_id`，因为它们是运行时登录态；
-- 原本写成 `${环境变量名}` 的字段，保存的仍是 `${环境变量名}`，不会把环境变量的值写进文件。
+- **不保存** `cookies` 和 `user_id`，因为它们是运行时登录态。
 
 ### 3.5 多账号
 
