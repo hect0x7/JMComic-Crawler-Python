@@ -159,6 +159,14 @@ class JmOptionPlugin:
         """Return the current invocation's isolated task-context snapshot."""
         return JTC.get_context()
 
+    async def async_invoke(self, **kwargs) -> None:
+        import asyncio
+        downloader = kwargs.get('downloader')
+        if isinstance(downloader, JmAsyncDownloader):
+            await downloader._run_in_decode_pool(self.invoke, **kwargs)
+        else:
+            await asyncio.to_thread(self.invoke, **kwargs)
+
     @classmethod
     def build(cls, option: JmOption) -> 'JmOptionPlugin':
         """
@@ -2239,6 +2247,25 @@ class DownloadCoverPlugin(JmOptionPlugin):
             return
         downloader.client.download_album_cover(album_id, save_path, size)
 
+    async def async_invoke(self,
+                           dir_rule: dict,
+                           size='',
+                           photo: JmPhotoDetail = None,
+                           album: JmAlbumDetail = None,
+                           downloader=None,
+                           **kwargs) -> None:
+        album_id = album.id if album else photo.album_id
+        save_path = self.decide_filepath(
+            album, photo,
+            None, None, None,
+            dir_rule
+        )
+        if self.option.download.cache and os.path.exists(save_path):
+            self.log(f'album-{album_id}的封面已存在，跳过下载: [{save_path}]', 'skip')
+            return
+        decode_executor = downloader.get_decode_executor() if isinstance(downloader, JmAsyncDownloader) else None
+        await downloader.client.download_album_cover(album_id, save_path, size, decode_executor=decode_executor)
+
 
 class CalibreMetadataPlugin(JmOptionPlugin):
     """
@@ -2313,3 +2340,41 @@ class CalibreMetadataPlugin(JmOptionPlugin):
             return
         self.require_param(downloader, 'include_cover=true时需要downloader参数（after_album阶段会自动传入）')
         downloader.client.download_album_cover(album_id, cover_path, '')
+
+    async def async_invoke(self,
+                           dir_rule: dict,
+                           album: JmAlbumDetail = None,
+                           photo: JmPhotoDetail = None,
+                           downloader=None,
+                           include_cover=False,
+                           fields=None,
+                           **kwargs) -> None:
+        self.require_param(album, '本插件需在after_album阶段使用，需要album参数')
+
+        try:
+            import jmcomic_calibre
+        except ImportError:
+            self.warning_lib_not_install('jmcomic-calibre')
+            return
+
+        opf_path = self.decide_filepath(album, photo, None, None, None, dir_rule)
+
+        if include_cover:
+            cover_path = os.path.join(os.path.dirname(opf_path), 'cover.jpg')
+            if self.option.download.cache and os.path.exists(cover_path):
+                self.log(f'album-{album.id}的封面已存在，跳过下载: [{cover_path}]', 'skip')
+            else:
+                self.require_param(downloader, 'include_cover=true时需要downloader参数（after_album阶段会自动传入）')
+                decode_executor = downloader.get_decode_executor() if isinstance(downloader, JmAsyncDownloader) else None
+                await downloader.client.download_album_cover(album.id, cover_path, '', decode_executor=decode_executor)
+
+        jmcomic_calibre.export_opf(
+            album=album,
+            opf_path=opf_path,
+            fields=fields,
+            include_cover=include_cover,
+            on_ignored=lambda key, allowed: self.log(
+                f'calibre_metadata: 忽略不支持的fields字段 [{key}]，'
+                f'仅支持Dublin Core元素: {", ".join(sorted(allowed))}', 'warning'),
+        )
+        self.log(f'已生成Calibre元数据文件 → [{opf_path}]')

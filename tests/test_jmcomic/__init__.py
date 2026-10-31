@@ -173,7 +173,10 @@ class JmAsyncTestConfigurable(JmTestConfigurable):
     def new_option(cls):
         opt = super().new_option()
         # 强制使用 api impl，避免 HTML 端的 403 封控
-        opt.client.src_dict['impl'] = 'api'
+        if opt.client.async_impl in ('async_html', 'html'):
+            opt.client.src_dict['impl'] = 'html'
+        else:
+            opt.client.src_dict['impl'] = 'api'
         return opt
 
     @classmethod
@@ -183,7 +186,8 @@ class JmAsyncTestConfigurable(JmTestConfigurable):
         cls._asyncio.set_event_loop(cls._loop)
 
         # 创建 sync API client（用于 diff 对照，与 async 使用同一后端）
-        cls.sync_api_client = cls.option.new_jm_client(cache='level_option', impl='api')
+        sync_impl = 'html' if cls.option.client.async_impl in ('async_html', 'html') else 'api'
+        cls.sync_api_client = cls.option.new_jm_client(cache='level_option', impl=sync_impl)
 
         # 创建 async client 并就绪
         async def _create_async_client():

@@ -1336,3 +1336,28 @@ class AsyncJmcomicClient:
 
     async def get_jm_image(self, img_url) -> JmImageResp:
         raise NotImplementedError
+
+    async def download_album_cover(self, album_id, save_path: str, size: str = '', decode_executor=None):
+        import asyncio
+        from .jm_runtime import JmAsyncRuntime, JmRuntime
+        from .jm_task_context import JTC, bind_jm_task_context
+
+        img_url = JmcomicText.get_album_cover_url(album_id, size=size)
+        resp = await self.get_jm_image(img_url)
+        resp.require_success()
+
+        if decode_executor is None:
+            runtime = JTC.get_runtime()
+            if isinstance(runtime, JmAsyncRuntime):
+                decode_executor = runtime.executor(JmRuntime.LEVEL_DECODE)
+
+        loop = asyncio.get_running_loop()
+        worker = bind_jm_task_context(resp.transfer_to)
+        return await loop.run_in_executor(
+            decode_executor,
+            worker,
+            save_path,
+            None,
+            False,
+            img_url,
+        )

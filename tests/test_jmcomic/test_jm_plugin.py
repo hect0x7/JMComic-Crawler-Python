@@ -589,3 +589,79 @@ class Test_Plugin(JmTestConfigurable):
             print('✅ 7z command enumerates files instead of archiving "./".')
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_async_plugin_invocation_and_download_cover(self):
+        """测试 call_all_plugin_async：download_cover 走 async_invoke，同步插件自动走 decode 线程池"""
+        import asyncio
+        import tempfile
+        import shutil
+        import threading
+        from jmcomic.jm_async_downloader import JmAsyncDownloader
+        from jmcomic.jm_plugin import JmOptionPlugin
+
+        tmp = tempfile.mkdtemp(prefix='jm_test_async_plugin_')
+        try:
+            option = self.new_option()
+            cover_calls = []
+            sync_thread_names = []
+
+            class DummySyncPlugin(JmOptionPlugin):
+                plugin_key = 'dummy_sync_for_async_test'
+
+                def invoke(self, **kwargs):
+                    sync_thread_names.append(threading.current_thread().name)
+
+            JmModuleConfig.register_plugin(DummySyncPlugin)
+
+            option.plugins['before_album'] = [
+                {
+                    'plugin': 'download_cover',
+                    'kwargs': {
+                        'dir_rule': {'base_dir': tmp, 'rule': 'Bd/{Aid}_cover.jpg'},
+                        'size': '_3x4',
+                    },
+                    'safe': False,
+                },
+                {
+                    'plugin': 'dummy_sync_for_async_test',
+                    'kwargs': {},
+                    'safe': False,
+                },
+            ]
+
+            class FakeAsyncClient:
+                async def download_album_cover(self, album_id, save_path, size='', decode_executor=None):
+                    cover_calls.append((album_id, save_path, size, decode_executor))
+
+            dler = JmAsyncDownloader(option, decode_worker=1)
+            dler.client = FakeAsyncClient()
+            album = JmAlbumDetail(
+                album_id='123',
+                scramble_id='0',
+                name='test_album',
+                episode_list=[],
+                page_count=1,
+                pub_date='',
+                update_date='',
+                likes='',
+                views='',
+                comment_count=0,
+                works=[],
+                actors=[],
+                tags=[],
+                authors=[],
+                description='',
+            )
+
+            try:
+                asyncio.run(dler._dispatch_plugin('before_album', album=album, downloader=dler))
+                self.assertEqual(1, len(cover_calls))
+                self.assertEqual('123', cover_calls[0][0])
+                self.assertEqual('_3x4', cover_calls[0][2])
+                self.assertIs(cover_calls[0][3], dler._decode_pool)
+                self.assertEqual(1, len(sync_thread_names))
+                self.assertTrue(sync_thread_names[0].startswith('jm-async-decode'))
+            finally:
+                dler.shutdown()
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)

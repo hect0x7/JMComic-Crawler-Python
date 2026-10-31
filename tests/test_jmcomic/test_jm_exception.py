@@ -32,6 +32,7 @@ class Test_RequestRetryAllFailException(unittest.TestCase):
         client._domain_list = ['api-one.example', 'api-two.example']
         client._retry_times = 0
         client._session = FailingSession()
+        client._domain_fail_count = {}
 
         async def request():
             return await client._request_with_retry('/search', {})

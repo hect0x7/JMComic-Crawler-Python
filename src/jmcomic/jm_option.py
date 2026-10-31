@@ -941,6 +941,57 @@ class JmOption:
             # 为插件兜底，捕获其他所有异常
             self.handle_plugin_unexpected_error(e, pinfo, kwargs, plugin, pclass)
 
+    async def call_all_plugin_async(self, group: str, safe=None, **extra):
+        plugin_list: List[dict] = self.plugins.get(group, [])
+        if plugin_list is None or len(plugin_list) == 0:
+            return
+
+        from .jm_plugin import JmOptionPlugin
+
+        plugin_registry = JmModuleConfig.REGISTRY_PLUGIN
+        for pinfo in plugin_list:
+            key, kwargs = pinfo['plugin'], pinfo.get('kwargs', None)
+            pclass: Optional[Type[JmOptionPlugin]] = plugin_registry.get(key, None)
+
+            ExceptionTool.require_true(pclass is not None, f'[{group}] 未注册的plugin: {key}')
+
+            try:
+                await self.invoke_plugin_async(pclass, kwargs, extra, pinfo)
+            except BaseException as e:
+                if safe is True or pinfo.get('safe', True):
+                    jm_log('plugin.exception', e)
+                else:
+                    raise e
+
+    async def invoke_plugin_async(self, pclass, kwargs: Optional[Dict], extra: dict, pinfo: dict):
+        kwargs: dict = self.fix_kwargs(kwargs)
+        if len(extra) != 0:
+            kwargs.update(extra)
+
+        from .jm_plugin import JmOptionPlugin, PluginValidationException
+
+        pclass: Type[JmOptionPlugin]
+        plugin: Optional[JmOptionPlugin] = None
+
+        try:
+            plugin: JmOptionPlugin = pclass.build(self)
+
+            if not pinfo.get('log', True):
+                plugin.log_enable = False
+
+            jm_log('plugin.invoke', f'调用插件: [{pclass.plugin_key}]')
+
+            await plugin.async_invoke(**kwargs)
+
+        except PluginValidationException as e:
+            self.handle_plugin_valid_exception(e, pinfo, kwargs, plugin, pclass)
+
+        except JmcomicException as e:
+            self.handle_plugin_jmcomic_exception(e, pinfo, kwargs, plugin, pclass)
+
+        except BaseException as e:
+            self.handle_plugin_unexpected_error(e, pinfo, kwargs, plugin, pclass)
+
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
     def handle_plugin_valid_exception(self, e, pinfo: dict, kwargs: dict, _plugin, _pclass):
         from .jm_plugin import PluginValidationException
