@@ -136,6 +136,8 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
             configured_opt.client.src_dict['domain'] = {'api': list(expected)}
             default_opt = self.new_option()
             default_opt.client.src_dict['domain'] = {'api': list(JmModuleConfig.DOMAIN_API_LIST)}
+            for o in (opt, configured_opt, default_opt):
+                o.client.src_dict['async_impl'] = 'async_api'
 
             clients = [
                 opt.new_jm_async_client(domain_list=expected),
@@ -193,6 +195,8 @@ class Test_Async_Custom(JmAsyncTestConfigurable):
             first_option.client.postman.meta_data.src_dict['cookies'] = {'custom': 'cookie'}
             second_option = self.new_option()
             second_option.client.postman.meta_data.src_dict.pop('cookies', None)
+            for o in (first_option, second_option):
+                o.client.src_dict['async_impl'] = 'async_api'
 
             first = first_option.new_jm_async_client()
             second = second_option.new_jm_async_client()

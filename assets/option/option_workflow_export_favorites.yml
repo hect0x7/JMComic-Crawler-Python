@@ -1,3 +1,8 @@
+# 登录账号：从 GitHub Actions 的 secrets / 手动输入读取。收藏夹导出插件会用这个账号自动登录
+auth:
+  username: ${JM_USERNAME}
+  password: ${JM_PASSWORD}
+
 client:
   impl: api
   domain:
@@ -6,11 +11,6 @@ client:
 # 插件配置
 plugins:
   main:
-    - plugin: login # 登录插件
-      kwargs:
-        username: ${JM_USERNAME}
-        password: ${JM_PASSWORD}
-
     - plugin: favorite_folder_export
       log: false
       kwargs:

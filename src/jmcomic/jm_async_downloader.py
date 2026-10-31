@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import os
 from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 
 from .jm_downloader import BaseDownloader, DownloadCallback, record_download_duration
 from .jm_entity import JmAlbumDetail, JmPhotoDetail, JmImageDetail
@@ -85,20 +86,22 @@ class JmAsyncDownloader(BaseDownloader):
     # 核心下载流程 — 对齐 sync JmDownloader
     # ======================================================================
 
-    async def _run_in_decode_pool(self, func, *args):
+    def get_decode_executor(self):
         runtime = JTC.get_runtime()
         if isinstance(runtime, JmAsyncRuntime):
-            executor = runtime.executor(JmRuntime.LEVEL_DECODE)
-        else:
-            if self._decode_pool is None:
-                self._decode_pool = ThreadPoolExecutor(
-                    max_workers=self._decode_worker,
-                    thread_name_prefix='jm-async-decode',
-                )
-            executor = self._decode_pool
+            return runtime.executor(JmRuntime.LEVEL_DECODE)
+        if self._decode_pool is None:
+            self._decode_pool = ThreadPoolExecutor(
+                max_workers=self._decode_worker,
+                thread_name_prefix='jm-async-decode',
+            )
+        return self._decode_pool
 
-        worker = bind_jm_task_context(func)
-        future = executor.submit(worker, *args)
+    async def _run_in_decode_pool(self, func, *args, **kwargs):
+        executor = self.get_decode_executor()
+        target = partial(func, *args, **kwargs) if kwargs else partial(func, *args)
+        worker = bind_jm_task_context(target)
+        future = executor.submit(worker)
         waiter = asyncio.wrap_future(future)
         try:
             return await asyncio.shield(waiter)
@@ -265,7 +268,7 @@ class JmAsyncDownloader(BaseDownloader):
                 # 不解密保存。对齐 sync transfer_to(decode_image=False)：
                 # 当目标后缀与原图后缀不一致时，需经 PIL 做格式转换。
                 # 与 sync 一致：比较后缀前先剥离 url 的 ?query 部分，避免 query 干扰后缀判定。
-                from common import suffix_not_equal
+                from .common import suffix_not_equal
                 img_url = image.download_url
                 qi = img_url.find('?')
                 if qi != -1:
@@ -314,10 +317,9 @@ class JmAsyncDownloader(BaseDownloader):
     # ======================================================================
 
     async def _dispatch_plugin(self, group: str, **kwargs):
-        plugins = getattr(self.option, 'plugins', None)
-        if plugins is not None and not plugins.get(group):
+        if not self.option.plugins.get(group):
             return
-        await asyncio.to_thread(self.option.call_all_plugin, group, **kwargs)
+        await self.option.call_all_plugin_async(group, **kwargs)
 
     async def _dispatch_feature(self, when: str, **kwargs):
         if len(self._feature_list) == 0:

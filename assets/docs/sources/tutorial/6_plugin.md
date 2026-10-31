@@ -24,33 +24,31 @@ jmcomic里的内置事件如下：
 - `after_album`: 下载本子后
 - `after_photo`: 下载章节后
 
-举例：你可以配置一个login插件，在option对象创建后（`after_init`）时，调用`login`插件，执行登录禁漫的功能。
+举例：你可以配置一个 `usage_log` 插件，在option对象创建后（`after_init`）时开始执行，持续打印 CPU、内存等硬件占用情况。
 
-这样你后续使用option下载本子时，都会处于已登录状态。已登录状态可以让你访问所有禁漫本子。
+> [!NOTE]
+> 登录不需要插件：账号密码写在配置文件顶层的 `auth` 下，jmcomic 会在需要时自动登录，详见 [登录指南](./17_login.md)。
 
-## 2. 示例：在after_init时调用login插件
-
-`login`插件功能：登录JM，获取并保存cookies到option内。后续option创建的Client都会携带cookies，即都是登录状态。
+## 2. 示例：在after_init时调用usage_log插件
 
 配置方式：将以下配置写入option文件
 
 ```yaml
 plugins: # 插件配置项
   after_init: # 在after_init事件时自动执行插件
-    - plugin: login # 插件的key
+    - plugin: usage_log # 插件的key
       kwargs: # 下面是给插件的参数 (kwargs)，由插件类自定义
-        username: un # 禁漫帐号
-        password: pw # 密码
+        interval: 0.5 # 每隔 0.5 秒打印一次
+        enable_warning: true # 占用过大时发出预警
 ```
 
-有了上述option配置，当你调用下面的代码时，login插件就会执行。
+有了上述option配置，当你调用下面的代码时，usage_log插件就会执行。
 
 ```python
 import jmcomic
 
 option = jmcomic.create_option_by_file('xxx.yml')  # 创建option对象
-# 程序走到这里，login插件已经调用完毕了
-# 后续下载本子就都是已登录状态里了
+# 程序走到这里，usage_log插件已经开始在后台打印硬件占用了
 option.download_album(123)
 ```
 
@@ -58,7 +56,7 @@ option.download_album(123)
 
 下面把多个插件组合起来，完成这些需求：
 
-1. 使用登录状态下载本子；
+1. 使用登录状态下载本子（配置顶层 `auth`，不需要插件）；
 2. 只下载指定章节之后的新章节；
 3. 将图片转换为 JPG；
 4. 每个章节分别压缩，并在压缩成功后删除原图片。
@@ -83,13 +81,12 @@ download:
   image:
     suffix: .jpg
 
+auth:
+  username: your_username
+  password: your_password
+
 plugins:
   after_init:
-    - plugin: login
-      kwargs:
-        username: your_username
-        password: your_password
-
     - plugin: find_update
       kwargs:
         145504: 290266  # 只下载本子 145504 中章节 290266 之后的新章节
@@ -103,7 +100,7 @@ plugins:
         delete_original_file: true
 ```
 
-这里的执行顺序是：先登录，再由 `find_update` 发起增量下载；每个本子下载完成后，`zip` 插件按章节生成压缩文件并删除已成功压缩的原图片。
+这里的执行顺序是：`find_update` 发起增量下载，下载前按 `auth` 自动登录；每个本子下载完成后，`zip` 插件按章节生成压缩文件并删除已成功压缩的原图片。
 
 
 ## 4. 怎么手动调用插件

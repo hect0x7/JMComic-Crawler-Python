@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from common import time_stamp, field_cache, ProxyBuilder
+from .common import time_stamp, field_cache, ProxyBuilder
 
 from .jm_task_context import JM_TASK_CONTEXT, JTC
 
@@ -43,7 +43,7 @@ class JmLogFormatter(logging.Formatter):
 
 def shuffled(lines):
     from random import shuffle
-    from common import str_to_list
+    from .common import str_to_list
     ls = str_to_list(lines)
     shuffle(ls)
     return ls
@@ -395,7 +395,18 @@ class JmModuleConfig:
         """
         postman = postman or cls.new_postman(session=True)
 
-        url = postman.with_redirect_catching().get(cls.JM_REDIRECT_URL)
+        url = cls.JM_REDIRECT_URL
+        while True:
+            resp = postman.get(url, allow_redirects=False)
+            if resp.status_code == 301:
+                url = resp.headers['Location']
+                continue
+            if resp.status_code == 302:
+                url = resp.headers['Location']
+                break
+            from .jm_toolkit import ExceptionTool
+            ExceptionTool.raises_resp(f'请求失败，访问禁漫永久网域获取可用网址，HTTP状态码为: {resp.status_code}', resp)
+
         cls.jm_log('module.html_url', f'获取禁漫网页URL: [{cls.JM_REDIRECT_URL}] → [{url}]')
         return url
 
@@ -494,7 +505,7 @@ class JmModuleConfig:
         kwargs.setdefault('headers', JmModuleConfig.new_html_headers())
         kwargs.setdefault('proxies', JmModuleConfig.DEFAULT_PROXIES)
 
-        from common import Postmans
+        from .common import Postmans
 
         if session:
             return Postmans.new_session(**kwargs)
@@ -511,6 +522,12 @@ class JmModuleConfig:
 
     DEFAULT_OPTION_DICT: dict = {
         'log': None,
+        'auth': {
+            'username': None,
+            'password': None,
+            'cookies': None,
+            'user_id': None,
+        },
         'dir_rule': {'rule': 'Bd_Pname', 'base_dir': None, 'normalize_zh': None},
         'download': {
             'cache': True,
@@ -532,7 +549,7 @@ class JmModuleConfig:
                 }
             },
             'impl': None,
-            'async_impl': 'async_api',  # 异步客户端实现类型
+            'async_impl': None,  # 异步客户端实现类型，默认跟随 impl
             'retry_times': 5,
         },
         'plugins': {

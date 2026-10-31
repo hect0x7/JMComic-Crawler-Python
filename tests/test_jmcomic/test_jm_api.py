@@ -97,7 +97,7 @@ class Test_Api(JmTestConfigurable):
                 print(func())
             except BaseException as e:
                 exception_list.append(e)
-                traceback_print_exec()
+                traceback.print_exc()
 
         multi_thread_launcher(
             iter_objs=func_list,

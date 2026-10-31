@@ -24,7 +24,6 @@ classifiers=[
     "Operating System :: Microsoft :: Windows",
 ]
 dependencies = [
-    "commonx>=0.6.38",
     "curl-cffi",
     "pillow",
     "pycryptodome",

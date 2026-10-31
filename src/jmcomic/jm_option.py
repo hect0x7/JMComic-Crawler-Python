@@ -188,7 +188,9 @@ class JmOption:
                  plugins: Dict,
                  filepath=None,
                  call_after_init_plugin=True,
+                 auth: Optional[Dict] = None,
                  ):
+        from threading import RLock
         # 路径规则配置
         self.dir_rule = DirRule(**dir_rule)
         # 客户端配置
@@ -197,6 +199,13 @@ class JmOption:
         self.download = AdvancedDict(download)
         # 插件配置
         self.plugins = AdvancedDict(plugins)
+        # 认证配置
+        self.auth = AdvancedDict(auth or {})
+        self.resolve_auth_env()
+        self._auth_sync_lock = RLock()
+        self._auth_async_lock = None
+        self._auth_async_lock_loop = None
+
         # 其他配置
         self.filepath = filepath
 
@@ -209,6 +218,32 @@ class JmOption:
         if call_after_init_plugin:
             self.call_all_plugin('after_init', safe=True)
 
+    def resolve_auth_env(self):
+        """
+        把 auth 中形如 ${ENV_NAME} 的字符串替换为环境变量的值（规则与插件 kwargs 相同），
+        支持 auth 下的字符串字段和 auth.cookies 下的字符串值。
+        """
+        data = self.auth.src_dict
+        for k, v in list(data.items()):
+            if isinstance(v, str):
+                data[k] = JmcomicText.parse_dsl_text(v)
+
+        cookies = data.get('cookies')
+        if isinstance(cookies, dict):
+            for k, v in list(cookies.items()):
+                if isinstance(v, str):
+                    cookies[k] = JmcomicText.parse_dsl_text(v)
+
+    def deconstruct_auth(self) -> Dict:
+        """
+        导出 auth：不包含运行时登录态（cookies、user_id）。
+        """
+        return {
+            k: v
+            for k, v in self.auth.src_dict.items()
+            if k not in ('cookies', 'user_id')
+        }
+
     def copy_option(self):
         return self.__class__(
             dir_rule={
@@ -220,7 +255,8 @@ class JmOption:
             client=self.client.src_dict,
             plugins=self.plugins.src_dict,
             filepath=self.filepath,
-            call_after_init_plugin=False
+            call_after_init_plugin=False,
+            auth=self.auth.src_dict,
         )
 
     """
@@ -413,6 +449,7 @@ class JmOption:
         return {
             'version': JmModuleConfig.JM_OPTION_VER,
             'log': JmModuleConfig.FLAG_ENABLE_JM_LOG,
+            'auth': self.deconstruct_auth(),
             'dir_rule': {
                 'rule': self.dir_rule.rule_dsl,
                 'base_dir': self.dir_rule.base_dir,
@@ -475,7 +512,7 @@ class JmOption:
 
         cache: str = cache if cache is not None else self.client.cache  # 启用缓存
 
-        impl: str = impl or self.client.impl  # client_key
+        impl = impl or self.client.impl  # client_key
 
         if isinstance(impl, type):
             # eg: impl = JmHtmlClient
@@ -505,9 +542,14 @@ class JmOption:
 
             return domain_list
 
+        explicit_cookies = kwargs.get('cookies')
         # support kwargs overwrite meta_data
         if len(kwargs) != 0:
             meta_data.update(kwargs)
+
+        merged_cookies = self.resolve_auth_cookies(explicit_cookies)
+        if merged_cookies is not None:
+            meta_data['cookies'] = merged_cookies
 
         # postman
         postman = Postmans.create(data=postman_conf)
@@ -523,6 +565,8 @@ class JmOption:
             retry_times=retry_times,
             domain_retry_strategy=domain_retry_strategy,
         )
+        client._username = self.auth.get('username')
+        client._user_id = self.auth.get('user_id')
 
         # enable cache
         CacheRegistry.enable_client_cache_on_condition(self, client, cache)
@@ -530,14 +574,139 @@ class JmOption:
         # noinspection PyTypeChecker
         return client
 
-    def update_cookies(self, cookies: dict):
+    def resolve_auth_cookies(self, extra_cookies: Optional[dict] = None) -> Optional[dict]:
+        """
+        按优先级从低到高合并 cookies：
+        1. client.postman.meta_data.cookies（旧配置兜底）
+        2. auth.cookies（顶层 auth 高优先级）
+        3. extra_cookies（单次创建客户端显式传参，最高优先级）
+        """
+        meta_cookies = self.client.postman.meta_data.get('cookies')
+        auth_cookies = self.auth.get('cookies')
+        if meta_cookies is None and auth_cookies is None and extra_cookies is None:
+            return None
+
+        merged = {}
+        for item in (meta_cookies, auth_cookies, extra_cookies):
+            raw = item.src_dict if isinstance(item, AdvancedDict) else item
+            if isinstance(raw, dict):
+                merged.update(raw)
+        return merged
+
+    def _is_auth_logged_in(self, is_api: bool) -> bool:
+        if not self.auth.get('cookies'):
+            return False
+        if is_api:
+            return self.auth.get('user_id') is not None
+        return bool(self.auth.get('username'))
+
+    def _get_auth_async_lock(self):
+        import asyncio
+        loop = asyncio.get_running_loop()
+        if self._auth_async_lock is None or self._auth_async_lock_loop is not loop:
+            self._auth_async_lock = asyncio.Lock()
+            self._auth_async_lock_loop = loop
+        return self._auth_async_lock
+
+    def login_with_option_auth(self,
+                               impl=None,
+                               force: bool = False,
+                               ):
+        """
+        使用 option.auth 的账号密码执行同步登录，并将登录态（cookies、user_id）写回 option.auth。
+        默认幂等（force=False）：若当前目标端所需的登录态已就绪，则直接跳过网络请求。
+        """
+        u = self.auth.get('username')
+        p = self.auth.get('password')
+        ExceptionTool.require_true(bool(u), '用户名不能为空')
+        ExceptionTool.require_true(bool(p), '密码不能为空')
+
+        target_impl = impl or self.client.impl
+        if isinstance(target_impl, type):
+            target_impl = target_impl.client_key
+        is_api = self.client_key_is_given_type(target_impl, JmApiClient)
+
+        if not force and self._is_auth_logged_in(is_api):
+            return None
+
+        with self._auth_sync_lock:
+            if not force and self._is_auth_logged_in(is_api):
+                return None
+            client = self.new_jm_client(impl=impl)
+            resp = client.login(u, p)
+            # noinspection protected-member
+            self.update_auth(
+                cookies=dict(client['cookies']),
+                user_id=client._user_id,
+            )
+            return resp
+
+    async def login_with_option_auth_async(self,
+                                           impl=None,
+                                           force: bool = False,
+                                           ):
+        """
+        使用 option.auth 的账号密码执行异步登录，并将登录态（cookies、user_id）写回 option.auth。
+        默认幂等（force=False）：若当前目标端所需的登录态已就绪，则直接跳过网络请求。
+        """
+        u = self.auth.get('username')
+        p = self.auth.get('password')
+        ExceptionTool.require_true(bool(u), '用户名不能为空')
+        ExceptionTool.require_true(bool(p), '密码不能为空')
+
+        from .jm_async_client import AsyncJmApiClient
+        client = self.new_jm_async_client(impl=impl)
+        is_api = client.is_given_type(AsyncJmApiClient)
+
+        if not force and self._is_auth_logged_in(is_api):
+            return None
+
+        async with self._get_auth_async_lock():
+            if not force and self._is_auth_logged_in(is_api):
+                return None
+            async with client:
+                resp = await client.login(u, p)
+                # noinspection unresolved-references
+                self.update_auth(
+                    cookies=dict(client['cookies']),
+                    user_id=client._user_id,
+                )
+                return resp
+
+    def _sync_cached_client_auth(self):
+        cached_client = self.__dict__.get('__cache_build_jm_client__')
+        if cached_client is not None:
+            merged_cookies = self.resolve_auth_cookies()
+            if merged_cookies:
+                cached_client['cookies'] = merged_cookies
+            cached_client._username = self.auth.get('username')
+            cached_client._user_id = self.auth.get('user_id')
+
+    def update_auth(self,
+                    cookies: Optional[dict] = None,
+                    user_id: Optional[str] = None,
+                    ):
+        if cookies is not None:
+            if not self.auth.get('cookies'):
+                self.auth.cookies = dict(cookies)
+            else:
+                self.auth.cookies.src_dict.update(cookies)
+        if user_id is not None:
+            self.auth.user_id = str(user_id)
+        self._sync_cached_client_auth()
+
+    def update_cookies(self, cookies: dict, user_id: Optional[str] = None):
         metadata: dict = self.client.postman.meta_data.src_dict
         orig_cookies: Optional[Dict] = metadata.get('cookies', None)
         if orig_cookies is None:
-            metadata['cookies'] = cookies
+            metadata['cookies'] = dict(cookies)
         else:
             orig_cookies.update(cookies)
             metadata['cookies'] = orig_cookies
+        if user_id is not None:
+            self.update_auth(user_id=user_id)
+        else:
+            self._sync_cached_client_auth()
 
     # noinspection PyMethodMayBeStatic,PyTypeChecker
     def decide_client_domain(self, client_key: str) -> List[str]:
@@ -604,6 +773,7 @@ class JmOption:
     def new_jm_async_client(self,
                             cache=None,
                             domain_list: Optional[Union[str, Sequence[str]]] = None,
+                            impl=None,
                             **kwargs,
                             ) -> AsyncJmcomicClient:
         """
@@ -617,8 +787,26 @@ class JmOption:
         if 'domain_retry_strategy' in kwargs:
             raise TypeError('Async client does not support domain_retry_strategy')
 
-        async_impl = self.client.get('async_impl', 'async_api') or 'async_api'
+        if impl is not None:
+            async_impl = impl.client_key if isinstance(impl, type) else impl
+            if async_impl in ('html', 'api'):
+                async_impl = f'async_{async_impl}'
+        elif self.client.async_impl:
+            async_impl = self.client.async_impl
+            if isinstance(async_impl, type):
+                async_impl = async_impl.client_key
+            elif async_impl in ('html', 'api'):
+                async_impl = f'async_{async_impl}'
+        else:
+            sync_impl = self.client.impl
+            if isinstance(sync_impl, type):
+                sync_impl = sync_impl.client_key
+            async_impl = f'async_{sync_impl}' if sync_impl in ('html', 'api') else 'async_api'
+
         clazz = JmModuleConfig.async_client_impl_class(async_impl)
+        from .jm_async_client import AbstractAsyncJmClient
+        if clazz == AbstractAsyncJmClient or not issubclass(clazz, AsyncJmcomicClient):
+            raise NotImplementedError(clazz)
         if domain_list is None:
             client = clazz(self, **kwargs)
         else:
@@ -729,6 +917,57 @@ class JmOption:
 
         except BaseException as e:
             # 为插件兜底，捕获其他所有异常
+            self.handle_plugin_unexpected_error(e, pinfo, kwargs, plugin, pclass)
+
+    async def call_all_plugin_async(self, group: str, safe=None, **extra):
+        plugin_list: List[dict] = self.plugins.get(group, [])
+        if plugin_list is None or len(plugin_list) == 0:
+            return
+
+        from .jm_plugin import JmOptionPlugin
+
+        plugin_registry = JmModuleConfig.REGISTRY_PLUGIN
+        for pinfo in plugin_list:
+            key, kwargs = pinfo['plugin'], pinfo.get('kwargs', None)
+            pclass: Optional[Type[JmOptionPlugin]] = plugin_registry.get(key, None)
+
+            ExceptionTool.require_true(pclass is not None, f'[{group}] 未注册的plugin: {key}')
+
+            try:
+                await self.invoke_plugin_async(pclass, kwargs, extra, pinfo)
+            except BaseException as e:
+                if safe is True or pinfo.get('safe', True):
+                    jm_log('plugin.exception', e)
+                else:
+                    raise e
+
+    async def invoke_plugin_async(self, pclass, kwargs: Optional[Dict], extra: dict, pinfo: dict):
+        kwargs: dict = self.fix_kwargs(kwargs)
+        if len(extra) != 0:
+            kwargs.update(extra)
+
+        from .jm_plugin import JmOptionPlugin, PluginValidationException
+
+        pclass: Type[JmOptionPlugin]
+        plugin: Optional[JmOptionPlugin] = None
+
+        try:
+            plugin: JmOptionPlugin = pclass.build(self)
+
+            if not pinfo.get('log', True):
+                plugin.log_enable = False
+
+            jm_log('plugin.invoke', f'调用插件: [{pclass.plugin_key}]')
+
+            await plugin.async_invoke(**kwargs)
+
+        except PluginValidationException as e:
+            self.handle_plugin_valid_exception(e, pinfo, kwargs, plugin, pclass)
+
+        except JmcomicException as e:
+            self.handle_plugin_jmcomic_exception(e, pinfo, kwargs, plugin, pclass)
+
+        except BaseException as e:
             self.handle_plugin_unexpected_error(e, pinfo, kwargs, plugin, pclass)
 
     # noinspection PyMethodMayBeStatic,PyUnusedLocal

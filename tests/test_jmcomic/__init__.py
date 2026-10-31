@@ -20,10 +20,65 @@ def ts():
     return time_stamp(False)
 
 
-skip_time_cost_log = file_exists('./.idea')
+def format_ts(ts: Optional[float] = None, f_time: str = "%Y-%m-%d %H:%M:%S") -> str:
+    return time.strftime(f_time, time.localtime(ts))
+
+
+def print_eye_catching(text, surround='\n', multiple=1, **_kwargs):
+    margin = surround * multiple
+    print(f"{margin}{text}{margin}")
+
+
+def thread_pool_executor(iter_objs: Iterable,
+                         apply_each_obj_func: Callable,
+                         wait_finish=True,
+                         max_workers=None,
+                         **_kwargs
+                         ):
+    from concurrent.futures import ThreadPoolExecutor, wait
+    executor = ThreadPoolExecutor(max_workers=max_workers)
+    futures = [
+        executor.submit(apply_each_obj_func, *args, **kwargs)
+        for args, kwargs in map(process_single_arg_to_args_and_kwargs, iter_objs)
+    ]
+    if wait_finish:
+        wait(futures)
+        executor.shutdown(wait=True)
+    return futures
+
+
+def multi_call(func, iter_objs, launcher=multi_thread_launcher, wait=True):
+    ret_dict = {}
+
+    def get_ret(obj):
+        ret_dict[obj] = func(obj)
+
+    task_ls = launcher(
+        iter_objs=iter_objs,
+        apply_each_obj_func=get_ret,
+        wait_finish=wait,
+    )
+
+    if not wait:
+        return ret_dict, task_ls
+    return ret_dict
+
+
+skip_time_cost_log = os.path.exists('./.idea')
 
 cost_time_dict = {}
 
+
+
+def mock_option(auth=None, **kwargs):
+    """
+    轻量级 Mock JmOption，满足顶层 API（如 _should_auto_login）对 option.auth 的契约，
+    专用于流程调度、取消与上下文等纯逻辑单元测试。
+    """
+    from types import SimpleNamespace
+    if auth is None:
+        auth = {}
+    return SimpleNamespace(auth=auth, **kwargs)
 
 class JmTestConfigurable(unittest.TestCase):
     option: JmOption = None
@@ -118,7 +173,10 @@ class JmAsyncTestConfigurable(JmTestConfigurable):
     def new_option(cls):
         opt = super().new_option()
         # 强制使用 api impl，避免 HTML 端的 403 封控
-        opt.client.src_dict['impl'] = 'api'
+        if opt.client.async_impl in ('async_html', 'html'):
+            opt.client.src_dict['impl'] = 'html'
+        else:
+            opt.client.src_dict['impl'] = 'api'
         return opt
 
     @classmethod
@@ -128,7 +186,8 @@ class JmAsyncTestConfigurable(JmTestConfigurable):
         cls._asyncio.set_event_loop(cls._loop)
 
         # 创建 sync API client（用于 diff 对照，与 async 使用同一后端）
-        cls.sync_api_client = cls.option.new_jm_client(cache='level_option', impl='api')
+        sync_impl = 'html' if cls.option.client.async_impl in ('async_html', 'html') else 'api'
+        cls.sync_api_client = cls.option.new_jm_client(cache='level_option', impl=sync_impl)
 
         # 创建 async client 并就绪
         async def _create_async_client():

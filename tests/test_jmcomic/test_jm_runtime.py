@@ -3,6 +3,7 @@ import threading
 import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
+from test_jmcomic import mock_option
 
 from jmcomic import (
     DownloadCancelledException,
@@ -193,7 +194,7 @@ class Test_Jm_Runtime(unittest.TestCase):
 
         self.assertEqual(
             {'1'},
-            set(download_batch(download_one, ['1'], option=object())),
+            set(download_batch(download_one, ['1'], option=mock_option())),
         )
         self.assertEqual(1, len(observed))
         self.assertIsNone(observed[0])
@@ -208,7 +209,7 @@ class Test_Jm_Runtime(unittest.TestCase):
         result = asyncio.run(download_batch_async(
             download_one,
             ['1'],
-            option=object(),
+            option=mock_option(),
         ))
 
         self.assertEqual({'1'}, set(result))
@@ -228,7 +229,7 @@ class Test_Jm_Runtime(unittest.TestCase):
         result = download_batch(
             download_one,
             ['200', '404'],
-            option=object(),
+            option=mock_option(),
         )
 
         self.assertEqual({'200'}, set(result))
@@ -254,7 +255,7 @@ class Test_Jm_Runtime(unittest.TestCase):
                     download_batch(
                         download_one,
                         ['1', '2'],
-                        option=object(),
+                        option=mock_option(),
                     )
 
             self.assertEqual(['2'], completed)
@@ -286,12 +287,12 @@ class Test_Jm_Runtime(unittest.TestCase):
             self.assertTrue(runtime.has_executor(JmRuntime.LEVEL_IMAGE))
 
             with jm_task_context(runtime=runtime):
-                res1 = download_batch(lambda aid, *_: aid, ['1', '2'], option=object())
+                res1 = download_batch(lambda aid, *_: aid, ['1', '2'], option=mock_option())
                 self.assertEqual({'1', '2'}, set(res1))
                 # 依然未配置 album executor，没有被污染
                 self.assertFalse(runtime.has_executor(JmRuntime.LEVEL_ALBUM))
 
-                res2 = download_batch(lambda aid, *_: aid, ['3', '4', '5'], option=object())
+                res2 = download_batch(lambda aid, *_: aid, ['3', '4', '5'], option=mock_option())
                 self.assertEqual({'3', '4', '5'}, set(res2))
                 self.assertFalse(runtime.has_executor(JmRuntime.LEVEL_ALBUM))
         finally:

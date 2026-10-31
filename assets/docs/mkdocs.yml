@@ -47,6 +47,7 @@ nav:
     - api/toolkit.md
   - 使用教程:
     - tutorial/0_common_usage.md
+    - tutorial/17_login.md
     - tutorial/1_github_actions.md
     - tutorial/2_command_line.md
     - tutorial/5_filter.md

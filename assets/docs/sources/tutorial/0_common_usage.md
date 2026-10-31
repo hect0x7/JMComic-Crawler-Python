@@ -240,37 +240,43 @@ for page in client.forum_pagination_gen(page=1):
 
 登录可以下载某些特定本子，以及访问收藏夹、签到、查看本子的收藏与点赞状态。
 
-你可以使用代码或者插件来登录。
+你可以使用配置文件或者代码来登录。下面是最常用的两种方式；各入口何时登录、登录态写到哪里、旧写法如何迁移，请看 [登录指南](./17_login.md)。
 
 
-### 1、配置登录插件
+### 1、配置文件方式
 
 下载本子时推荐使用这种方式，简单直接。
 
 ```yaml
-plugins:
-  after_init:
-    - plugin: login
-      kwargs:
-        username: '你的用户名'
-        password: '你的密码'
+# op.yml
+auth:
+  username: '你的用户名'
+  password: '你的密码'
 ```
 
-配置以后，使用option下载/创建client都自带登录状态
+配置以后，使用 `option` 下载本子会自动带上登录状态：
 
 ```python
 from jmcomic import create_option_by_file, download_album
 
 option = create_option_by_file('op.yml')
 
-# 创建client会自动获得登录状态
-client = option.build_jm_client()
+# 因为配置了auth，download_album 内部会先自动登录，然后执行下载
+download_album([123, 456], option)
 
-# 下载本子，也会已登录状态下载
-download_album(123, option)
+# auth 配置实际是被这个方法调用的：option.login_with_option_auth()
+# 这个方法的效果是：option全局登录，让后续创建的 client 都自动带上登录态。
+# 你也可以单独调用该方法：
+# 1. option全局登录
+option.login_with_option_auth()
+
+# 2. 然后，创建的 client 都自带登录状态
+client = option.new_jm_client()
 ```
 
-### 2、代码写法
+### 2、代码方式
+
+如果不使用配置文件，也可以直接在代码中调用 `client.login()` 登录（仅对当前 `client` 生效）：
 
 ```python
 from jmcomic import JmOption
@@ -280,13 +286,14 @@ option = JmOption.default()
 # 创建一个新的client，此时是无登录状态的
 client = option.new_jm_client()
 
-# 登录
+# 仅当前 client 登录
 client.login('你的用户名', '你的密码')
 
 # 后续使用这个 client 时，就是带上登录状态的了
 album = client.get_album_detail(123)
 print(f'本子 {album.title}，是否收藏: {album.is_favorite}，是否点赞: {album.liked}')
 ```
+
 
 ## 获取收藏夹
 
@@ -319,7 +326,7 @@ from jmcomic import *
 
 option = JmOption.default()
 client = option.new_jm_client()
-client.login('用户名', '密码')  # 也可以使用login插件/配置cookies
+client.login('用户名', '密码')  # 也可以在 option.yml 中配置 auth
 
 # 遍历全部收藏的所有页
 for page in client.favorite_folder_gen():  # 如果你只想获取特定收藏夹，需要添加folder_id参数
@@ -362,7 +369,7 @@ from jmcomic import *
 client = JmOption.default().build_jm_client()
 
 # 先登录（打卡和获取签到日历都需要登录）
-client.login('你的用户名', '你的密码')  # 也支持在 option.yml 中启用自动登录插件
+client.login('你的用户名', '你的密码')  # 也支持在 option.yml 中配置 auth
 
 # 获取当月每日签到与打卡日历信息（包含已签到、漏签等个人签到记录）
 daily_resp = client.get_daily()

@@ -667,7 +667,7 @@ class JmPageTool:
     # 查找错误，例如 [错误，關鍵字過短，請至少輸入兩個字以上。]
     pattern_html_search_error = compile(r'<fieldset>\n<legend>(.*?)</legend>\n<div class=.*?>\n(.*?)\n</div>\n</fieldset>')
 
-    pattern_html_search_total = compile(r'class="text-white">(\d+)</span> A漫.'), 0
+    pattern_html_search_total = compile(r'class="text-white">(\d+)\+?</span>\s*(?:A漫|搜索結果|搜尋結果)'), 0
 
     # 收藏页面的本子结果
     pattern_html_favorite_content = compile(
@@ -1080,8 +1080,9 @@ class JmImageTool:
 
     @classmethod
     def save_directly(cls, resp, filepath):
-        from common import save_resp_content
-        save_resp_content(resp, filepath)
+        mkdir_if_not_exists(os.path.dirname(filepath))
+        with open(filepath, 'wb') as f:
+            f.write(resp.content)
 
     @classmethod
     def decode_and_save(cls,

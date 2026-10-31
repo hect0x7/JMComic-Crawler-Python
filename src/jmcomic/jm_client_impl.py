@@ -6,10 +6,7 @@ from .jm_client_interface import *
 
 
 # 抽象基类，实现了域名管理，发请求，重试机制，log，缓存等功能
-class AbstractJmClient(
-    JmcomicClient,
-    PostmanProxy,
-):
+class AbstractJmClient(JmcomicClient):
     client_key = '__just_for_placeholder_do_not_use_me__'
     func_to_cache = []
 
@@ -26,7 +23,7 @@ class AbstractJmClient(
         :param domain_list: 禁漫域名
         :param retry_times: 重试次数
         """
-        super().__init__(postman)
+        self.postman = postman
         self.retry_times = retry_times
         self.domain_list = domain_list
         self.domain_retry_strategy = domain_retry_strategy
@@ -46,6 +43,15 @@ class AbstractJmClient(
 
     def post(self, url, **kwargs):
         return self.request_with_retry(self.postman.post, url, **kwargs)
+
+    def get_meta_data(self, key=None, dv=None):
+        return self.postman.get_meta_data(key, dv)
+
+    def __getitem__(self, item):
+        return self.postman[item]
+
+    def __setitem__(self, key, value):
+        self.postman[key] = value
 
     def of_api_url(self, api_path, domain):
         return JmcomicText.format_url(api_path, domain)
@@ -524,7 +530,7 @@ class JmHtmlClient(AbstractJmClient):
     def daily_checkin(self,
                       daily_id: str | None = None,
                       user_id: str | None = None,
-                      old_step: int = 1
+                      old_step: int = 1,
                       ) -> JmDailyCheckinResp:
         """
         网页端每日签到。
@@ -1154,7 +1160,7 @@ class JmApiClient(AbstractJmClient):
 
     def get_daily(self,
                   user_id: str | None = None,
-                  ) -> JmApiResp:
+                  daily_id: str | None = None) -> JmApiResp:
         """
         移动端获取每日签到信息与日历打卡记录。
         返回值格式参考 JmUserClient.get_daily 文档。
@@ -1340,7 +1346,7 @@ class JmApiClient(AbstractJmClient):
         while text and not text[0].isascii():
             text = text[1:]
         res_json = JmCryptoTool.decode_resp_data(text, '', JmMagicConstants.API_DOMAIN_SERVER_SECRET)
-        res_data = json_loads(res_json)
+        res_data = json.loads(res_json)
 
         # 检查返回值
         if not res_data.get('Server', None):

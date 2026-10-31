@@ -109,7 +109,10 @@ class Test_Async_Client(JmAsyncTestConfigurable):
             self.assertTrue(list(forum_page_2))
             self.assertEqual(forum_page_1.page_number, 1)
             self.assertEqual(forum_page_2.page_number, 2)
-            self.assertGreater(forum_page_1.total, 0)
+            if self.async_client.is_given_type(AsyncJmApiClient):
+                self.assertGreater(forum_page_1.total, 0)
+            else:
+                self.assertIsNone(forum_page_1.total)
             self.assertIsInstance(forum_page_1.raw_data, AdvancedDict)
 
         self.run_async(run())
@@ -274,7 +277,8 @@ class Test_Async_Client(JmAsyncTestConfigurable):
 
         try:
             loop.run_until_complete(client.setup())
-            original_req_api = client.req_api
+            original_req_api = getattr(client, 'req_api', None)
+            original_get_jm_html = getattr(client, 'get_jm_html', None)
 
             async def counted_req_api(url, *args, **kwargs):
                 nonlocal album_detail_request_count
@@ -282,7 +286,16 @@ class Test_Async_Client(JmAsyncTestConfigurable):
                     album_detail_request_count += 1
                 return await original_req_api(url, *args, **kwargs)
 
-            client.req_api = counted_req_api
+            async def counted_get_jm_html(url, *args, **kwargs):
+                nonlocal album_detail_request_count
+                if url == '/album/123':
+                    album_detail_request_count += 1
+                return await original_get_jm_html(url, *args, **kwargs)
+
+            if original_req_api is not None:
+                client.req_api = counted_req_api
+            else:
+                client.get_jm_html = counted_get_jm_html
 
             # 1. 缓存默认关闭（_cache=None）
             self.assertIsNone(client.get_cache_dict(), '默认 cache 应为 None')
@@ -384,9 +397,21 @@ class Test_Async_Client(JmAsyncTestConfigurable):
 
         self.run_async(run())
 
-    def test_async_download_cover_not_supported(self):
-        """diff 标记：async client 无独立 download_album_cover"""
-        self.assertFalse(
-            hasattr(self.async_client, 'download_album_cover'),
-            'async client 不应有 download_album_cover（sync 独有功能）'
-        )
+    def test_async_download_cover(self):
+        """测试异步下载封面与 download_cover 插件 async_invoke"""
+        async def run():
+            album_id = 123
+            base_dir = self.option.dir_rule.base_dir
+            p1 = f'{base_dir}/{album_id}_async.webp'
+            p2 = f'{base_dir}/{album_id}_async_3x4.webp'
+            try:
+                await self.async_client.download_album_cover(album_id, p1)
+                await self.async_client.download_album_cover(album_id, p2, '_3x4')
+                self.assertTrue(os.path.exists(p1))
+                self.assertTrue(os.path.exists(p2))
+            finally:
+                for p in (p1, p2):
+                    if os.path.exists(p):
+                        os.remove(p)
+
+        self.run_async(run())

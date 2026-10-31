@@ -6,6 +6,7 @@ import unittest
 from concurrent.futures import ThreadPoolExecutor
 from queue import Queue
 from unittest.mock import patch
+from test_jmcomic import mock_option
 
 from jmcomic import (
     BaseDownloader,
@@ -107,7 +108,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
             self.assertEqual(executor.submit(lambda: 7).result(timeout=1), 7)
 
     def test_option_is_public_and_propagated(self):
-        option = object()
+        option = mock_option()
         with ThreadPoolExecutor(max_workers=1) as executor:
             with jm_task_context(option=option, task_id='job-42'):
                 self.assertEqual(
@@ -190,11 +191,11 @@ class Test_Jm_Task_Context(unittest.TestCase):
             with jm_task_context(runtime=runtime):
                 self.assertEqual(
                     {'1', '2'},
-                    set(download_batch(fake_download, ['1', '2'], option=object())),
+                    set(download_batch(fake_download, ['1', '2'], option=mock_option())),
                 )
                 self.assertEqual(
                     {'3'},
-                    set(download_batch(fake_download, ['3'], option=object())),
+                    set(download_batch(fake_download, ['3'], option=mock_option())),
                 )
 
             self.assertEqual(1, len(set(worker_threads)))
@@ -449,12 +450,12 @@ class Test_Jm_Task_Context(unittest.TestCase):
             with jm_task_context(session_id='session-1', task_id='task-1'):
                 download_album(
                     '123',
-                    option=object(),
+                    option=mock_option(),
                     downloader=FakeSyncDownloader,
                 )
                 asyncio.run(download_photo_async(
                     '456',
-                    option=object(),
+                    option=mock_option(),
                     downloader=FakeAsyncDownloader,
                 ))
         finally:
@@ -498,7 +499,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
         clock = {'now': 10.0}
         observed_contexts = []
         observed_options = []
-        option = object()
+        option = mock_option()
 
         class Detail:
             duration = 99.0
@@ -565,7 +566,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
                     return detail
 
             with patch('jmcomic.api.perf_counter', side_effect=lambda: clock['now'], create=True):
-                result = await download_photo_async('456', option=object(), downloader=FakeDownloader)
+                result = await download_photo_async('456', option=mock_option(), downloader=FakeDownloader)
 
             return result, observed_contexts
 
@@ -680,7 +681,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
             )
 
         with jm_task_context(session_id='sync-batch'):
-            result = download_batch(fake_download, ['1', '2'], option=object())
+            result = download_batch(fake_download, ['1', '2'], option=mock_option())
 
         self.assertEqual(
             {
@@ -704,7 +705,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
                 return download_batch(
                     fake_download,
                     [jmid],
-                    option=object(),
+                    option=mock_option(),
                 )
 
         with ThreadPoolExecutor(max_workers=2) as executor:
@@ -728,7 +729,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
         def fail(jmid, _option, _downloader, **_kwargs):
             raise ValueError(f'failed-{jmid}')
 
-        option = object()
+        option = mock_option()
         try:
             with jm_task_context(session_id='failed-session'):
                 result = download_batch(fail, ['404'], option=option)
@@ -805,7 +806,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
                 batch_result = await download_batch_async(
                     fake_download,
                     ['1', '2'],
-                    option=object(),
+                    option=mock_option(),
                 )
 
             with ThreadPoolExecutor(max_workers=1) as decode_executor:
@@ -911,7 +912,7 @@ class Test_Jm_Task_Context(unittest.TestCase):
         self.assertEqual(JTC.get_context(), {})
 
         runtime = JmSyncRuntime()
-        option = object()
+        option = mock_option()
         control = DownloadControl()
 
         try:
@@ -1004,13 +1005,13 @@ class Test_Jm_Task_Context(unittest.TestCase):
                 return detail
 
         # 单本调用
-        download_album(123456, option=object(), downloader=ProbeDownloader, control=control, check_exception=False)
+        download_album(123456, option=mock_option(), downloader=ProbeDownloader, control=control, check_exception=False)
         self.assertEqual(len(captured_control), 1)
         self.assertIs(captured_control[0], control)
 
         # 批量调用
         captured_control.clear()
-        download_album([123, 456], option=object(), downloader=ProbeDownloader, control=control, check_exception=False)
+        download_album([123, 456], option=mock_option(), downloader=ProbeDownloader, control=control, check_exception=False)
         self.assertEqual(len(captured_control), 2)
         self.assertIs(captured_control[0], control)
         self.assertIs(captured_control[1], control)

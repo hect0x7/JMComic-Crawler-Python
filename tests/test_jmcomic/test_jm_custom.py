@@ -24,7 +24,7 @@ class Test_Custom(JmTestConfigurable):
         JmModuleConfig.CLASS_ALBUM = MyAlbum
         JmModuleConfig.CLASS_PHOTO = MyPhoto
 
-        base_dir: str = workspace()
+        base_dir: str = fix_filepath(os.getcwd())
         dir_rule = DirRule('Bd_Aaname_Ppname', base_dir)
         # noinspection PyTypeChecker
         save_dir = dir_rule.decide_image_save_dir(
@@ -61,18 +61,21 @@ class Test_Custom(JmTestConfigurable):
         except BaseException as e:
             # 2024-04-29
             # 禁漫的【永久網域】加了cf，GitHub Actions请求也会失败。
-            traceback_print_exec()
+            traceback.print_exc()
             if self.client.is_given_type(JmApiClient):
                 return
             else:
                 raise e
 
-        JmModuleConfig.DOMAIN_HTML_LIST = [html_domain]
-
-        self.assertListEqual(
-            JmModuleConfig.DOMAIN_HTML_LIST,
-            self.option.new_jm_client(domain_list=[], impl=MyClient.client_key).get_domain_list()
-        )
+        old_domain_html_list = JmModuleConfig.DOMAIN_HTML_LIST
+        try:
+            JmModuleConfig.DOMAIN_HTML_LIST = [html_domain]
+            self.assertListEqual(
+                JmModuleConfig.DOMAIN_HTML_LIST,
+                self.option.new_jm_client(domain_list=[], impl=MyClient.client_key).get_domain_list()
+            )
+        finally:
+            JmModuleConfig.DOMAIN_HTML_LIST = old_domain_html_list
 
     def test_client_key_missing(self):
         class MyClient(JmcomicClient):

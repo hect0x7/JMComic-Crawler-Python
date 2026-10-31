@@ -28,6 +28,10 @@ def _ensure_option(option):
     return JmModuleConfig.option_class().default() if option is None else option
 
 
+def _should_auto_login(option, login: bool) -> bool:
+    return bool(login and option.auth.get('username') and option.auth.get('password'))
+
+
 def _raise_if_cancelled_chain(cause_exc: BaseException):
     """在当前任务已被取消时，将底层异常转换为 DownloadCancelledException 并保留原始异常链。"""
     control = JTC.get_control()
@@ -52,8 +56,11 @@ def _execute_sync_download(
         extra,
         check_exception: bool,
         control=None,
+        login: bool = True,
 ):
     option = _ensure_option(option)
+    if _should_auto_login(option, login):
+        option.login_with_option_auth()
     task_started_at = perf_counter()
 
     with jm_task_context(
@@ -86,8 +93,11 @@ async def _execute_async_download(
         extra,
         check_exception: bool,
         control=None,
+        login: bool = True,
 ):
     option = _ensure_option(option)
+    if _should_auto_login(option, login):
+        await option.login_with_option_auth_async()
     task_started_at = perf_counter()
 
     async with jm_task_context(
@@ -117,6 +127,7 @@ def download_batch(
         downloader=None,
         download_type='batch',
         control=None,
+        login=True,
         **kwargs,
 ) -> BatchResult:
     """
@@ -132,6 +143,7 @@ def download_batch(
     :param downloader: 下载器类
     :param download_type: 下载类型 ('album', 'photo' 等)，默认 'batch'
     :param control: 可选的取消控制器 (DownloadControl)，用于外部协作式中断下载任务
+    :param login: 为 True 且 option.auth 配置了账号密码时，下载前自动调用 login_with_option_auth
     """
     option = _ensure_option(option)
     # 1. 保序去重 ID 列表
@@ -142,6 +154,11 @@ def download_batch(
     result = BatchResult()
     if len(jm_ids) == 0:
         return result
+
+    if _should_auto_login(option, login):
+        option.login_with_option_auth()
+    if download_api in (download_album, download_photo):
+        kwargs['login'] = False
 
     with jm_task_context(option=option, control=control):
         # 2. 单项下载执行闭包：在专属任务上下文中执行，并将异常封装为三元组返回，避免打断批处理调度
@@ -221,6 +238,7 @@ def download_album(jm_album_id,
                    check_exception=True,
                    extra=None,
                    control=None,
+                   login=True,
                    ) -> Union[__DOWNLOAD_API_RET, Set[__DOWNLOAD_API_RET]]:
     """
     下载一个本子（album），包含其所有的章节（photo）
@@ -235,6 +253,7 @@ def download_album(jm_album_id,
                             请检查 BatchResult.failed，或自行封装 download_batch 实现所需的批量异常策略。
     :param extra: 下载特性（Feature），下载时动态挂载的附加行为上下文。会自动根据上下文（如 album/photo 来源）自适应参数行为。支持单个 Feature、FeatureChain、或列表
     :param control: 可选的取消控制器 (DownloadControl)，用于外部协作式中断下载任务
+    :param login: 为 True 且 option.auth 配置了账号密码时，下载前自动调用 login_with_option_auth
     :return: 对于的本子实体类，下载器（如果是上述的批量情况，返回值为download_batch的返回值）
     """
 
@@ -247,6 +266,7 @@ def download_album(jm_album_id,
             download_type='album',
             extra=extra,
             control=control,
+            login=login,
         )
 
     return _execute_sync_download(
@@ -258,6 +278,7 @@ def download_album(jm_album_id,
         extra,
         check_exception,
         control=control,
+        login=login,
     )
 
 
@@ -268,6 +289,7 @@ def download_photo(jm_photo_id,
                    check_exception=True,
                    extra=None,
                    control=None,
+                   login=True,
                    ):
     """
     下载一个章节（photo），参数同 download_album。
@@ -284,6 +306,7 @@ def download_photo(jm_photo_id,
             download_type='photo',
             extra=extra,
             control=control,
+            login=login,
         )
 
     return _execute_sync_download(
@@ -295,6 +318,7 @@ def download_photo(jm_photo_id,
         extra,
         check_exception,
         control=control,
+        login=login,
     )
 
 
@@ -348,6 +372,7 @@ async def download_album_async(jm_album_id,
                                check_exception=True,
                                extra=None,
                                control=None,
+                               login=True,
                                ):
     """异步下载一个本子及其全部章节。
 
@@ -367,6 +392,7 @@ async def download_album_async(jm_album_id,
                                           download_type='album',
                                           extra=extra,
                                           control=control,
+                                          login=login,
                                           )
 
     return await _execute_async_download(
@@ -378,6 +404,7 @@ async def download_album_async(jm_album_id,
         extra,
         check_exception,
         control=control,
+        login=login,
     )
 
 
@@ -388,6 +415,7 @@ async def download_photo_async(jm_photo_id,
                                check_exception=True,
                                extra=None,
                                control=None,
+                               login=True,
                                ):
     """异步下载一个章节。
 
@@ -405,6 +433,7 @@ async def download_photo_async(jm_photo_id,
                                           download_type='photo',
                                           extra=extra,
                                           control=control,
+                                          login=login,
                                           )
 
     return await _execute_async_download(
@@ -416,6 +445,7 @@ async def download_photo_async(jm_photo_id,
         extra,
         check_exception,
         control=control,
+        login=login,
     )
 
 
@@ -426,6 +456,7 @@ async def download_batch_async(
         downloader=None,
         download_type='batch',
         control=None,
+        login=True,
         **kwargs,
 ) -> BatchResult:
     """
@@ -433,12 +464,18 @@ async def download_batch_async(
     - 容错机制：单个 album/photo 失败不会中止整批，也不会丢失其它已完成结果。
     - 返回 BatchResult，保持 FIFO 顺序，支持按车号检索，失败项收集在 result.failed 中。
     :param control: 可选的取消控制器 (DownloadControl)，用于外部协作式中断下载任务
+    :param login: 为 True 且 option.auth 配置了账号密码时，下载前自动调用 login_with_option_auth_async
     """
     option = _ensure_option(option)
     jm_ids = list(dict.fromkeys(JmcomicText.parse_to_jm_id(jmid) for jmid in jm_id_iter))
     result = BatchResult()
     if len(jm_ids) == 0:
         return result
+
+    if _should_auto_login(option, login):
+        await option.login_with_option_auth_async()
+    if download_api in (download_album_async, download_photo_async):
+        kwargs['login'] = False
 
     async def _download_one(jmid):
         with jm_task_context(download_type=download_type, jm_id=str(jmid)):
