@@ -47,6 +47,7 @@ class ContractOption:
         self.plugin_event_list = []
         self.context_event_list = []
         self.after_image_callback = None
+        self.plugins = SimpleNamespace(get=lambda _group: True)
         self.dir_rule = SimpleNamespace(
             base_dir=base_dir,
             decide_album_root_dir=lambda _album: os.path.join(base_dir, 'album'),
@@ -80,6 +81,9 @@ class ContractOption:
         self.context_event_list.append((group, JTC.get_context()))
         if group == 'after_image' and self.after_image_callback is not None:
             self.after_image_callback(kwargs['image'])
+
+    async def call_all_plugin_async(self, group, **kwargs):
+        self.call_all_plugin(group, **kwargs)
 
 
 class ContractSyncClient:
