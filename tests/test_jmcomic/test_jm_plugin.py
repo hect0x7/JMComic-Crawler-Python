@@ -661,6 +661,35 @@ class Test_Plugin(JmTestConfigurable):
                 self.assertIs(cover_calls[0][3], dler._decode_pool)
                 self.assertEqual(1, len(sync_thread_names))
                 self.assertTrue(sync_thread_names[0].startswith('jm-async-decode'))
+
+                class CancelledAsyncPlugin(JmOptionPlugin):
+                    plugin_key = 'cancelled_async_for_test'
+
+                    async def async_invoke(self, **kwargs):
+                        raise asyncio.CancelledError()
+
+                JmModuleConfig.register_plugin(CancelledAsyncPlugin)
+                option.plugins['cancel_test'] = [{'plugin': 'cancelled_async_for_test', 'safe': True}]
+                with self.assertRaises(asyncio.CancelledError):
+                    asyncio.run(option.call_all_plugin_async('cancel_test', safe=True))
+
+                from jmcomic.jm_client_interface import AsyncJmcomicClient
+
+                class DummyCoverClient(AsyncJmcomicClient):
+                    async def get_jm_image(self, img_url):
+                        class FakeImgResp:
+                            def require_success(self_resp):
+                                pass
+
+                            def transfer_to(self_resp, path, scramble_id, decode_image=True, img_url=None):
+                                with open(path, 'wb') as f:
+                                    f.write(b'cover_bytes')
+
+                        return FakeImgResp()
+
+                cover_out = os.path.join(tmp, 'real_cover.jpg')
+                asyncio.run(DummyCoverClient().download_album_cover('123', cover_out, decode_executor=dler._decode_pool))
+                self.assertGreater(os.path.getsize(cover_out), 0)
             finally:
                 dler.shutdown()
         finally:

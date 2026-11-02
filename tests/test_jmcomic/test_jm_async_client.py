@@ -409,6 +409,8 @@ class Test_Async_Client(JmAsyncTestConfigurable):
                 await self.async_client.download_album_cover(album_id, p2, '_3x4')
                 self.assertTrue(os.path.exists(p1))
                 self.assertTrue(os.path.exists(p2))
+                self.assertGreater(os.path.getsize(p1), 0)
+                self.assertGreater(os.path.getsize(p2), 0)
             finally:
                 for p in (p1, p2):
                     if os.path.exists(p):

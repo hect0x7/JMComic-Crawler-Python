@@ -695,18 +695,8 @@ class JmOption:
             self.auth.user_id = str(user_id)
         self._sync_cached_client_auth()
 
-    def update_cookies(self, cookies: dict, user_id: Optional[str] = None):
-        metadata: dict = self.client.postman.meta_data.src_dict
-        orig_cookies: Optional[Dict] = metadata.get('cookies', None)
-        if orig_cookies is None:
-            metadata['cookies'] = dict(cookies)
-        else:
-            orig_cookies.update(cookies)
-            metadata['cookies'] = orig_cookies
-        if user_id is not None:
-            self.update_auth(user_id=user_id)
-        else:
-            self._sync_cached_client_auth()
+    def update_cookies(self, cookies: dict):
+        self.update_auth(cookies=cookies)
 
     # noinspection PyMethodMayBeStatic,PyTypeChecker
     def decide_client_domain(self, client_key: str) -> List[str]:
@@ -924,6 +914,7 @@ class JmOption:
         if plugin_list is None or len(plugin_list) == 0:
             return
 
+        import asyncio
         from .jm_plugin import JmOptionPlugin
 
         plugin_registry = JmModuleConfig.REGISTRY_PLUGIN
@@ -935,6 +926,8 @@ class JmOption:
 
             try:
                 await self.invoke_plugin_async(pclass, kwargs, extra, pinfo)
+            except asyncio.CancelledError:
+                raise
             except BaseException as e:
                 if safe is True or pinfo.get('safe', True):
                     jm_log('plugin.exception', e)
@@ -946,6 +939,7 @@ class JmOption:
         if len(extra) != 0:
             kwargs.update(extra)
 
+        import asyncio
         from .jm_plugin import JmOptionPlugin, PluginValidationException
 
         pclass: Type[JmOptionPlugin]
@@ -966,6 +960,9 @@ class JmOption:
 
         except JmcomicException as e:
             self.handle_plugin_jmcomic_exception(e, pinfo, kwargs, plugin, pclass)
+
+        except asyncio.CancelledError:
+            raise
 
         except BaseException as e:
             self.handle_plugin_unexpected_error(e, pinfo, kwargs, plugin, pclass)

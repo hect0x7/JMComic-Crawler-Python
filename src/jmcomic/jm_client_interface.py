@@ -1353,7 +1353,7 @@ class AsyncJmcomicClient:
 
         loop = asyncio.get_running_loop()
         worker = bind_jm_task_context(resp.transfer_to)
-        return await loop.run_in_executor(
+        future = loop.run_in_executor(
             decode_executor,
             worker,
             save_path,
@@ -1361,3 +1361,11 @@ class AsyncJmcomicClient:
             False,
             img_url,
         )
+        try:
+            return await asyncio.shield(future)
+        except asyncio.CancelledError:
+            try:
+                await future
+            except BaseException:
+                pass
+            raise

@@ -416,6 +416,9 @@ class Test_Async_Html_Client(unittest.TestCase):
         # 字段在运行时被改成别的值后，按新值保存
         option.auth.username = 'other_user'
         self.assertEqual(option.deconstruct()['auth']['username'], 'other_user')
+        option.update_cookies({'AVS': 'updated_avs'})
+        self.assertEqual(option.auth.src_dict['cookies']['AVS'], 'updated_avs')
+        self.assertEqual(option.new_jm_client()['cookies']['AVS'], 'updated_avs')
 
         # 环境变量未设置：直接报错
         with patch.dict(os.environ, {}, clear=False):
