@@ -77,7 +77,7 @@ auth:
 
 `option.new_jm_client()` 只会带上 `auth` 里已有的 cookies，**不会**自动登录。
 
-要使 client 登录，可以在创建 client 前先调用一次 `login_with_option_auth()`：
+配置了账号密码时，要使 client 登录，可以在创建 client 前先调用一次 `login_with_option_auth()`：
 
 效果：让 option 创建的所有 client 都登录（`download_album` 内部也是调用这个方法的）。
 

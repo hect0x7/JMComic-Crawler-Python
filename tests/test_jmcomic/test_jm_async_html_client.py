@@ -441,6 +441,14 @@ class Test_Async_Html_Client(unittest.TestCase):
             with self.assertRaises(Exception):
                 JmcomicText.parse_dsl_text('${JM_TEST_AUTH_MISSING}')
 
+            # 单参数自定义 replacer（如 workflow_export_favorites.py）与 resolve_auth_env 兼容
+            try:
+                JmcomicText.dsl_replacer.add_dsl_and_replacer(r'\$\{(.*?)\}', lambda m: f'custom_{m[1]}')
+                custom_opt = JmOption.construct({'auth': {'username': '${USER_A}'}})
+                self.assertEqual(custom_opt.auth.username, 'custom_USER_A')
+            finally:
+                JmcomicText.dsl_replacer.add_dsl_and_replacer(r'\$\{(.*?)\}', JmcomicText.match_os_env)
+
     def test_favorite_folder_export_logs_in_with_auth(self):
         from jmcomic import FavoriteFolderExportPlugin
 
