@@ -1,5 +1,6 @@
 import asyncio
 from types import SimpleNamespace
+from typing import Dict, List, Union
 from unittest.mock import Mock
 
 from test_jmcomic import *
@@ -98,6 +99,9 @@ class Test_Client(JmTestConfigurable):
     def test_search(self):
         page: JmSearchPage = self.client.search_tag('+无修正 +中文 -全彩')
         print(f'总数: {page.total}, 分页大小: {page.page_size}，页数: {page.page_count}')
+        self.assertGreater(len(page), 0)
+        self.assertGreater(page.total, 0)
+        self.assertGreater(page.page_count, 0)
 
         if len(page) >= 1:
             for aid, ainfo in page[0:1:1]:
@@ -552,12 +556,15 @@ class Test_Client(JmTestConfigurable):
 
         gen = self.client.search_gen('MANA')
         for i, page in enumerate(gen):
+            self.assertGreater(page.total, 0)
             print(page.total)
+            self.assertGreater(page.total, 0)
             page = gen.send({
                 'search_query': 'MANA +无修正',
                 'page': 1
             })
             print(page.total)
+            self.assertGreater(page.total, 0)
             break
 
     def test_cache_level(self):
@@ -615,7 +622,7 @@ class Test_Client(JmTestConfigurable):
         ):
             self.print_page(page)
 
-        print_sep()
+        print('-' * 70)
         for page in html_cl.categories_filter_gen(
                 page=1,  # 起始页码
                 category=JmMagicConstants.CATEGORY_DOUJIN,
@@ -670,6 +677,7 @@ class Test_Client(JmTestConfigurable):
 
     @staticmethod
     def print_page(page):
+        assert page.total > 0 and page.page_count > 0
         # 打印page内容
         for aid, atitle in page:
             print(aid, atitle)
@@ -685,11 +693,14 @@ class Test_Client(JmTestConfigurable):
         
         This test retrieves the page 1 ranking data from the configured client and writes it to standard output.
         """
-        print(self.client.month_ranking(1))
+        page = self.client.month_ranking(1) or self.client.week_ranking(1)
+        print(page)
+        self.assertGreater(len(page), 0)
+        self.assertGreater(page.total, 0)
 
     def test_indexed_entity_slice(self):
         from collections.abc import Sequence
-        
+
         # 获取真实的 JmSearchPage 对象
         page = self.client.search_site("中文", page=1)
         empty_page = self.client.search_site("测试很长的不知道什么鬼123", page=1)
@@ -700,7 +711,7 @@ class Test_Client(JmTestConfigurable):
         items = page[:1000]
         self.assertEqual(len(items), len(page))
         self.assertEqual(page[1000:2000], [])
-        
+
         self.assertEqual(empty_page[:10], [])
 
         # 负数切片
@@ -712,7 +723,7 @@ class Test_Client(JmTestConfigurable):
         if len(page) >= 2:
             self.assertEqual(page[-1], page[len(page) - 1])
             self.assertEqual(page[-2], page[len(page) - 2])
-        
+
         with self.assertRaises(IndexError):
             _ = page[len(page) + 10]
         with self.assertRaises(IndexError):
@@ -740,3 +751,31 @@ class Test_Client(JmTestConfigurable):
             raw_album = api_client.get_album_detail(chapter_id, allow_redirect=False)
             self.assertEqual(raw_album.album_id, chapter_id)
             self.assertEqual(raw_album.series_id, expected_album_id)
+
+    def test_parse_html_search_total(self):
+        search_html = '''
+        <div class="well well-sm">
+            <span class="m-b-5 title-truncate">搜尋: <span class="text-white">MANA</span></span>
+            <span class="text-white">322</span>
+            搜索結果 中 顯示 <span class="text-white">1</span> 到 <span class="text-white">80</span>
+        </div>
+        <div class="row">
+        '''
+        search_plus_html = '''
+        <div class="well well-sm">
+            <span class="text-white">10000+</span>
+            搜索結果 中 顯示 <span class="text-white">1</span> 到 <span class="text-white">80</span>
+        </div>
+        <div class="row">
+        '''
+        albums_html = '''
+        <div class="well well-sm">
+            <div class="pull-left">
+                <span class="text-white">1</span> 至 <span class="text-white">80</span> 筆，共 <span class="text-white">324192</span> A漫
+            </div>
+        </div>
+        <div class="row">
+        '''
+        self.assertEqual(JmPageTool.parse_html_to_search_page(search_html).total, 322)
+        self.assertEqual(JmPageTool.parse_html_to_search_page(search_plus_html).total, 10000)
+        self.assertEqual(JmPageTool.parse_html_to_search_page(albums_html).total, 324192)

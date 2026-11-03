@@ -18,6 +18,24 @@ JmOption.default().to_file('./option.yml') # 创建默认option，导出为optio
 # 对日志有需求的可进一步参考文档 → https://jmcomic.readthedocs.io/zh-cn/latest/tutorial/11_log_custom/
 log: true
 
+# 帐号与登录配置（默认均为 null，即未登录状态访问 JM）
+# 禁漫大部分本子下载无需登录；少部分敏感题材、个人收藏夹、每日签到需要登录。
+# 支持「账号密码」与「浏览器 cookies」两种方式（二选一，不要同时配置；值支持写成 ${环境变量名}）。
+# 更多登录指南详见专门文档 → https://jmcomic.readthedocs.io/zh-cn/latest/tutorial/17_login/
+auth:
+  # 【推荐】方式 1：配置账号密码，调用 download_album 等下载接口时会自动登录（网页端/APP端通用，推荐）
+  username: null
+  password: null
+
+  # 方式 2：配置浏览器 cookies，只需配置 AVS 一项（仅适用于网页端 impl: html）
+  # 特别注意：cookies 区分域名（https://github.com/hect0x7/JMComic-Crawler-Python/issues/104）
+  # 假如访问的是 18comic.vip，配置的 cookies 就必须来自 18comic.vip，不能用 jm-comic.club 的；
+  # 若配置后没有效果，大概率是配置的 cookies 与实际访问域名不一致。
+  # 示例:
+  # cookies:
+  #   AVS: qkwehjjasdowqeq
+  cookies: null
+
 # 配置客户端相关
 client:
   # impl: 客户端实现类，不配置默认会使用JmModuleConfig.DEFAULT_CLIENT_IMPL
@@ -27,9 +45,10 @@ client:
   # APP端不限ip兼容性好，网页端限制ip地区但效率高
   impl: html
   
-  # async_impl: 指定异步客户端的底层实现类 (目前仅有: async_api)
+  # async_impl: 指定异步客户端的底层实现类，默认为 null（自动跟随上面的 impl：html -> async_html，api 及其他 -> async_api）
+  # 也可显式指定为 async_api 或 async_html
   # 注意: 配置此项不会自动开启异步下载，你必须在代码中调用 _async 相关方法
-  async_impl: async_api
+  async_impl: null
 
   # domain: 禁漫域名配置，一般无需配置，jmcomic会根据上面的impl自动设置相应域名
   # 该配置项需要和上面的impl结合使用，因为禁漫网页端和APP端使用的是不同域名，
@@ -68,16 +87,8 @@ client:
       #   https: 127.0.0.1:7890
       proxies: system
 
-      # cookies: 帐号配置，默认是 null，表示未登录状态访问JM。
-      # 禁漫的大部分本子，下载是不需要登录的；少部分敏感题材需要登录才能看。
-      # 如果你希望以登录状态下载本子，最简单的方式是配置一下浏览器的cookies，
-      # 不用全部cookies，只要那个叫 AVS 就行。
-      # 特别注意！！！(https://github.com/hect0x7/JMComic-Crawler-Python/issues/104)
-      # cookies是区分域名的：
-      # 假如你要访问的是 `18comic.vip`，那么你配置的cookies也要来自于 `18comic.vip`，不能配置来自于 `jm-comic.club` 的cookies。
-      # 如果你发现配置了cookies还是没有效果，大概率就是你配置的cookies和代码访问的域名不一致。
-      cookies:
-        AVS: qkwehjjasdowqeq # 这个值是乱打的，不能用
+      # cookies: 历史兼容字段，不建议使用；请改用顶层的 auth.cookies（优先级更高）
+      cookies: null
 
 # 下载配置
 download:
@@ -181,11 +192,6 @@ plugins:
       kwargs:
         interval: 0.5 # 间隔时间
         enable_warning: true # 占用过大时发出预警
-
-    - plugin: login # 登录插件
-      kwargs:
-        username: un # 用户名
-        password: pw # 密码
 
     - plugin: find_update # 只下载新章插件
       kwargs:

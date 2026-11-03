@@ -254,8 +254,8 @@ class Test_CheckIn(unittest.TestCase):
 
     def test_async_api_login_records_user_id(self):
         client = object.__new__(AsyncJmApiClient)
-        client._session = SimpleNamespace(cookies=SimpleNamespace(update=Mock()))
-        client.option = SimpleNamespace(update_cookies=Mock())
+        client.meta_data = {}
+        client._session = SimpleNamespace(cookies={})
         resp_obj = SimpleNamespace(
             resp=SimpleNamespace(cookies={'session': '1'}),
             res_data={'uid': 654321, 's': 'token_s'},
@@ -266,6 +266,7 @@ class Test_CheckIn(unittest.TestCase):
         self.assertIs(resp, resp_obj)
         self.assertEqual(client._user_id, '654321')
         self.assertEqual(client._username, 'async_user')
+        self.assertEqual(client['cookies'], {'session': '1', 'AVS': 'token_s'})
 
     def test_async_api_get_daily_success(self):
         client = object.__new__(AsyncJmApiClient)
@@ -440,7 +441,7 @@ class Test_CheckIn(unittest.TestCase):
         orig_log = JmModuleConfig.EXECUTOR_LOG
         orig_flag = JmModuleConfig.FLAG_ENABLE_JM_LOG
         JmModuleConfig.FLAG_ENABLE_JM_LOG = True
-        JmModuleConfig.EXECUTOR_LOG = lambda topic, msg: logs.append((topic, msg))
+        JmModuleConfig.EXECUTOR_LOG = lambda topic, msg: logs.append((topic, msg)) if topic == 'api.album_redirect' else None
         try:
             # 1. 子章节 ID -> 自动重定向到父本子 ID 并打印日志
             album = JmApiClient.get_album_detail(client, '1236387')
@@ -510,7 +511,7 @@ class Test_CheckIn(unittest.TestCase):
         orig_log = JmModuleConfig.EXECUTOR_LOG
         orig_flag = JmModuleConfig.FLAG_ENABLE_JM_LOG
         JmModuleConfig.FLAG_ENABLE_JM_LOG = True
-        JmModuleConfig.EXECUTOR_LOG = lambda topic, msg: logs.append((topic, msg))
+        JmModuleConfig.EXECUTOR_LOG = lambda topic, msg: logs.append((topic, msg)) if topic == 'api.album_redirect' else None
         try:
             album = asyncio.run(AsyncJmApiClient.get_album_detail(client, '275013'))
             self.assertEqual(album.album_id, '43164')

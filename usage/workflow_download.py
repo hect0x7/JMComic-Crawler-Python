@@ -375,7 +375,7 @@ def cover_option_config(option: JmOption):
 
 
 def log_before_raise():
-    jm_download_dir = env('JM_DOWNLOAD_DIR', workspace())
+    jm_download_dir = env('JM_DOWNLOAD_DIR', fix_filepath(os.getcwd()))
     mkdir_if_not_exists(jm_download_dir)
 
     def decide_filepath(e):
@@ -419,7 +419,8 @@ def log_before_raise():
             content.append(f'响应文本: {resp.text}')
 
         # 写文件
-        write_text(path, '\n'.join(content))
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(content))
 
     JmModuleConfig.register_exception_listener(JmcomicException, exception_listener)
 

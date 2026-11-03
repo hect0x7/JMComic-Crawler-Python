@@ -105,7 +105,8 @@ class PluginFeature(Feature):
         根据当前钩子动态适配 filename_rule 等参数。
         """
         pclass: type = JmModuleConfig.REGISTRY_PLUGIN.get(self.plugin_key)
-        ExceptionTool.require_true(pclass is not None, f'PluginFeature 引用了未注册的插件: {self.plugin_key}, when {when}')
+        ExceptionTool.require_true(pclass is not None,
+                                   f'PluginFeature 引用了未注册的插件: {self.plugin_key}, when {when}')
 
         plugin_kwargs: dict = self._adapt_plugin_kwargs(option, when)
 

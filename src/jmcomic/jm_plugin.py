@@ -2,12 +2,14 @@
 该文件存放的是option插件
 """
 
+import atexit
+import threading
 from collections import deque
-from threading import RLock
+from threading import RLock, Thread, current_thread
 
-from .jm_option import *
 from .jm_async_downloader import JmAsyncDownloader
 from .jm_downloader import JmDownloader
+from .jm_option import *
 from .jm_runtime import JmTempRuntime
 from .jm_task_context import bind_jm_task_context, JTC
 
@@ -159,6 +161,10 @@ class JmOptionPlugin:
         """Return the current invocation's isolated task-context snapshot."""
         return JTC.get_context()
 
+    async def async_invoke(self, **kwargs) -> None:
+        import asyncio
+        await asyncio.to_thread(self.invoke, **kwargs)
+
     @classmethod
     def build(cls, option: JmOption) -> 'JmOptionPlugin':
         """
@@ -204,7 +210,7 @@ class JmOptionPlugin:
             return
 
         for p in paths:
-            if file_not_exists(p):
+            if not os.path.exists(p):
                 continue
 
             if os.path.isdir(p):
@@ -265,7 +271,8 @@ class JmOptionPlugin:
             base_dir = os.path.dirname(filepath)
         else:
             base_dir = base_dir or os.getcwd()
-            filepath = os.path.join(base_dir, DirRule.apply_rule_to_filename(album, photo, filename_rule) + fix_suffix(suffix))
+            filepath = os.path.join(base_dir,
+                                    DirRule.apply_rule_to_filename(album, photo, filename_rule) + fix_suffix(suffix))
 
         mkdir_if_not_exists(base_dir)
         return fix_filepath(filepath)
@@ -273,24 +280,26 @@ class JmOptionPlugin:
 
 class JmLoginPlugin(JmOptionPlugin):
     """
-    功能：登录禁漫，并保存登录后的cookies，让所有client都带上此cookies
+    功能：立即登录禁漫，并把登录态（cookies、user_id）写回 option.auth，让后续创建的 client 都带上登录态。
+
+    - 传入 username/password 时，会先写入 option.auth（保证 auth 中账号与密码成对）；不传则使用 option.auth 中已有的账号。
+    - 每次调用都会强制登录，不复用 option.auth 中可能已过期的 cookies。
     """
     plugin_key = 'login'
 
     def invoke(self,
-               username: str,
-               password: str,
+               username: Optional[str] = None,
+               password: Optional[str] = None,
                impl=None,
                ) -> None:
-        self.require_param(username, '用户名不能为空')
-        self.require_param(password, '密码不能为空')
+        if username is not None:
+            self.option.auth.username = username
+        if password is not None:
+            self.option.auth.password = password
+        self.require_param(self.option.auth.get('username'), '用户名不能为空')
+        self.require_param(self.option.auth.get('password'), '密码不能为空')
 
-        client = self.option.build_jm_client(impl=impl)
-        client.login(username, password)
-
-        cookies = dict(client['cookies'])
-        self.option.update_cookies(cookies)
-
+        self.option.login_with_option_auth(impl=impl, force=True)
         self.log('登录成功')
 
 
@@ -713,10 +722,19 @@ class SendQQEmailPlugin(JmOptionPlugin):
                ) -> None:
         self.require_param(msg_from and msg_to and password, '发件人、收件人、授权码都不能为空')
 
-        from common import EmailConfig
-        econfig = EmailConfig(msg_from, msg_to, password)
-        epostman = econfig.create_email_postman()
-        epostman.send(content, title)
+        import smtplib
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+
+        msg = MIMEMultipart()
+        msg.attach(MIMEText(content))
+        msg['Subject'] = title or content[:10]
+        msg['From'] = msg_from
+        msg['To'] = msg_to
+
+        with smtplib.SMTP_SSL("smtp.qq.com", 465) as s:
+            s.login(msg_from, password)
+            s.sendmail(msg_from, msg_to, msg.as_string())
 
         self.log('Email sent successfully')
 
@@ -1185,16 +1203,19 @@ class DownloadProgressPlugin(JmOptionPlugin):
                         elif not chapter['retried'] and random.random() < 0.08:
                             chapter['retried'] = True
                             chapter['next_tick'] = tick + random.randint(3, 6)
-                            log('image.retry', f'{chapter_name} 图片 {int(task.completed) + 1:05}.jpg 请求超时，准备重试', worker)
+                            log('image.retry',
+                                f'{chapter_name} 图片 {int(task.completed) + 1:05}.jpg 请求超时，准备重试', worker)
                             continue
                         advance = min(random.randint(1, 3), int(task.total - task.completed))
                         for page in range(int(task.completed) + 1, int(task.completed) + advance + 1):
                             progress.advance(task.id)
-                            log('image.after', f'图片下载完成: {chapter_name}/{page:05}.jpg [{page}/{int(task.total)}]', worker)
+                            log('image.after', f'图片下载完成: {chapter_name}/{page:05}.jpg [{page}/{int(task.total)}]',
+                                worker)
                         chapter['next_tick'] = tick + chapter['interval'] + random.randint(0, 1)
                         if task.finished:
                             progress.update(task.id, description=f'✓ {task.description}')
-                            log('photo.after', f'章节下载完成: [{chapter_name}], 图片 {int(task.total)}/{int(task.total)}',
+                            log('photo.after',
+                                f'章节下载完成: [{chapter_name}], 图片 {int(task.total)}/{int(task.total)}',
                                 worker)
                     if album_task is not None:
                         was_finished = tasks[album_task].finished
@@ -1358,7 +1379,16 @@ class AutoSetBrowserCookiesPlugin(JmOptionPlugin):
         :param domain: 18comic.vip/...
         :return: cookies
         """
-        cookies, e = get_browser_cookies(browser, domain, safe=True)
+        if not browser:
+            raise ValueError('browser参数不能为空')
+
+        try:
+            import browser_cookie3
+            cookie_jar = getattr(browser_cookie3, browser)(domain_name=domain)
+            cookies = {c.name: c.value for c in cookie_jar}
+            e = None
+        except BaseException as err:
+            cookies, e = None, err
 
         if cookies is None:
             if isinstance(e, ImportError):
@@ -1398,11 +1428,15 @@ class FavoriteFolderExportPlugin(JmOptionPlugin):
         self.failed_folders = []
 
         mkdir_if_not_exists(self.save_dir)
-        mkdir_if_not_exists(of_dir_path(self.zip_filepath))
+        mkdir_if_not_exists(os.path.dirname(self.zip_filepath))
 
         self.main()
 
     def main(self):
+        # 收藏夹需要登录：auth 配置了账号密码时先确保已登录（已登录则跳过），规则与下载接口一致
+        if self.option.auth.get('username') and self.option.auth.get('password'):
+            self.option.login_with_option_auth()
+
         cl = self.option.build_jm_client()
         # noinspection PyAttributeOutsideInit
         self.cl = cl
@@ -1863,7 +1897,7 @@ class JmServerPlugin(JmOptionPlugin):
             else:
                 # 非debug模式，开新线程启动
                 threading.Thread(target=blocking_run_server, daemon=True).start()
-                atexit_register(self.wait_server_stop)
+                atexit.register(self.wait_server_stop)
                 self.running = True
 
     def warning_wrong_usage_of_debug(self):
@@ -2215,6 +2249,25 @@ class DownloadCoverPlugin(JmOptionPlugin):
             return
         downloader.client.download_album_cover(album_id, save_path, size)
 
+    async def async_invoke(self,
+                           dir_rule: dict,
+                           size='',
+                           photo: JmPhotoDetail = None,
+                           album: JmAlbumDetail = None,
+                           downloader=None,
+                           **kwargs) -> None:
+        album_id = album.id if album else photo.album_id
+        save_path = self.decide_filepath(
+            album, photo,
+            None, None, None,
+            dir_rule
+        )
+        if self.option.download.cache and os.path.exists(save_path):
+            self.log(f'album-{album_id}的封面已存在，跳过下载: [{save_path}]', 'skip')
+            return
+        decode_executor = downloader.get_decode_executor() if isinstance(downloader, JmAsyncDownloader) else None
+        await downloader.client.download_album_cover(album_id, save_path, size, decode_executor=decode_executor)
+
 
 class CalibreMetadataPlugin(JmOptionPlugin):
     """
@@ -2257,21 +2310,81 @@ class CalibreMetadataPlugin(JmOptionPlugin):
                include_cover=False,
                fields=None,
                **kwargs) -> None:
+        prepared = self._prepare_opf_export(dir_rule, album, photo)
+        if prepared is None:
+            return
+        jmcomic_calibre, opf_path = prepared
+
+        # 处理封面下载
+        if include_cover:
+            cover_path = self._decide_cover_path(opf_path)
+            self.download_cover_if_needed(album.id, cover_path, downloader)
+
+        self._export_opf(jmcomic_calibre, album, opf_path, fields, include_cover)
+
+    async def async_invoke(self,
+                           dir_rule: dict,
+                           album: JmAlbumDetail = None,
+                           photo: JmPhotoDetail = None,
+                           downloader=None,
+                           include_cover=False,
+                           fields=None,
+                           **kwargs) -> None:
+        prepared = self._prepare_opf_export(dir_rule, album, photo)
+        if prepared is None:
+            return
+        jmcomic_calibre, opf_path = prepared
+
+        # 处理封面下载
+        if include_cover:
+            cover_path = self._decide_cover_path(opf_path)
+            await self.download_cover_if_needed_async(album.id, cover_path, downloader)
+
+        import asyncio
+        await asyncio.to_thread(
+            self._export_opf,
+            jmcomic_calibre,
+            album,
+            opf_path,
+            fields,
+            include_cover,
+        )
+
+    def _prepare_opf_export(self, dir_rule: dict, album: JmAlbumDetail, photo: JmPhotoDetail):
         self.require_param(album, '本插件需在after_album阶段使用，需要album参数')
 
         try:
             import jmcomic_calibre
         except ImportError:
             self.warning_lib_not_install('jmcomic-calibre')
-            return
+            return None
 
         opf_path = self.decide_filepath(album, photo, None, None, None, dir_rule)
+        return jmcomic_calibre, opf_path
 
-        # 处理封面下载
-        if include_cover:
-            cover_path = os.path.join(os.path.dirname(opf_path), 'cover.jpg')
-            self.download_cover_if_needed(album.id, cover_path, downloader)
+    @staticmethod
+    def _decide_cover_path(opf_path: str) -> str:
+        return os.path.join(os.path.dirname(opf_path), 'cover.jpg')
 
+    def _prepare_cover_download(self, album_id: str, cover_path: str, downloader) -> bool:
+        if self.option.download.cache and os.path.exists(cover_path):
+            self.log(f'album-{album_id}的封面已存在，跳过下载: [{cover_path}]', 'skip')
+            return False
+        self.require_param(downloader, 'include_cover=true时需要downloader参数（after_album阶段会自动传入）')
+        return True
+
+    def download_cover_if_needed(self, album_id: str, cover_path: str, downloader):
+        if not self._prepare_cover_download(album_id, cover_path, downloader):
+            return
+        downloader.client.download_album_cover(album_id, cover_path, '')
+
+    async def download_cover_if_needed_async(self, album_id: str, cover_path: str, downloader):
+        if not self._prepare_cover_download(album_id, cover_path, downloader):
+            return
+        decode_executor = downloader.get_decode_executor() if isinstance(downloader, JmAsyncDownloader) else None
+        await downloader.client.download_album_cover(album_id, cover_path, '', decode_executor=decode_executor)
+
+    def _export_opf(self, jmcomic_calibre, album: JmAlbumDetail, opf_path: str, fields, include_cover: bool):
         jmcomic_calibre.export_opf(
             album=album,
             opf_path=opf_path,
@@ -2282,10 +2395,3 @@ class CalibreMetadataPlugin(JmOptionPlugin):
                 f'仅支持Dublin Core元素: {", ".join(sorted(allowed))}', 'warning'),
         )
         self.log(f'已生成Calibre元数据文件 → [{opf_path}]')
-
-    def download_cover_if_needed(self, album_id: str, cover_path: str, downloader):
-        if self.option.download.cache and os.path.exists(cover_path):
-            self.log(f'album-{album_id}的封面已存在，跳过下载: [{cover_path}]', 'skip')
-            return
-        self.require_param(downloader, 'include_cover=true时需要downloader参数（after_album阶段会自动传入）')
-        downloader.client.download_album_cover(album_id, cover_path, '')

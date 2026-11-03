@@ -1,6 +1,7 @@
+import inspect
 from functools import wraps
-from typing import Dict, NamedTuple, Union
 from time import perf_counter
+from typing import NamedTuple
 
 from .jm_option import *
 from .jm_runtime import (
@@ -587,7 +588,7 @@ class JmDownloader(BaseDownloader):
     def download_by_image_detail(self, image: JmImageDetail):
         img_save_path = self.option.decide_image_filepath(image)
         image.save_path = img_save_path
-        image.exists = file_exists(img_save_path)
+        image.exists = os.path.exists(img_save_path)
         image.cache = self.option.decide_download_cache(image)
 
         self.before_image(image, img_save_path)

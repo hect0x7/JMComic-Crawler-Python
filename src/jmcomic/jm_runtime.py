@@ -1,10 +1,9 @@
 import concurrent.futures
 from concurrent.futures import Executor, ProcessPoolExecutor, ThreadPoolExecutor
-import threading
 from threading import RLock
 from typing import Callable, Dict, Optional, Set, Tuple
 
-from common import process_single_arg_to_args_and_kwargs
+from .common import process_single_arg_to_args_and_kwargs
 
 __all__ = (
     'JmRuntime',

@@ -1,6 +1,10 @@
+import os
 from datetime import datetime
 from html.parser import HTMLParser
+from re import compile
+from typing import Match
 from urllib.parse import unquote, urlparse
+
 from PIL import Image
 
 from .jm_exception import *
@@ -246,23 +250,43 @@ class JmcomicText:
     class DSLReplacer:
 
         def __init__(self):
-            self.dsl_dict: Dict[Pattern, Callable[[Match], str]] = {}
+            self.dsl_dict: Dict[Pattern, Callable[[Match], Optional[str]]] = {}
 
-        def parse_dsl_text(self, text) -> str:
+        def parse_dsl_text(self, text: str) -> str:
             for pattern, replacer in self.dsl_dict.items():
-                text = pattern.sub(replacer, text)
+                def _sub(match: Match, _replacer=replacer) -> str:
+                    res = _replacer(match)
+                    if res is None:
+                        ExceptionTool.raises(f'DSL解析失败，未获取到值: {match[0]}')
+                    return res
+
+                text = pattern.sub(_sub, text)
             return text
 
-        def add_dsl_and_replacer(self, dsl: str, replacer: Callable[[Match], str]):
+        def parse_dsl_text_optional(self, text: str) -> Optional[str]:
+            for pattern, replacer in self.dsl_dict.items():
+                missing = False
+
+                def _sub(match: Match, _replacer=replacer) -> str:
+                    nonlocal missing
+                    res = _replacer(match)
+                    if res is None:
+                        missing = True
+                        return ''
+                    return res
+
+                text = pattern.sub(_sub, text)
+                if missing:
+                    return None
+            return text
+
+        def add_dsl_and_replacer(self, dsl: str, replacer: Callable[[Match], Optional[str]]):
             pattern = compile(dsl)
             self.dsl_dict[pattern] = replacer
 
     @classmethod
-    def match_os_env(cls, match: Match) -> str:
-        name = match[1]
-        value = os.getenv(name, None)
-        ExceptionTool.require_true(value is not None, f'未配置环境变量: {name}')
-        return value
+    def match_os_env(cls, match: Match) -> Optional[str]:
+        return os.getenv(match[1], None)
 
     dsl_replacer = DSLReplacer()
 
@@ -273,6 +297,10 @@ class JmcomicText:
     @classmethod
     def parse_dsl_text(cls, dsl_text: str) -> str:
         return cls.dsl_replacer.parse_dsl_text(dsl_text)
+
+    @classmethod
+    def parse_dsl_text_optional(cls, dsl_text: str) -> Optional[str]:
+        return cls.dsl_replacer.parse_dsl_text_optional(dsl_text)
 
     bracket_map = {'(': ')',
                    '[': ']',
@@ -665,9 +693,10 @@ class JmPageTool:
     pattern_html_search_tags = compile(r'<a[^>]*?>(.*?)</a>')
 
     # 查找错误，例如 [错误，關鍵字過短，請至少輸入兩個字以上。]
-    pattern_html_search_error = compile(r'<fieldset>\n<legend>(.*?)</legend>\n<div class=.*?>\n(.*?)\n</div>\n</fieldset>')
+    pattern_html_search_error = compile(
+        r'<fieldset>\n<legend>(.*?)</legend>\n<div class=.*?>\n(.*?)\n</div>\n</fieldset>')
 
-    pattern_html_search_total = compile(r'class="text-white">(\d+)</span> A漫.'), 0
+    pattern_html_search_total = compile(r'class="text-white">(\d+)\+?</span>\s*(?:A漫|搜索結果|搜尋結果)'), 0
 
     # 收藏页面的本子结果
     pattern_html_favorite_content = compile(
@@ -1080,8 +1109,9 @@ class JmImageTool:
 
     @classmethod
     def save_directly(cls, resp, filepath):
-        from common import save_resp_content
-        save_resp_content(resp, filepath)
+        mkdir_if_not_exists(os.path.dirname(filepath))
+        with open(filepath, 'wb') as f:
+            f.write(resp.content)
 
     @classmethod
     def decode_and_save(cls,

@@ -40,46 +40,46 @@ def new_album_photo_images(image_count=1):
     return album, photo, list(photo)
 
 
-class ContractOption:
+class ContractOption(JmOption):
 
     def __init__(self, base_dir):
+        default = JmOption.default_dict()
+        default['dir_rule']['base_dir'] = base_dir
+        default['download']['cache'] = True
+        default['download']['image']['decode'] = False
+        default['download']['threading']['image'] = 1
+        default['download']['threading']['photo'] = 1
+        super().__init__(
+            dir_rule=default['dir_rule'],
+            download=default['download'],
+            client=default['client'],
+            plugins=default['plugins'],
+            call_after_init_plugin=False,
+        )
         self.base_dir = base_dir
         self.plugin_event_list = []
         self.context_event_list = []
         self.after_image_callback = None
-        self.dir_rule = SimpleNamespace(
-            base_dir=base_dir,
-            decide_album_root_dir=lambda _album: os.path.join(base_dir, 'album'),
-        )
-        self.download = SimpleNamespace(
-            threading=SimpleNamespace(image=1, photo=1),
-        )
+        for group in ('before_album', 'after_album', 'before_photo', 'after_photo', 'before_image', 'after_image'):
+            self.plugins[group] = [True]
+        self.dir_rule.decide_album_root_dir = lambda _album: os.path.join(base_dir, 'album')
 
-    def decide_image_save_dir(self, _photo):
+    def decide_image_save_dir(self, _photo, ensure_exists=True):
         return os.path.join(self.base_dir, 'album', 'photo')
 
-    def decide_image_filepath(self, image):
+    def decide_image_filepath(self, image, consider_custom_suffix=True):
         save_dir = self.decide_image_save_dir(image.from_photo)
         os.makedirs(save_dir, exist_ok=True)
         return os.path.join(save_dir, image.filename)
-
-    def decide_download_cache(self, _image):
-        return True
-
-    def decide_download_image_decode(self, _image):
-        return False
-
-    def decide_photo_batch_count(self, _album):
-        return 1
-
-    def decide_image_batch_count(self, _photo):
-        return 1
 
     def call_all_plugin(self, group, **kwargs):
         self.plugin_event_list.append((group, kwargs))
         self.context_event_list.append((group, JTC.get_context()))
         if group == 'after_image' and self.after_image_callback is not None:
             self.after_image_callback(kwargs['image'])
+
+    async def call_all_plugin_async(self, group, **kwargs):
+        self.call_all_plugin(group, **kwargs)
 
 
 class ContractSyncClient:

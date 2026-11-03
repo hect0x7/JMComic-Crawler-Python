@@ -5,6 +5,29 @@
 条目分类参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [2.7.11] - 2026-11-04
+
+### Summary
+
+本次更新新增异步网页端客户端 `AsyncJmHtmlClient`、顶层 `auth` 登录配置与插件异步执行接口，移除外部 `commonX` 依赖，并修复 `SessionPostman` 会话状态与网页端搜索总数解析问题。
+
+### Added
+
+- 新增异步网页端客户端 `AsyncJmHtmlClient`（`async_html`），支持本子/章节详情、搜索、分类排行、收藏夹、评论、每日签到及可用网页域名自动获取。
+- 新增顶层 `auth` 登录配置（支持 `username`、`password`、`cookies` 及 `${ENV}` 环境变量占位符）与 `option.login_with_option_auth()` / `login_with_option_auth_async()` 登录接口，配套新增 [登录指南](https://jmcomic.readthedocs.io/zh-cn/latest/tutorial/17_login/)。
+- `AsyncJmcomicClient` 新增 `download_album_cover` 异步封面下载；`JmOptionPlugin` 新增 `async_invoke`（配合 `JmOption.call_all_plugin_async`），支持插件异步执行与同步插件自动线程卸载。
+
+### Changed
+
+- 移除外部 `commonX` 包依赖，核心工具与 `Postman` 实现内聚至 `jmcomic.common`。
+- 未显式配置 `client.async_impl` 时，异步客户端默认跟随 `client.impl`（`html` 对应 `async_html`，其余对应 `async_api`）。
+- 顶层下载、`favorite_folder_export` 插件及 GitHub Actions 配置统一改用 `auth` 自动登录；直接调用 `client.login()` 仅作用于当前客户端实例，不再修改全局 `option`。
+
+### Fixed
+
+- 修复 `SessionPostman`（`curl_cffi_session`、`requests-session`）更新 `cookies` 时覆盖已有会话 Cookie、`copy()` 报错及 `requests-session` 未自动注入默认请求头的问题。
+- 修复网页端搜索结果总数显示 `1000+` 时正则解析失败的问题。
+
 ## [2.7.10] - 2026-10-22
 
 ### Summary

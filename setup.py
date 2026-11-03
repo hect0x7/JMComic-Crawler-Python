@@ -28,12 +28,11 @@ setup(
     python_requires=">=3.9",
     install_requires=[
         'curl_cffi',
-        'commonX',
         'PyYAML',
         'Pillow',
         'pycryptodome',
     ],
-    keywords=['python', 'jmcomic', '18comic', '禁漫天堂', 'NSFW'],
+    keywords=['python', 'jmcomic', '18comic', '禁漫天堂', 'crawler'],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",

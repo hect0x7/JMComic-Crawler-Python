@@ -36,7 +36,7 @@ if __name__ == '__main__':
 
 ## 2. 使用 Option 定制化异步下载
 
-和同步版本一样，你可以配合 `option` 对象来定制网络请求、代理、下载路径等：
+和同步版本一样，你可以配合 `option` 对象来定制网络请求、代理、下载路径、登录账号（`auth`）等：
 
 ```python
 import asyncio
@@ -168,7 +168,8 @@ from jmcomic import JmOption
 
 async def main():
     async with JmOption.default().new_jm_async_client() as cl:
-        # 先登录
+        # 局部登录：仅当前 cl 生效
+        # 若需 option 全局登录，可在创建 client 前调用 await option.login_with_option_auth_async()
         await cl.login('你的用户名', '你的密码')
 
         # 使用 async for 遍历整个收藏夹的所有页
@@ -248,16 +249,44 @@ asyncio.run(main())
 
 ## 9. 关于 `async_impl` 配置
 
-注意：仅仅在 `option.yml` 中增加配置**并不能**让代码自动变成异步，你必须要在代码中改为调用 `_async` 相关方法（如上文所示）。
+> [!IMPORTANT]
+> 仅仅在 `option.yml` 中增加配置**并不能**让代码自动变成异步，你必须要在代码中改为调用 `_async` 相关方法（如上文所示）。
 
-`async_impl`目前可以不配置，因为配置的作用仅仅是指定底层使用哪种API实现。目前的唯一实现是 `async_api`：
+`async_impl` 配置和 `impl`类似，同样决定 async 底层走 `网页端` 还是 `APP端`。
 
 ```yaml
-# myoption.yml
 client:
   impl: html
-  # 指定异步客户端的底层实现类 (目前仅有: async_api)
-  async_impl: async_api
+  # 异步客户端实现，默认 null，无需配置（会自动映射上面的 impl）
+  # 也可显式指定 async_api 或 async_html
+  async_impl: null
+```
+
+
+如果你配置过 `impl`字段，可以不配置 `async_impl`，因为`async_impl`会映射`impl`配置项。
+
+比如你配置了 `impl: html`，然后你代码使用 async api，async底层使用的就是 `async_html` 的client。`impl=api`同理。
+
+如果你需要`async_impl`和`impl`使用不同值，可以通过代码来控制，不走配置
+
+```python
+import asyncio
+from jmcomic import JmOption, download_album_async
+
+
+async def main():
+    # 下载场景
+    option = JmOption.default()
+    option.client.async_impl = 'async_html'  # 写 'html' 也可以
+    await download_album_async(123, option)
+
+    # 使用底层 client 场景
+    async with JmOption.default().new_jm_async_client(impl='async_html') as cl:  # 写 'html' 也可以
+        album = await cl.get_album_detail(123)
+        print(album.title)
+
+
+asyncio.run(main())
 ```
 
 ## 10. 下载返回值

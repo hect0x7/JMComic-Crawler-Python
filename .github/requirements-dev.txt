@@ -1,5 +1,4 @@
 curl_cffi
-commonX
 PyYAML
 Pillow
 psutil

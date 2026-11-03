@@ -130,6 +130,7 @@ class JTC:
 # 兼容已发布的上下文查询入口，内部统一使用 JTC。
 get_jm_task_context = JTC.get_context
 
+
 class JmTaskContext:
     """
     临时绑定任务字段；只传播 Option/Runtime/Control，不管理资源生命周期。

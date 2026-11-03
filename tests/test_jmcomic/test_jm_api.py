@@ -1,5 +1,7 @@
 import asyncio
 import inspect
+import traceback
+from typing import Iterable
 from unittest.mock import AsyncMock, patch
 
 from test_jmcomic import *
@@ -97,7 +99,7 @@ class Test_Api(JmTestConfigurable):
                 print(func())
             except BaseException as e:
                 exception_list.append(e)
-                traceback_print_exec()
+                traceback.print_exc()
 
         multi_thread_launcher(
             iter_objs=func_list,
