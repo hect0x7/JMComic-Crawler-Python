@@ -426,7 +426,7 @@ class Test_Async_Html_Client(unittest.TestCase):
             os.environ.pop('JM_TEST_AUTH_MISSING', None)
             missing_opt = JmOption.construct({
                 'auth': {
-                    'username': '${JM_TEST_AUTH_MISSING}',
+                    'username': 'user_${JM_TEST_AUTH_MISSING}',
                     'password': '${JM_TEST_AUTH_MISSING}',
                     'cookies': {'AVS': '${JM_TEST_AUTH_MISSING}'},
                 },
@@ -436,8 +436,9 @@ class Test_Async_Html_Client(unittest.TestCase):
             self.assertIsNone(missing_opt.auth.password)
             self.assertIsNone(missing_opt.auth.cookies)
             self.assertIsNone(missing_opt.new_jm_client().get_meta_data('cookies'))
-            # 默认 throw=True 仍抛异常，throw=False 返回 None
-            self.assertIsNone(JmcomicText.parse_dsl_text('${JM_TEST_AUTH_MISSING}', throw=False))
+            # parse_dsl_text 缺失仍抛异常，parse_dsl_text_optional（含拼接占位符）返回 None
+            self.assertIsNone(JmcomicText.parse_dsl_text_optional('${JM_TEST_AUTH_MISSING}'))
+            self.assertIsNone(JmcomicText.parse_dsl_text_optional('prefix_${JM_TEST_AUTH_MISSING}'))
             with self.assertRaises(Exception):
                 JmcomicText.parse_dsl_text('${JM_TEST_AUTH_MISSING}')
 

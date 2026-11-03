@@ -224,13 +224,13 @@ class JmOption:
         data = self.auth.src_dict
         for k, v in list(data.items()):
             if isinstance(v, str):
-                data[k] = JmcomicText.parse_dsl_text(v, throw=False)
+                data[k] = JmcomicText.parse_dsl_text_optional(v)
 
         cookies = data.get('cookies')
         if isinstance(cookies, dict):
             for k, v in list(cookies.items()):
                 if isinstance(v, str):
-                    resolved = JmcomicText.parse_dsl_text(v, throw=False)
+                    resolved = JmcomicText.parse_dsl_text_optional(v)
                     if resolved is None:
                         cookies.pop(k, None)
                     else:

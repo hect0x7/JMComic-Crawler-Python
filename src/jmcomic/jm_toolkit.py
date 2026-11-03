@@ -252,22 +252,32 @@ class JmcomicText:
         def __init__(self):
             self.dsl_dict: Dict[Pattern, Callable[[Match], Optional[str]]] = {}
 
-        def parse_dsl_text(self, text: str, throw: bool = True) -> Optional[str]:
+        def parse_dsl_text(self, text: str) -> str:
+            for pattern, replacer in self.dsl_dict.items():
+                def _sub(match: Match, _replacer=replacer) -> str:
+                    res = _replacer(match)
+                    if res is None:
+                        name = match[1] if match.lastindex else match[0]
+                        ExceptionTool.raises(f'未配置环境变量: {name}')
+                    return res
+
+                text = pattern.sub(_sub, text)
+            return text
+
+        def parse_dsl_text_optional(self, text: str) -> Optional[str]:
             for pattern, replacer in self.dsl_dict.items():
                 missing = False
 
-                def _sub(match: Match) -> str:
+                def _sub(match: Match, _replacer=replacer) -> str:
                     nonlocal missing
-                    res = replacer(match)
+                    res = _replacer(match)
                     if res is None:
-                        if throw:
-                            ExceptionTool.raises(f'未配置环境变量: {match[1]}')
                         missing = True
                         return ''
                     return res
 
                 text = pattern.sub(_sub, text)
-                if missing and text == '':
+                if missing:
                     return None
             return text
 
@@ -286,8 +296,12 @@ class JmcomicText:
         return os.path.abspath(cls.parse_dsl_text(dsl_text))
 
     @classmethod
-    def parse_dsl_text(cls, dsl_text: str, throw: bool = True) -> Optional[str]:
-        return cls.dsl_replacer.parse_dsl_text(dsl_text, throw=throw)
+    def parse_dsl_text(cls, dsl_text: str) -> str:
+        return cls.dsl_replacer.parse_dsl_text(dsl_text)
+
+    @classmethod
+    def parse_dsl_text_optional(cls, dsl_text: str) -> Optional[str]:
+        return cls.dsl_replacer.parse_dsl_text_optional(dsl_text)
 
     bracket_map = {'(': ')',
                    '[': ']',
