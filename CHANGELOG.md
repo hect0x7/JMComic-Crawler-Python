@@ -9,27 +9,24 @@
 
 ### Summary
 
-本次更新新增异步网页端客户端 `AsyncJmHtmlClient`、异步封面下载与插件异步执行接口 `async_invoke`，推出顶层 `auth` 账号登录配置，移除外部 `commonX` 依赖并内聚为 `jmcomic.common`，同时修复 `SessionPostman` 会话 Cookie 合并、请求头注入及网页端搜索总数解析问题。
+本次更新新增异步网页端客户端 `AsyncJmHtmlClient`、顶层 `auth` 登录配置与插件异步执行接口，移除外部 `commonX` 依赖，并修复 `SessionPostman` 会话状态与网页端搜索总数解析问题。
 
 ### Added
 
-- **异步网页端客户端 (`AsyncJmHtmlClient`)**：异步模式现已完整支持网页端（`async_html`），涵盖本子/章节详情、搜索、分类筛选、收藏夹管理、评论互动、每日签到以及自动获取可用网页域名。
-- **顶层 `auth` 登录配置**：配置文件新增顶层 `auth` 项（支持配置 `username`、`password` 或 `cookies`，字段值及 `auth.cookies` 均支持 `${环境变量名}` 占位符）。配置账号密码后，调用 `download_album` 等下载接口会自动完成登录；直接使用 `client` 时，可通过 `option.login_with_option_auth()`（或 `login_with_option_auth_async()`）一键登录并让后续创建的客户端自带登录态；`option.to_file()` 导出时自动过滤运行时 `cookies` 与 `user_id`。
-- **登录指南**：新增文档 [登录指南](https://jmcomic.readthedocs.io/zh-cn/latest/tutorial/17_login/)，说明顶层 `auth` 配置规范、各入口登录时机、登录态写回规则及旧写法迁移方式。
-- **插件异步执行与异步封面下载**：`AsyncJmcomicClient` 新增 `download_album_cover`；`JmOptionPlugin` 新增 `async_invoke`（配合 `JmOption.call_all_plugin_async`），`download_cover`、`calibre_metadata` 原生走异步封面下载，其余同步插件自动调度至线程池执行。
-- **异步多域名智能重试**：异步客户端内建多域名轮询与失败降权机制，单次请求失败时自动切换备用域名，并在后续请求中优先使用可用域名。
+- 新增异步网页端客户端 `AsyncJmHtmlClient`（`async_html`），支持本子/章节详情、搜索、分类排行、收藏夹、评论、每日签到及可用网页域名自动获取。
+- 新增顶层 `auth` 登录配置（支持 `username`、`password`、`cookies` 及 `${ENV}` 环境变量占位符）与 `option.login_with_option_auth()` / `login_with_option_auth_async()` 登录接口，配套新增 [登录指南](https://jmcomic.readthedocs.io/zh-cn/latest/tutorial/17_login/)。
+- `AsyncJmcomicClient` 新增 `download_album_cover` 异步封面下载；`JmOptionPlugin` 新增 `async_invoke`（配合 `JmOption.call_all_plugin_async`），支持插件异步执行与同步插件自动线程卸载。
 
 ### Changed
 
-- **移除外部 `commonX` 依赖**：按需提取核心工具内聚至内置模块 `jmcomic.common`，移除外部 `commonX` 包依赖；精简 `Postman` 抽象层次，合并 `Postman` / `SessionPostman` 基类并保留 `Requests`、`CurlCffi` 实现与 `Postmans` 注册扩展机制。
-- **异步客户端默认跟随 `client.impl`**：未显式指定 `client.async_impl` 时，异步模式自动跟随 `client.impl`（配置 `html` 时使用 `async_html`，其余情况使用 `async_api`）。若原配置为 `impl: html` 且希望异步继续使用移动端接口，可显式设置 `async_impl: async_api`。
-- **`auth` 取代 `login` 插件**：`favorite_folder_export` 插件在 `auth` 配置了账号密码时自动登录；GitHub Actions 的下载与收藏夹导出配置改用 `auth`。`login` 插件仅为兼容旧配置保留，执行时总是强制登录并将传入的账号密码写入 `option.auth`。
-- **单客户端登录状态隔离**：直接调用 `client.login()` 仅对当前客户端实例生效，不再反向修改全局 `option` 配置；如需全局共享登录态，请使用 `auth` 配置配合 `option.login_with_option_auth()`。
+- 移除外部 `commonX` 包依赖，核心工具与 `Postman` 实现内聚至 `jmcomic.common`。
+- 未显式配置 `client.async_impl` 时，异步客户端默认跟随 `client.impl`（`html` 对应 `async_html`，其余对应 `async_api`）。
+- 顶层下载、`favorite_folder_export` 插件及 GitHub Actions 配置统一改用 `auth` 自动登录；直接调用 `client.login()` 仅作用于当前客户端实例，不再修改全局 `option`。
 
 ### Fixed
 
-- **修复 `SessionPostman`（如 `curl_cffi_session`、`requests-session`）会话问题**：修复更新 `cookies` 时覆盖会话已有 Cookie（如 `ipcountry`）的问题、调用 `postman.copy()` 抛出 `AttributeError` 的问题，以及 `requests-session` 在未显式配置 `headers` 时因 `requests.Session()` 默认请求头导致未能自动注入禁漫默认请求头的问题。
-- **修复网页端搜索结果总数解析**：兼容禁漫网页端搜索结果页展示 `1000+` 等带加号总数文本时的正则解析。
+- 修复 `SessionPostman`（`curl_cffi_session`、`requests-session`）更新 `cookies` 时覆盖已有会话 Cookie、`copy()` 报错及 `requests-session` 未自动注入默认请求头的问题。
+- 修复网页端搜索结果总数显示 `1000+` 时正则解析失败的问题。
 
 ## [2.7.10] - 2026-10-22
 
