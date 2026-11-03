@@ -8,7 +8,7 @@ description = "Python API For JMComic (禁漫天堂)"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {file = "LICENSE"}
-keywords=['python', 'jmcomic', '18comic', '禁漫天堂', 'NSFW']
+keywords=['python', 'jmcomic', '18comic', '禁漫天堂', 'crawler']
 classifiers=[
     "Development Status :: 4 - Beta",
     "License :: OSI Approved :: MIT License",
