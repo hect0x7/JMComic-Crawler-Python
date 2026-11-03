@@ -257,8 +257,7 @@ class JmcomicText:
                 def _sub(match: Match, _replacer=replacer) -> str:
                     res = _replacer(match)
                     if res is None:
-                        name = match[1] if match.lastindex else match[0]
-                        ExceptionTool.raises(f'未配置环境变量: {name}')
+                        ExceptionTool.raises(f'DSL解析失败，未获取到值: {match[0]}')
                     return res
 
                 text = pattern.sub(_sub, text)

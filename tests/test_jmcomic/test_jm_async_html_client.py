@@ -439,8 +439,9 @@ class Test_Async_Html_Client(unittest.TestCase):
             # parse_dsl_text 缺失仍抛异常，parse_dsl_text_optional（含拼接占位符）返回 None
             self.assertIsNone(JmcomicText.parse_dsl_text_optional('${JM_TEST_AUTH_MISSING}'))
             self.assertIsNone(JmcomicText.parse_dsl_text_optional('prefix_${JM_TEST_AUTH_MISSING}'))
-            with self.assertRaises(Exception):
+            with self.assertRaises(Exception) as ctx:
                 JmcomicText.parse_dsl_text('${JM_TEST_AUTH_MISSING}')
+            self.assertIn('DSL解析失败，未获取到值: ${JM_TEST_AUTH_MISSING}', str(ctx.exception))
 
             # 单参数自定义 replacer（如 workflow_export_favorites.py）与 resolve_auth_env 兼容
             try:
