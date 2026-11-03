@@ -1,3 +1,6 @@
+import json
+from typing import AsyncGenerator
+
 from .jm_toolkit import *
 
 """
@@ -170,14 +173,14 @@ class JmDailyCheckinResp(JmResp):
     """
     每日签到打卡响应类
     """
-    CODE_SUCCESS = 0             # 签到成功
+    CODE_SUCCESS = 0  # 签到成功
     CODE_ALREADY_CHECKED_IN = 1  # 重复签到（今日已签）
 
     def __init__(self, resp, code: int, msg: str, raw_data: dict = None):
         super().__init__(resp)
-        self.code: int = code      # 0=签到成功, 1=重复签到
-        self.status: int = code    # 兼容字段，值等同于 code
-        self.msg: str = msg        # 透传服务端的提示信息或奖励内容
+        self.code: int = code  # 0=签到成功, 1=重复签到
+        self.status: int = code  # 兼容字段，值等同于 code
+        self.msg: str = msg  # 透传服务端的提示信息或奖励内容
         self.raw_data: dict = raw_data or {}
 
     def __repr__(self):
@@ -1020,9 +1023,8 @@ class AsyncJmcomicClient:
                            ):
         return await self.search(search_query, page, 4, order_by, time, category, sub_category)
 
-    async def do_page_iter(self, params: dict, page: int, get_page_method):
+    async def do_page_iter(self, params: dict, page: int, get_page_method) -> AsyncGenerator[Any, Optional[Dict]]:
         from math import inf
-        from typing import Optional, Dict
 
         def update(value: Optional[Dict], page: int, page_content):
             if value is None:
@@ -1051,7 +1053,7 @@ class AsyncJmcomicClient:
                    time: str = JmMagicConstants.TIME_ALL,
                    category: str = JmMagicConstants.CATEGORY_ALL,
                    sub_category: Optional[str] = None,
-                   ):
+                   ) -> AsyncGenerator[JmSearchPage, Optional[Dict]]:
         """
         异步搜索结果的生成器。
         使用示例:
@@ -1094,7 +1096,7 @@ class AsyncJmcomicClient:
                               category: str = JmMagicConstants.CATEGORY_ALL,
                               order_by: str = JmMagicConstants.ORDER_BY_LATEST,
                               sub_category: Optional[str] = None,
-                              ):
+                              ) -> AsyncGenerator[JmCategoryPage, Optional[Dict]]:
         """异步分类结果生成器，支持通过 asend 动态更新分页参数。"""
         params = {
             'time': time,
@@ -1146,7 +1148,7 @@ class AsyncJmcomicClient:
                             order_by=JmMagicConstants.ORDER_FF_FAVORITE_TIME,
                             folder_id='0',
                             username='',
-                            ):
+                            ) -> AsyncGenerator[JmFavoritePage, Optional[Dict]]:
         """
         见 search_gen
         """
@@ -1234,7 +1236,7 @@ class AsyncJmcomicClient:
                                    series=1,
                                    with_ad_wcm=1,
                                    need_total=True,
-                                   ):
+                                   ) -> AsyncGenerator[JmAlbumCommentPage, None]:
         """异步逐页获取本子评论。"""
         first_page = True
         total = None
@@ -1274,7 +1276,7 @@ class AsyncJmcomicClient:
     async def forum_pagination_gen(self,
                                    page=1,
                                    with_ad_wcm=1,
-                                   ):
+                                   ) -> AsyncGenerator[JmAlbumCommentPage, None]:
         """异步逐页获取全站评论；HTML 客户端遇到服务端重复返回的末页时停止。"""
         # API 正常通过 total 计算 page_count；HTML 客户端无 total，通过重复页识别末页。
         previous_comment_ids = None

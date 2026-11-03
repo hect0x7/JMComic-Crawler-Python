@@ -5,8 +5,10 @@ Async Client API 对称性测试 —— 对标 test_jm_client.py
 若 sync/async 行为不一致，测试 FAIL 并报告差异。
 """
 
-from test_jmcomic import *
 import asyncio
+import os
+
+from test_jmcomic import *
 
 
 class Test_Async_Client(JmAsyncTestConfigurable):
@@ -368,6 +370,7 @@ class Test_Async_Client(JmAsyncTestConfigurable):
 
     def test_async_search_generator(self):
         """测试异步生成器 search_gen 的使用 (包含 asend)"""
+
         async def run():
             gen = self.async_client.search_gen('MANA')
             # 触发第一页
@@ -382,6 +385,7 @@ class Test_Async_Client(JmAsyncTestConfigurable):
 
     def test_async_categories_filter_generator(self):
         """测试异步分类生成器 categories_filter_gen（包含 asend）"""
+
         async def run():
             gen = self.async_client.categories_filter_gen(
                 category=JmMagicConstants.CATEGORY_ALL,
@@ -399,6 +403,7 @@ class Test_Async_Client(JmAsyncTestConfigurable):
 
     def test_async_download_cover(self):
         """测试异步下载封面与 download_cover 插件 async_invoke"""
+
         async def run():
             album_id = 123
             base_dir = self.option.dir_rule.base_dir

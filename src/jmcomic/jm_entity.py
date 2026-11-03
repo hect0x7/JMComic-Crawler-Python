@@ -1,7 +1,7 @@
-from collections.abc import Sequence
 from functools import lru_cache
-from .common import *
+from typing import Any, Dict, Generator, List, Optional, Sequence, Tuple, TypeVar, Union
 
+from .common import *
 from .jm_config import *
 
 
@@ -18,7 +18,6 @@ class Downloadable:
 class JmBaseEntity:
 
     def to_file(self, filepath):
-        from .common import PackerUtil
         PackerUtil.pack(self, filepath)
 
     @classmethod

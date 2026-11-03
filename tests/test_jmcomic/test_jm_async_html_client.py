@@ -72,9 +72,9 @@ class Test_Async_Html_Client(unittest.TestCase):
         option.client.src_dict['domain'] = {'html': ['example.com']}
 
         for kwargs in (
-            {'impl': 'async_html'},
-            {'impl': 'html'},
-            {'impl': AsyncJmHtmlClient},
+                {'impl': 'async_html'},
+                {'impl': 'html'},
+                {'impl': AsyncJmHtmlClient},
         ):
             client = option.new_jm_async_client(**kwargs)
             try:
@@ -167,7 +167,7 @@ class Test_Async_Html_Client(unittest.TestCase):
         page = object()
         response = _FakeResponse('html')
         with patch.object(client, 'get_jm_html', new=AsyncMock(return_value=response)) as request, \
-             patch('jmcomic.jm_async_client.JmPageTool.parse_html_to_search_page', return_value=page):
+                patch('jmcomic.jm_async_client.JmPageTool.parse_html_to_search_page', return_value=page):
             first = self.run_async(client.search_site('term'))
             second = self.run_async(client.search_site('term'))
 
@@ -259,7 +259,7 @@ class Test_Async_Html_Client(unittest.TestCase):
         client = AsyncJmHtmlClient(option)
 
         with patch.dict('sys.modules', {'common': None}), \
-             patch('jmcomic.jm_async_client.AsyncSession') as session_cls:
+                patch('jmcomic.jm_async_client.AsyncSession') as session_cls:
             fake_session = _FakeSession()
             session_cls.return_value = fake_session
             self.run_async(client._ensure_session())
@@ -338,7 +338,7 @@ class Test_Async_Html_Client(unittest.TestCase):
             self_client._user_id = '9527'
 
         with patch.object(JmHtmlClient, 'login', fake_html_login), \
-             patch.object(JmApiClient, 'after_init', lambda self_client: None):
+                patch.object(JmApiClient, 'after_init', lambda self_client: None):
             JmLoginPlugin.build(option).invoke(username='bob', password='pwd', impl='html')
             cached_default_client = option.build_jm_client()
             new_sync_client = option.new_jm_client(impl='html')
@@ -420,11 +420,26 @@ class Test_Async_Html_Client(unittest.TestCase):
         self.assertEqual(option.auth.src_dict['cookies']['AVS'], 'updated_avs')
         self.assertEqual(option.new_jm_client()['cookies']['AVS'], 'updated_avs')
 
-        # 环境变量未设置：直接报错
+        # auth 环境变量未设置：不报错，置为 None（cookies 中未设置项自动忽略）
+        from jmcomic import JmcomicText
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop('JM_TEST_AUTH_MISSING', None)
+            missing_opt = JmOption.construct({
+                'auth': {
+                    'username': '${JM_TEST_AUTH_MISSING}',
+                    'password': '${JM_TEST_AUTH_MISSING}',
+                    'cookies': {'AVS': '${JM_TEST_AUTH_MISSING}'},
+                },
+                'client': {'impl': 'html', 'domain': ['example.com']},
+            })
+            self.assertIsNone(missing_opt.auth.username)
+            self.assertIsNone(missing_opt.auth.password)
+            self.assertIsNone(missing_opt.auth.cookies)
+            self.assertIsNone(missing_opt.new_jm_client().get_meta_data('cookies'))
+            # 默认 throw=True 仍抛异常，throw=False 返回 None
+            self.assertIsNone(JmcomicText.parse_dsl_text('${JM_TEST_AUTH_MISSING}', throw=False))
             with self.assertRaises(Exception):
-                JmOption.construct({'auth': {'username': '${JM_TEST_AUTH_MISSING}'}})
+                JmcomicText.parse_dsl_text('${JM_TEST_AUTH_MISSING}')
 
     def test_favorite_folder_export_logs_in_with_auth(self):
         from jmcomic import FavoriteFolderExportPlugin
@@ -447,7 +462,7 @@ class Test_Async_Html_Client(unittest.TestCase):
 
         plugin = FavoriteFolderExportPlugin.build(option)
         with patch.object(option, 'login_with_option_auth', fake_login), \
-             patch.object(option, 'build_jm_client', fake_build):
+                patch.object(option, 'build_jm_client', fake_build):
             with self.assertRaises(_StopAfterBuild):
                 plugin.main()
         self.assertEqual(events, ['login', 'build_client'])
@@ -457,7 +472,7 @@ class Test_Async_Html_Client(unittest.TestCase):
         events.clear()
         plugin = FavoriteFolderExportPlugin.build(no_auth)
         with patch.object(no_auth, 'login_with_option_auth', fake_login), \
-             patch.object(no_auth, 'build_jm_client', fake_build):
+                patch.object(no_auth, 'build_jm_client', fake_build):
             with self.assertRaises(_StopAfterBuild):
                 plugin.main()
         self.assertEqual(events, ['build_client'])
@@ -480,7 +495,7 @@ class Test_Async_Html_Client(unittest.TestCase):
         album = object.__new__(JmAlbumDetail)
         album.album_id = '123'
         with patch.object(client, 'get_jm_html', new=AsyncMock(return_value=_FakeResponse('html'))), \
-             patch('jmcomic.jm_async_client.JmcomicText.analyse_jm_album_html', return_value=album) as parse:
+                patch('jmcomic.jm_async_client.JmcomicText.analyse_jm_album_html', return_value=album) as parse:
             first = self.run_async(client.get_album_detail('123'))
             second = self.run_async(client.get_album_detail('123'))
         self.assertIsNot(first, second)
@@ -576,18 +591,18 @@ class Test_Async_Html_Client(unittest.TestCase):
 
         # 6. get_daily, daily_checkin, add/delete_favorite_album signatures aligned across async clients
         for method_name in (
-            'get_album_detail',
-            'get_photo_detail',
-            'search',
-            'categories_filter',
-            'favorite_folder',
-            'add_favorite_album',
-            'delete_favorite_album',
-            'get_daily',
-            'daily_checkin',
-            'album_comment',
-            'album_pagination',
-            'forum_pagination',
+                'get_album_detail',
+                'get_photo_detail',
+                'search',
+                'categories_filter',
+                'favorite_folder',
+                'add_favorite_album',
+                'delete_favorite_album',
+                'get_daily',
+                'daily_checkin',
+                'album_comment',
+                'album_pagination',
+                'forum_pagination',
         ):
             html_params = list(inspect.signature(getattr(AsyncJmHtmlClient, method_name)).parameters)
             api_params = list(inspect.signature(getattr(AsyncJmApiClient, method_name)).parameters)
@@ -595,7 +610,7 @@ class Test_Async_Html_Client(unittest.TestCase):
         self.assertIn('daily_id', inspect.signature(JmApiClient.get_daily).parameters)
 
     def test_top_level_auth_priority_and_login_with_option_auth(self):
-        from jmcomic import AsyncJmApiClient, JmApiClient, JmHtmlClient
+        from jmcomic import AsyncJmApiClient, JmApiClient
 
         # 1. async_impl fallback: non-html/api sync impl falls back to async_api without error
         proxy_opt = JmOption.construct({
@@ -695,7 +710,7 @@ class Test_Async_Html_Client(unittest.TestCase):
             'client': {'impl': 'api', 'domain': ['example.com']},
         })
         with patch.object(JmApiClient, 'after_init', lambda s: None), \
-             patch.object(JmApiClient, 'login', fake_sync_api_login):
+                patch.object(JmApiClient, 'login', fake_sync_api_login):
             # Pure memory construction: does not trigger network login
             c_before = auth_opt.new_jm_client()
             self.assertEqual(len(sync_login_calls), 0)
@@ -785,7 +800,7 @@ class Test_Async_Html_Client(unittest.TestCase):
                 return 'album_detail'
 
         with patch.object(dl_opt, 'login_with_option_auth') as mock_sync_login, \
-             patch.object(dl_opt, 'login_with_option_auth_async', new_callable=AsyncMock) as mock_async_login:
+                patch.object(dl_opt, 'login_with_option_auth_async', new_callable=AsyncMock) as mock_async_login:
             download_album('123', dl_opt, downloader=_DummyDler, login=False)
             mock_sync_login.assert_not_called()
             download_album('123', dl_opt, downloader=_DummyDler)
@@ -797,7 +812,7 @@ class Test_Async_Html_Client(unittest.TestCase):
             mock_async_login.assert_awaited_once()
 
     def test_curl_cffi_session_postman_sync_and_async(self):
-        from jmcomic import AsyncJmApiClient, AsyncJmHtmlClient, JmApiClient, JmHtmlClient
+        from jmcomic import AsyncJmApiClient, AsyncJmHtmlClient, JmApiClient
         from jmcomic.common import CurlCffiSessionPostman
 
         # 1. Sync client (api & html) with curl_cffi_session preserves existing session cookies on update/login and supports copy()

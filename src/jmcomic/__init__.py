@@ -4,14 +4,14 @@
 
 __version__ = '2.7.11'
 
-from .jm_exception import DownloadCancelledException
-from .jm_runtime import *
-from .jm_task_context import *
 from .api import *
-from .jm_plugin import *
-from .jm_feature import *
 from .jm_async_client import AbstractAsyncJmClient, AsyncJmHtmlClient, AsyncJmApiClient
 from .jm_async_downloader import JmAsyncDownloader
+from .jm_exception import DownloadCancelledException
+from .jm_feature import *
+from .jm_plugin import *
+from .jm_runtime import *
+from .jm_task_context import *
 
 # 下面进行注册组件（客户端、插件）
 gb = dict(filter(lambda pair: isinstance(pair[1], type), globals().items()))

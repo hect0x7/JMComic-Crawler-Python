@@ -1,5 +1,5 @@
 import asyncio
-from time import perf_counter
+from typing import Iterable, Set
 
 from .jm_downloader import *
 from .jm_exception import DownloadCancelledException, ExceptionTool

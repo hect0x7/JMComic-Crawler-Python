@@ -1,6 +1,10 @@
+import os
 from datetime import datetime
 from html.parser import HTMLParser
+from re import compile
+from typing import Match
 from urllib.parse import unquote, urlparse
+
 from PIL import Image
 
 from .jm_exception import *
@@ -246,22 +250,35 @@ class JmcomicText:
     class DSLReplacer:
 
         def __init__(self):
-            self.dsl_dict: Dict[Pattern, Callable[[Match], str]] = {}
+            self.dsl_dict: Dict[Pattern, Callable[..., Optional[str]]] = {}
 
-        def parse_dsl_text(self, text) -> str:
+        def parse_dsl_text(self, text: str, *args, **kwargs) -> Optional[str]:
             for pattern, replacer in self.dsl_dict.items():
-                text = pattern.sub(replacer, text)
+                missing = False
+
+                def _sub(match: Match) -> str:
+                    nonlocal missing
+                    res = replacer(match, *args, **kwargs)
+                    if res is None:
+                        missing = True
+                        return ''
+                    return res
+
+                text = pattern.sub(_sub, text)
+                if missing and text == '':
+                    return None
             return text
 
-        def add_dsl_and_replacer(self, dsl: str, replacer: Callable[[Match], str]):
+        def add_dsl_and_replacer(self, dsl: str, replacer: Callable[..., Optional[str]]):
             pattern = compile(dsl)
             self.dsl_dict[pattern] = replacer
 
     @classmethod
-    def match_os_env(cls, match: Match) -> str:
+    def match_os_env(cls, match: Match, throw: bool = True) -> Optional[str]:
         name = match[1]
         value = os.getenv(name, None)
-        ExceptionTool.require_true(value is not None, f'未配置环境变量: {name}')
+        if throw:
+            ExceptionTool.require_true(value is not None, f'未配置环境变量: {name}')
         return value
 
     dsl_replacer = DSLReplacer()
@@ -271,8 +288,8 @@ class JmcomicText:
         return os.path.abspath(cls.parse_dsl_text(dsl_text))
 
     @classmethod
-    def parse_dsl_text(cls, dsl_text: str) -> str:
-        return cls.dsl_replacer.parse_dsl_text(dsl_text)
+    def parse_dsl_text(cls, dsl_text: str, *args, **kwargs) -> Optional[str]:
+        return cls.dsl_replacer.parse_dsl_text(dsl_text, *args, **kwargs)
 
     bracket_map = {'(': ')',
                    '[': ']',
@@ -665,7 +682,8 @@ class JmPageTool:
     pattern_html_search_tags = compile(r'<a[^>]*?>(.*?)</a>')
 
     # 查找错误，例如 [错误，關鍵字過短，請至少輸入兩個字以上。]
-    pattern_html_search_error = compile(r'<fieldset>\n<legend>(.*?)</legend>\n<div class=.*?>\n(.*?)\n</div>\n</fieldset>')
+    pattern_html_search_error = compile(
+        r'<fieldset>\n<legend>(.*?)</legend>\n<div class=.*?>\n(.*?)\n</div>\n</fieldset>')
 
     pattern_html_search_total = compile(r'class="text-white">(\d+)\+?</span>\s*(?:A漫|搜索結果|搜尋結果)'), 0
 

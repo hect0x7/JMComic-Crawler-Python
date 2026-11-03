@@ -1,5 +1,3 @@
-from typing import Optional, Sequence, Union
-
 from .jm_client_impl import *
 
 
@@ -220,19 +218,25 @@ class JmOption:
 
     def resolve_auth_env(self):
         """
-        把 auth 中形如 ${ENV_NAME} 的字符串替换为环境变量的值（规则与插件 kwargs 相同），
+        把 auth 中形如 ${ENV_NAME} 的字符串替换为环境变量的值；环境变量未设置时置为 None，不报错。
         支持 auth 下的字符串字段和 auth.cookies 下的字符串值。
         """
         data = self.auth.src_dict
         for k, v in list(data.items()):
             if isinstance(v, str):
-                data[k] = JmcomicText.parse_dsl_text(v)
+                data[k] = JmcomicText.parse_dsl_text(v, throw=False)
 
         cookies = data.get('cookies')
         if isinstance(cookies, dict):
             for k, v in list(cookies.items()):
                 if isinstance(v, str):
-                    cookies[k] = JmcomicText.parse_dsl_text(v)
+                    resolved = JmcomicText.parse_dsl_text(v, throw=False)
+                    if resolved is None:
+                        cookies.pop(k, None)
+                    else:
+                        cookies[k] = resolved
+            if not cookies:
+                data['cookies'] = None
 
     def deconstruct_auth(self) -> Dict:
         """
@@ -400,7 +404,8 @@ class JmOption:
             if not advice_plugins:
                 return
 
-            plugins_yml = yaml.dump({'plugins': advice_plugins}, default_flow_style=False, indent=2, sort_keys=False).strip()
+            plugins_yml = yaml.dump({'plugins': advice_plugins}, default_flow_style=False, indent=2,
+                                    sort_keys=False).strip()
 
             jm_log('option.migrate',
                    f'[zip 插件迁移] level 参数已过时，建议直接删除。'

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import logging
-from .common import time_stamp, field_cache, ProxyBuilder
 
+from .common import time_stamp, field_cache, ProxyBuilder, str_to_list
 from .jm_task_context import JM_TASK_CONTEXT, JTC
 
 jm_logger = logging.getLogger('jmcomic')
@@ -43,7 +43,6 @@ class JmLogFormatter(logging.Formatter):
 
 def shuffled(lines):
     from random import shuffle
-    from .common import str_to_list
     ls = str_to_list(lines)
     shuffle(ls)
     return ls

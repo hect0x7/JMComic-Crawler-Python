@@ -249,33 +249,42 @@ asyncio.run(main())
 
 ## 9. 关于 `async_impl` 配置
 
-注意：仅仅在 `option.yml` 中增加配置**并不能**让代码自动变成异步，你必须要在代码中改为调用 `_async` 相关方法（如上文所示）。
+> [!IMPORTANT]
+> 仅仅在 `option.yml` 中增加配置**并不能**让代码自动变成异步，你必须要在代码中改为调用 `_async` 相关方法（如上文所示）。
 
-`async_impl` 默认无需配置（自动跟随 `client.impl`：当 `impl` 为 `html` 时对应 `async_html`，其余情况默认使用移动端 `async_api`）。你也可以显式指定 `async_impl` 为 `async_api` 或 `async_html`：
+`async_impl` 配置和 `impl`类似，同样决定 async 底层走 `网页端` 还是 `APP端`。
 
 ```yaml
-# myoption.yml
 client:
   impl: html
-  # 异步客户端实现：默认 null（自动跟随上面的 impl），也可显式指定 async_api 或 async_html
+  # 异步客户端实现，默认 null，无需配置（会自动映射上面的 impl）
+  # 也可显式指定 async_api 或 async_html
   async_impl: null
-  domain:
-    html:
-      - 18comic.ink
 ```
 
-异步 HTML 客户端的调用方式与其他异步客户端相同，使用 `async with` 管理连接：
+
+如果你配置过 `impl`字段，可以不配置 `async_impl`，因为`async_impl`会映射`impl`配置项。
+
+比如你配置了 `impl: html`，然后你代码使用 async api，async底层使用的就是 `async_html` 的client。`impl=api`同理。
+
+如果你需要`async_impl`和`impl`使用不同值，可以通过代码来控制，不走配置
 
 ```python
 import asyncio
-from jmcomic import JmOption
+from jmcomic import JmOption, download_album_async
 
-option = JmOption.from_file('myoption.yml')
 
 async def main():
-    async with option.new_jm_async_client() as client:
-        album = await client.get_album_detail('438516')
-        print(album.name)
+    # 下载场景
+    option = JmOption.default()
+    option.client.async_impl = 'async_html'  # 写 'html' 也可以
+    await download_album_async(123, option)
+
+    # 使用底层 client 场景
+    async with JmOption.default().new_jm_async_client(impl='async_html') as cl:  # 写 'html' 也可以
+        album = await cl.get_album_detail(123)
+        print(album.title)
+
 
 asyncio.run(main())
 ```

@@ -3,11 +3,14 @@ Async 自定义 Client 注册对称性测试 —— 对标 test_jm_custom.py
 
 验证 REGISTRY_ASYNC_CLIENT 注册、域名回退、异常行为与 sync 一致。
 """
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
 from test_jmcomic import *
+
 from jmcomic.jm_async_client import AsyncJmApiClient
 from jmcomic.jm_async_downloader import JmAsyncDownloader
 from jmcomic.jm_client_interface import AsyncJmcomicClient
-from concurrent.futures import ThreadPoolExecutor
 
 
 class Test_Async_Custom(JmAsyncTestConfigurable):

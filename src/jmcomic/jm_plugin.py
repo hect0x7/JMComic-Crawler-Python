@@ -2,12 +2,14 @@
 该文件存放的是option插件
 """
 
+import atexit
+import threading
 from collections import deque
-from threading import RLock
+from threading import RLock, Thread, current_thread
 
-from .jm_option import *
 from .jm_async_downloader import JmAsyncDownloader
 from .jm_downloader import JmDownloader
+from .jm_option import *
 from .jm_runtime import JmTempRuntime
 from .jm_task_context import bind_jm_task_context, JTC
 
@@ -161,11 +163,7 @@ class JmOptionPlugin:
 
     async def async_invoke(self, **kwargs) -> None:
         import asyncio
-        downloader = kwargs.get('downloader')
-        if isinstance(downloader, JmAsyncDownloader):
-            await downloader._run_in_decode_pool(self.invoke, **kwargs)
-        else:
-            await asyncio.to_thread(self.invoke, **kwargs)
+        await asyncio.to_thread(self.invoke, **kwargs)
 
     @classmethod
     def build(cls, option: JmOption) -> 'JmOptionPlugin':
@@ -273,7 +271,8 @@ class JmOptionPlugin:
             base_dir = os.path.dirname(filepath)
         else:
             base_dir = base_dir or os.getcwd()
-            filepath = os.path.join(base_dir, DirRule.apply_rule_to_filename(album, photo, filename_rule) + fix_suffix(suffix))
+            filepath = os.path.join(base_dir,
+                                    DirRule.apply_rule_to_filename(album, photo, filename_rule) + fix_suffix(suffix))
 
         mkdir_if_not_exists(base_dir)
         return fix_filepath(filepath)
@@ -1204,16 +1203,19 @@ class DownloadProgressPlugin(JmOptionPlugin):
                         elif not chapter['retried'] and random.random() < 0.08:
                             chapter['retried'] = True
                             chapter['next_tick'] = tick + random.randint(3, 6)
-                            log('image.retry', f'{chapter_name} 图片 {int(task.completed) + 1:05}.jpg 请求超时，准备重试', worker)
+                            log('image.retry',
+                                f'{chapter_name} 图片 {int(task.completed) + 1:05}.jpg 请求超时，准备重试', worker)
                             continue
                         advance = min(random.randint(1, 3), int(task.total - task.completed))
                         for page in range(int(task.completed) + 1, int(task.completed) + advance + 1):
                             progress.advance(task.id)
-                            log('image.after', f'图片下载完成: {chapter_name}/{page:05}.jpg [{page}/{int(task.total)}]', worker)
+                            log('image.after', f'图片下载完成: {chapter_name}/{page:05}.jpg [{page}/{int(task.total)}]',
+                                worker)
                         chapter['next_tick'] = tick + chapter['interval'] + random.randint(0, 1)
                         if task.finished:
                             progress.update(task.id, description=f'✓ {task.description}')
-                            log('photo.after', f'章节下载完成: [{chapter_name}], 图片 {int(task.total)}/{int(task.total)}',
+                            log('photo.after',
+                                f'章节下载完成: [{chapter_name}], 图片 {int(task.total)}/{int(task.total)}',
                                 worker)
                     if album_task is not None:
                         was_finished = tasks[album_task].finished
@@ -2308,38 +2310,17 @@ class CalibreMetadataPlugin(JmOptionPlugin):
                include_cover=False,
                fields=None,
                **kwargs) -> None:
-        self.require_param(album, '本插件需在after_album阶段使用，需要album参数')
-
-        try:
-            import jmcomic_calibre
-        except ImportError:
-            self.warning_lib_not_install('jmcomic-calibre')
+        prepared = self._prepare_opf_export(dir_rule, album, photo)
+        if prepared is None:
             return
-
-        opf_path = self.decide_filepath(album, photo, None, None, None, dir_rule)
+        jmcomic_calibre, opf_path = prepared
 
         # 处理封面下载
         if include_cover:
-            cover_path = os.path.join(os.path.dirname(opf_path), 'cover.jpg')
+            cover_path = self._decide_cover_path(opf_path)
             self.download_cover_if_needed(album.id, cover_path, downloader)
 
-        jmcomic_calibre.export_opf(
-            album=album,
-            opf_path=opf_path,
-            fields=fields,
-            include_cover=include_cover,
-            on_ignored=lambda key, allowed: self.log(
-                f'calibre_metadata: 忽略不支持的fields字段 [{key}]，'
-                f'仅支持Dublin Core元素: {", ".join(sorted(allowed))}', 'warning'),
-        )
-        self.log(f'已生成Calibre元数据文件 → [{opf_path}]')
-
-    def download_cover_if_needed(self, album_id: str, cover_path: str, downloader):
-        if self.option.download.cache and os.path.exists(cover_path):
-            self.log(f'album-{album_id}的封面已存在，跳过下载: [{cover_path}]', 'skip')
-            return
-        self.require_param(downloader, 'include_cover=true时需要downloader参数（after_album阶段会自动传入）')
-        downloader.client.download_album_cover(album_id, cover_path, '')
+        self._export_opf(jmcomic_calibre, album, opf_path, fields, include_cover)
 
     async def async_invoke(self,
                            dir_rule: dict,
@@ -2349,25 +2330,61 @@ class CalibreMetadataPlugin(JmOptionPlugin):
                            include_cover=False,
                            fields=None,
                            **kwargs) -> None:
+        prepared = self._prepare_opf_export(dir_rule, album, photo)
+        if prepared is None:
+            return
+        jmcomic_calibre, opf_path = prepared
+
+        # 处理封面下载
+        if include_cover:
+            cover_path = self._decide_cover_path(opf_path)
+            await self.download_cover_if_needed_async(album.id, cover_path, downloader)
+
+        import asyncio
+        await asyncio.to_thread(
+            self._export_opf,
+            jmcomic_calibre,
+            album,
+            opf_path,
+            fields,
+            include_cover,
+        )
+
+    def _prepare_opf_export(self, dir_rule: dict, album: JmAlbumDetail, photo: JmPhotoDetail):
         self.require_param(album, '本插件需在after_album阶段使用，需要album参数')
 
         try:
             import jmcomic_calibre
         except ImportError:
             self.warning_lib_not_install('jmcomic-calibre')
-            return
+            return None
 
         opf_path = self.decide_filepath(album, photo, None, None, None, dir_rule)
+        return jmcomic_calibre, opf_path
 
-        if include_cover:
-            cover_path = os.path.join(os.path.dirname(opf_path), 'cover.jpg')
-            if self.option.download.cache and os.path.exists(cover_path):
-                self.log(f'album-{album.id}的封面已存在，跳过下载: [{cover_path}]', 'skip')
-            else:
-                self.require_param(downloader, 'include_cover=true时需要downloader参数（after_album阶段会自动传入）')
-                decode_executor = downloader.get_decode_executor() if isinstance(downloader, JmAsyncDownloader) else None
-                await downloader.client.download_album_cover(album.id, cover_path, '', decode_executor=decode_executor)
+    @staticmethod
+    def _decide_cover_path(opf_path: str) -> str:
+        return os.path.join(os.path.dirname(opf_path), 'cover.jpg')
 
+    def _prepare_cover_download(self, album_id: str, cover_path: str, downloader) -> bool:
+        if self.option.download.cache and os.path.exists(cover_path):
+            self.log(f'album-{album_id}的封面已存在，跳过下载: [{cover_path}]', 'skip')
+            return False
+        self.require_param(downloader, 'include_cover=true时需要downloader参数（after_album阶段会自动传入）')
+        return True
+
+    def download_cover_if_needed(self, album_id: str, cover_path: str, downloader):
+        if not self._prepare_cover_download(album_id, cover_path, downloader):
+            return
+        downloader.client.download_album_cover(album_id, cover_path, '')
+
+    async def download_cover_if_needed_async(self, album_id: str, cover_path: str, downloader):
+        if not self._prepare_cover_download(album_id, cover_path, downloader):
+            return
+        decode_executor = downloader.get_decode_executor() if isinstance(downloader, JmAsyncDownloader) else None
+        await downloader.client.download_album_cover(album_id, cover_path, '', decode_executor=decode_executor)
+
+    def _export_opf(self, jmcomic_calibre, album: JmAlbumDetail, opf_path: str, fields, include_cover: bool):
         jmcomic_calibre.export_opf(
             album=album,
             opf_path=opf_path,

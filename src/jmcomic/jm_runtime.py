@@ -1,6 +1,5 @@
 import concurrent.futures
 from concurrent.futures import Executor, ProcessPoolExecutor, ThreadPoolExecutor
-import threading
 from threading import RLock
 from typing import Callable, Dict, Optional, Set, Tuple
 

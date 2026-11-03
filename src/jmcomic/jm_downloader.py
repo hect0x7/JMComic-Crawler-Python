@@ -1,6 +1,7 @@
+import inspect
 from functools import wraps
-from typing import Dict, NamedTuple, Union
 from time import perf_counter
+from typing import NamedTuple
 
 from .jm_option import *
 from .jm_runtime import (

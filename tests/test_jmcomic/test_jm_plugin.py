@@ -1,4 +1,8 @@
+import os
+import sys
+
 from test_jmcomic import *
+
 
 class Test_Plugin(JmTestConfigurable):
 
@@ -121,7 +125,7 @@ class Test_Plugin(JmTestConfigurable):
 
             # 模拟安装抛错，严格失败
             with mock.patch('subprocess.run', side_effect=subprocess.CalledProcessError(
-                1, ['pip', 'install', '__fake_lib_to_install__'], stderr='模拟安装失败',
+                    1, ['pip', 'install', '__fake_lib_to_install__'], stderr='模拟安装失败',
             )) as mock_run:
                 with self.assertRaises(JmcomicException) as ctx:
                     JmOption.construct(dic)
@@ -161,6 +165,7 @@ class Test_Plugin(JmTestConfigurable):
                 if name == 'img2pdf':
                     return object()
                 return real_find_spec(name, *args, **kwargs)
+
             return fake
 
         def build_zip(kwargs):
@@ -591,7 +596,7 @@ class Test_Plugin(JmTestConfigurable):
             shutil.rmtree(tmp, ignore_errors=True)
 
     def test_async_plugin_invocation_and_download_cover(self):
-        """测试 call_all_plugin_async：download_cover 走 async_invoke，同步插件自动走 decode 线程池"""
+        """测试 call_all_plugin_async：download_cover 走 async_invoke，同步插件自动走 asyncio.to_thread 工作线程"""
         import asyncio
         import tempfile
         import shutil
@@ -604,6 +609,7 @@ class Test_Plugin(JmTestConfigurable):
             option = self.new_option()
             cover_calls = []
             sync_thread_names = []
+            main_thread = threading.current_thread().name
 
             class DummySyncPlugin(JmOptionPlugin):
                 plugin_key = 'dummy_sync_for_async_test'
@@ -660,7 +666,8 @@ class Test_Plugin(JmTestConfigurable):
                 self.assertEqual('_3x4', cover_calls[0][2])
                 self.assertIs(cover_calls[0][3], dler._decode_pool)
                 self.assertEqual(1, len(sync_thread_names))
-                self.assertTrue(sync_thread_names[0].startswith('jm-async-decode'))
+                self.assertNotEqual(main_thread, sync_thread_names[0])
+                self.assertFalse(sync_thread_names[0].startswith('jm-async-decode'))
 
                 class CancelledAsyncPlugin(JmOptionPlugin):
                     plugin_key = 'cancelled_async_for_test'
@@ -688,9 +695,125 @@ class Test_Plugin(JmTestConfigurable):
                         return FakeImgResp()
 
                 cover_out = os.path.join(tmp, 'real_cover.jpg')
-                asyncio.run(DummyCoverClient().download_album_cover('123', cover_out, decode_executor=dler._decode_pool))
+                asyncio.run(
+                    DummyCoverClient().download_album_cover('123', cover_out, decode_executor=dler._decode_pool))
                 self.assertGreater(os.path.getsize(cover_out), 0)
             finally:
                 dler.shutdown()
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_calibre_metadata_plugin_sync_and_async_thread_offload(self):
+        """测试 calibre_metadata 插件同步/异步复用逻辑，验证 async_invoke 中 export_opf 在工作线程执行"""
+        import asyncio
+        import shutil
+        import sys
+        import tempfile
+        import threading
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from jmcomic.jm_async_downloader import JmAsyncDownloader
+
+        tmp = tempfile.mkdtemp(prefix='jm_test_calibre_plugin_')
+        try:
+            option = self.new_option()
+            export_calls = []
+            cover_calls = []
+
+            def fake_export_opf(album, opf_path, fields=None, include_cover=False, on_ignored=None):
+                if fields and 'unsupported' in fields and on_ignored is not None:
+                    on_ignored('unsupported', {'language', 'publisher'})
+                with open(opf_path, 'w', encoding='utf-8') as f:
+                    f.write(f'<package>{album.id}</package>')
+                export_calls.append((threading.current_thread().name, opf_path, fields, include_cover))
+
+            fake_calibre = SimpleNamespace(export_opf=fake_export_opf)
+            album = JmAlbumDetail(
+                album_id='456',
+                scramble_id='0',
+                name='calibre_album',
+                episode_list=[],
+                page_count=1,
+                pub_date='',
+                update_date='',
+                likes='',
+                views='',
+                comment_count=0,
+                works=[],
+                actors=[],
+                tags=[],
+                authors=[],
+                description='',
+            )
+
+            class FakeSyncClient:
+                def download_album_cover(self_cl, album_id, save_path, size=''):
+                    cover_calls.append(('sync', album_id, save_path, size, None))
+                    with open(save_path, 'wb') as f:
+                        f.write(b'sync_cover')
+
+            class FakeAsyncClient:
+                async def download_album_cover(self_cl, album_id, save_path, size='', decode_executor=None):
+                    cover_calls.append(('async', album_id, save_path, size, decode_executor))
+                    with open(save_path, 'wb') as f:
+                        f.write(b'async_cover')
+
+            with patch.dict(sys.modules, {'jmcomic_calibre': fake_calibre}):
+                # 1. 同步 invoke
+                sync_dler = SimpleNamespace(client=FakeSyncClient())
+                option.plugins['calibre_sync'] = [{
+                    'plugin': 'calibre_metadata',
+                    'kwargs': {
+                        'dir_rule': {'base_dir': tmp, 'rule': 'Bd/sync_{Aid}/metadata.opf'},
+                        'include_cover': True,
+                        'fields': {'language': 'zh', 'unsupported': 'x'},
+                    },
+                    'safe': False,
+                }]
+                option.call_all_plugin('calibre_sync', album=album, downloader=sync_dler, safe=False)
+                self.assertEqual(1, len(export_calls))
+                self.assertTrue(os.path.exists(export_calls[0][1]))
+                self.assertEqual('sync', cover_calls[0][0])
+
+                # 2. 异步 async_invoke（带 JmAsyncDownloader：封面走 decode_pool，export_opf 走 asyncio.to_thread 工作线程而非 decode_pool）
+                main_thread = threading.current_thread().name
+                dler = JmAsyncDownloader(option, decode_worker=1)
+                dler.client = FakeAsyncClient()
+                try:
+                    option.plugins['calibre_async'] = [{
+                        'plugin': 'calibre_metadata',
+                        'kwargs': {
+                            'dir_rule': {'base_dir': tmp, 'rule': 'Bd/async_{Aid}/metadata.opf'},
+                            'include_cover': True,
+                            'fields': {'language': 'zh'},
+                        },
+                        'safe': False,
+                    }]
+                    asyncio.run(dler._dispatch_plugin('calibre_async', album=album, downloader=dler))
+                    self.assertEqual(2, len(export_calls))
+                    self.assertNotEqual(main_thread, export_calls[1][0])
+                    self.assertFalse(export_calls[1][0].startswith('jm-async-decode'))
+                    self.assertEqual('async', cover_calls[1][0])
+                    self.assertIs(cover_calls[1][4], dler._decode_pool)
+
+                    # 再次触发时命中封面缓存，不重复下载封面
+                    asyncio.run(dler._dispatch_plugin('calibre_async', album=album, downloader=dler))
+                    self.assertEqual(2, len(cover_calls))
+                    self.assertEqual(3, len(export_calls))
+                finally:
+                    dler.shutdown()
+
+                # 3. 异步 async_invoke（无 downloader 且 include_cover=False：export_opf 走 asyncio.to_thread）
+                option.plugins['calibre_async_no_dler'] = [{
+                    'plugin': 'calibre_metadata',
+                    'kwargs': {
+                        'dir_rule': {'base_dir': tmp, 'rule': 'Bd/nodler_{Aid}/metadata.opf'},
+                        'include_cover': False,
+                    },
+                    'safe': False,
+                }]
+                asyncio.run(option.call_all_plugin_async('calibre_async_no_dler', album=album, safe=False))
+                self.assertEqual(4, len(export_calls))
+                self.assertNotEqual(main_thread, export_calls[3][0])
         finally:
             shutil.rmtree(tmp, ignore_errors=True)

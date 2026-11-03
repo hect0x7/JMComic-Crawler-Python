@@ -1,3 +1,6 @@
+import os
+import traceback
+
 from test_jmcomic import *
 
 

@@ -1,4 +1,6 @@
 import platform
+import sys
+import time
 import unittest
 
 # noinspection PyUnresolvedReferences
@@ -69,7 +71,6 @@ skip_time_cost_log = os.path.exists('./.idea')
 cost_time_dict = {}
 
 
-
 def mock_option(auth=None, **kwargs):
     """
     轻量级 Mock JmOption，满足顶层 API（如 _should_auto_login）对 option.auth 的契约，
@@ -79,6 +80,7 @@ def mock_option(auth=None, **kwargs):
     if auth is None:
         auth = {}
     return SimpleNamespace(auth=auth, **kwargs)
+
 
 class JmTestConfigurable(unittest.TestCase):
     option: JmOption = None
@@ -196,7 +198,7 @@ class JmAsyncTestConfigurable(JmTestConfigurable):
             # 为 async client 开启缓存（对齐 sync 的 cache='level_option'）
             client.set_cache_dict({})
             return client
-            
+
         cls.async_client = cls._loop.run_until_complete(_create_async_client())
 
     @classmethod

@@ -1,8 +1,8 @@
 from copy import deepcopy
 from threading import Lock
 
-from .jm_task_context import bind_jm_task_context
 from .jm_client_interface import *
+from .jm_task_context import bind_jm_task_context
 
 
 # 抽象基类，实现了域名管理，发请求，重试机制，log，缓存等功能

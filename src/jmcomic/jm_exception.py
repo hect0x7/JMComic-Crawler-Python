@@ -1,7 +1,7 @@
 # 该文件存放jmcomic的异常机制设计和实现
 from __future__ import annotations
 
-from typing import NoReturn
+from typing import Callable, NoReturn, Pattern, Type
 
 from .jm_entity import *
 
