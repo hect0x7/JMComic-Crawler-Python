@@ -176,8 +176,7 @@ b. 命令行不改，而是配置环境变量 `JM_OPTION_PATH` 为option文件�
 > [!NOTE]
 > `jmv` 命令用于快速查看本子详情，不做下载。
 >
-> **适用场景**：在某些网站上看到一串 *神秘车号*，想快速看看具体是啥本子。此时只需copy原文本，按下 win+R，输入`jmv [粘贴内容]`
-即可
+> **适用场景**：在某些网站上看到一串*神秘车号*，想快速看看具体是啥本子。此时只需copy原文本，按下 win+R，输入`jmv [粘贴内容]`即可
 >
 > 支持从任意文本中提取数字作为车号，方便直接粘贴各种格式的车号。
 
@@ -239,37 +238,33 @@ jmv 350234 -y
 
 - **绕过Cloudflare的反爬虫**
 - **实现禁漫APP接口最新的加解密算法 (1.6.3)**
-- 支持 **Async**和 **Sync**两套 API
+- 支持**Async**和**Sync**两套 API
 - 用法多样：
 
-    - GitHub
-      Actions：网页上直接输入本子id就能下载（[教程：使用GitHub Actions下载禁漫本子](./assets/docs/sources/tutorial/1_github_actions.md)）
-    - 命令行：无需写Python代码，简单易用（[教程：使用命令行下载禁漫本子](./assets/docs/sources/tutorial/2_command_line.md)）
-    - Python代码：最本质、最强大的使用方式，需要你有一定的python编程基础
-- 支持 **网页端**和 **移动端**两种客户端实现，可通过配置切换（ **移动端不限ip兼容性好，网页端限制ip地区但效率高**）
-- 支持 **自动重试和域名切换**机制
+  - GitHub
+    Actions：网页上直接输入本子id就能下载（[教程：使用GitHub Actions下载禁漫本子](./assets/docs/sources/tutorial/1_github_actions.md)）
+  - 命令行：无需写Python代码，简单易用（[教程：使用命令行下载禁漫本子](./assets/docs/sources/tutorial/2_command_line.md)）
+  - Python代码：最本质、最强大的使用方式，需要你有一定的python编程基础
+- 支持**网页端**和**移动端**两种客户端实现，可通过配置切换（**移动端不限ip兼容性好，网页端限制ip地区但效率高**）
+- 支持**自动重试和域名切换**机制
 - 支持按下载任务维度结构化收集日志
 - **可配置性强**
 
-    - 不配置也能使用，十分方便
-    - 配置可以从配置文件生成，支持多种文件格式
-    - 配置点有：`请求域名` `客户端实现` `是否使用磁盘缓存` `同时下载的章节/图片数量` `图片格式转换` `下载路径规则`
-      `请求元信息（headers,cookies,proxies)` `中文繁/简转换`
-      等
+  - 不配置也能使用，十分方便
+  - 配置可以从配置文件生成，支持多种文件格式
+  - 配置点有：`请求域名` `客户端实现` `是否使用磁盘缓存` `同时下载的章节/图片数量` `图片格式转换` `下载路径规则` `请求元信息（headers,cookies,proxies)` `中文繁/简转换`等
 - **可扩展性强**
 
-    - 支持自定义本子/章节/图片下载前后事件的回调函数
-    - 支持自定义类：`Downloader（负责调度）` `Option（负责配置）` `Client（负责请求）` `实体类`等
-    - 支持自定义日志、异常监听器
-    - **支持 Plugin 扩展，目前内置 21 个实用插件，包括**：`美观下载进度条`、`图片合并 PDF`、`一图流长图拼接`、
-      `生成zip/7z压缩包`、`浏览器 Cookie 获取`、`订阅更新`、`收藏夹导出`、`封面下载`等。
+  - 支持自定义本子/章节/图片下载前后事件的回调函数
+  - 支持自定义类：`Downloader（负责调度）` `Option（负责配置）` `Client（负责请求）` `实体类`等
+  - 支持自定义日志、异常监听器
+  - **支持 Plugin 扩展，目前内置 21 个实用插件，包括**：`美观下载进度条`、`图片合并 PDF`、`一图流长图拼接`、`生成zip/7z压缩包`、`浏览器 Cookie 获取`、`订阅更新`、`收藏夹导出`、`封面下载`等。
 
 ## 使用小说明
 
 * 推荐使用 **Python 3.14**，目前 CI 只覆盖 Python 3.10 及以上版本。
   > [!NOTE]
-  > Python 3.9 及更早版本均已结束官方支持 (EOL)，使用3.9及以下随时有可能遇到第三方库不兼容的问题。Python 3.9 仍保留安装兼容，但不再纳入
-  CI。
+  > Python 3.9 及更早版本均已结束官方支持 (EOL)，使用3.9及以下随时有可能遇到第三方库不兼容的问题。Python 3.9 仍保留安装兼容，但不再纳入 CI。
 
 * 个人项目，文档和示例会有不及时之处，可以Issue提问。
 
@@ -278,11 +273,11 @@ jmv 350234 -y
 * .github：GitHub Actions配置文件
 * assets：存放一些非代码的资源文件
 
-    * docs：项目文档
-    * option：存放配置文件
+  * docs：项目文档
+  * option：存放配置文件
 * src：存放源代码
 
-    * jmcomic：`jmcomic`模块
+  * jmcomic：`jmcomic`模块
 * tests：测试目录，存放测试代码，使用unittest
 * usage：用法目录，存放示例/使用代码
 
@@ -310,13 +305,13 @@ jmv 350234 -y
 
 ## 配套项目
 
-我基于 `jmcomic` 构建的三个配套项目： **本地阅读、AI 交互、安卓APK归档**
+我基于 `jmcomic` 构建的三个配套项目：**本地阅读、AI 交互、安卓APK归档**
 
-|                                                                                                                                                                                                                                                          项目                                                                                                                                                                                                                                                           | 定位                                                                                                                                                                                                                                                      |
-|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| <a href="https://github.com/hect0x7/jm-view-server"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jm-view-server-dark.svg" /><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jm-view-server.svg" /><img width="340" alt="jm-view-server" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jm-view-server.svg" /></picture></a> | **📖 本地看本神器**<br>用浏览器看本<br>支持**下拉 / 单页 / 无缝双页**阅读与**局域网手机躺床看**。<br>🚀 `pip install jm-view-server; python -m jm_view_server`                                                                                            |
-|           <a href="https://github.com/hect0x7/jmcomic-ai"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jmcomic-ai-dark.svg" /><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jmcomic-ai.svg" /><img width="340" alt="jmcomic-ai" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jmcomic-ai.svg" /></picture></a>           | **🤖 Skills & MCP 集成**<br>提供 **Skills + CLI** 与 **MCP** 双路线接入 Claude Code / Codex 等，<br>无需记车号写配置，自然语言搜本、查评论排雷、下载转 PDF。<br>🚀 `pip install jmcomic-ai` · [查看接入指南](https://github.com/hect0x7/jmcomic-ai)       |
-|        <a href="https://github.com/hect0x7/JMComic-APK"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-JMComic-APK-dark.svg" /><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-JMComic-APK.svg" /><img width="340" alt="JMComic-APK" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-JMComic-APK.svg" /></picture></a>         | **📱 禁漫官方移动端安装包自动追踪**<br>基于 `jmcomic` 由 GitHub Actions 定时检测禁漫 Android 客户端，<br>自动归档最新官方 APK 至 Releases（附 iOS 安装指引）。<br>🚀 [前往 Releases 下载最新 APK](https://github.com/hect0x7/JMComic-APK/releases/latest) |
+| 项目 | 定位 |
+| :---: | :--- |
+| <a href="https://github.com/hect0x7/jm-view-server"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jm-view-server-dark.svg" /><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jm-view-server.svg" /><img width="340" alt="jm-view-server" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jm-view-server.svg" /></picture></a> | **📖 本地看本神器**<br>用浏览器看本<br>支持**下拉 / 单页 / 无缝双页**阅读与**局域网手机躺床看**。<br>🚀 `pip install jm-view-server; python -m jm_view_server` |
+| <a href="https://github.com/hect0x7/jmcomic-ai"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jmcomic-ai-dark.svg" /><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jmcomic-ai.svg" /><img width="340" alt="jmcomic-ai" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jmcomic-ai.svg" /></picture></a> | **🤖 Skills & MCP 集成**<br>提供 **Skills + CLI** 与 **MCP** 双路线接入 Claude Code / Codex 等，<br>无需记车号写配置，自然语言搜本、查评论排雷、下载转 PDF。<br>🚀 `pip install jmcomic-ai` · [查看接入指南](https://github.com/hect0x7/jmcomic-ai) |
+| <a href="https://github.com/hect0x7/JMComic-APK"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-JMComic-APK-dark.svg" /><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-JMComic-APK.svg" /><img width="340" alt="JMComic-APK" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-JMComic-APK.svg" /></picture></a> | **📱 禁漫官方移动端安装包自动追踪**<br>基于 `jmcomic` 由 GitHub Actions 定时检测禁漫 Android 客户端，<br>自动归档最新官方 APK 至 Releases（附 iOS 安装指引）。<br>🚀 [前往 Releases 下载最新 APK](https://github.com/hect0x7/JMComic-APK/releases/latest) |
 
 ## Star History
 

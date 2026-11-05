@@ -33,12 +33,24 @@
 > **🧭 빠른 가이드**
 > - [튜토리얼: GitHub Actions를 사용하여 다운로드하기](../docs/sources/tutorial/1_github_actions.md)
 > - [튜토리얼: 즐겨찾기 데이터를 내보내고 다운로드하기](../docs/sources/tutorial/10_export_favorites.md)
+> - [튜토리얼: 다운로드 후 PDF / ZIP / 긴 이미지로 변환하기](../docs/sources/tutorial/13_export_and_feature.md)
 > - [타워 브로드캐스트: 기장 여러분의 소스 코드 기여와 동참을 환영합니다](../../.github/CONTRIBUTING.md)
 > 
 > **안내: JM 서버의 부하를 줄이기 위해 한 번에 너무 많은 앨범을 다운로드하지 말아주세요 🙏🙏🙏**
 
 
+<div align="center">
+
+https://github.com/user-attachments/assets/63ba2016-ee93-4133-a3e1-31ea6783c400
+
+</div>
+
+<details>
+<summary>🗺️ <b>펼쳐 보기: JMComic 기능 아키텍처 한눈에 보기</b></summary>
+<br>
+
 ![introduction.jpg](https://raw.githubusercontent.com/hect0x7/hect0x7/master/images/jmcomic-intro-main.png)
+</details>
 
 
 ## 프로젝트 소개
@@ -279,6 +291,16 @@ jmv 350234 -y
     <img width="100%" alt="jmcomic을 사용하는 프로젝트" src="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/ko-light.svg" />
   </picture>
 </a>
+
+## 관련 프로젝트
+
+`jmcomic`을 기반으로 제가 만든 3개의 관련 프로젝트: **로컬 감상, AI 연동, Android APK 아카이브**
+
+| 프로젝트 | 소개 |
+| :---: | :--- |
+| <a href="https://github.com/hect0x7/jm-view-server"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jm-view-server-dark.svg" /><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jm-view-server.svg" /><img width="340" alt="jm-view-server" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jm-view-server.svg" /></picture></a> | **📖 로컬 만화 뷰어**<br>다운로드한 만화를 브라우저로 감상합니다.<br>**세로 스크롤 / 단면 / 연속 양면** 보기와 **LAN을 통한 스마트폰 감상**을 지원합니다.<br>🚀 `pip install jm-view-server; python -m jm_view_server` |
+| <a href="https://github.com/hect0x7/jmcomic-ai"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jmcomic-ai-dark.svg" /><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jmcomic-ai.svg" /><img width="340" alt="jmcomic-ai" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jmcomic-ai.svg" /></picture></a> | **🤖 Skills & MCP 연동**<br>**Skills + CLI** 및 **MCP** 두 가지 경로로 Claude Code / Codex 등에 연결합니다.<br>번호나 설정을 외울 필요 없이 자연어로 검색, 댓글 확인, PDF 변환 다운로드까지 처리합니다.<br>🚀 `pip install jmcomic-ai` · [연동 가이드 보기](https://github.com/hect0x7/jmcomic-ai) |
+| <a href="https://github.com/hect0x7/JMComic-APK"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-JMComic-APK-dark.svg" /><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-JMComic-APK.svg" /><img width="340" alt="JMComic-APK" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-JMComic-APK.svg" /></picture></a> | **📱 공식 모바일 APK 자동 트래커**<br>`jmcomic` 기반으로 GitHub Actions가 공식 Android 클라이언트를 주기적으로 확인하고,<br>최신 공식 APK를 Releases에 자동 보관합니다 (iOS 설치 안내 포함).<br>🚀 [Releases에서 최신 APK 다운로드](https://github.com/hect0x7/JMComic-APK/releases/latest) |
 
 ## Star History
 
