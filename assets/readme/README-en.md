@@ -33,12 +33,24 @@
 > **🧭 Quick Guide**
 > - [Tutorial: Downloading JM Albums using GitHub Actions](../docs/sources/tutorial/1_github_actions.md)
 > - [Tutorial: Exporting and downloading your JM favorites data](../docs/sources/tutorial/10_export_favorites.md)
+> - [Tutorial: Exporting downloaded albums to PDF / ZIP / Long Image](../docs/sources/tutorial/13_export_and_feature.md)
 > - [Tower Broadcast: Welcome captains to join and contribute code](../../.github/CONTRIBUTING.md)
 > 
 > **Friendly Prompt: Cherish JM. In order to reduce the pressure on JM servers, please do not download too many albums at once 🙏🙏🙏.**
 
 
+<div align="center">
+
+https://github.com/user-attachments/assets/63ba2016-ee93-4133-a3e1-31ea6783c400
+
+</div>
+
+<details>
+<summary>🗺️ <b>Expand: JMComic architecture at a glance</b></summary>
+<br>
+
 ![introduction.jpg](https://raw.githubusercontent.com/hect0x7/hect0x7/master/images/jmcomic-intro-main.png)
+</details>
 
 
 ## Introduction
@@ -284,6 +296,16 @@ Please check the documentation homepage → [jmcomic.readthedocs.io (Chinese lan
     <img width="100%" alt="Projects using jmcomic" src="https://raw.githubusercontent.com/hect0x7/hect0x7/used-by/showcase/en-light.svg" />
   </picture>
 </a>
+
+## Companion Projects
+
+Three companion projects I built on top of `jmcomic`: **local reading, AI interaction, and Android APK archiving**
+
+| Project | Highlights |
+| :---: | :--- |
+| <a href="https://github.com/hect0x7/jm-view-server"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jm-view-server-dark.svg" /><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jm-view-server.svg" /><img width="340" alt="jm-view-server" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jm-view-server.svg" /></picture></a> | **📖 Local Manga Reader**<br>Read your downloaded albums in the browser.<br>Supports **vertical scroll / single-page / seamless double-page** reading and **reading on your phone over LAN**.<br>🚀 `pip install jm-view-server && jms` |
+| <a href="https://github.com/hect0x7/jmcomic-ai"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jmcomic-ai-dark.svg" /><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jmcomic-ai.svg" /><img width="340" alt="jmcomic-ai" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-jmcomic-ai.svg" /></picture></a> | **🤖 Skills & MCP Integration**<br>Connect to Claude Code / Codex, etc. via **Skills + CLI** or **MCP**.<br>No need to memorize album IDs or write configs: search, check comments, and download to PDF in natural language.<br>🚀 `pip install jmcomic-ai` · [Setup Guide](https://github.com/hect0x7/jmcomic-ai) |
+| <a href="https://github.com/hect0x7/JMComic-APK"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-JMComic-APK-dark.svg" /><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-JMComic-APK.svg" /><img width="340" alt="JMComic-APK" src="https://raw.githubusercontent.com/hect0x7/hect0x7/output/profile/pin-JMComic-APK.svg" /></picture></a> | **📱 Official JM Mobile APK Tracker**<br>Built on `jmcomic`, GitHub Actions periodically checks the official JM Android client<br>and archives the latest official APK to Releases (with iOS installation guide).<br>🚀 [Download the latest APK from Releases](https://github.com/hect0x7/JMComic-APK/releases/latest) |
 
 ## Star History
 
