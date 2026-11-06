@@ -5,6 +5,22 @@
 条目分类参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [2.7.12] - 2026-11-06
+
+### Summary
+
+本次更新为同步客户端内置域名轮询与失败后置重试机制（对齐异步客户端，`advanced_retry` 插件转为废弃提醒），修复图片绝对 URL 按 API 域名数重复放大重试、CLI 下载失败仍返回退出码 `0` 以及 `JmOption.copy_option()` 浅拷贝共享可变配置的问题。
+
+### Changed
+
+- 同步客户端 `AbstractJmClient.request_with_retry` 内置线程安全的域名失败计数与升序轮询机制（对齐 `AsyncJmcomicClient`），失败次数多的域名自动后置；`AdvancedRetryPlugin`（`advanced_retry`）不再挂载客户端钩子，调用时输出废弃迁移提醒日志。
+
+### Fixed
+
+- 修复同步客户端与 `AdvancedRetryPlugin` 请求完整图片 URL（非 `'/'` 开头）失败时，外层仍按 API 域名列表长度重复放大重试次数的问题。
+- 修复命令行 `jmcomic` 在批量下载存在失败项或混合模式后台线程抛错时仍以退出码 `0` 结束的问题，失败时统一返回非零退出码。
+- 修复 `JmOption.copy_option()` 浅拷贝共享 `download`、`client`、`plugins` 可变配置字典导致修改串联污染的问题，同时保留 `auth` 登录状态跨副本共享。
+
 ## [2.7.11] - 2026-11-04
 
 ### Summary

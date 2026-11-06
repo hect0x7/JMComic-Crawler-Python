@@ -165,6 +165,56 @@ class Test_Cli(JmTestConfigurable):
             ],
         )
 
+    def test_jmcomic_exits_nonzero_on_batch_failures(self):
+        from jmcomic.jm_downloader import BatchResult
+
+        failed_batch = BatchResult()
+        failed_batch.failed['999999'] = RuntimeError('missing')
+        ok_batch = BatchResult()
+
+        # 1) 仅 album 失败 -> exit(1)
+        ui_album = JmcomicUI()
+        ui_album.album_id_list = ['999999']
+        with patch('jmcomic.api.download_album', return_value=failed_batch):
+            with self.assertRaises(SystemExit) as ctx:
+                ui_album.run(SimpleNamespace())
+        self.assertEqual(1, ctx.exception.code)
+
+        # 2) 仅 photo 失败 -> exit(1)
+        ui_photo = JmcomicUI()
+        ui_photo.photo_id_list = ['888888']
+        with patch('jmcomic.api.download_photo', return_value=failed_batch):
+            with self.assertRaises(SystemExit) as ctx:
+                ui_photo.run(SimpleNamespace())
+        self.assertEqual(1, ctx.exception.code)
+
+        # 3) 混合模式其中一个批次有失败 -> exit(1)
+        ui_mixed = JmcomicUI()
+        ui_mixed.album_id_list = ['1']
+        ui_mixed.photo_id_list = ['2']
+        with patch('jmcomic.api.download_album', return_value=ok_batch), \
+                patch('jmcomic.api.download_photo', return_value=failed_batch):
+            with self.assertRaises(SystemExit) as ctx:
+                ui_mixed.run(SimpleNamespace())
+        self.assertEqual(1, ctx.exception.code)
+
+        # 4) 全部成功 -> 不抛 SystemExit
+        ui_ok = JmcomicUI()
+        ui_ok.album_id_list = ['1']
+        with patch('jmcomic.api.download_album', return_value=ok_batch):
+            ui_ok.run(SimpleNamespace())
+
+    def test_jmcomic_mixed_mode_propagates_unhandled_thread_exception(self):
+        ui = JmcomicUI()
+        ui.album_id_list = ['1']
+        ui.photo_id_list = ['2']
+
+        with patch('jmcomic.api.download_album', side_effect=ValueError('auth boom')), \
+                patch('jmcomic.api.download_photo', return_value=None):
+            with self.assertRaises(ValueError) as ctx:
+                ui.run(SimpleNamespace())
+        self.assertIn('auth boom', str(ctx.exception))
+
     def test_jmcomic_download_album(self):
         """jmcomic 真实下载 album 123"""
         JustDownloadSpecificCountImage.count = 5

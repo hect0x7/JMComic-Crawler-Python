@@ -151,24 +151,40 @@ class JmcomicUI:
         return any(plugin.get('plugin') == 'download_progress' for plugin in plugin_list)
 
     def run(self, option):
+        import sys
         from .api import download_album, download_photo
         from .jm_task_context import bind_jm_task_context
 
+        results = []
         if len(self.album_id_list) == 0:
-            download_photo(self.photo_id_list, option)
+            results.append(download_photo(self.photo_id_list, option))
         elif len(self.photo_id_list) == 0:
-            download_album(self.album_id_list, option)
+            results.append(download_album(self.album_id_list, option))
         else:
             # 同时下载album和photo
             from threading import Thread
+            errors = []
+
+            def run_task(fn, id_list):
+                try:
+                    results.append(fn(id_list, option))
+                except BaseException as e:
+                    errors.append(e)
+
             tasks = [
-                Thread(target=bind_jm_task_context(download_album), args=(self.album_id_list, option)),
-                Thread(target=bind_jm_task_context(download_photo), args=(self.photo_id_list, option)),
+                Thread(target=bind_jm_task_context(run_task), args=(download_album, self.album_id_list)),
+                Thread(target=bind_jm_task_context(run_task), args=(download_photo, self.photo_id_list)),
             ]
             for t in tasks:
                 t.start()
             for t in tasks:
                 t.join()
+
+            if errors:
+                raise errors[0]
+
+        if any(res is not None and not res.all_succeeded for res in results):
+            sys.exit(1)
 
 
 def main():
