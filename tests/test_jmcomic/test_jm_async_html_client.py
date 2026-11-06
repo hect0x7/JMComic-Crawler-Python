@@ -958,7 +958,7 @@ class Test_Async_Html_Client(unittest.TestCase):
         copied.download.cache = False
         copied.download.threading.image = 4
         copied.client.retry_times = 1
-        copied.client.domain.append('other.example.com')
+        copied.client.src_dict['domain'].append('other.example.com')
         copied.client.postman.meta_data['timeout'] = 5
         copied.plugins['before_photo'][0]['kwargs']['at_least_image_count'] = 99
         copied.plugins.setdefault('after_image', []).append({'plugin': 'zip', 'kwargs': {}})
@@ -967,6 +967,7 @@ class Test_Async_Html_Client(unittest.TestCase):
         self.assertTrue(option.download.cache)
         self.assertEqual(option.download.threading.image, 10)
         self.assertEqual(option.client.retry_times, 3)
+        self.assertEqual(copied.client.domain, ['example.com', 'other.example.com'])
         self.assertEqual(option.client.domain, ['example.com'])
         self.assertEqual(option.client.postman.meta_data['timeout'], 20)
         self.assertEqual(option.plugins['before_photo'][0]['kwargs']['at_least_image_count'], 3)
