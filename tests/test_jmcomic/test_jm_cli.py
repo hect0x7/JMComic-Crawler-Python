@@ -249,6 +249,19 @@ class Test_Cli(JmTestConfigurable):
             except OSError as e:
                 self.fail(f"Failed to execute command '{cmd}': {e}")
 
+    def test_python_m_jmcomic_entry(self):
+        """验证 `python -m jmcomic --help` 可直接调用包主入口"""
+        import subprocess
+        import sys
+        res = subprocess.run(
+            [sys.executable, '-m', 'jmcomic', '--help'],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        self.assertEqual(0, res.returncode, msg=res.stderr)
+        self.assertIn('python -m jmcomic', res.stdout)
+
     # -- extract_album_id --
 
     def test_jmv_extract_pure_digits(self):
