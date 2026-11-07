@@ -27,6 +27,9 @@ class AbstractJmClient(JmcomicClient):
         self.retry_times = retry_times
         self.domain_list = domain_list
         self.domain_retry_strategy = domain_retry_strategy
+        self._domain_fail_count: Dict[str, int] = {}
+        self._image_domain_fail_count: Dict[str, int] = {}
+        self._domain_fail_lock = Lock()
         self.CLIENT_CACHE = None
         self._username = None  # help for favorite_folder method
         self._user_id = None  # help for check_in / get_daily method
@@ -59,6 +62,54 @@ class AbstractJmClient(JmcomicClient):
     def get_jm_image(self, img_url) -> JmImageResp:
         return self.get(img_url, is_image=True, headers=JmModuleConfig.new_html_headers())
 
+    def _sorted_domains_by_fail_count(self) -> List[str]:
+        fail_count = getattr(self, '_domain_fail_count', None)
+        if not fail_count:
+            return list(self.domain_list)
+        lock = getattr(self, '_domain_fail_lock', None)
+        if lock is not None:
+            with lock:
+                snapshot = dict(fail_count)
+        else:
+            snapshot = dict(fail_count)
+        return sorted(self.domain_list, key=lambda d: snapshot.get(d, 0))
+
+    def _record_domain_failure(self, domain: str) -> None:
+        fail_count = getattr(self, '_domain_fail_count', None)
+        if fail_count is None:
+            fail_count = {}
+            self._domain_fail_count = fail_count
+        lock = getattr(self, '_domain_fail_lock', None)
+        if lock is None:
+            lock = Lock()
+            self._domain_fail_lock = lock
+        with lock:
+            fail_count[domain] = fail_count.get(domain, 0) + 1
+
+    def _pick_image_domain(self, candidates: List[str]) -> str:
+        fail_count = getattr(self, '_image_domain_fail_count', None)
+        if not fail_count:
+            return candidates[0]
+        lock = getattr(self, '_domain_fail_lock', None)
+        if lock is not None:
+            with lock:
+                snapshot = dict(fail_count)
+        else:
+            snapshot = dict(fail_count)
+        return min(candidates, key=lambda d: snapshot.get(d, 0))
+
+    def _record_image_domain_failure(self, domain: str) -> None:
+        fail_count = getattr(self, '_image_domain_fail_count', None)
+        if fail_count is None:
+            fail_count = {}
+            self._image_domain_fail_count = fail_count
+        lock = getattr(self, '_domain_fail_lock', None)
+        if lock is None:
+            lock = Lock()
+            self._domain_fail_lock = lock
+        with lock:
+            fail_count[domain] = fail_count.get(domain, 0) + 1
+
     def request_with_retry(self,
                            request,
                            url,
@@ -69,16 +120,17 @@ class AbstractJmClient(JmcomicClient):
                            **kwargs,
                            ):
         """
-        支持重试和切换域名的机制
-
-        如果url包含了指定域名，则不会切换域名，例如图片URL。
+        支持重试和切换域名的机制（对齐 AsyncJmcomicClient._request_with_retry）：
+        - 对相对路径请求按域名历史失败次数升序轮询 domain_list，失败多的自动后置
+        - 对禁漫图片完整 URL（/media/...）在 1 + retry_times 次预算内自动切换健康图床域名，失败节点自动后置
+        - 其他外链完整 URL 仅按 retry_times 重试自身，不会按 API 域名数重复放大重试
 
         如果需要拿到域名进行回调处理，可以重写 self.update_request_with_specify_domain 方法，例如更新headers
 
         :param request: 请求方法
         :param url: 图片url / path (/album/xxx)
-        :param domain_index: 域名下标
-        :param retry_count: 重试次数
+        :param domain_index: 兼容保留参数
+        :param retry_count: 兼容保留参数
         :param is_image: 是否是图片请求
         :param kwargs: 请求方法的kwargs
         """
@@ -90,60 +142,77 @@ class AbstractJmClient(JmcomicClient):
                                               **kwargs,
                                               )
 
-        if _retry_errors is None:
-            _retry_errors = []
+        is_path = url.startswith('/')
+        retry_errors = [] if _retry_errors is None else _retry_errors
 
-        if domain_index >= len(self.domain_list):
-            return self.fallback(request, url, domain_index, retry_count, is_image,
-                                 retry_errors=_retry_errors, **kwargs)
+        if is_path and not self.domain_list:
+            return self.fallback(request, url, 0, self.retry_times, is_image,
+                                 retry_errors=retry_errors, **kwargs)
 
-        url_backup = url
+        media_parts = JmcomicText.parse_jm_media_url(url) if (is_image and not is_path) else None
+        image_candidates = JmcomicText.build_image_domain_candidates(media_parts[1]) if media_parts else None
 
-        if url.startswith('/'):
-            # path → url
-            domain = self.domain_list[domain_index]
-            url = self.of_api_url(url, domain)
+        for retry in range(self.retry_times + 1):
+            if is_path:
+                domains = self._sorted_domains_by_fail_count()
+            elif image_candidates is not None:
+                domains = [self._pick_image_domain(image_candidates)]
+            else:
+                domains = [None]
 
-            self.update_request_with_specify_domain(kwargs, domain, is_image)
+            for idx, domain in enumerate(domains):
+                if is_path:
+                    req_url = self.of_api_url(url, domain)
+                elif media_parts is not None and domain is not None:
+                    req_url = JmcomicText.rebuild_jm_media_url(media_parts, domain)
+                else:
+                    req_url = url
 
-            jm_log(self.log_topic(), self.decode(url))
-        elif is_image:
-            # 图片url
-            self.update_request_with_specify_domain(kwargs, None, is_image)
+                req_kwargs = dict(kwargs)
+                if is_path:
+                    self.update_request_with_specify_domain(req_kwargs, domain, is_image)
+                    jm_log(self.log_topic(), self.decode(req_url))
+                elif is_image:
+                    self.update_request_with_specify_domain(req_kwargs, domain, is_image)
 
-        if domain_index != 0 or retry_count != 0:
-            jm_log(f'req.retry',
-                   ', '.join([
-                       f'次数: [{retry_count}/{self.retry_times}]',
-                       f'域名: [{domain_index} of {self.domain_list}]',
-                       f'路径: [{url}]',
-                       f'参数: [{kwargs if "login" not in url else "#login_form#"}]'
-                   ])
-                   )
+                if idx != 0 or retry != 0:
+                    domain_pool = domains if is_path else (image_candidates or domains)
+                    domain_desc = f'{idx} of {domain_pool}' if is_path else f'{domain} of {domain_pool}'
+                    jm_log('req.retry',
+                           ', '.join([
+                               f'次数: [{retry}/{self.retry_times}]',
+                               f'域名: [{domain_desc}]',
+                               f'路径: [{req_url}]',
+                               f'参数: [{req_kwargs if "login" not in req_url else "#login_form#"}]',
+                           ]))
 
-        try:
-            resp = request(url, **kwargs)
-            # 在最后返回之前，还可以判断resp是否重试
-            resp = self.raise_if_resp_should_retry(resp, is_image)
-            return resp
-        except Exception as e:
-            if self.retry_times == 0:
-                raise e
+                try:
+                    resp = request(req_url, **req_kwargs)
+                    # 在最后返回之前，还可以判断resp是否重试
+                    resp = self.raise_if_resp_should_retry(resp, is_image)
+                    return resp
+                except Exception as e:
+                    if is_path:
+                        self._record_domain_failure(domain)
+                    elif image_candidates is not None and domain is not None:
+                        self._record_image_domain_failure(domain)
+                    self.before_retry(e, req_kwargs, retry, req_url)
+                    retry_errors.append({
+                        'domain': domain,
+                        'url': req_url,
+                        'retry': retry,
+                        'error': e,
+                    })
 
-            self.before_retry(e, kwargs, retry_count, url)
-            _retry_errors.append({
-                'domain': self.domain_list[domain_index] if url_backup.startswith('/') else None,
-                'url': url,
-                'retry': retry_count,
-                'error': e,
-            })
-
-        if retry_count < self.retry_times:
-            return self.request_with_retry(request, url_backup, domain_index, retry_count + 1, is_image,
-                                           _retry_errors, **kwargs)
-        else:
-            return self.request_with_retry(request, url_backup, domain_index + 1, 0, is_image,
-                                           _retry_errors, **kwargs)
+        return self.fallback(
+            request,
+            url,
+            len(self.domain_list) if is_path else 1,
+            self.retry_times,
+            is_image,
+            retry_errors=retry_errors,
+            **kwargs,
+        )
 
     # noinspection PyMethodMayBeStatic
     def raise_if_resp_should_retry(self, resp, is_image):
@@ -232,7 +301,11 @@ class AbstractJmClient(JmcomicClient):
 
     # noinspection PyUnusedLocal
     def fallback(self, request, url, domain_index, retry_count, is_image, retry_errors=None, **kwargs):
-        msg = f"请求重试全部失败: [{url}], {self.domain_list}"
+        domains_info = (
+            [e['domain'] for e in (retry_errors or []) if e.get('domain')]
+            if not str(url).startswith('/') else None
+        )
+        msg = f"请求重试全部失败: [{url}], {domains_info or self.domain_list}"
         jm_log('req.fallback', msg)
         ExceptionTool.raises(
             msg,
@@ -963,9 +1036,11 @@ class JmApiClient(AbstractJmClient):
         禁漫app的setting请求
         """
         resp = self.req_api('/setting')
+        model_data = resp.model_data
+        JmModuleConfig.register_image_domain(model_data.get('img_host', None))
 
         # 检查禁漫最新的版本号
-        setting_ver = str(resp.model_data.jm3_version)
+        setting_ver = str(model_data.jm3_version)
         # 禁漫接口的版本 > jmcomic库内置版本
         if (
                 JmModuleConfig.FLAG_USE_VERSION_NEWER_IF_BEHIND

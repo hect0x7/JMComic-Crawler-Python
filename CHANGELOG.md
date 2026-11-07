@@ -5,6 +5,28 @@
 条目分类参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [2.7.12] - 2026-11-07
+
+### Summary
+
+本次更新新增图床 CDN 自动切节点重试与 `/setting` 动态图床域名收录，增强 `jmv` 命令行支持多车号批量查询与 `--json` 结构化输出，为同步客户端内置域名轮询与失败后置重试机制（对齐异步客户端，`advanced_retry` 插件转为废弃提醒），并修复图片重试放大、CLI 失败退出码及 `JmOption.copy_option()` 浅拷贝污染问题。
+
+### Added
+
+- 同步与异步客户端内置图床 CDN 自动切节点重试：下载禁漫 `/media/...` 图片遇到超时、5xx 或空响应时，在 `1 + retry_times` 次预算内自动切换 `JmModuleConfig.DOMAIN_IMAGE_LIST` 中的健康图床节点并对失败节点计数后置（网页端优先使用页面原图床域名，失败后再回退兜底）；API 客户端请求 `/setting` 时自动将服务端下发的最新 `img_host` 去重收录至 `DOMAIN_IMAGE_LIST` 首位（可通过 `JmModuleConfig.register_image_domain` 调用，尊重用户自定义覆盖与 `FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN` 开关）。
+- 命令行 `jmv` 支持一次传入多个车号批量查询详情，并新增 `--json` 参数输出完整结构化 JSON（单车号输出对象、多车号输出数组，自动跳过回车确认并静默普通日志）。
+- 补充 `jmcomic/__main__.py` 入口文件，支持直接通过 `python -m jmcomic` 执行命令行下载。
+
+### Changed
+
+- 同步客户端 `AbstractJmClient.request_with_retry` 内置线程安全的域名失败计数与升序轮询机制（对齐 `AsyncJmcomicClient`），失败次数多的域名自动后置；`AdvancedRetryPlugin`（`advanced_retry`）不再挂载客户端钩子，调用时输出废弃迁移提醒日志。
+
+### Fixed
+
+- 修复同步客户端与 `AdvancedRetryPlugin` 请求完整图片 URL（非 `'/'` 开头）失败时，外层仍按 API 域名列表长度重复放大重试次数的问题。
+- 修复命令行 `jmcomic` 在批量下载存在失败项或混合模式后台线程抛错时仍以退出码 `0` 结束的问题，失败时统一返回非零退出码。
+- 修复 `JmOption.copy_option()` 浅拷贝共享 `download`、`client`、`plugins` 可变配置字典导致修改串联污染的问题，同时保留 `auth` 登录状态跨副本共享。
+
 ## [2.7.11] - 2026-11-04
 
 ### Summary

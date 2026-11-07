@@ -925,6 +925,60 @@ class Test_Async_Html_Client(unittest.TestCase):
         self.assertEqual(async_html._session.cookies.get('AVS'), 'async_html_sess_avs')
         self.run_async(async_html.close())
 
+    def test_copy_option_isolates_configs_while_sharing_auth(self):
+        """copy_option 深拷贝 download/client/plugins 防串扰，同时保持 auth 登录态共享。"""
+        option = JmOption.construct({
+            'dir_rule': {'base_dir': '/tmp/base', 'rule': 'Bd_Pname'},
+            'download': {
+                'cache': True,
+                'threading': {'image': 10, 'photo': 2},
+            },
+            'client': {
+                'impl': 'api',
+                'retry_times': 3,
+                'domain': ['example.com'],
+                'postman': {'meta_data': {'timeout': 20}},
+            },
+            'plugins': {
+                'valid': 'log',
+                'before_photo': [{'plugin': 'skip_photo_with_few_images', 'kwargs': {'at_least_image_count': 3}}],
+            },
+            'auth': {
+                'username': 'shared_user',
+                'password': 'shared_pass',
+                'user_id': '1001',
+                'cookies': {'AVS': 'logged_in_cookie'},
+            },
+        })
+
+        copied = option.copy_option()
+
+        # 修改副本的目录、下载、客户端与插件（含嵌套字典/列表）不污染原 option
+        copied.dir_rule.base_dir = '/tmp/task_1'
+        copied.download.cache = False
+        copied.download.threading.image = 4
+        copied.client.retry_times = 1
+        copied.client.src_dict['domain'].append('other.example.com')
+        copied.client.postman.meta_data['timeout'] = 5
+        copied.plugins['before_photo'][0]['kwargs']['at_least_image_count'] = 99
+        copied.plugins.setdefault('after_image', []).append({'plugin': 'zip', 'kwargs': {}})
+
+        self.assertNotEqual(option.dir_rule.base_dir, copied.dir_rule.base_dir)
+        self.assertTrue(option.download.cache)
+        self.assertEqual(option.download.threading.image, 10)
+        self.assertEqual(option.client.retry_times, 3)
+        self.assertEqual(copied.client.domain, ['example.com', 'other.example.com'])
+        self.assertEqual(option.client.domain, ['example.com'])
+        self.assertEqual(option.client.postman.meta_data['timeout'], 20)
+        self.assertEqual(option.plugins['before_photo'][0]['kwargs']['at_least_image_count'], 3)
+        self.assertNotIn('after_image', option.plugins)
+
+        # auth 保持共享，原 option 已登录时副本直接复用登录态，无需重新登录
+        self.assertIs(copied.auth.src_dict, option.auth.src_dict)
+        self.assertTrue(copied._is_auth_logged_in(is_api=True))
+        copied.update_cookies({'AVS': 'refreshed_cookie'})
+        self.assertEqual(option.auth.cookies['AVS'], 'refreshed_cookie')
+
     @unittest.skipUnless(
         os.environ.get('JM_RUN_REAL_ASYNC_HTML') == '1',
         'set JM_RUN_REAL_ASYNC_HTML=1 for the network smoke test',

@@ -2137,17 +2137,13 @@ class AdvancedRetryPlugin(JmOptionPlugin):
         self.retry_config = None
 
     def invoke(self,
-               retry_config,
+               retry_config=None,
                **kwargs):
-        self.require_param(isinstance(retry_config, dict), '必须配置retry_config为dict')
         self.retry_config = retry_config
-
-        new_jm_client: Callable = self.option.new_jm_client
-
-        def hook_new_jm_client(*args, **kwargs):
-            return new_jm_client(*args, **kwargs, domain_retry_strategy=self)
-
-        self.option.new_jm_client = hook_new_jm_client
+        self.log(
+            '客户端现已内置域名轮询与失败后置重试机制，不再需要配置 advanced_retry 插件，你可以直接删除该配置',
+            'deprecated',
+        )
 
     def __call__(self, client: AbstractJmClient, *args, **kwargs):
         if args:
@@ -2186,13 +2182,14 @@ class AdvancedRetryPlugin(JmOptionPlugin):
             resp = client.raise_if_resp_should_retry(resp, is_image)
             return resp
 
+        is_path = url.startswith('/')
         retry_domain_max_times: int = self.retry_config['retry_domain_max_times']
         retry_rounds: int = self.retry_config['retry_rounds']
         retry_errors = []
         for rindex in range(retry_rounds):
-            domain_list = self.get_sorted_domain(client, retry_domain_max_times)
-            for i, domain in enumerate(domain_list):
-                if self.failed_count(client, domain) >= retry_domain_max_times:
+            domain_list = self.get_sorted_domain(client, retry_domain_max_times) if is_path else [None]
+            for domain in domain_list:
+                if is_path and self.failed_count(client, domain) >= retry_domain_max_times:
                     continue
 
                 try:
@@ -2200,12 +2197,13 @@ class AdvancedRetryPlugin(JmOptionPlugin):
                 except Exception as e:
                     jm_log('req.error', e)
                     retry_errors.append({
-                        'domain': domain,
-                        'url': client.of_api_url(url, domain) if url.startswith('/') else url,
+                        'domain': domain if is_path else None,
+                        'url': client.of_api_url(url, domain) if is_path else url,
                         'retry': rindex,
                         'error': e,
                     })
-                    self.update_failed_count(client, domain)
+                    if is_path:
+                        self.update_failed_count(client, domain)
 
         return client.fallback(request, url, 0, 0, is_image,
                                retry_errors=retry_errors, **kwargs)

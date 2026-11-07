@@ -74,25 +74,12 @@ op.client = op.new_jm_client(domain_list=[domain], impl='html')
 ```
 
 
-## 3. 使用高级重试插件（AdvancedRetryPlugin）
+## 3. 内置智能域名轮询（原 AdvancedRetryPlugin）
 
-默认的机制是在单次请求报错时，按顺序尝试数组内的下一个域名。
-如果经常遇到连接断开或超时，可以使用 `advanced_retry` 插件。该插件提供：
+自 `v2.7.12` 起，同步与异步客户端均已**默认内置**智能域名容错策略（无需再手动配置 `advanced_retry` 插件）：
 
-- 记录历史失败次数
-- 限制单个域名的最大失败次数（超过则拉黑废弃）
-- 对列表循环多轮尝试等容错机制
+- 自动记录各域名的历史失败次数
+- 每轮重试前按失败次数升序排列，失败多的域名自动后置
+- 对相对路径请求按 `client.retry_times` 轮询域名列表，而完整图片 URL 仅针对自身重试，不跨 API 域名空转
 
-**在 option.yml 中配置启用：**
-
-```yaml
-plugins:
-  after_init:
-    - plugin: advanced_retry      # 声明并开启高级重试插件
-      kwargs:
-        retry_config:
-          retry_rounds: 3             # 整个域名数组支持轮询尝试的圈数
-          retry_domain_max_times: 5   # 单个域名允许的最大失败次数
-```
-
-配置后，用该 option 构建的 Client 在下载和请求时，就会自动切入高级容错策略。
+> 若旧版 `option.yml` 中仍保留 `plugin: advanced_retry`，程序会正常兼容运行并打印一条提示日志，直接删除该插件配置即可。

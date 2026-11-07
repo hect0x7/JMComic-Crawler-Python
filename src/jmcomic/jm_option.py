@@ -249,15 +249,16 @@ class JmOption:
         }
 
     def copy_option(self):
+        from copy import deepcopy
         return self.__class__(
             dir_rule={
                 'rule': self.dir_rule.rule_dsl,
                 'base_dir': self.dir_rule.base_dir,
                 'normalize_zh': self.dir_rule.normalize_zh,
             },
-            download=self.download.src_dict,
-            client=self.client.src_dict,
-            plugins=self.plugins.src_dict,
+            download=deepcopy(self.download.src_dict),
+            client=deepcopy(self.client.src_dict),
+            plugins=deepcopy(self.plugins.src_dict),
             filepath=self.filepath,
             call_after_init_plugin=False,
             auth=self.auth.src_dict,
