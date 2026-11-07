@@ -103,6 +103,7 @@ class AbstractAsyncJmClient(AsyncJmcomicClient):
         self._session_lock_loop: asyncio.AbstractEventLoop | None = None
         self._cache: dict | None = None
         self._domain_fail_count: dict[str, int] = {}
+        self._image_domain_fail_count: dict[str, int] = {}
         self._username: str | None = option.auth.get('username')
         self._user_id: str | None = option.auth.get('user_id')
         self._has_setup = False
@@ -278,7 +279,11 @@ class AbstractAsyncJmClient(AsyncJmcomicClient):
 
     # noinspection PyUnusedLocal
     def fallback(self, url, domain_index, retry_count, is_image, retry_errors=None, **kwargs):
-        msg = f"请求重试全部失败: [{url}], {self._domain_list}"
+        domains_info = (
+            [e['domain'] for e in (retry_errors or []) if e.get('domain')]
+            if not str(url).startswith('/') else None
+        )
+        msg = f"请求重试全部失败: [{url}], {domains_info or self._domain_list}"
         jm_log('req.fallback', msg)
         ExceptionTool.raises(
             msg,
@@ -304,15 +309,28 @@ class AbstractAsyncJmClient(AsyncJmcomicClient):
         if is_path and not self._domain_list:
             ExceptionTool.raises(f'无可用 {self.client_key} 域名列表')
 
+        media_parts = JmcomicText.parse_jm_media_url(url_path) if (is_image and not is_path) else None
+        image_candidates = JmcomicText.build_image_domain_candidates(media_parts[1]) if media_parts else None
+
         retry_errors = []
         for retry in range(self._retry_times + 1):
-            domains = (
-                sorted(self._domain_list, key=lambda d: self._domain_fail_count.get(d, 0))
-                if is_path
-                else [None]
-            )
+            if is_path:
+                fail_count = getattr(self, '_domain_fail_count', None) or {}
+                domains = sorted(self._domain_list, key=lambda d: fail_count.get(d, 0))
+            elif image_candidates is not None:
+                img_fail = getattr(self, '_image_domain_fail_count', None) or {}
+                domains = [min(image_candidates, key=lambda d: img_fail.get(d, 0))]
+            else:
+                domains = [None]
+
             for domain_index, domain in enumerate(domains):
-                req_url = self.of_api_url(url_path, domain) if is_path else url_path
+                if is_path:
+                    req_url = self.of_api_url(url_path, domain)
+                elif media_parts is not None and domain is not None:
+                    req_url = JmcomicText.rebuild_jm_media_url(media_parts, domain)
+                else:
+                    req_url = url_path
+
                 req_kwargs = dict(kwargs)
                 self.update_request_with_specify_domain(req_kwargs, domain, is_image=is_image)
 
@@ -320,10 +338,12 @@ class AbstractAsyncJmClient(AsyncJmcomicClient):
                     jm_log(self.log_topic(), self.decode(req_url))
 
                 if domain_index != 0 or retry != 0:
+                    domain_pool = domains if is_path else (image_candidates or domains)
+                    domain_desc = f'{domain_index} of {domain_pool}' if is_path else f'{domain} of {domain_pool}'
                     jm_log('req.retry',
                            ', '.join([
                                f'次数: [{retry}/{self._retry_times}]',
-                               f'域名: [{domain_index} of {domains}]',
+                               f'域名: [{domain_desc}]',
                                f'路径: [{req_url}]',
                                f'参数: [{req_kwargs if "login" not in req_url else "#login_form#"}]',
                            ]))
@@ -339,10 +359,16 @@ class AbstractAsyncJmClient(AsyncJmcomicClient):
                     return self.raise_if_resp_should_retry(resp, is_image=is_image)
                 except (curl_requests.exceptions.RequestException, OSError, JmcomicException) as e:
                     if is_path:
+                        if getattr(self, '_domain_fail_count', None) is None:
+                            self._domain_fail_count = {}
                         self._domain_fail_count[domain] = self._domain_fail_count.get(domain, 0) + 1
+                    elif image_candidates is not None and domain is not None:
+                        if getattr(self, '_image_domain_fail_count', None) is None:
+                            self._image_domain_fail_count = {}
+                        self._image_domain_fail_count[domain] = self._image_domain_fail_count.get(domain, 0) + 1
                     self.before_retry(e, req_kwargs, retry, req_url)
                     retry_errors.append({
-                        'domain': domain if is_path else None,
+                        'domain': domain,
                         'url': req_url,
                         'retry': retry,
                         'error': e,
@@ -929,8 +955,10 @@ class AsyncJmApiClient(AbstractAsyncJmClient):
     async def setting(self) -> JmApiResp:
         """获取服务端的环境配置（包含应用版本等参数）"""
         resp = await self.req_api('/setting')
+        model_data = resp.model_data
+        JmModuleConfig.register_image_domain(model_data.get('img_host', None))
 
-        setting_ver = str(resp.model_data.jm3_version)
+        setting_ver = str(model_data.jm3_version)
         if (
                 JmModuleConfig.FLAG_USE_VERSION_NEWER_IF_BEHIND
                 and JmcomicText.compare_versions(setting_ver, JmMagicConstants.APP_VERSION) == 1

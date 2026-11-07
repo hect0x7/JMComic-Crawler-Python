@@ -59,13 +59,31 @@ class Test_RequestRetryAllFailException(unittest.TestCase):
             calls.append(url)
             raise ConnectionError(url)
 
-        with self.assertRaises(RequestRetryAllFailException) as cm:
-            client.request_with_retry(failing_img_request, img_url, is_image=True)
+        with unittest.mock.patch.object(JmModuleConfig, 'DOMAIN_IMAGE_LIST', ['img1.example', 'img2.example', 'img3.example']):
+            with self.assertRaises(RequestRetryAllFailException) as cm:
+                client.request_with_retry(failing_img_request, img_url, is_image=True)
 
+        # 总尝试次数严格等于 1 + retry_times = 3，不会乘以域名数放大，且每次重试自动切下一个图床节点
         self.assertEqual(3, len(calls))
+        self.assertEqual([
+            'https://cdn-msp.example/media/photos/123/00001.webp',
+            'https://img1.example/media/photos/123/00001.webp',
+            'https://img2.example/media/photos/123/00001.webp',
+        ], calls)
         self.assertEqual(3, len(cm.exception.errors))
-        self.assertEqual([None, None, None], [item['domain'] for item in cm.exception.errors])
+        self.assertEqual(['cdn-msp.example', 'img1.example', 'img2.example'],
+                         [item['domain'] for item in cm.exception.errors])
         self.assertEqual({}, getattr(client, '_domain_fail_count', {}))
+        self.assertEqual({'cdn-msp.example': 1, 'img1.example': 1, 'img2.example': 1},
+                         getattr(client, '_image_domain_fail_count', {}))
+
+        # 非禁漫 /media/ 路径的普通外链图片不改写域名
+        calls.clear()
+        ext_url = 'https://other.example/custom/pic.webp'
+        with self.assertRaises(RequestRetryAllFailException) as ext_cm:
+            client.request_with_retry(failing_img_request, ext_url, is_image=True)
+        self.assertEqual([ext_url, ext_url, ext_url], calls)
+        self.assertEqual([None, None, None], [item['domain'] for item in ext_cm.exception.errors])
 
         calls.clear()
         plugin = object.__new__(AdvancedRetryPlugin)
@@ -185,3 +203,131 @@ class Test_RequestRetryAllFailException(unittest.TestCase):
         self.assertIn('ResponseUnexpectedException: 禁漫API异常响应, 500', text)
         self.assertIn('TimeoutError: connection timed out', text)
         self.assertIn('https://api-one.example/search, retry=0', text)
+
+    def test_sync_and_async_image_cdn_failover_and_promotion(self):
+        from unittest.mock import patch
+
+        with patch.object(JmModuleConfig, 'DOMAIN_IMAGE_LIST', ['img-bad.example', 'img-good.example']):
+            # 1) 同步客户端：原图床失败 -> 切换备用图床并保留 query 参数 -> 下一张图直接走健康图床
+            sync_client = object.__new__(AbstractJmClient)
+            sync_client.domain_list = ['html.example']
+            sync_client.retry_times = 2
+            sync_client.domain_retry_strategy = None
+            sync_seen = []
+
+            def fake_sync_req(url, **kwargs):
+                sync_seen.append(url)
+                if 'orig-html.example' in url or 'img-bad.example' in url:
+                    return SimpleNamespace(status_code=200, url=url, content=b'', text='')
+                return SimpleNamespace(status_code=200, url=url, content=b'webp-bytes', text='ok')
+
+            resp1 = sync_client.request_with_retry(
+                fake_sync_req,
+                'https://orig-html.example/media/photos/438516/00001.webp?v=99',
+                is_image=True,
+            )
+            self.assertEqual(b'webp-bytes', resp1.content)
+            self.assertEqual([
+                'https://orig-html.example/media/photos/438516/00001.webp?v=99',
+                'https://img-bad.example/media/photos/438516/00001.webp?v=99',
+                'https://img-good.example/media/photos/438516/00001.webp?v=99',
+            ], sync_seen)
+
+            sync_seen.clear()
+            resp2 = sync_client.request_with_retry(
+                fake_sync_req,
+                'https://img-bad.example/media/photos/438516/00002.webp?v=99',
+                is_image=True,
+            )
+            self.assertEqual(b'webp-bytes', resp2.content)
+            self.assertEqual(['https://img-good.example/media/photos/438516/00002.webp?v=99'], sync_seen)
+
+            # 2) 异步客户端：同样在 1 + retry_times 预算内切换并后置失败图床
+            async_seen = []
+
+            class ImageSwitchSession:
+                async def get(self, url, **kwargs):
+                    async_seen.append(url)
+                    if 'orig-html.example' in url or 'img-bad.example' in url:
+                        raise TimeoutError(url)
+                    return SimpleNamespace(status_code=200, url=url, content=b'async-webp', text='ok')
+
+            async_client = object.__new__(AsyncJmApiClient)
+            async_client._domain_list = ['api.example']
+            async_client._retry_times = 2
+            async_client._session = ImageSwitchSession()
+            async_client._has_setup = True
+            async_client._domain_fail_count = {}
+            async_client._image_domain_fail_count = {}
+
+            aresp1 = asyncio.run(async_client.get_jm_image('https://orig-html.example/media/photos/438516/00001.webp'))
+            self.assertEqual(b'async-webp', aresp1.content)
+            self.assertEqual([
+                'https://orig-html.example/media/photos/438516/00001.webp',
+                'https://img-bad.example/media/photos/438516/00001.webp',
+                'https://img-good.example/media/photos/438516/00001.webp',
+            ], async_seen)
+
+            async_seen.clear()
+            aresp2 = asyncio.run(async_client.get_jm_image('https://img-bad.example/media/photos/438516/00002.webp'))
+            self.assertEqual(b'async-webp', aresp2.content)
+            self.assertEqual(['https://img-good.example/media/photos/438516/00002.webp'], async_seen)
+
+    def test_register_image_domain_and_setting_integration(self):
+        from unittest.mock import AsyncMock, Mock, patch
+
+        orig_list = list(JmModuleConfig._DEFAULT_DOMAIN_IMAGE_LIST)
+        orig_ref = JmModuleConfig.DOMAIN_IMAGE_LIST
+        orig_flag = JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN
+        try:
+            JmModuleConfig.DOMAIN_IMAGE_LIST = JmModuleConfig._DEFAULT_DOMAIN_IMAGE_LIST
+            JmModuleConfig.DOMAIN_IMAGE_LIST[:] = ['cdn-a.example', 'cdn-b.example']
+            JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = True
+
+            # 动态收录去重前置，保留原有兜底域名
+            added = JmModuleConfig.register_image_domain('https://cdn-new.example/')
+            self.assertEqual('cdn-new.example', added)
+            self.assertEqual(['cdn-new.example', 'cdn-a.example', 'cdn-b.example'], JmModuleConfig.DOMAIN_IMAGE_LIST)
+
+            # 已有节点移至首位且不重复膨胀
+            JmModuleConfig.register_image_domain('cdn-b.example')
+            self.assertEqual(['cdn-b.example', 'cdn-new.example', 'cdn-a.example'], JmModuleConfig.DOMAIN_IMAGE_LIST)
+
+            # 关闭自动更新开关时不修改
+            JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = False
+            self.assertIsNone(JmModuleConfig.register_image_domain('https://cdn-ignored.example'))
+            self.assertNotIn('cdn-ignored.example', JmModuleConfig.DOMAIN_IMAGE_LIST)
+            JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = True
+
+            # 用户显式替换 DOMAIN_IMAGE_LIST 引用时尊重用户配置，不自动注入
+            custom_list = ['my-private-cdn.example']
+            JmModuleConfig.DOMAIN_IMAGE_LIST = custom_list
+            self.assertIsNone(JmModuleConfig.register_image_domain('https://cdn-dynamic.example'))
+            self.assertEqual(['my-private-cdn.example'], custom_list)
+
+            # 恢复默认引用，验证同步与异步 setting() 自动收录 img_host
+            JmModuleConfig.DOMAIN_IMAGE_LIST = JmModuleConfig._DEFAULT_DOMAIN_IMAGE_LIST
+            JmModuleConfig.DOMAIN_IMAGE_LIST[:] = ['cdn-base.example']
+
+            sync_api = object.__new__(JmApiClient)
+            fake_setting_resp = SimpleNamespace(
+                model_data=AdvancedDict({'jm3_version': '2.1.12', 'img_host': 'https://cdn-sync-setting.example'})
+            )
+            sync_api.req_api = Mock(return_value=fake_setting_resp)
+            with patch.object(JmModuleConfig, 'FLAG_USE_VERSION_NEWER_IF_BEHIND', False):
+                sync_api.setting()
+            self.assertEqual('cdn-sync-setting.example', JmModuleConfig.DOMAIN_IMAGE_LIST[0])
+
+            async_api = object.__new__(AsyncJmApiClient)
+            fake_async_resp = SimpleNamespace(
+                model_data=AdvancedDict({'jm3_version': '2.1.12', 'img_host': 'https://cdn-async-setting.example'})
+            )
+            async_api.req_api = AsyncMock(return_value=fake_async_resp)
+            with patch.object(JmModuleConfig, 'FLAG_USE_VERSION_NEWER_IF_BEHIND', False):
+                asyncio.run(async_api.setting())
+            self.assertEqual('cdn-async-setting.example', JmModuleConfig.DOMAIN_IMAGE_LIST[0])
+            self.assertIn('cdn-sync-setting.example', JmModuleConfig.DOMAIN_IMAGE_LIST)
+        finally:
+            JmModuleConfig._DEFAULT_DOMAIN_IMAGE_LIST[:] = orig_list
+            JmModuleConfig.DOMAIN_IMAGE_LIST = orig_ref
+            JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = orig_flag

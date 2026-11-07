@@ -62,7 +62,7 @@ client:
     api:
       - www.jmapiproxyxxx.vip
 
-  # retry_times: 请求失败额外重试轮数（图片等完整 URL 为额外重试次数），默认为5
+  # retry_times: 请求失败额外重试轮数（图片请求为切换图床/重试的额外次数），默认为5
   retry_times: 5
 
   # cache: 是否开启客户端级别的缓存，用于缓存已经请求过的元数据（如本子详情、搜索结果等），减少重复网络请求。

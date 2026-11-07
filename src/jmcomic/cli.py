@@ -5,9 +5,11 @@ command-line usage
 
   $ jmcomic 123 456 p333 --option="D:/option.yml"
 
-2. jmv - view album detail (extract digits from text as album id):
+2. jmv - view album detail (extract digits from text as album id, supports multiple ids & --json):
 
   $ jmv 350234
+  $ jmv 350234 JM438516 -y
+  $ jmv 438516 --json
   $ jmv 350谁还没看过234
   $ jmv abc123141 --option="D:/option.yml"
 
@@ -195,18 +197,22 @@ class JmViewUI:
 
     def __init__(self) -> None:
         self.raw_text: str = ''
+        self.raw_text_list: List[str] = []
         self.option_path: Optional[str] = None
         self.auto_exit: bool = False
+        self.json_output: bool = False
 
     def parse_arg(self):
         import argparse
         parser = argparse.ArgumentParser(
             prog='jmv',
-            description='JMComic Album Viewer - 从文本中提取数字作为album ID，查看本子详情',
+            description='JMComic Album Viewer - 从文本中提取数字作为album ID，查看本子详情（支持多车号与 --json 输出）',
         )
         parser.add_argument(
-            'text',
-            help='包含数字的禁漫车号，例如 "350谁还没看过234"，会提取出 "350234" 作为 album ID',
+            'texts',
+            metavar='text',
+            nargs='+',
+            help='一个或多个包含数字的禁漫车号，例如 "350234"、"JM438516" 或 "350谁还没看过234"',
         )
         parser.add_argument(
             '--option',
@@ -215,14 +221,22 @@ class JmViewUI:
             default=get_env('JM_OPTION_PATH', ''),
         )
         parser.add_argument(
+            '--json',
+            action='store_true',
+            dest='json_output',
+            help='以纯 JSON 格式输出本子详情（单车号输出对象，多车号输出数组，自动跳过回车确认）',
+        )
+        parser.add_argument(
             '-y', '--yes',
             action='store_true',
             help='执行完毕后直接退出，无需按回车确认',
         )
 
         args = parser.parse_args()
-        self.raw_text = args.text
-        self.auto_exit = args.yes
+        self.raw_text_list = list(args.texts)
+        self.raw_text = self.raw_text_list[0] if self.raw_text_list else ''
+        self.json_output = args.json_output
+        self.auto_exit = args.yes or args.json_output
 
         option_str = args.option
         if len(option_str) == 0 or option_str == "''":
@@ -230,15 +244,53 @@ class JmViewUI:
         else:
             self.option_path = os.path.abspath(option_str)
 
-    def extract_album_id(self) -> str:
+    def extract_album_id(self, text: Optional[str] = None) -> str:
         import re
-        numbers = re.findall(r'\d+', self.raw_text)
+        import sys
+        target = self.raw_text if text is None else text
+        numbers = re.findall(r'\d+', target)
         if not numbers:
-            from .api import jm_log
-            jm_log('jmv', f'❌❌❌ 解析失败: 无法从 "{self.raw_text}" 中提取到任何数字 ❌❌❌')
-            exit(1)
-        album_id = ''.join(numbers)
-        return album_id
+            msg = f'❌❌❌ 解析失败: 无法从 "{target}" 中提取到任何数字 ❌❌❌'
+            if self.json_output:
+                print(msg, file=sys.stderr)
+            else:
+                from .api import jm_log
+                jm_log('jmv', msg)
+            sys.exit(1)
+        return ''.join(numbers)
+
+    def extract_album_ids(self) -> List[str]:
+        texts = self.raw_text_list if self.raw_text_list else ([self.raw_text] if self.raw_text else [])
+        return [self.extract_album_id(t) for t in texts]
+
+    @staticmethod
+    def album_to_dict(album) -> dict:
+        from .jm_toolkit import JmcomicText
+        return {
+            'album_id': album.album_id,
+            'name': album.name,
+            'url': JmcomicText.format_album_url(album.album_id),
+            'cover_url': JmcomicText.get_album_cover_url(album.album_id),
+            'authors': list(album.authors or []),
+            'pub_date': album.pub_date,
+            'update_date': album.update_date,
+            'page_count': album.page_count,
+            'views': album.views,
+            'likes': album.likes,
+            'comment_count': album.comment_count,
+            'tags': list(album.tags or []),
+            'actors': list(album.actors or []),
+            'works': list(album.works or []),
+            'description': album.description,
+            'episodes': [
+                {
+                    'photo_id': str(pid),
+                    'index': int(pindex) if str(pindex).isdigit() else pindex,
+                    'title': pname.strip(),
+                }
+                for pid, pindex, pname in (album.episode_list or [])
+            ],
+        }
 
     @staticmethod
     def _truncate_list(items, limit=10):
@@ -291,30 +343,64 @@ class JmViewUI:
             input('\n[运行结束] 请按回车键关闭窗口... (下次运行可附加 -y 参数跳过确认)')
 
     def main(self):
+        import io
+        import json
+        import sys
+        if isinstance(sys.stdout, io.TextIOWrapper):
+            sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        if isinstance(sys.stderr, io.TextIOWrapper):
+            sys.stderr.reconfigure(encoding='utf-8', errors='replace')
         self.parse_arg()
 
         import atexit
         atexit.register(self._pause)
 
-        album_id = self.extract_album_id()
+        album_ids = self.extract_album_ids()
 
-        from .api import jm_log
-        jm_log('jmv', f'🔍 正在查询 禁漫车号 - [{album_id}] 的详情...')
+        from .api import create_option, JmModuleConfig, JmOption, jm_log
+        prev_log_flag = JmModuleConfig.FLAG_ENABLE_JM_LOG
+        if self.json_output:
+            JmModuleConfig.FLAG_ENABLE_JM_LOG = False
 
-        from .api import create_option, JmOption
-        if self.option_path is not None:
-            option = create_option(self.option_path)
-        else:
-            option = JmOption.default()
-
-        client = option.new_jm_client()
+        has_error = False
+        json_items = []
         try:
-            album = client.get_album_detail(album_id)
-        except Exception as e:
-            jm_log('jmv', f'❌❌❌ 获取失败: album {album_id} 详情请求出错, 原因: {e}', e)
-            exit(1)
+            if self.option_path is not None:
+                option = create_option(self.option_path)
+                if self.json_output:
+                    JmModuleConfig.FLAG_ENABLE_JM_LOG = False
+            else:
+                option = JmOption.default()
 
-        self.print_album_detail(album)
+            client = option.new_jm_client()
+            for album_id in album_ids:
+                if not self.json_output:
+                    jm_log('jmv', f'🔍 正在查询 禁漫车号 - [{album_id}] 的详情...')
+                try:
+                    album = client.get_album_detail(album_id)
+                except Exception as e:
+                    has_error = True
+                    err_msg = f'❌❌❌ 获取失败: album {album_id} 详情请求出错, 原因: {e}'
+                    if self.json_output:
+                        print(err_msg, file=sys.stderr)
+                    else:
+                        jm_log('jmv', err_msg, e)
+                    continue
+
+                if self.json_output:
+                    json_items.append(self.album_to_dict(album))
+                else:
+                    self.print_album_detail(album)
+        finally:
+            if self.json_output:
+                JmModuleConfig.FLAG_ENABLE_JM_LOG = prev_log_flag
+
+        if self.json_output and (json_items or not has_error):
+            payload = json_items[0] if len(album_ids) == 1 and len(json_items) == 1 else json_items
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+
+        if has_error:
+            sys.exit(1)
 
 
 def view_main():

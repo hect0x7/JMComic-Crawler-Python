@@ -351,3 +351,82 @@ class Test_Cli(JmTestConfigurable):
             self.assertIn(f'...等{len(album.authors)}个', output)
         if len(album.tags) > 10:
             self.assertIn(f'...等{len(album.tags)}个', output)
+
+    def test_jmv_multi_ids_and_json_output(self):
+        import json
+
+        fake_album_1 = SimpleNamespace(
+            album_id='100',
+            name='Album One',
+            authors=[f'author_{i}' for i in range(12)],
+            pub_date='2026-01-01',
+            update_date='2026-01-02',
+            page_count=24,
+            views='10K',
+            likes='1K',
+            comment_count=5,
+            tags=['全彩', '中文'],
+            actors=['角色A'],
+            works=['作品A'],
+            description='简介1',
+            episode_list=[('1001', '1', ' 第1話 ')],
+        )
+        fake_album_2 = SimpleNamespace(
+            album_id='200',
+            name='Album Two',
+            authors=['author_b'],
+            pub_date='2026-02-01',
+            update_date='2026-02-02',
+            page_count=18,
+            views='20K',
+            likes='2K',
+            comment_count=8,
+            tags=['单行本'],
+            actors=[],
+            works=[],
+            description='',
+            episode_list=[('2001', '1', '单章')],
+        )
+        album_map = {'100': fake_album_1, '200': fake_album_2}
+
+        class FakeClient:
+            def get_album_detail(self, aid):
+                if aid not in album_map:
+                    raise RuntimeError(f'missing {aid}')
+                return album_map[aid]
+
+        fake_option = SimpleNamespace(new_jm_client=lambda: FakeClient())
+        prev_flag = JmModuleConfig.FLAG_ENABLE_JM_LOG
+
+        # 1) 单车号 --json：输出纯 JSON 对象，不截断作者列表，自动跳过 pause，恢复日志开关
+        ui_single = JmViewUI()
+        with patch('sys.argv', ['jmv', 'JM100', '--json']),                 patch('atexit.register'),                 patch('jmcomic.api.JmOption.default', return_value=fake_option),                 patch('sys.stdout', new_callable=StringIO) as out_single:
+            ui_single.main()
+
+        self.assertTrue(ui_single.auto_exit)
+        self.assertEqual(prev_flag, JmModuleConfig.FLAG_ENABLE_JM_LOG)
+        data_single = json.loads(out_single.getvalue())
+        self.assertIsInstance(data_single, dict)
+        self.assertEqual('100', data_single['album_id'])
+        self.assertEqual(12, len(data_single['authors']))
+        self.assertEqual([{'photo_id': '1001', 'index': 1, 'title': '第1話'}], data_single['episodes'])
+
+        # 2) 多车号 --json：输出纯 JSON 数组
+        ui_multi = JmViewUI()
+        with patch('sys.argv', ['jmv', '100', 'abc200', '--json']),                 patch('atexit.register'),                 patch('jmcomic.api.JmOption.default', return_value=fake_option),                 patch('sys.stdout', new_callable=StringIO) as out_multi:
+            ui_multi.main()
+
+        data_multi = json.loads(out_multi.getvalue())
+        self.assertIsInstance(data_multi, list)
+        self.assertEqual(['100', '200'], [item['album_id'] for item in data_multi])
+
+        # 3) 多车号部分失败：成功的照常输出，失败写 stderr 并以退出码 1 结束
+        ui_partial = JmViewUI()
+        with patch('sys.argv', ['jmv', '999', '100', '--json']),                 patch('atexit.register'),                 patch('jmcomic.api.JmOption.default', return_value=fake_option),                 patch('sys.stdout', new_callable=StringIO) as out_partial,                 patch('sys.stderr', new_callable=StringIO) as err_partial:
+            with self.assertRaises(SystemExit) as ctx:
+                ui_partial.main()
+
+        self.assertEqual(1, ctx.exception.code)
+        self.assertIn('missing 999', err_partial.getvalue())
+        partial_list = json.loads(out_partial.getvalue())
+        self.assertEqual([{'album_id': '100'}], [{'album_id': x['album_id']} for x in partial_list])

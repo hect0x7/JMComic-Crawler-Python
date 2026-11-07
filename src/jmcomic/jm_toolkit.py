@@ -3,7 +3,7 @@ from datetime import datetime
 from html.parser import HTMLParser
 from re import compile
 from typing import Match
-from urllib.parse import unquote, urlparse
+from urllib.parse import unquote, urlparse, urlsplit, urlunsplit
 
 from PIL import Image
 
@@ -472,6 +472,40 @@ class JmcomicText:
 
         path = f'/media/albums/{cls.parse_to_jm_id(album_id)}{size}.jpg'
         return cls.format_url(path, image_domain)
+
+    @staticmethod
+    def parse_jm_media_url(url: str) -> Optional[Tuple[str, str, str, str, str]]:
+        """
+        若 url 为禁漫图床完整链接（http/https 且路径以 /media/ 开头），
+        返回 (scheme, netloc, path, query, fragment)，否则返回 None。
+        """
+        if not isinstance(url, str) or not (url.startswith('https://') or url.startswith('http://')):
+            return None
+        parsed = urlsplit(url)
+        if not parsed.netloc or not parsed.path.startswith('/media/'):
+            return None
+        return parsed.scheme, parsed.netloc, parsed.path, parsed.query, parsed.fragment
+
+    @staticmethod
+    def rebuild_jm_media_url(media_parts: Tuple[str, str, str, str, str], domain: str) -> str:
+        return urlunsplit((media_parts[0], domain, media_parts[2], media_parts[3], media_parts[4]))
+
+    @classmethod
+    def build_image_domain_candidates(cls, orig_domain: str) -> List[str]:
+        """
+        构建图片请求候选图床域名列表：原 URL 域名居首，后接 JmModuleConfig.DOMAIN_IMAGE_LIST 去重兜底。
+        """
+        candidates = [orig_domain]
+        for raw_domain in JmModuleConfig.DOMAIN_IMAGE_LIST:
+            if not isinstance(raw_domain, str):
+                continue
+            raw = raw_domain.strip()
+            if not raw:
+                continue
+            domain = urlsplit(raw).netloc.strip() if '://' in raw else raw.split('/', 1)[0].strip()
+            if domain and domain not in candidates:
+                candidates.append(domain)
+        return candidates
 
     @classmethod
     def compare_versions(cls, v1: str, v2: str) -> int:
