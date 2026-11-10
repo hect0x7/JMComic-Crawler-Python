@@ -277,6 +277,53 @@ class JmOptionPlugin:
         mkdir_if_not_exists(base_dir)
         return fix_filepath(filepath)
 
+    @classmethod
+    def check_encrypt_param(cls, encrypt):
+        """
+        校验 encrypt 配置的类型，返回规范化后的值（未配置时返回 None）。
+
+        encrypt 必须是映射（如 {type: random} 或 {password: xxx}），
+        写成真值标量（encrypt: enabled）时后续的 encrypt.get(...) 会抛
+        AttributeError，绕过了配置校验机制、报错也难以理解，这里统一拦掉。
+        """
+        if encrypt is None:
+            return None
+        if not isinstance(encrypt, dict):
+            plugin_name = getattr(cls, 'plugin_key', cls.__name__)
+            ExceptionTool.raises(
+                f'{plugin_name}插件的encrypt参数类型有误，预期为映射（如 {{type: random}} 或 {{password: xxx}}），'
+                f'实际类型为{type(encrypt)}'
+            )
+        return encrypt
+
+    @classmethod
+    def generate_random_str(cls, random_length) -> str:
+        """
+        自动生成随机字符密码，长度由randomlength指定
+        """
+        import random
+
+        random_str = ''
+        base_str = r'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
+        base_length = len(base_str) - 1
+        for _ in range(random_length):
+            random_str += base_str[random.randint(0, base_length)]
+        return random_str
+
+    def decide_password(self, encrypt_dict: dict, filepath: str):
+        encrypt_type = encrypt_dict.get('type', '')
+        is_random = False
+
+        if encrypt_type == 'random':
+            is_random = True
+            password = self.generate_random_str(48)
+            self.log(f'生成随机密码: [{password}] → [{filepath}]', 'encrypt')
+        else:
+            password = str(encrypt_dict['password'])
+            self.log(f'使用指定密码: [{password}] → [{filepath}]', 'encrypt')
+
+        return password, is_random
+
 
 class JmLoginPlugin(JmOptionPlugin):
     """
@@ -467,24 +514,6 @@ class ZipPlugin(JmOptionPlugin):
             return ('py7zr',)
         return ('pyzipper',)
 
-    @staticmethod
-    def check_encrypt_param(encrypt):
-        """
-        校验 encrypt 配置的类型，返回规范化后的值（未配置时返回 None）。
-
-        encrypt 必须是映射（如 {type: sha256, password: xxx}），
-        写成真值标量（encrypt: enabled）时后续的 encrypt.get(...) 会抛
-        AttributeError，绕过了配置校验机制、报错也难以理解，这里统一拦掉。
-        """
-        if encrypt is None:
-            return None
-        if not isinstance(encrypt, dict):
-            ExceptionTool.raises(
-                f'zip插件的encrypt参数类型有误，预期为映射（如 {{type: sha256, password: xxx}}），'
-                f'实际类型为{type(encrypt)}'
-            )
-        return encrypt
-
     # noinspection PyAttributeOutsideInit
     def invoke(self,
                downloader,
@@ -596,21 +625,6 @@ class ZipPlugin(JmOptionPlugin):
         self.execute_deletion(image_paths)
         self.execute_deletion(dirs)
 
-    # noinspection PyMethodMayBeStatic
-    @classmethod
-    def generate_random_str(cls, random_length) -> str:
-        """
-        自动生成随机字符密码，长度由randomlength指定
-        """
-        import random
-
-        random_str = ''
-        base_str = r'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
-        base_length = len(base_str) - 1
-        for _ in range(random_length):
-            random_str += base_str[random.randint(0, base_length)]
-        return random_str
-
     def open_zip_file(self, zip_path: str, encrypt_dict: Optional[dict]):
         if encrypt_dict is None:
             import zipfile
@@ -642,20 +656,6 @@ class ZipPlugin(JmOptionPlugin):
             if is_random:
                 aes_zip_file.comment = password_bytes
             return aes_zip_file
-
-    def decide_password(self, encrypt_dict: dict, zip_path: str):
-        encrypt_type = encrypt_dict.get('type', '')
-        is_random = False
-
-        if encrypt_type == 'random':
-            is_random = True
-            password = self.generate_random_str(48)
-            self.log(f'生成随机密码: [{password}] → [{zip_path}]', 'encrypt')
-        else:
-            password = str(encrypt_dict['password'])
-            self.log(f'使用指定密码: [{password}] → [{zip_path}]', 'encrypt')
-
-        return password, is_random
 
 
 class ClientProxyPlugin(JmOptionPlugin):
@@ -1610,7 +1610,8 @@ class Img2pdfPlugin(JmOptionPlugin):
 
     @classmethod
     def required_dependencies_for(cls, kwargs: dict) -> tuple:
-        if kwargs.get('encrypt'):
+        encrypt = cls.check_encrypt_param(kwargs.get('encrypt'))
+        if encrypt:
             return cls.plugin_dependencies + ('pikepdf',)
         return cls.plugin_dependencies
 
@@ -1627,6 +1628,8 @@ class Img2pdfPlugin(JmOptionPlugin):
                ):
         if photo is None and album is None:
             jm_log('wrong_usage', 'img2pdf必须运行在after_photo或after_album时')
+
+        encrypt = self.check_encrypt_param(encrypt)
 
         try:
             import img2pdf
@@ -1693,7 +1696,7 @@ class Img2pdfPlugin(JmOptionPlugin):
             self.warning_lib_not_install('pikepdf')
             return
 
-        password = str(encrypt.get('password', ''))
+        password, _ = self.decide_password(encrypt, pdf_filepath)
         with pikepdf.open(pdf_filepath, allow_overwriting_input=True) as pdf:
             pdf.save(pdf_filepath, encryption=pikepdf.Encryption(user=password, owner=password))
 

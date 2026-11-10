@@ -714,10 +714,6 @@ class JmcomicClient(
     def get_html_domain_all(self):
         return JmModuleConfig.get_html_domain_all(self.postman)
 
-    def get_html_domain_all_via_github(self):
-        """已废弃，请使用 get_html_domain_all。"""
-        return JmModuleConfig.get_html_domain_all_via_github(self.postman)
-
     # noinspection PyMethodMayBeStatic
     def do_page_iter(self, params: dict, page: int, get_page_method):
         from math import inf

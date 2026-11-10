@@ -117,15 +117,6 @@ class Test_Api(JmTestConfigurable):
 
         raise AssertionError(exception_list)
 
-    def test_get_html_domain_all_via_github_deprecated(self):
-        """废弃入口应发出警告，并转发到官方发布页域名获取逻辑。"""
-        with self.assertWarns(DeprecationWarning):
-            deprecated_result = self.client.get_html_domain_all_via_github()
-
-        current_result = self.client.get_html_domain_all()
-        self.assertEqual(deprecated_result, current_result)
-        self.assertGreater(len(deprecated_result), 0)
-
     def test_partial_exception(self):
         class TestDownloader(JmDownloader):
             def do_filter(self, detail: DetailEntity):

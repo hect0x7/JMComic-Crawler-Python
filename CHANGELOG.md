@@ -15,6 +15,7 @@
 
 - 同步与异步客户端内置图床 CDN 自动切节点重试：下载禁漫 `/media/...` 图片遇到超时、5xx 或空响应时，在 `1 + retry_times` 次预算内自动切换 `JmModuleConfig.DOMAIN_IMAGE_LIST` 中的健康图床节点并对失败节点计数后置（网页端优先使用页面原图床域名，失败后再回退兜底）；API 客户端请求 `/setting` 时自动将服务端下发的最新 `img_host` 去重收录至 `DOMAIN_IMAGE_LIST` 首位（可通过 `JmModuleConfig.register_image_domain` 调用，尊重用户自定义覆盖与 `FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN` 开关）。
 - 命令行 `jmv` 支持一次传入多个车号批量查询详情，并新增 `--json` 参数输出完整结构化 JSON（单车号输出对象、多车号输出数组，自动跳过回车确认并静默普通日志）。
+- `JmOptionPlugin` 基类提取复用 `decide_password`、`check_encrypt_param` 与 `generate_random_str` 密码解析能力，`img2pdf` 插件新增支持 `encrypt.type: random` 随机密码生成与配置类型校验。
 - 补充 `jmcomic/__main__.py` 入口文件，支持直接通过 `python -m jmcomic` 执行命令行下载。
 
 ### Changed
@@ -26,6 +27,10 @@
 - 修复同步客户端与 `AdvancedRetryPlugin` 请求完整图片 URL（非 `'/'` 开头）失败时，外层仍按 API 域名列表长度重复放大重试次数的问题。
 - 修复命令行 `jmcomic` 在批量下载存在失败项或混合模式后台线程抛错时仍以退出码 `0` 结束的问题，失败时统一返回非零退出码。
 - 修复 `JmOption.copy_option()` 浅拷贝共享 `download`、`client`、`plugins` 可变配置字典导致修改串联污染的问题，同时保留 `auth` 登录状态跨副本共享。
+
+### Removed
+
+- 移除已废弃的 `JmModuleConfig.get_html_domain_all_via_github` 与 `JmcomicClient.get_html_domain_all_via_github` 兼容方法，请统一使用 `get_html_domain_all`。
 
 ## [2.7.11] - 2026-11-04
 

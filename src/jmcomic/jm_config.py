@@ -435,25 +435,6 @@ class JmModuleConfig:
         return domain_list
 
     @classmethod
-    def get_html_domain_all_via_github(cls,
-                                       postman=None,
-                                       *deprecated_args,
-                                       **deprecated_kwargs,
-                                       ):
-        """
-        已废弃：原 GitHub 仓库不再提供禁漫域名。
-        为保持兼容，当前转发到 get_html_domain_all；该方法将在未来版本移除。
-        """
-        import warnings
-        warnings.warn(
-            'get_html_domain_all_via_github is deprecated because the GitHub repository no longer provides '
-            'JMComic domains; use get_html_domain_all instead.',
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return cls.get_html_domain_all(postman)
-
-    @classmethod
     def register_image_domain(cls, img_host: str | None) -> str | None:
         """
         将服务端动态下发的最新图床域名（如 /setting 返回的 img_host）去重前置加入 DOMAIN_IMAGE_LIST。
@@ -543,7 +524,7 @@ class JmModuleConfig:
     # 一般情况下，建议使用option配置文件来定制配置
     # 而如果只想修改几个简单常用的配置，也可以下方的DEFAULT_XXX属性
     JM_OPTION_VER = '2.1'
-    DEFAULT_CLIENT_IMPL = 'api'  # 默认Client实现类型为网页端
+    DEFAULT_CLIENT_IMPL = 'api'  # 默认Client实现类型为移动端
     DEFAULT_CLIENT_CACHE = None  # 默认关闭Client缓存。缓存的配置详见 CacheRegistry
     DEFAULT_PROXIES = ProxyBuilder.system_proxy()  # 默认使用系统代理
 

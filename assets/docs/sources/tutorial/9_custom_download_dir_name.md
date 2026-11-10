@@ -262,25 +262,3 @@ dir_rule:
 ```
 
 结果：`D:/comics/BLVEFO9/[248965]喂我吃吧 老師!/第3話 94 突然打來/00001.webp`
-
----
-
-### 兼容旧写法（传统 DSL）
-
-以下旧写法仍然可用，但推荐逐步迁移至 f-string 语法：
-
-```yaml
-# 旧写法（等效）
-rule: Bd_Pname
-
-# f-string 新写法（推荐）
-rule: Bd / {Pname}
-```
-
-```yaml
-# 旧写法
-rule: Bd / Atitle / Pindextitle
-
-# f-string 新写法（推荐）
-rule: Bd / {Atitle} / {Pindextitle}
-```

@@ -242,7 +242,22 @@ class Test_Plugin(JmTestConfigurable):
             self.fail(f'zip 插件仍抛 AttributeError: {e}')
         else:
             self.fail('非 mapping 的 encrypt 应当抛配置错误')
-        print('✅ non-mapping encrypt rejected instead of raising AttributeError.')
+
+        # img2pdf 同样继承 JmOptionPlugin 的 encrypt 校验与密码决策能力
+        pdf_cls = JmModuleConfig.REGISTRY_PLUGIN['img2pdf']
+        with self.assertRaises(JmcomicException):
+            pdf_cls.check_encrypt_param('enabled')
+
+        pdf_plugin = pdf_cls(fake)
+        pdf_plugin.log_enable = False
+        fixed_pwd, is_rand = pdf_plugin.decide_password({'password': 123456}, 'demo.pdf')
+        self.assertEqual(fixed_pwd, '123456')
+        self.assertFalse(is_rand)
+
+        rand_pwd, is_rand = pdf_plugin.decide_password({'type': 'random'}, 'demo.pdf')
+        self.assertEqual(len(rand_pwd), 48)
+        self.assertTrue(is_rand)
+        print('✅ non-mapping encrypt rejected and decide_password shared across zip & img2pdf.')
 
     def test_favorite_folder_export_retry_and_failure_report(self):
         """
