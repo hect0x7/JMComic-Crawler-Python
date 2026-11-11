@@ -5,33 +5,33 @@
 条目分类参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [2.7.12] - 2026-11-07
+## [2.7.12] - 2026-11-11
 
 ### Summary
 
-本次更新新增图床 CDN 自动切节点重试与 `/setting` 动态图床域名收录，增强 `jmv` 命令行支持多车号批量查询与 `--json` 结构化输出，为同步客户端内置域名轮询与失败后置重试机制（对齐异步客户端，`advanced_retry` 插件转为废弃提醒），并修复图片重试放大、CLI 失败退出码及 `JmOption.copy_option()` 浅拷贝污染问题。
+本次更新增强了客户端域名容灾与图片下载稳定性（默认内置域名智能轮询与图床自动切节点重试），扩展 `jmv` 命令行支持多车号查询与 `--json` 输出，并修复了多章按章压缩、命令行退出码与配置副本隔离等问题。
 
 ### Added
 
-- 同步与异步客户端内置图床 CDN 自动切节点重试：下载禁漫 `/media/...` 图片遇到超时、5xx 或空响应时，在 `1 + retry_times` 次预算内自动切换 `JmModuleConfig.DOMAIN_IMAGE_LIST` 中的健康图床节点并对失败节点计数后置（网页端优先使用页面原图床域名，失败后再回退兜底）；API 客户端请求 `/setting` 时自动将服务端下发的最新 `img_host` 去重收录至 `DOMAIN_IMAGE_LIST` 首位（可通过 `JmModuleConfig.register_image_domain` 调用，尊重用户自定义覆盖与 `FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN` 开关）。
-- 命令行 `jmv` 支持一次传入多个车号批量查询详情，并新增 `--json` 参数输出完整结构化 JSON（单车号输出对象、多车号输出数组，自动跳过回车确认并静默普通日志）。
-- `JmOptionPlugin` 基类提取复用 `decide_password`、`check_encrypt_param` 与 `generate_random_str` 密码解析能力，`img2pdf` 插件新增支持 `encrypt.type: random` 随机密码生成与配置类型校验。
-- 补充 `jmcomic/__main__.py` 入口文件，支持直接通过 `python -m jmcomic` 执行命令行下载。
+- 图片下载支持图床 CDN 自动切节点重试，遇到节点超时或异常时自动切换备用图床；移动端模式下支持自动同步最新可用图床域名。
+- 命令行 `jmv` 支持一次查询多个车号，并新增 `--json` 参数输出结构化详情数据，便于脚本与外部工具调用。
+- `img2pdf` 插件支持随机密码加密（`encrypt.type: random`），与 `zip` 插件加密配置保持一致。
+- 支持通过 `python -m jmcomic` 直接运行命令行下载。
 
 ### Changed
 
-- 同步客户端 `AbstractJmClient.request_with_retry` 内置线程安全的域名失败计数与升序轮询机制（对齐 `AsyncJmcomicClient`），失败次数多的域名自动后置；`AdvancedRetryPlugin`（`advanced_retry`）不再挂载客户端钩子，调用时输出废弃迁移提醒日志。
+- 同步客户端默认内置域名智能轮询与失败节点自动后置机制（与异步客户端一致），并将主站域名与图床 CDN 的重试预算统一为按次统计（单次请求最多尝试 `1 + retry_times` 次）；原 `advanced_retry` 插件废弃，保留兼容提示。
 
 ### Fixed
 
-- 修复同步客户端与 `AdvancedRetryPlugin` 请求完整图片 URL（非 `'/'` 开头）失败时，外层仍按 API 域名列表长度重复放大重试次数的问题。
-- 修复命令行 `jmcomic` 在批量下载存在失败项或混合模式后台线程抛错时仍以退出码 `0` 结束的问题，失败时统一返回非零退出码。
-- 修复 `JmOption.copy_option()` 浅拷贝共享 `download`、`client`、`plugins` 可变配置字典导致修改串联污染的问题，同时保留 `auth` 登录状态跨副本共享。
-- 修复 `ZipPlugin`（`zip` 插件）配置在 `after_photo` 下下载多章节本子时，跨章节重复打包覆盖并提前误删其他章节图片的问题。
+- 修复图片下载失败时重试次数被域名列表长度重复放大的问题。
+- 修复 `zip` 插件配置在 `after_photo` 按章节打包多章本子时，跨章节误删原图与重复覆盖压缩包的问题。
+- 修复命令行 `jmcomic` 下载存在失败任务时仍返回退出码 `0` 的问题。
+- 修复 `option.copy_option()` 修改副本配置时污染原配置对象的问题（登录状态仍保持跨副本共享）。
 
 ### Removed
 
-- 移除已废弃的 `JmModuleConfig.get_html_domain_all_via_github` 与 `JmcomicClient.get_html_domain_all_via_github` 兼容方法，请统一使用 `get_html_domain_all`。
+- 移除已废弃的 `get_html_domain_all_via_github` 接口，统一使用 `get_html_domain_all`。
 
 ## [2.7.11] - 2026-11-04
 

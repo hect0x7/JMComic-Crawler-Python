@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import logging
-from threading import Lock
-from urllib.parse import urlsplit
 
 from .common import time_stamp, field_cache, ProxyBuilder, str_to_list
 from .jm_task_context import JM_TASK_CONTEXT, JTC
@@ -194,8 +192,6 @@ class JmModuleConfig:
     cdn-msp.jmapinodeudzn.net
     cdn-msp3.jmapinodeudzn.net
     ''')
-    _DEFAULT_DOMAIN_IMAGE_LIST = DOMAIN_IMAGE_LIST
-    _IMAGE_DOMAIN_LOCK = Lock()
 
     # 移动端API域名
     DOMAIN_API_LIST = shuffled('''
@@ -437,25 +433,17 @@ class JmModuleConfig:
     @classmethod
     def register_image_domain(cls, img_host: str | None) -> str | None:
         """
-        将服务端动态下发的最新图床域名（如 /setting 返回的 img_host）去重前置加入 DOMAIN_IMAGE_LIST。
-        若用户已显式替换过 JmModuleConfig.DOMAIN_IMAGE_LIST，或关闭了 FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN，则保持原样。
+        将最新图床域名（如 /setting 返回的 img_host）去重前置加入 DOMAIN_IMAGE_LIST。
         """
-        if not img_host or not cls.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN:
+        if not img_host:
             return None
-
-        raw = str(img_host).strip()
-        domain = urlsplit(raw).netloc.strip() if '://' in raw else raw.split('/', 1)[0].strip()
+        from .jm_toolkit import JmcomicText
+        domain = JmcomicText.parse_to_jm_domain(img_host)
         if not domain:
             return None
-
-        with cls._IMAGE_DOMAIN_LOCK:
-            if cls.DOMAIN_IMAGE_LIST is not cls._DEFAULT_DOMAIN_IMAGE_LIST:
-                return None
-            if cls.DOMAIN_IMAGE_LIST and cls.DOMAIN_IMAGE_LIST[0] == domain:
-                return domain
-            cls.DOMAIN_IMAGE_LIST[:] = [domain] + [d for d in cls.DOMAIN_IMAGE_LIST if d != domain]
-
-        cls.jm_log('api.setting.img_host', f'收录最新图床域名至首位: [{domain}]')
+        if not cls.DOMAIN_IMAGE_LIST or cls.DOMAIN_IMAGE_LIST[0] != domain:
+            cls.DOMAIN_IMAGE_LIST = [domain] + [d for d in cls.DOMAIN_IMAGE_LIST if d != domain]
+            cls.jm_log('api.setting.img_host', f'收录最新图床域名至首位: [{domain}]')
         return domain
 
     @classmethod

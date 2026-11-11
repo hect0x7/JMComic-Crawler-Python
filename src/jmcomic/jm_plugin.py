@@ -776,6 +776,10 @@ class ProgressDownloader(JmDownloader):
     progress_live = None
     progress_ui_lock = RLock()
 
+    def __init__(self, option):
+        super().__init__(option)
+        self.progress = None
+
     @staticmethod
     def display_id(entity_id):
         entity_id = str(entity_id)
@@ -968,7 +972,7 @@ class ProgressDownloader(JmDownloader):
 
     def before_photo(self, photo):
         super().before_photo(photo)
-        if getattr(self, 'progress', None) is None:
+        if self.progress is None:
             self.start_progress()
         with self.progress_lock:
             self.chapter_done[photo.id] = 0
@@ -1021,9 +1025,9 @@ class ProgressDownloader(JmDownloader):
         self.stop_progress()
 
     def stop_progress(self):
-        progress = getattr(self, 'progress', None)
-        if progress is None:
+        if self.progress is None:
             return
+        progress = self.progress
         try:
             ProgressDownloader.unregister_progress(progress)
         finally:
@@ -1038,6 +1042,10 @@ class ProgressDownloader(JmDownloader):
 
 # noinspection attribute-outside-init
 class AsyncProgressDownloader(JmAsyncDownloader):
+
+    def __init__(self, option, *args, **kwargs):
+        super().__init__(option, *args, **kwargs)
+        self.progress = None
 
     def start_progress(self, album_total=None, album_id=None):
         from threading import Lock
@@ -1066,7 +1074,7 @@ class AsyncProgressDownloader(JmAsyncDownloader):
 
     async def before_photo(self, photo):
         await super().before_photo(photo)
-        if getattr(self, 'progress', None) is None:
+        if self.progress is None:
             self.start_progress()
         with self.progress_lock:
             self.chapter_done[photo.id] = 0
@@ -1119,9 +1127,9 @@ class AsyncProgressDownloader(JmAsyncDownloader):
         self.stop_progress()
 
     def stop_progress(self):
-        progress = getattr(self, 'progress', None)
-        if progress is None:
+        if self.progress is None:
             return
+        progress = self.progress
         try:
             ProgressDownloader.unregister_progress(progress)
         finally:
@@ -2136,98 +2144,11 @@ class ReplacePathStringPlugin(JmOptionPlugin):
 class AdvancedRetryPlugin(JmOptionPlugin):
     plugin_key = 'advanced_retry'
 
-    def __init__(self, option: JmOption):
-        super().__init__(option)
-        self.retry_config = None
-
-    def invoke(self,
-               retry_config=None,
-               **kwargs):
-        self.retry_config = retry_config
+    def invoke(self, **kwargs):
         self.log(
             '客户端现已内置域名轮询与失败后置重试机制，不再需要配置 advanced_retry 插件，你可以直接删除该配置',
             'deprecated',
         )
-
-    def __call__(self, client: AbstractJmClient, *args, **kwargs):
-        if args:
-            return self.request_with_retry(client, *args, **kwargs)
-        # init
-        from threading import Lock
-        client.domain_req_failed_counter = {}
-        client.domain_counter_lock = Lock()
-
-    def request_with_retry(self,
-                           client: AbstractJmClient,
-                           request: Callable,
-                           url: str,
-                           is_image: bool,
-                           **kwargs,
-                           ):
-        """
-        实现如下域名重试机制：
-        - 对域名列表轮询请求，配置：retry_rounds
-        - 限制单个域名最大失败次数，配置：retry_domain_max_times
-        - 轮询域名列表前，根据历史失败次数对域名列表排序，失败多的后置
-        """
-
-        def do_request(domain):
-            url_to_use = url
-            if url_to_use.startswith('/'):
-                # path → url
-                url_to_use = client.of_api_url(url, domain)
-                client.update_request_with_specify_domain(kwargs, domain, is_image)
-                jm_log(client.log_topic(), client.decode(url_to_use))
-            elif is_image:
-                # 图片url
-                client.update_request_with_specify_domain(kwargs, None, is_image)
-
-            resp = request(url_to_use, **kwargs)
-            resp = client.raise_if_resp_should_retry(resp, is_image)
-            return resp
-
-        is_path = url.startswith('/')
-        retry_domain_max_times: int = self.retry_config['retry_domain_max_times']
-        retry_rounds: int = self.retry_config['retry_rounds']
-        retry_errors = []
-        for rindex in range(retry_rounds):
-            domain_list = self.get_sorted_domain(client, retry_domain_max_times) if is_path else [None]
-            for domain in domain_list:
-                if is_path and self.failed_count(client, domain) >= retry_domain_max_times:
-                    continue
-
-                try:
-                    return do_request(domain)
-                except Exception as e:
-                    jm_log('req.error', e)
-                    retry_errors.append({
-                        'domain': domain if is_path else None,
-                        'url': client.of_api_url(url, domain) if is_path else url,
-                        'retry': rindex,
-                        'error': e,
-                    })
-                    if is_path:
-                        self.update_failed_count(client, domain)
-
-        return client.fallback(request, url, 0, 0, is_image,
-                               retry_errors=retry_errors, **kwargs)
-
-    def get_sorted_domain(self, client: JmcomicClient, times):
-        domain_list = client.get_domain_list()
-        return sorted(
-            filter(lambda d: self.failed_count(client, d) < times, domain_list),
-            key=lambda d: self.failed_count(client, d)
-        )
-
-    # noinspection PyUnresolvedReferences
-    def update_failed_count(self, client: AbstractJmClient, domain: str):
-        with client.domain_counter_lock:
-            client.domain_req_failed_counter[domain] = self.failed_count(client, domain) + 1
-
-    @staticmethod
-    def failed_count(client: JmcomicClient, domain: str) -> int:
-        # noinspection PyUnresolvedReferences
-        return client.domain_req_failed_counter.get(domain, 0)
 
 
 class DownloadCoverPlugin(JmOptionPlugin):

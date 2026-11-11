@@ -52,7 +52,7 @@ client:
   # domain: 禁漫域名配置，一般无需配置，jmcomic会根据上面的impl自动设置相应域名
   # 该配置项需要和上面的impl结合使用，因为禁漫网页端和APP端使用的是不同域名，
   # 所以配置是一个dict结构，key是impl的值，value是域名列表，表示这个impl走这些域名。
-  # 域名列表的使用顺序是：按各域名历史失败次数升序轮询尝试（失败多的域名自动后置），整组域名最多额外重试 retry_times 轮。
+  # 域名列表的使用顺序是：每次请求优先选历史失败次数最少的域名（失败多的节点自动后置），单次请求失败后最多额外切换/重试 retry_times 次。
   # 下面是示例：（注意下面这些域名可能会过时，不一定能用）
   domain:
     html:
@@ -61,7 +61,7 @@ client:
     api:
       - www.jmapiproxyxxx.vip
 
-  # retry_times: 请求失败额外重试轮数（图片请求为切换图床/重试的额外次数），默认为5
+  # retry_times: 单次请求失败后的额外重试次数（主站接口与图片下载通用，总尝试上限为 1 + retry_times；设为 0 则失败立即返回不重试），默认为5
   retry_times: 5
 
   # cache: 是否开启客户端级别的缓存，用于缓存已经请求过的元数据（如本子详情、搜索结果等），减少重复网络请求。
@@ -249,7 +249,7 @@ plugins:
         # 也可使用 dir_rule 统一指定目录与文件名（优先于 zip_dir / filename_rule / suffix）：
         # dir_rule:
         #   base_dir: D:/jmcomic-download/
-        #   rule: 'Bd / zip / JM{Aid}-{Atitle}.zip'
+        #   rule: 'Bd / zip / JM{Aid}-{Atitle}.zip' # 设置压缩文件夹规则，Bd指代base_dir，中间zip表示在{base_dir}下创建一个名为zip的文件夹，JM{Aid}-{Atitle}.zip 表示压缩文件的命名规则(需显式写出后缀名)
 
         delete_original_file: true # 压缩成功后，删除所有原文件和文件夹
         

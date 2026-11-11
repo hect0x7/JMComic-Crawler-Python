@@ -25,8 +25,9 @@ jmv 350234
 jmv 350谁还没看过234
 jmv 350234 JM438516 -y
 
-# 输出完整结构化 JSON（自动静默日志并跳过回车确认，便于脚本/AI 集成）
+# 输出完整结构化 JSON（单车号输出对象，多车号输出数组；自动静默日志并跳过回车确认）
 jmv 350234 --json
+jmv 350234 JM438516 --json
 ```
 
 <details markdown="1">
@@ -62,5 +63,42 @@ jmv 350234 --json
 
 > [!NOTE]
 > 默认终端模式下，当作者、标签、人物、作品超过 10 个时会自动截断并显示总数（如 `...等25个`）；使用 `--json` 时输出完整不截断列表。
+
+</details>
+
+<details markdown="1">
+<summary>查看 --json 输出示例</summary>
+
+```json
+{
+  "album_id": "350234",
+  "name": "xxx",
+  "url": "https://18comic.vip/album/350234/",
+  "cover_url": "https://cdn-msp.jmapiproxy1.cc/media/albums/350234.jpg",
+  "authors": ["Author1", "Author2"],
+  "pub_date": "2022-06-15",
+  "update_date": "2023-01-01",
+  "page_count": 50,
+  "views": "2M",
+  "likes": "77K",
+  "comment_count": 9801,
+  "tags": ["标签1", "标签2"],
+  "actors": ["角色A", "角色B"],
+  "works": ["作品1", "作品2"],
+  "description": "...",
+  "episodes": [
+    {
+      "photo_id": "350234",
+      "index": 1,
+      "title": "上"
+    },
+    {
+      "photo_id": "350235",
+      "index": 2,
+      "title": "下"
+    }
+  ]
+}
+```
 
 </details>

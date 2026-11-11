@@ -445,10 +445,12 @@ class DownloadResult(NamedTuple):
     @property
     def album(self):
         """下载的本子实体。"""
-        from .jm_entity import JmAlbumDetail
+        from .jm_entity import JmAlbumDetail, JmPhotoDetail
         if isinstance(self.detail, JmAlbumDetail):
             return self.detail
-        return getattr(self.detail, 'from_album', None)
+        if isinstance(self.detail, JmPhotoDetail):
+            return self.detail.from_album
+        return None
 
     @property
     def photo(self):

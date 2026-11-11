@@ -5,11 +5,24 @@ from types import SimpleNamespace
 
 class Test_RequestRetryAllFailException(unittest.TestCase):
 
+    @staticmethod
+    def _new_sync_client(domain_list, retry_times=1):
+        return AbstractJmClient(
+            postman=SimpleNamespace(),
+            domain_list=domain_list,
+            retry_times=retry_times,
+        )
+
+    @staticmethod
+    def _new_async_client(session, domain_list, retry_times=0):
+        client = AsyncJmApiClient(JmOption.default(), domain_list=domain_list)
+        client._retry_times = retry_times
+        client._session = session
+        client._has_setup = True
+        return client
+
     def test_sync_client_collects_each_failed_request(self):
-        client = object.__new__(AbstractJmClient)
-        client.domain_list = ['api-one.example', 'api-two.example']
-        client.retry_times = 1
-        client.domain_retry_strategy = None
+        client = self._new_sync_client(['api-one.example', 'api-two.example'], retry_times=2)
 
         def request(url, **kwargs):
             raise TimeoutError(url)
@@ -18,17 +31,20 @@ class Test_RequestRetryAllFailException(unittest.TestCase):
             client.request_with_retry(request, '/search')
 
         errors = cm.exception.errors
-        self.assertEqual(4, len(errors))
-        self.assertEqual(['api-one.example', 'api-two.example',
-                          'api-one.example', 'api-two.example'],
+        self.assertEqual(3, len(errors))
+        self.assertEqual(['api-one.example', 'api-two.example', 'api-one.example'],
                          [item['domain'] for item in errors])
+        self.assertEqual([0, 1, 2], [item['retry'] for item in errors])
         self.assertTrue(all(isinstance(item['error'], TimeoutError) for item in errors))
 
+        # retry_times=0 时仅发 1 次请求，失败立即返回不重试
+        zero_client = self._new_sync_client(['api-one.example', 'api-two.example'], retry_times=0)
+        with self.assertRaises(RequestRetryAllFailException) as zero_cm:
+            zero_client.request_with_retry(request, '/search')
+        self.assertEqual(['api-one.example'], [item['domain'] for item in zero_cm.exception.errors])
+
     def test_sync_client_sorts_domains_by_fail_count(self):
-        client = object.__new__(AbstractJmClient)
-        client.domain_list = ['bad.example', 'good.example']
-        client.retry_times = 1
-        client.domain_retry_strategy = None
+        client = self._new_sync_client(['bad.example', 'good.example'], retry_times=1)
 
         seen_urls = []
 
@@ -46,11 +62,8 @@ class Test_RequestRetryAllFailException(unittest.TestCase):
         self.assertEqual('https://good.example/chapter', resp2.url)
         self.assertEqual(['https://good.example/chapter'], seen_urls)
 
-    def test_sync_and_advanced_retry_do_not_multiply_absolute_image_url_by_domains(self):
-        client = object.__new__(AbstractJmClient)
-        client.domain_list = ['d1.example', 'd2.example', 'd3.example', 'd4.example']
-        client.retry_times = 2
-        client.domain_retry_strategy = None
+    def test_sync_client_does_not_multiply_absolute_image_url_by_domains(self):
+        client = self._new_sync_client(['d1.example', 'd2.example', 'd3.example', 'd4.example'], retry_times=2)
 
         img_url = 'https://cdn-msp.example/media/photos/123/00001.webp'
         calls = []
@@ -73,9 +86,9 @@ class Test_RequestRetryAllFailException(unittest.TestCase):
         self.assertEqual(3, len(cm.exception.errors))
         self.assertEqual(['cdn-msp.example', 'img1.example', 'img2.example'],
                          [item['domain'] for item in cm.exception.errors])
-        self.assertEqual({}, getattr(client, '_domain_fail_count', {}))
+        self.assertEqual({}, client._domain_fail_count)
         self.assertEqual({'cdn-msp.example': 1, 'img1.example': 1, 'img2.example': 1},
-                         getattr(client, '_image_domain_fail_count', {}))
+                         client._image_domain_fail_count)
 
         # 非禁漫 /media/ 路径的普通外链图片不改写域名
         calls.clear()
@@ -84,20 +97,6 @@ class Test_RequestRetryAllFailException(unittest.TestCase):
             client.request_with_retry(failing_img_request, ext_url, is_image=True)
         self.assertEqual([ext_url, ext_url, ext_url], calls)
         self.assertEqual([None, None, None], [item['domain'] for item in ext_cm.exception.errors])
-
-        calls.clear()
-        plugin = object.__new__(AdvancedRetryPlugin)
-        plugin.retry_config = {
-            'retry_rounds': 2,
-            'retry_domain_max_times': 5,
-        }
-        plugin(client)
-
-        with self.assertRaises(RequestRetryAllFailException) as plugin_cm:
-            plugin(client, failing_img_request, img_url, True)
-
-        self.assertEqual(2, len(calls))
-        self.assertEqual([None, None], [item['domain'] for item in plugin_cm.exception.errors])
 
     def test_advanced_retry_invoke_logs_deprecation_without_hooking_new_jm_client(self):
         from unittest.mock import patch
@@ -132,11 +131,7 @@ class Test_RequestRetryAllFailException(unittest.TestCase):
             async def get(self, url, **kwargs):
                 raise ConnectionError(url)
 
-        client = object.__new__(AsyncJmApiClient)
-        client._domain_list = ['api-one.example', 'api-two.example']
-        client._retry_times = 0
-        client._session = FailingSession()
-        client._domain_fail_count = {}
+        client = self._new_async_client(FailingSession(), ['api-one.example', 'api-two.example'], retry_times=2)
 
         async def request():
             return await client._request_with_retry('/search', {})
@@ -145,35 +140,16 @@ class Test_RequestRetryAllFailException(unittest.TestCase):
             asyncio.run(request())
 
         errors = cm.exception.errors
-        self.assertEqual(2, len(errors))
-        self.assertEqual(['api-one.example', 'api-two.example'],
+        self.assertEqual(3, len(errors))
+        self.assertEqual(['api-one.example', 'api-two.example', 'api-one.example'],
                          [item['domain'] for item in errors])
+        self.assertEqual([0, 1, 2], [item['retry'] for item in errors])
         self.assertTrue(all(isinstance(item['error'], ConnectionError) for item in errors))
 
-    def test_advanced_retry_collects_each_failed_request(self):
-        client = object.__new__(AbstractJmClient)
-        client.domain_list = ['api-one.example', 'api-two.example']
-        client.retry_times = 1
-        client.domain_retry_strategy = None
-
-        plugin = object.__new__(AdvancedRetryPlugin)
-        plugin.retry_config = {
-            'retry_rounds': 1,
-            'retry_domain_max_times': 1,
-        }
-        plugin(client)
-
-        def request(url, **kwargs):
-            raise OSError(url)
-
-        with self.assertRaises(RequestRetryAllFailException) as cm:
-            plugin(client, request, '/search', False)
-
-        errors = cm.exception.errors
-        self.assertEqual(2, len(errors))
-        self.assertEqual(['api-one.example', 'api-two.example'],
-                         [item['domain'] for item in errors])
-        self.assertTrue(all(isinstance(item['error'], OSError) for item in errors))
+        zero_client = self._new_async_client(FailingSession(), ['api-one.example', 'api-two.example'], retry_times=0)
+        with self.assertRaises(RequestRetryAllFailException) as zero_cm:
+            asyncio.run(zero_client._request_with_retry('/search', {}))
+        self.assertEqual(['api-one.example'], [item['domain'] for item in zero_cm.exception.errors])
 
     def test_preserves_and_formats_retry_errors(self):
         error_500 = ResponseUnexpectedException('禁漫API异常响应, 500', {})
@@ -209,10 +185,7 @@ class Test_RequestRetryAllFailException(unittest.TestCase):
 
         with patch.object(JmModuleConfig, 'DOMAIN_IMAGE_LIST', ['img-bad.example', 'img-good.example']):
             # 1) 同步客户端：原图床失败 -> 切换备用图床并保留 query 参数 -> 下一张图直接走健康图床
-            sync_client = object.__new__(AbstractJmClient)
-            sync_client.domain_list = ['html.example']
-            sync_client.retry_times = 2
-            sync_client.domain_retry_strategy = None
+            sync_client = self._new_sync_client(['html.example'], retry_times=2)
             sync_seen = []
 
             def fake_sync_req(url, **kwargs):
@@ -252,13 +225,7 @@ class Test_RequestRetryAllFailException(unittest.TestCase):
                         raise TimeoutError(url)
                     return SimpleNamespace(status_code=200, url=url, content=b'async-webp', text='ok')
 
-            async_client = object.__new__(AsyncJmApiClient)
-            async_client._domain_list = ['api.example']
-            async_client._retry_times = 2
-            async_client._session = ImageSwitchSession()
-            async_client._has_setup = True
-            async_client._domain_fail_count = {}
-            async_client._image_domain_fail_count = {}
+            async_client = self._new_async_client(ImageSwitchSession(), ['api.example'], retry_times=2)
 
             aresp1 = asyncio.run(async_client.get_jm_image('https://orig-html.example/media/photos/438516/00001.webp'))
             self.assertEqual(b'async-webp', aresp1.content)
@@ -276,12 +243,10 @@ class Test_RequestRetryAllFailException(unittest.TestCase):
     def test_register_image_domain_and_setting_integration(self):
         from unittest.mock import AsyncMock, Mock, patch
 
-        orig_list = list(JmModuleConfig._DEFAULT_DOMAIN_IMAGE_LIST)
-        orig_ref = JmModuleConfig.DOMAIN_IMAGE_LIST
+        orig_list = list(JmModuleConfig.DOMAIN_IMAGE_LIST)
         orig_flag = JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN
         try:
-            JmModuleConfig.DOMAIN_IMAGE_LIST = JmModuleConfig._DEFAULT_DOMAIN_IMAGE_LIST
-            JmModuleConfig.DOMAIN_IMAGE_LIST[:] = ['cdn-a.example', 'cdn-b.example']
+            JmModuleConfig.DOMAIN_IMAGE_LIST = ['cdn-a.example', 'cdn-b.example']
             JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = True
 
             # 动态收录去重前置，保留原有兜底域名
@@ -293,32 +258,26 @@ class Test_RequestRetryAllFailException(unittest.TestCase):
             JmModuleConfig.register_image_domain('cdn-b.example')
             self.assertEqual(['cdn-b.example', 'cdn-new.example', 'cdn-a.example'], JmModuleConfig.DOMAIN_IMAGE_LIST)
 
-            # 关闭自动更新开关时不修改
-            JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = False
-            self.assertIsNone(JmModuleConfig.register_image_domain('https://cdn-ignored.example'))
-            self.assertNotIn('cdn-ignored.example', JmModuleConfig.DOMAIN_IMAGE_LIST)
-            JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = True
+            # 验证同步与异步 setting() 受 FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN 控制并自动收录 img_host
+            JmModuleConfig.DOMAIN_IMAGE_LIST = ['cdn-base.example']
 
-            # 用户显式替换 DOMAIN_IMAGE_LIST 引用时尊重用户配置，不自动注入
-            custom_list = ['my-private-cdn.example']
-            JmModuleConfig.DOMAIN_IMAGE_LIST = custom_list
-            self.assertIsNone(JmModuleConfig.register_image_domain('https://cdn-dynamic.example'))
-            self.assertEqual(['my-private-cdn.example'], custom_list)
-
-            # 恢复默认引用，验证同步与异步 setting() 自动收录 img_host
-            JmModuleConfig.DOMAIN_IMAGE_LIST = JmModuleConfig._DEFAULT_DOMAIN_IMAGE_LIST
-            JmModuleConfig.DOMAIN_IMAGE_LIST[:] = ['cdn-base.example']
-
-            sync_api = object.__new__(JmApiClient)
+            with patch.object(JmModuleConfig, 'FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN', False), \
+                    patch.object(JmModuleConfig, 'FLAG_API_CLIENT_REQUIRE_COOKIES', False):
+                sync_api = JmApiClient(SimpleNamespace(), ['api.example'], retry_times=0)
             fake_setting_resp = SimpleNamespace(
                 model_data=AdvancedDict({'jm3_version': '2.1.12', 'img_host': 'https://cdn-sync-setting.example'})
             )
             sync_api.req_api = Mock(return_value=fake_setting_resp)
             with patch.object(JmModuleConfig, 'FLAG_USE_VERSION_NEWER_IF_BEHIND', False):
+                JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = False
+                sync_api.setting()
+                self.assertEqual(['cdn-base.example'], JmModuleConfig.DOMAIN_IMAGE_LIST)
+
+                JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = True
                 sync_api.setting()
             self.assertEqual('cdn-sync-setting.example', JmModuleConfig.DOMAIN_IMAGE_LIST[0])
 
-            async_api = object.__new__(AsyncJmApiClient)
+            async_api = AsyncJmApiClient(JmOption.default(), domain_list=['api.example'])
             fake_async_resp = SimpleNamespace(
                 model_data=AdvancedDict({'jm3_version': '2.1.12', 'img_host': 'https://cdn-async-setting.example'})
             )
@@ -328,6 +287,5 @@ class Test_RequestRetryAllFailException(unittest.TestCase):
             self.assertEqual('cdn-async-setting.example', JmModuleConfig.DOMAIN_IMAGE_LIST[0])
             self.assertIn('cdn-sync-setting.example', JmModuleConfig.DOMAIN_IMAGE_LIST)
         finally:
-            JmModuleConfig._DEFAULT_DOMAIN_IMAGE_LIST[:] = orig_list
-            JmModuleConfig.DOMAIN_IMAGE_LIST = orig_ref
+            JmModuleConfig.DOMAIN_IMAGE_LIST = orig_list
             JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = orig_flag
