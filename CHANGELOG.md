@@ -20,13 +20,18 @@
 
 ### Changed
 
-- 同步客户端默认内置域名失败自动后置重试（与异步客户端一致），并将接口请求与图片下载统一为按 `retry_times` 次数重试；原 `advanced_retry` 插件废弃（保留旧配置兼容提示）。
+- 请求失败时自动切换到其他可用域名重试，接口请求与图片下载的总尝试次数统一为 1 + `retry_times`；不再需要 `advanced_retry` 插件，旧配置会提示可删除。
+- `zip`、`img2pdf`、`long_img` 插件未配置 `filename_rule` 时，默认文件名统一为“[JM车号]标题”（整本导出用本子车号和标题，按章导出用章节车号和标题）。`zip` 按章压缩的默认文件名由原来的“章节标题”变为“[JM章节车号]章节标题”。
+- `zip`、`img2pdf` 配置固定密码加密但未填写 `password` 时，会直接报错提示补充密码或改用随机密码。
 
 ### Fixed
 
 - 修复图片下载失败时重试次数按域名数量成倍放大的问题。
-- 修复 `zip` 插件配置在 `after_album`（未写或显式为 `null` 的已废弃 `level` 参数）时，被自动挪到 `after_photo` 按章压缩并误打过时提示日志的问题；统一 `zip`、`img2pdf`、`long_img` 未填 `filename_rule` 时的默认命名（`[JM{Aid}]{Atitle}` / `[JM{Pid}]{Ptitle}`），并优化 `img2pdf` 与 `long_img` 的输入收集与删除原图安全性。
-- 修复 `ProxyBuilder.system_proxy()` 读取系统代理时丢失 `socks5://` / `https://` 等协议头的问题。
+- 修复 `zip` 插件配置在 `after_album` 时被错误改为按章压缩、并误报参数过时的问题。
+- 修复 `img2pdf`、`long_img` 配置在 `after_album` 且未指定命名规则时报错的问题；章节目录中有非图片文件时不再导致合成失败，删除原图时只删除参与合成的图片。
+- 修复 `img2pdf` 配置加密但未安装 pikepdf 时，仍留下未加密 PDF 的问题，现会在生成前直接报错。
+- 修复 `zip` 插件配置加密但未安装 pyzipper / py7zr 时，报错信息无法看出缺少依赖的问题。
+- 修复读取系统代理时丢失 `socks5://`、`https://` 等协议的问题。
 - 修复 `zip` 插件在 `after_photo` 按章压缩多章本子时，误删其他章节原图或重复覆盖压缩包的问题。
 - 修复命令行 `jmcomic` 有下载失败时退出码仍为 `0` 的问题。
 - 修复 `option.copy_option()` 修改复制出来的配置时影响原配置的问题（登录状态仍保持共享）。

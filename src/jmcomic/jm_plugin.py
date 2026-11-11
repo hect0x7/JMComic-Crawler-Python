@@ -256,12 +256,15 @@ class JmOptionPlugin:
 
         raise PluginValidationException(self, msg)
 
-    def warning_lib_not_install(self, lib: str, throw=False):
+    def warning_lib_not_install(self, lib: str):
+        """
+        依赖库未安装时发出警告并抛出 PluginValidationException，由 option 按 plugins.valid 策略处理
+        """
         msg = (f'插件`{self.plugin_key}`依赖库: {lib}，请先安装{lib}再使用。'
                f'安装命令: [pip install {lib}]')
         import warnings
         warnings.warn(msg)
-        self.require_param(throw, msg)
+        raise PluginValidationException(self, msg)
 
     def execute_deletion(self, paths: List[str]):
         """
@@ -704,7 +707,7 @@ class ZipPlugin(JmOptionPlugin):
                 # noinspection PyUnresolvedReferences
                 import py7zr
             except ImportError:
-                self.warning_lib_not_install('py7zr', True)
+                self.warning_lib_not_install('py7zr')
 
             # noinspection PyUnboundLocalVariable
             filters = [{'id': py7zr.FILTER_COPY}]
@@ -714,7 +717,7 @@ class ZipPlugin(JmOptionPlugin):
                 # noinspection PyUnresolvedReferences
                 import pyzipper
             except ImportError:
-                self.warning_lib_not_install('pyzipper', True)
+                self.warning_lib_not_install('pyzipper')
 
             # noinspection PyUnboundLocalVariable
             aes_zip_file = pyzipper.AESZipFile(zip_path, "w", pyzipper.ZIP_DEFLATED)
@@ -1749,6 +1752,12 @@ class Img2pdfPlugin(JmOptionPlugin):
             self.log(f'所有文件夹都不存在图片，无法生成pdf：{raw_dirs}', 'error')
             return
 
+        # 配置了加密时，在生成 pdf 之前确认加密依赖与密码，避免写出 pdf 后才失败而留下未加密文件
+        password = None
+        if encrypt:
+            self.require_pikepdf()
+            password, _ = self.decide_password(encrypt, pdf_filepath)
+
         try:
             pdf_bytes = img2pdf.convert(img_path_ls)
             valid_img_paths = img_path_ls
@@ -1768,18 +1777,23 @@ class Img2pdfPlugin(JmOptionPlugin):
             f.write(pdf_bytes)
 
         if encrypt:
-            self.encrypt_pdf(pdf_filepath, encrypt)
+            self.encrypt_pdf(pdf_filepath, encrypt, password)
 
         return valid_img_paths, img_dir_ls
 
-    def encrypt_pdf(self, pdf_filepath: str, encrypt: dict):
+    def require_pikepdf(self):
         try:
-            import pikepdf
+            import pikepdf  # noqa: F401
         except ImportError:
+            # 未安装时抛出 PluginValidationException，由 option 按插件异常策略处理
             self.warning_lib_not_install('pikepdf')
-            return
 
-        password, _ = self.decide_password(encrypt, pdf_filepath)
+    def encrypt_pdf(self, pdf_filepath: str, encrypt: dict, password: Optional[str] = None):
+        self.require_pikepdf()
+        import pikepdf
+
+        if password is None:
+            password, _ = self.decide_password(encrypt, pdf_filepath)
         with pikepdf.open(pdf_filepath, allow_overwriting_input=True) as pdf:
             pdf.save(pdf_filepath, encryption=pikepdf.Encryption(user=password, owner=password))
 

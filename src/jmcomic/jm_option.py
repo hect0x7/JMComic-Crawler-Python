@@ -198,7 +198,8 @@ class JmOption:
         # 插件配置
         self.plugins = AdvancedDict(plugins)
         # 认证配置
-        self.auth = AdvancedDict(auth or {})
+        # 仅在未传入时新建，传入空 dict 也直接引用，保证 copy_option 出来的副本与原 option 共享同一 auth
+        self.auth = AdvancedDict(auth if auth is not None else {})
         self.resolve_auth_env()
         self._auth_sync_lock = RLock()
         self._auth_async_lock = None

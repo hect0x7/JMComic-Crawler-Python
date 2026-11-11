@@ -979,6 +979,23 @@ class Test_Async_Html_Client(unittest.TestCase):
         copied.update_cookies({'AVS': 'refreshed_cookie'})
         self.assertEqual(option.auth.cookies['AVS'], 'refreshed_cookie')
 
+    def test_copy_option_shares_empty_auth(self):
+        """直接构造且 auth 为空（None 或 {}）时，copy_option 的副本同样与原 option 共享 auth。"""
+        base = JmOption.default()
+        for auth in (None, {}):
+            option = JmOption(
+                dir_rule={'rule': base.dir_rule.rule_dsl, 'base_dir': base.dir_rule.base_dir},
+                download=base.download.src_dict,
+                client=base.client.src_dict,
+                plugins=base.plugins.src_dict,
+                call_after_init_plugin=False,
+                auth=auth,
+            )
+            copied = option.copy_option()
+            self.assertIs(copied.auth.src_dict, option.auth.src_dict, f'auth={auth!r}')
+            option.auth.cookies = {'AVS': 'logged_in_cookie'}
+            self.assertEqual(copied.auth.cookies['AVS'], 'logged_in_cookie', f'auth={auth!r}')
+
     @unittest.skipUnless(
         os.environ.get('JM_RUN_REAL_ASYNC_HTML') == '1',
         'set JM_RUN_REAL_ASYNC_HTML=1 for the network smoke test',
