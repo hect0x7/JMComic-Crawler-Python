@@ -521,7 +521,7 @@ class ZipPlugin(JmOptionPlugin):
                photo: JmPhotoDetail = None,
                delete_original_file=False,
                level=None,
-               filename_rule='Ptitle',
+               filename_rule=None,
                suffix='zip',
                zip_dir='./',
                dir_rule=None,
@@ -534,6 +534,8 @@ class ZipPlugin(JmOptionPlugin):
         # level 自动推导：有 album 则合并打包，只有 photo 则单章打包
         if level is None:
             level = 'album' if album is not None else 'photo'
+        if filename_rule is None:
+            filename_rule = 'Atitle' if level == 'album' else 'Ptitle'
         self.level = level
         self.delete_original_file = delete_original_file
         # 未开启 strict_dependencies 时也拦掉非法的 encrypt 类型
@@ -1629,7 +1631,7 @@ class Img2pdfPlugin(JmOptionPlugin):
                album: JmAlbumDetail = None,
                downloader=None,
                pdf_dir=None,
-               filename_rule='Pid',
+               filename_rule=None,
                dir_rule=None,
                delete_original_file=False,
                encrypt=None,
@@ -1637,6 +1639,9 @@ class Img2pdfPlugin(JmOptionPlugin):
                ):
         if photo is None and album is None:
             jm_log('wrong_usage', 'img2pdf必须运行在after_photo或after_album时')
+
+        if filename_rule is None:
+            filename_rule = 'Aid' if photo is None else 'Pid'
 
         encrypt = self.check_encrypt_param(encrypt)
 
@@ -1667,27 +1672,29 @@ class Img2pdfPlugin(JmOptionPlugin):
                  f'[{detail}] → [{pdf_filepath}]', 'finish')
 
         # 执行删除
-        img_path_ls += img_dir_ls
+        img_path_ls += sorted(img_dir_ls, key=lambda d: len(os.path.abspath(d)), reverse=True)
         self.execute_deletion(img_path_ls)
 
     def write_img_2_pdf(self, pdf_filepath, album: JmAlbumDetail, photo: JmPhotoDetail, encrypt):
         import img2pdf
 
         if album is None:
-            img_dir_ls = [self.option.decide_image_save_dir(photo)]
+            raw_dirs = [self.option.decide_image_save_dir(photo, ensure_exists=False)]
         else:
-            img_dir_ls = [self.option.decide_image_save_dir(photo) for photo in album]
+            raw_dirs = [self.option.decide_image_save_dir(photo, ensure_exists=False) for photo in album]
 
+        img_dir_ls = [d for d in dict.fromkeys(raw_dirs) if os.path.isdir(d)]
         img_path_ls = []
+        seen_paths = set()
 
         for img_dir in img_dir_ls:
-            imgs = files_of_dir(img_dir)
-            if not imgs:
-                continue
-            img_path_ls += imgs
+            for p in files_of_dir(img_dir):
+                if os.path.isfile(p) and not os.path.basename(p).startswith('.') and p not in seen_paths:
+                    seen_paths.add(p)
+                    img_path_ls.append(p)
 
         if len(img_path_ls) == 0:
-            self.log(f'所有文件夹都不存在图片，无法生成pdf：{img_dir_ls}', 'error')
+            self.log(f'所有文件夹都不存在图片，无法生成pdf：{raw_dirs}', 'error')
             return
 
         with open(pdf_filepath, 'wb') as f:
@@ -1718,13 +1725,16 @@ class LongImgPlugin(JmOptionPlugin):
                album: JmAlbumDetail = None,
                downloader=None,
                img_dir=None,
-               filename_rule='Pid',
+               filename_rule=None,
                delete_original_file=False,
                dir_rule=None,
                **kwargs,
                ):
         if photo is None and album is None:
             jm_log('wrong_usage', 'long_img必须运行在after_photo或after_album时')
+
+        if filename_rule is None:
+            filename_rule = 'Aid' if photo is None else 'Pid'
 
         try:
             from PIL import Image
@@ -1754,22 +1764,29 @@ class LongImgPlugin(JmOptionPlugin):
         self.execute_deletion(img_path_ls)
 
     def write_img_2_long_img(self, long_img_path, album: JmAlbumDetail, photo: JmPhotoDetail) -> Optional[List[str]]:
-        import itertools
         from PIL import Image
 
         if album is None:
-            img_dir_items = [self.option.decide_image_save_dir(photo)]
+            raw_dirs = [self.option.decide_image_save_dir(photo, ensure_exists=False)]
         else:
-            img_dir_items = [self.option.decide_image_save_dir(photo) for photo in album]
+            raw_dirs = [self.option.decide_image_save_dir(photo, ensure_exists=False) for photo in album]
 
-        img_paths = itertools.chain(*map(files_of_dir, img_dir_items))
-        img_paths = list(filter(lambda x: not x.startswith('.'), img_paths))  # 过滤系统文件
+        img_dir_items = [d for d in dict.fromkeys(raw_dirs) if os.path.isdir(d)]
+        img_paths = []
+        seen_paths = set()
+        for img_dir in img_dir_items:
+            for p in files_of_dir(img_dir):
+                if os.path.isfile(p) and not os.path.basename(p).startswith('.') and p not in seen_paths:
+                    seen_paths.add(p)
+                    img_paths.append(p)
 
         if not img_paths:
-            self.log(f'所有文件夹都不存在图片，无法生成long_img：{img_paths}', 'error')
+            self.log(f'所有文件夹都不存在图片，无法生成long_img：{raw_dirs}', 'error')
             return
 
         images = self.open_images(img_paths)
+        if not images:
+            return
 
         try:
             resample_method = Image.Resampling.LANCZOS

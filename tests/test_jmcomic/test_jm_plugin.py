@@ -947,3 +947,243 @@ class Test_Plugin(JmTestConfigurable):
                 self.assertEqual(['00001.webp', '00002.webp'], sorted(z2.namelist()))
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_zip_migrate_level_only_when_explicit(self):
+        """
+        验证 _migrate_zip_level 仅在用户显式配置了已废弃的 level 参数时触发迁移与提示日志：
+        1. after_album / after_photo 未配置 level 时保持原钩子不变，且不打印 option.migrate 日志；
+        2. after_album + level=photo 自动迁移至 after_photo 并移除 level；
+        3. after_photo + level=album 自动迁移至 after_album 并移除 level；
+        4. level 与所在钩子一致时保持原钩子，移除 level 并打印过时提示。
+        """
+        from unittest.mock import patch
+        from jmcomic import JmOption
+
+        # 1) 未写 level：after_album 与 after_photo 均原样保留，不打迁移日志
+        with patch('jmcomic.jm_option.jm_log') as mock_log:
+            opt_album = JmOption.construct({
+                'plugins': {
+                    'after_album': [{'plugin': 'zip', 'kwargs': {'zip_dir': './z'}}],
+                }
+            })
+            opt_photo = JmOption.construct({
+                'plugins': {
+                    'after_photo': [{'plugin': 'zip', 'kwargs': {'zip_dir': './z'}}],
+                }
+            })
+        self.assertEqual(1, len(opt_album.plugins['after_album']))
+        self.assertNotIn('after_photo', opt_album.plugins)
+        self.assertEqual(1, len(opt_photo.plugins['after_photo']))
+        self.assertNotIn('after_album', opt_photo.plugins)
+        migrate_calls = [c for c in mock_log.call_args_list if c.args and c.args[0] == 'option.migrate']
+        self.assertEqual([], migrate_calls)
+
+        # 2) after_album + level=photo -> 迁移到 after_photo
+        with patch('jmcomic.jm_option.jm_log') as mock_log:
+            opt_m1 = JmOption.construct({
+                'plugins': {
+                    'after_album': [{'plugin': 'zip', 'kwargs': {'level': 'photo', 'zip_dir': './z'}}],
+                }
+            })
+        self.assertEqual([], opt_m1.plugins.src_dict['after_album'])
+        self.assertEqual([{'plugin': 'zip', 'kwargs': {'zip_dir': './z'}}], opt_m1.plugins.src_dict['after_photo'])
+        self.assertEqual(1, sum(1 for c in mock_log.call_args_list if c.args and c.args[0] == 'option.migrate'))
+
+        # 3) after_photo + level=album -> 迁移到 after_album
+        with patch('jmcomic.jm_option.jm_log') as mock_log:
+            opt_m2 = JmOption.construct({
+                'plugins': {
+                    'after_photo': [{'plugin': 'zip', 'kwargs': {'level': 'album', 'zip_dir': './z'}}],
+                }
+            })
+        self.assertEqual([], opt_m2.plugins.src_dict['after_photo'])
+        self.assertEqual([{'plugin': 'zip', 'kwargs': {'zip_dir': './z'}}], opt_m2.plugins.src_dict['after_album'])
+        self.assertEqual(1, sum(1 for c in mock_log.call_args_list if c.args and c.args[0] == 'option.migrate'))
+
+        # 4) 冗余但方向一致的 level -> 留在原钩子、移除 level 并提示一次
+        for group, lv in (('after_album', 'album'), ('after_photo', 'photo')):
+            with patch('jmcomic.jm_option.jm_log') as mock_log:
+                opt_same = JmOption.construct({
+                    'plugins': {
+                        group: [{'plugin': 'zip', 'kwargs': {'level': lv, 'zip_dir': './z'}}],
+                    }
+                })
+            self.assertEqual([{'plugin': 'zip', 'kwargs': {'zip_dir': './z'}}], opt_same.plugins.src_dict[group])
+            self.assertEqual(1, sum(1 for c in mock_log.call_args_list if c.args and c.args[0] == 'option.migrate'))
+
+    def test_after_album_zip_without_level_merges_chapters_with_default_filename_rule(self):
+        """
+        用户不写 version、不写 level、也不写 filename_rule，直接将 zip 配在 after_album 时：
+        1. after_photo 阶段不应触发按章打包；
+        2. after_album 阶段应默认以 Atitle 命名，将多章图片合并进同一个压缩包，并清理所有章节原图。
+        """
+        import shutil
+        import tempfile
+        import zipfile
+        from jmcomic import JmAlbumDetail, JmOption, JmPhotoDetail
+        from jmcomic.jm_downloader import JmDownloader
+
+        tmp = tempfile.mkdtemp(prefix='jm_test_zip_after_album_')
+        try:
+            img_base = os.path.join(tmp, 'images')
+            zip_base = os.path.join(tmp, 'zips')
+            opt = JmOption.construct({
+                'dir_rule': {
+                    'base_dir': img_base,
+                    'rule': 'Bd / Aid / Ptitle',
+                },
+                'plugins': {
+                    'after_album': [{
+                        'plugin': 'zip',
+                        'kwargs': {
+                            'zip_dir': zip_base,
+                            'delete_original_file': True,
+                        },
+                        'safe': False,
+                    }],
+                },
+            })
+
+            album = JmAlbumDetail(
+                album_id='145504',
+                scramble_id='0',
+                name='整本合并测试本',
+                episode_list=[('145504', '1', '第一章'), ('145505', '2', '第二章')],
+                page_count=2,
+                pub_date='',
+                update_date='',
+                likes='',
+                views='',
+                comment_count=0,
+                works=[],
+                actors=[],
+                tags=[],
+                authors=[],
+                description='',
+            )
+            photo1 = JmPhotoDetail(
+                photo_id='145504',
+                scramble_id='0',
+                name='第一章',
+                series_id='145504',
+                sort='1',
+                page_arr=['00001.webp'],
+                data_original_domain='example.com',
+                from_album=album,
+            )
+            photo2 = JmPhotoDetail(
+                photo_id='145505',
+                scramble_id='0',
+                name='第二章',
+                series_id='145504',
+                sort='2',
+                page_arr=['00001.webp'],
+                data_original_domain='example.com',
+                from_album=album,
+            )
+
+            dir1 = opt.decide_image_save_dir(photo1)
+            dir2 = opt.decide_image_save_dir(photo2)
+            p1_img = os.path.join(dir1, '00001.webp')
+            p2_img = os.path.join(dir2, '00001.webp')
+            for p, content in ((p1_img, b'chap1'), (p2_img, b'chap2')):
+                with open(p, 'wb') as f:
+                    f.write(content)
+
+            dler = JmDownloader(opt)
+            dler.begin_manifest(album)
+            dler.download_success_dict[album] = {
+                photo1: [(p1_img, None)],
+                photo2: [(p2_img, None)],
+            }
+
+            # after_photo 不应触发任何 zip
+            dler.after_photo(photo1)
+            dler.after_photo(photo2)
+            self.assertFalse(os.path.exists(zip_base))
+            self.assertTrue(os.path.exists(p1_img))
+            self.assertTrue(os.path.exists(p2_img))
+
+            # after_album 合并为一个整本压缩包（默认 Atitle.zip）
+            dler.after_album(album)
+            merged_zip = os.path.join(zip_base, '整本合并测试本.zip')
+            self.assertTrue(os.path.isfile(merged_zip))
+            with zipfile.ZipFile(merged_zip, 'r') as zf:
+                names = sorted(n.replace('\\', '/') for n in zf.namelist())
+                self.assertEqual(['第一章/00001.webp', '第二章/00001.webp'], names)
+            self.assertFalse(os.path.exists(dir1))
+            self.assertFalse(os.path.exists(dir2))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_img2pdf_and_long_img_after_album_default_filename_rule(self):
+        """
+        验证 img2pdf 与 long_img 插件在 after_album（photo=None）且未显式指定 filename_rule 时：
+        1. 自动回退为 Aid 命名而不会因默认 Pid 触发 AttributeError；
+        2. 存在空标题章节（目录落到本子根目录）或未下载章节时，不会误建空目录，也不会把子目录当作图片文件读取。
+        """
+        import shutil
+        import tempfile
+        import types
+        from PIL import Image
+        from jmcomic import JmAlbumDetail, JmModuleConfig, JmOption, JmPhotoDetail
+        from unittest.mock import patch
+
+        tmp = tempfile.mkdtemp(prefix='jm_test_export_default_rule_')
+        try:
+            img_base = os.path.join(tmp, 'images')
+            out_base = os.path.join(tmp, 'out')
+            opt = JmOption.construct({
+                'dir_rule': {
+                    'base_dir': img_base,
+                    'rule': 'Bd / Aid / Ptitle',
+                },
+            })
+            album = JmAlbumDetail(
+                album_id='438516',
+                scramble_id='0',
+                name='导出默认命名测试',
+                episode_list=[('438516', '1', '单章'), ('438517', '2', ''), ('438518', '3', '未下载章')],
+                page_count=1,
+                pub_date='',
+                update_date='',
+                likes='',
+                views='',
+                comment_count=0,
+                works=[],
+                actors=[],
+                tags=[],
+                authors=[],
+                description='',
+            )
+            photo = JmPhotoDetail(
+                photo_id='438516',
+                scramble_id='0',
+                name='单章',
+                series_id='0',
+                sort='1',
+                page_arr=['00001.png'],
+                data_original_domain='example.com',
+                from_album=album,
+            )
+            save_dir = opt.decide_image_save_dir(photo)
+            img_file = os.path.join(save_dir, '00001.png')
+            Image.new('RGB', (4, 4), color='white').save(img_file)
+
+            long_cls = JmModuleConfig.REGISTRY_PLUGIN['long_img']
+            long_cls(opt).invoke(album=album, photo=None, img_dir=out_base)
+            self.assertTrue(os.path.isfile(os.path.join(out_base, '438516.png')))
+            self.assertFalse(os.path.exists(os.path.join(img_base, '438516', '未下载章')))
+
+            converted_inputs = []
+            fake_img2pdf = types.SimpleNamespace(
+                convert=lambda paths: (converted_inputs.extend(paths) or b'%PDF-1.4\n')
+            )
+            pdf_cls = JmModuleConfig.REGISTRY_PLUGIN['img2pdf']
+            with patch.dict('sys.modules', {'img2pdf': fake_img2pdf}):
+                pdf_cls(opt).invoke(album=album, photo=None, pdf_dir=out_base)
+            self.assertTrue(os.path.isfile(os.path.join(out_base, '438516.pdf')))
+            self.assertEqual([os.path.normpath(img_file)], [os.path.normpath(p) for p in converted_inputs])
+            self.assertFalse(os.path.exists(os.path.join(img_base, '438516', '未下载章')))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)

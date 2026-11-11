@@ -445,18 +445,17 @@ class DownloadResult(NamedTuple):
     @property
     def album(self):
         """下载的本子实体。"""
-        from .jm_entity import JmAlbumDetail, JmPhotoDetail
-        if isinstance(self.detail, JmAlbumDetail):
+        if self.detail.is_album():
             return self.detail
-        if isinstance(self.detail, JmPhotoDetail):
+        if self.detail.is_photo():
+            # noinspection PyUnresolvedReferences
             return self.detail.from_album
         return None
 
     @property
     def photo(self):
         """下载的章节实体（若为章节下载）。"""
-        from .jm_entity import JmPhotoDetail
-        if isinstance(self.detail, JmPhotoDetail):
+        if self.detail.is_photo():
             return self.detail
         return None
 

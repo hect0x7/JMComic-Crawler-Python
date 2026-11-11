@@ -423,15 +423,14 @@ class JmOption:
             i = 0
             while i < len(plugin_list):
                 pinfo = plugin_list[i]
-                if pinfo.get('plugin') != 'zip':
+                if not isinstance(pinfo, dict) or pinfo.get('plugin') != 'zip':
                     i += 1
                     continue
-                kwargs = pinfo.get('kwargs') or {}
-                if 'level' not in kwargs:
-                    # 旧版本默认值是 'photo'
-                    level = 'photo'
-                else:
-                    level = kwargs.pop('level')
+                kwargs = pinfo.get('kwargs')
+                if not isinstance(kwargs, dict) or 'level' not in kwargs:
+                    i += 1
+                    continue
+                level = kwargs.pop('level')
 
                 if group == 'after_album' and level != 'album':
                     # after_album + level=photo → 等价迁移到 after_photo
@@ -446,9 +445,8 @@ class JmOption:
                     log_advice('你的当前配置为：在单章节下载完毕后对全本进行压缩', plugins)
 
                 else:
-                    if level != 'photo':
-                        jm_log('option.migrate',
-                               '[zip 插件迁移] level 参数已过时，你可以直接删除该参数，不会有任何影响')
+                    jm_log('option.migrate',
+                           '[zip 插件迁移] level 参数已过时，你可以直接删除该参数，不会有任何影响')
                     i += 1
 
     def deconstruct(self) -> Dict:
