@@ -153,7 +153,7 @@ plugins:
   # dependencies_strategy: 插件依赖缺失时的处理策略（默认: failed-fast）
   #   - failed-fast (默认): 启动阶段直接报错并提示安装命令
   #   - auto-install: 启动时自动调用 pip 安装缺失依赖
-  #   - ignore-only-log: 仅打印 Warning 日志并跳过缺依赖的插件，不阻断主流程
+  #   - ignore-only-log: 缺失时仅打印警告日志，初始化阶段不报错
   dependencies_strategy: failed-fast
 
   after_init:

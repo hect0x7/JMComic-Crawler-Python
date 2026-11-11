@@ -74,7 +74,7 @@ create_option('myoption.yml')
 
 ```yaml
 dir_rule:
-  rule: Bd_Aid
+  rule: Bd / {Aid} / {Ptitle}
   base_dir: ./downloads
 
 download:

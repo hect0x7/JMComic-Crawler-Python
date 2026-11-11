@@ -27,6 +27,7 @@
 - 修复同步客户端与 `AdvancedRetryPlugin` 请求完整图片 URL（非 `'/'` 开头）失败时，外层仍按 API 域名列表长度重复放大重试次数的问题。
 - 修复命令行 `jmcomic` 在批量下载存在失败项或混合模式后台线程抛错时仍以退出码 `0` 结束的问题，失败时统一返回非零退出码。
 - 修复 `JmOption.copy_option()` 浅拷贝共享 `download`、`client`、`plugins` 可变配置字典导致修改串联污染的问题，同时保留 `auth` 登录状态跨副本共享。
+- 修复 `ZipPlugin`（`zip` 插件）配置在 `after_photo` 下下载多章节本子时，跨章节重复打包覆盖并提前误删其他章节图片的问题。
 
 ### Removed
 

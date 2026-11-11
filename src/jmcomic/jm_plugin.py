@@ -560,14 +560,16 @@ class ZipPlugin(JmOptionPlugin):
         else:
             ExceptionTool.raises(f'Not Implemented Zip Level: {level}')
 
-        self.after_zip(path_to_delete)
+        self.after_zip(path_to_delete, photo_dict)
 
     # noinspection PyMethodMayBeStatic
     def get_downloaded_photo(self, downloader, album, photo):
         return (
             downloader.download_success_dict[album]
             if album is not None  # after_album
-            else downloader.download_success_dict[photo.from_album]  # after_photo
+            else {
+                photo: downloader.download_success_dict.get(photo.from_album, {}).get(photo, [])
+            }  # after_photo
         )
 
     def zip_photo(self, photo, image_list: list, zip_path: str, path_to_delete, encrypt_dict):
@@ -613,12 +615,11 @@ class ZipPlugin(JmOptionPlugin):
         self.log(f'{album.alias_cn()}压缩成功！'
                  f'[{album}] → [{zip_path}]', 'finish')
 
-    def after_zip(self, path_to_delete: List[str]):
+    def after_zip(self, path_to_delete: List[str], photo_dict: dict):
         # 删除所有原文件
         dirs = sorted(path_to_delete, reverse=True)
         image_paths = [
             path
-            for photo_dict in self.downloader.download_success_dict.values()
             for image_list in photo_dict.values()
             for path, image in image_list
         ]

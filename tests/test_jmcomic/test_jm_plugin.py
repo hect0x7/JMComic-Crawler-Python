@@ -832,3 +832,118 @@ class Test_Plugin(JmTestConfigurable):
                 self.assertNotEqual(main_thread, export_calls[3][0])
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_zip_plugin_after_photo_scopes_to_current_photo(self):
+        """
+        多章节本子将 zip 插件配置在 after_photo 且开启 delete_original_file=True 时：
+        1. 第一章完成时只打包并删除第一章的图片与目录，不得误删正在下载的第二章图片/目录；
+        2. 第二章完成时只打包并删除第二章的图片与目录，不得覆盖清空第一章已生成的 zip，也不得因第一章目录已删除而抛 FileNotFoundError。
+        """
+        import shutil
+        import tempfile
+        import zipfile
+        from jmcomic import JmAlbumDetail, JmOption, JmPhotoDetail
+        from jmcomic.jm_downloader import JmDownloader
+
+        tmp = tempfile.mkdtemp(prefix='jm_test_zip_after_photo_')
+        try:
+            img_base = os.path.join(tmp, 'images')
+            zip_base = os.path.join(tmp, 'zips')
+            opt = JmOption.construct({
+                'dir_rule': {
+                    'base_dir': img_base,
+                    'rule': 'Bd / {Aid} / {Ptitle}',
+                },
+                'plugins': {
+                    'after_photo': [{
+                        'plugin': 'zip',
+                        'kwargs': {
+                            'filename_rule': 'Ptitle',
+                            'zip_dir': zip_base,
+                            'delete_original_file': True,
+                        },
+                        'safe': False,
+                    }],
+                },
+            })
+
+            album = JmAlbumDetail(
+                album_id='145504',
+                scramble_id='0',
+                name='测试多章本子',
+                episode_list=[('145504', '1', '第一章', ''), ('145505', '2', '第二章', '')],
+                page_count=4,
+                pub_date='',
+                update_date='',
+                likes='',
+                views='',
+                comment_count=0,
+                works=[],
+                actors=[],
+                tags=[],
+                authors=[],
+                description='',
+            )
+            photo1 = JmPhotoDetail(
+                photo_id='145504',
+                scramble_id='0',
+                name='第一章',
+                series_id='145504',
+                sort='1',
+                page_arr=['00001.webp', '00002.webp'],
+                data_original_domain='example.com',
+                from_album=album,
+            )
+            photo2 = JmPhotoDetail(
+                photo_id='145505',
+                scramble_id='0',
+                name='第二章',
+                series_id='145504',
+                sort='2',
+                page_arr=['00001.webp', '00002.webp'],
+                data_original_domain='example.com',
+                from_album=album,
+            )
+
+            dir1 = opt.decide_image_save_dir(photo1)
+            dir2 = opt.decide_image_save_dir(photo2)
+            p1_img1 = os.path.join(dir1, '00001.webp')
+            p1_img2 = os.path.join(dir1, '00002.webp')
+            p2_img1 = os.path.join(dir2, '00001.webp')
+            p2_img2 = os.path.join(dir2, '00002.webp')
+            for p in (p1_img1, p1_img2, p2_img1):
+                with open(p, 'wb') as f:
+                    f.write(b'img_data')
+
+            dler = JmDownloader(opt)
+            dler.begin_manifest(album)
+            # 模拟两章并发启动：photo1 已下完两张图，photo2 刚下完第一张图
+            dler.download_success_dict[album] = {
+                photo1: [(p1_img1, None), (p1_img2, None)],
+                photo2: [(p2_img1, None)],
+            }
+
+            # 1) photo1 触发 after_photo
+            dler.after_photo(photo1)
+            zip1_path = os.path.join(zip_base, '第一章.zip')
+            zip2_path = os.path.join(zip_base, '第二章.zip')
+            self.assertTrue(os.path.exists(zip1_path))
+            self.assertFalse(os.path.exists(zip2_path))
+            self.assertFalse(os.path.exists(dir1))
+            # photo2 仍在下载中的图片和目录必须完好无损
+            self.assertTrue(os.path.exists(p2_img1))
+
+            # 2) photo2 随后下完第二张图并触发 after_photo
+            with open(p2_img2, 'wb') as f:
+                f.write(b'img_data')
+            dler.download_success_dict[album][photo2].append((p2_img2, None))
+            dler.after_photo(photo2)
+
+            self.assertTrue(os.path.exists(zip2_path))
+            self.assertFalse(os.path.exists(dir2))
+            with zipfile.ZipFile(zip1_path, 'r') as z1:
+                self.assertEqual(['00001.webp', '00002.webp'], sorted(z1.namelist()))
+            with zipfile.ZipFile(zip2_path, 'r') as z2:
+                self.assertEqual(['00001.webp', '00002.webp'], sorted(z2.namelist()))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)

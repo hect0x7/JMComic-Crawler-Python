@@ -479,7 +479,7 @@ class Test_Download_Manifest(unittest.TestCase):
             def fake_zip_album(*args, **kwargs):
                 order.append(('zip_album', expected_path))
 
-            def fake_after_zip(_paths):
+            def fake_after_zip(_paths, _photo_dict):
                 order.append(('after_zip', None))
                 self.assertEqual(
                     downloader.manifest_dict[album].export_filepath_dict,
@@ -522,7 +522,7 @@ class Test_Download_Manifest(unittest.TestCase):
                 self.assertEqual(zip_path, expected_path)
                 order.append(('zip_photo', current_photo, zip_path))
 
-            def fake_after_zip(_paths):
+            def fake_after_zip(_paths, _photo_dict):
                 order.append(('after_zip', None, None))
                 self.assertEqual(
                     downloader.manifest_dict[album].export_filepath_dict,
