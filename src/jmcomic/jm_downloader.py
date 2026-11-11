@@ -159,7 +159,9 @@ class BaseDownloader(DownloadCallback):
     def __init__(self, option: JmOption):
         self.option = option
         self.client = None
-        # 下载成功的记录dict
+        # 下载成功记录：album -> photo -> [(recorded_path, image)]
+        # recorded_path 已弃用，仅保留下载完成时的路径快照以兼容元组结构。
+        # 内部读取统一使用 image.save_path，不再回退到 recorded_path。
         self.download_success_dict: Dict[JmAlbumDetail, Dict[JmPhotoDetail, List[Tuple[str, JmImageDetail]]]] = {}
         # 下载失败的记录list
         self.download_failed_image: List[Tuple[JmImageDetail, BaseException]] = []

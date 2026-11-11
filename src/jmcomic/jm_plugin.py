@@ -181,9 +181,10 @@ class JmOptionPlugin:
                     recorded_dirs.append(p_dir)
                 sorted_imgs = sorted(
                     img_list,
-                    key=lambda item: (getattr(item[1], 'index', 0) if item[1] is not None else 0, item[0]),
+                    key=lambda item: (item[1].index, item[1].save_path),
                 )
-                for path, _img in sorted_imgs:
+                for _, image in sorted_imgs:
+                    path = image.save_path
                     if os.path.isfile(path) and path not in seen_paths:
                         seen_paths.add(path)
                         recorded_paths.append(path)
@@ -345,7 +346,8 @@ class JmOptionPlugin:
     @classmethod
     def check_encrypt_param(cls, encrypt):
         """
-        校验 encrypt 配置的类型，返回规范化后的值（未配置时返回 None）。
+        校验 encrypt 配置的类型与必填密码，返回配置（未配置时返回 None）。
+        固定密码必须显式提供 password，随机密码使用 type: random。
 
         encrypt 必须是映射（如 {type: random} 或 {password: xxx}），
         写成真值标量（encrypt: enabled）时后续的 encrypt.get(...) 会抛
@@ -359,7 +361,18 @@ class JmOptionPlugin:
                 f'{plugin_name}插件的encrypt参数类型有误，预期为映射（如 {{type: random}} 或 {{password: xxx}}），'
                 f'实际类型为{type(encrypt)}'
             )
+        # 必须显式配置 password；允许为空字符串，是否可用由底层加密库决定
+        if encrypt.get('type') != 'random' and 'password' not in encrypt:
+            ExceptionTool.raises(f'{cls.plugin_key}插件的encrypt参数缺少password，请配置password或使用 type: random')
         return encrypt
+
+    @classmethod
+    def encrypt_dependencies(cls, encrypt: dict) -> tuple:
+        """
+        返回当前加密实现所需的依赖库，由子类按配置重写。
+        初始化阶段的依赖预检与 decide_password 共用此声明。
+        """
+        raise NotImplementedError
 
     @classmethod
     def generate_random_str(cls, random_length) -> str:
@@ -375,7 +388,30 @@ class JmOptionPlugin:
             random_str += base_str[random.randint(0, base_length)]
         return random_str
 
-    def decide_password(self, encrypt_dict: dict, filepath: str):
+    def decide_password(self,
+                        encrypt_dict: Optional[dict],
+                        filepath: str,
+                        ) -> Tuple[Optional[str], bool]:
+        """
+        统一校验加密配置、检查加密依赖并决定密码。
+        未配置加密时返回 (None, False)，否则返回 (密码, 是否为随机密码)。
+        每个输出文件调用一次，下层写入方法直接使用返回的密码。
+        """
+        if encrypt_dict is None:
+            return None, False
+
+        # 直接调用插件时也校验配置，不依赖 option 初始化阶段的预检
+        self.check_encrypt_param(encrypt_dict)
+
+        # 写出文件之前确认加密依赖可用
+        for dependency in self.encrypt_dependencies(encrypt_dict):
+            import_name, pip_name = self.parse_dependency_spec(dependency)
+            try:
+                __import__(import_name)
+            except ImportError:
+                # 抛出 PluginValidationException，由 option 按插件异常策略处理
+                self.warning_lib_not_install(pip_name)
+
         encrypt_type = encrypt_dict.get('type', '')
         is_random = False
 
@@ -384,9 +420,6 @@ class JmOptionPlugin:
             password = self.generate_random_str(48)
             self.log(f'生成随机密码: [{password}] → [{filepath}]', 'encrypt')
         else:
-            # 必须显式配置 password；允许为空字符串，是否可用由底层加密库决定
-            if 'password' not in encrypt_dict:
-                ExceptionTool.raises(f'{self.plugin_key}插件的encrypt参数缺少password，请配置password或使用 type: random')
             password = str(encrypt_dict['password'])
             self.log(f'使用指定密码: [{password}] → [{filepath}]', 'encrypt')
 
@@ -576,8 +609,12 @@ class ZipPlugin(JmOptionPlugin):
     @classmethod
     def required_dependencies_for(cls, kwargs: dict) -> tuple:
         encrypt = cls.check_encrypt_param(kwargs.get('encrypt'))
-        if not encrypt:
+        if encrypt is None:
             return ()
+        return cls.encrypt_dependencies(encrypt)
+
+    @classmethod
+    def encrypt_dependencies(cls, encrypt: dict) -> tuple:
         if encrypt.get('impl', '') == '7z':
             return ('py7zr',)
         return ('pyzipper',)
@@ -606,8 +643,6 @@ class ZipPlugin(JmOptionPlugin):
             filename_rule = self.default_export_filename_rule(level == 'album')
         self.level = level
         self.delete_original_file = delete_original_file
-        # 未开启 strict_dependencies 时也拦掉非法的 encrypt 类型
-        encrypt = self.check_encrypt_param(encrypt)
 
         # 确保压缩文件所在文件夹存在
         zip_dir = JmcomicText.parse_to_abspath(zip_dir)
@@ -618,13 +653,25 @@ class ZipPlugin(JmOptionPlugin):
 
         if level == 'album':
             zip_path = self.decide_filepath(album, None, filename_rule, suffix, zip_dir, dir_rule)
-            self.zip_album(album, photo_dict, zip_path, path_to_delete, encrypt)
+            password, is_random = self.decide_password(encrypt, zip_path)
+            with self.open_zip_file(zip_path, encrypt, password, is_random) as f:
+                self.zip_album(album, photo_dict, path_to_delete, f)
+
+            # 归档关闭成功后打印结果
+            self.log(f'{album.alias_cn()}压缩成功！'
+                     f'[{album}] → [{zip_path}]', 'finish')
             downloader.record_export_filepath(album, zip_path)
 
         elif level == 'photo':
             for photo, image_list in photo_dict.items():
                 zip_path = self.decide_filepath(photo.from_album, photo, filename_rule, suffix, zip_dir, dir_rule)
-                self.zip_photo(photo, image_list, zip_path, path_to_delete, encrypt)
+                password, is_random = self.decide_password(encrypt, zip_path)
+                with self.open_zip_file(zip_path, encrypt, password, is_random) as f:
+                    self.zip_photo(image_list, path_to_delete, f)
+
+                # 归档关闭成功后打印结果
+                self.log(f'{photo.alias_cn()}压缩成功！'
+                         f'[{photo}] → [{zip_path}]', 'finish')
                 downloader.record_export_filepath(photo, zip_path)
 
         else:
@@ -634,99 +681,82 @@ class ZipPlugin(JmOptionPlugin):
 
     # noinspection PyMethodMayBeStatic
     def get_downloaded_photo(self, downloader, album, photo):
-        return (
-            downloader.download_success_dict[album]
-            if album is not None  # after_album
-            else {
-                photo: downloader.download_success_dict.get(photo.from_album, {}).get(photo, [])
-            }  # after_photo
-        )
+        if album is not None:  # after_album
+            return downloader.download_success_dict[album]
 
-    def zip_photo(self, photo, image_list: list, zip_path: str, path_to_delete, encrypt_dict):
+        # after_photo 只处理当前章节，其他章节可能仍在下载
+        return {photo: downloader.download_success_dict[photo.from_album][photo]}
+
+    def zip_photo(self, image_list: list, path_to_delete, f):
         """
-        压缩photo文件夹
+        压缩photo已下载的图片，使用 after_image 处理后的当前路径。
         """
-        photo_dir = self.option.decide_image_save_dir(photo) \
-            if len(image_list) == 0 \
-            else os.path.dirname(image_list[0][0])
-
-        with self.open_zip_file(zip_path, encrypt_dict) as f:
-            for file in files_of_dir(photo_dir):
-                abspath = os.path.join(photo_dir, file)
-                relpath = os.path.relpath(abspath, photo_dir)
-                f.write(abspath, relpath)
-
-        # 打印结果
-        self.log(f'{photo.alias_cn()}压缩成功！'
-                 f'[{photo}] → [{zip_path}]', 'finish')
-        path_to_delete.append(self.unified_path(photo_dir))
+        for _, image in image_list:
+            path = image.save_path
+            f.write(path, os.path.basename(path))
+            path_to_delete.append(self.unified_path(os.path.dirname(path)))
 
     @staticmethod
     def unified_path(f):
         return fix_filepath(f, os.path.isdir(f))
 
-    def zip_album(self, album, photo_dict: dict, zip_path, path_to_delete, encrypt_dict):
+    def zip_album(self, album, photo_dict: dict, path_to_delete, f):
         """
-        压缩album文件夹
+        压缩album已下载的图片，保留包内的章节目录层级。
         """
-
         album_dir = self.option.dir_rule.decide_album_root_dir(album)
-        with self.open_zip_file(zip_path, encrypt_dict) as f:
-            for photo in photo_dict.keys():
-                # 定位到章节所在文件夹
-                photo_dir = self.unified_path(self.option.decide_image_save_dir(photo))
-                # 章节文件夹标记为删除
-                path_to_delete.append(photo_dir)
-                for file in files_of_dir(photo_dir):
-                    abspath = os.path.join(photo_dir, file)
-                    relpath = os.path.relpath(abspath, album_dir)
-                    f.write(abspath, relpath)
-        # 打印结果
-        self.log(f'{album.alias_cn()}压缩成功！'
-                 f'[{album}] → [{zip_path}]', 'finish')
+        for photo, image_list in photo_dict.items():
+            # 定位包内章节目录，不创建可能已被图片插件移走的原目录
+            photo_dir = self.unified_path(self.option.decide_image_save_dir(photo, ensure_exists=False))
+            relative_dir = os.path.relpath(photo_dir, album_dir)
+            for _, image in image_list:
+                path = image.save_path
+                relpath = os.path.join(relative_dir, os.path.basename(path))
+                f.write(path, relpath)
+                # 当前图片所在的目录标记为删除，仅清理空目录
+                path_to_delete.append(self.unified_path(os.path.dirname(path)))
 
     def after_zip(self, path_to_delete: List[str], photo_dict: dict):
-        # 删除所有原文件
-        dirs = sorted(path_to_delete, reverse=True)
+        # 归档写入和关闭成功后，删除已压缩的原文件，再清理空目录
+        dirs = sorted(set(path_to_delete), reverse=True)
         image_paths = [
-            path
+            image.save_path
             for image_list in photo_dict.values()
-            for path, image in image_list
+            for _, image in image_list
         ]
         self.execute_deletion(image_paths)
         self.execute_deletion(dirs)
 
-    def open_zip_file(self, zip_path: str, encrypt_dict: Optional[dict]):
-        if encrypt_dict is None:
+    def open_zip_file(self,
+                      zip_path: str,
+                      encrypt_dict: Optional[dict],
+                      password,
+                      is_random,
+                      ):
+        """
+        按配置创建归档对象；加密依赖和密码已由 decide_password 处理。
+        """
+        if password is None:
             import zipfile
             return zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED)
 
-        password, is_random = self.decide_password(encrypt_dict, zip_path)
         if encrypt_dict.get('impl', '') == '7z':
-            try:
-                # noinspection PyUnresolvedReferences
-                import py7zr
-            except ImportError:
-                self.warning_lib_not_install('py7zr')
-
-            # noinspection PyUnboundLocalVariable
+            # noinspection PyUnresolvedReferences
+            import py7zr
             filters = [{'id': py7zr.FILTER_COPY}]
             return py7zr.SevenZipFile(zip_path, mode='w', password=password, filters=filters, header_encryption=True)
-        else:
-            try:
-                # noinspection PyUnresolvedReferences
-                import pyzipper
-            except ImportError:
-                self.warning_lib_not_install('pyzipper')
 
-            # noinspection PyUnboundLocalVariable
-            aes_zip_file = pyzipper.AESZipFile(zip_path, "w", pyzipper.ZIP_DEFLATED)
-            aes_zip_file.setencryption(pyzipper.WZ_AES, nbits=128)
-            password_bytes = str.encode(password)
-            aes_zip_file.setpassword(password_bytes)
-            if is_random:
-                aes_zip_file.comment = password_bytes
-            return aes_zip_file
+        # noinspection PyUnresolvedReferences
+        import pyzipper
+
+        aes_zip_file = pyzipper.AESZipFile(zip_path, "w", pyzipper.ZIP_DEFLATED)
+        aes_zip_file.setencryption(pyzipper.WZ_AES, nbits=128)
+        password_bytes = str.encode(password)
+        aes_zip_file.setpassword(password_bytes)
+        # 随机密码同时写入 ZIP 注释，保留现有的密码找回方式
+        if is_random:
+            aes_zip_file.comment = password_bytes
+        return aes_zip_file
 
 
 class ClientProxyPlugin(JmOptionPlugin):
@@ -1690,9 +1720,13 @@ class Img2pdfPlugin(JmOptionPlugin):
     @classmethod
     def required_dependencies_for(cls, kwargs: dict) -> tuple:
         encrypt = cls.check_encrypt_param(kwargs.get('encrypt'))
-        if encrypt:
-            return cls.plugin_dependencies + ('pikepdf',)
-        return cls.plugin_dependencies
+        if encrypt is None:
+            return cls.plugin_dependencies
+        return cls.plugin_dependencies + cls.encrypt_dependencies(encrypt)
+
+    @classmethod
+    def encrypt_dependencies(cls, encrypt: dict) -> tuple:
+        return ('pikepdf',)
 
     def invoke(self,
                photo: JmPhotoDetail = None,
@@ -1711,8 +1745,6 @@ class Img2pdfPlugin(JmOptionPlugin):
         if filename_rule is None:
             filename_rule = self.default_export_filename_rule(album is not None)
 
-        encrypt = self.check_encrypt_param(encrypt)
-
         try:
             import img2pdf
         except ImportError:
@@ -1725,8 +1757,11 @@ class Img2pdfPlugin(JmOptionPlugin):
         # 处理生成的pdf文件的路径
         pdf_filepath = self.decide_filepath(album, photo, filename_rule, 'pdf', pdf_dir, dir_rule)
 
+        # 配置了加密时，在生成 pdf 之前确认加密依赖与密码，避免写出 pdf 后才失败而留下未加密文件
+        password, _ = self.decide_password(encrypt, pdf_filepath)
+
         # 调用 img2pdf 把目标图片转为 pdf
-        result = self.write_img_2_pdf(pdf_filepath, album, photo, encrypt)
+        result = self.write_img_2_pdf(pdf_filepath, album, photo, password)
         if not result:
             return
         img_path_ls, img_dir_ls = result
@@ -1744,19 +1779,13 @@ class Img2pdfPlugin(JmOptionPlugin):
         img_path_ls += sorted(img_dir_ls, key=lambda d: len(os.path.abspath(d)), reverse=True)
         self.execute_deletion(img_path_ls)
 
-    def write_img_2_pdf(self, pdf_filepath, album: JmAlbumDetail, photo: JmPhotoDetail, encrypt):
+    def write_img_2_pdf(self, pdf_filepath, album: JmAlbumDetail, photo: JmPhotoDetail, password):
         import img2pdf
 
         img_path_ls, img_dir_ls, raw_dirs = self.collect_export_images(album, photo)
         if len(img_path_ls) == 0:
             self.log(f'所有文件夹都不存在图片，无法生成pdf：{raw_dirs}', 'error')
             return
-
-        # 配置了加密时，在生成 pdf 之前确认加密依赖与密码，避免写出 pdf 后才失败而留下未加密文件
-        password = None
-        if encrypt:
-            self.require_pikepdf()
-            password, _ = self.decide_password(encrypt, pdf_filepath)
 
         try:
             pdf_bytes = img2pdf.convert(img_path_ls)
@@ -1776,24 +1805,14 @@ class Img2pdfPlugin(JmOptionPlugin):
         with open(pdf_filepath, 'wb') as f:
             f.write(pdf_bytes)
 
-        if encrypt:
-            self.encrypt_pdf(pdf_filepath, encrypt, password)
+        if password is not None:
+            self.encrypt_pdf(pdf_filepath, password)
 
         return valid_img_paths, img_dir_ls
 
-    def require_pikepdf(self):
-        try:
-            import pikepdf  # noqa: F401
-        except ImportError:
-            # 未安装时抛出 PluginValidationException，由 option 按插件异常策略处理
-            self.warning_lib_not_install('pikepdf')
-
-    def encrypt_pdf(self, pdf_filepath: str, encrypt: dict, password: Optional[str] = None):
-        self.require_pikepdf()
+    def encrypt_pdf(self, pdf_filepath: str, password: str):
         import pikepdf
 
-        if password is None:
-            password, _ = self.decide_password(encrypt, pdf_filepath)
         with pikepdf.open(pdf_filepath, allow_overwriting_input=True) as pdf:
             pdf.save(pdf_filepath, encryption=pikepdf.Encryption(user=password, owner=password))
 

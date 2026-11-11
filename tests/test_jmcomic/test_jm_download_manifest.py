@@ -517,10 +517,10 @@ class Test_Download_Manifest(unittest.TestCase):
                 order.append(('record', detail, filepath))
                 return original_record(detail, filepath)
 
-            def fake_zip_photo(current_photo, image_list, zip_path, path_to_delete, encrypt):
-                self.assertIs(current_photo, photo)
-                self.assertEqual(zip_path, expected_path)
-                order.append(('zip_photo', current_photo, zip_path))
+            def fake_zip_photo(image_list, path_to_delete, f):
+                self.assertIs(image_list, downloader.download_success_dict[album][photo])
+                self.assertEqual(f.filename, expected_path)
+                order.append(('zip_photo', photo, f.filename))
 
             def fake_after_zip(_paths, _photo_dict):
                 order.append(('after_zip', None, None))
@@ -561,7 +561,7 @@ class Test_Download_Manifest(unittest.TestCase):
                 order.append(('record', filepath))
                 return original_record(detail, filepath)
 
-            def fake_write(pdf_filepath, current_album, current_photo, encrypt):
+            def fake_write(pdf_filepath, current_album, current_photo, password):
                 self.assertEqual(pdf_filepath, expected_path)
                 self.assertIs(current_album, album)
                 self.assertIsNone(current_photo)
@@ -604,7 +604,7 @@ class Test_Download_Manifest(unittest.TestCase):
                 order.append(('record', detail, filepath))
                 return original_record(detail, filepath)
 
-            def fake_write(pdf_filepath, current_album, current_photo, encrypt):
+            def fake_write(pdf_filepath, current_album, current_photo, password):
                 self.assertEqual(pdf_filepath, expected_path)
                 self.assertIsNone(current_album)
                 self.assertIs(current_photo, photo)
@@ -744,7 +744,8 @@ class Test_Download_Manifest(unittest.TestCase):
 
                 with patch('builtins.__import__', side_effect=fake_import):
                     with self.assertRaises(PluginValidationException) as ctx:
-                        plugin.open_zip_file(zip_path, encrypt)
+                        password, is_random = plugin.decide_password(encrypt, zip_path)
+                        plugin.open_zip_file(zip_path, encrypt, password, is_random)
 
                 self.assertIn(lib, str(ctx.exception))
                 self.assertFalse(os.path.exists(zip_path))

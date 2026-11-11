@@ -179,13 +179,13 @@ class Test_Plugin(JmTestConfigurable):
         # 2) 加密 zip（impl=7z）：查 py7zr
         with mock.patch('importlib.util.find_spec', side_effect=find_spec_missing('py7zr')):
             with self.assertRaises(JmcomicException):
-                JmOption.construct(build_zip({'zip_dir': './', 'encrypt': {'impl': '7z'}}))
+                JmOption.construct(build_zip({'zip_dir': './', 'encrypt': {'impl': '7z', 'password': 'demo'}}))
         print('✅ real resolver: 7z zip requires py7zr.')
 
         # 3) 默认加密 zip：查 pyzipper
         with mock.patch('importlib.util.find_spec', side_effect=find_spec_missing('pyzipper')):
             with self.assertRaises(JmcomicException):
-                JmOption.construct(build_zip({'zip_dir': './', 'encrypt': {'type': 'sha256'}}))
+                JmOption.construct(build_zip({'zip_dir': './', 'encrypt': {'type': 'sha256', 'password': 'demo'}}))
         print('✅ real resolver: encrypted zip requires pyzipper.')
 
         # 4) img2pdf 未加密：不查 pikepdf
@@ -194,7 +194,7 @@ class Test_Plugin(JmTestConfigurable):
             self.assertIsNotNone(JmOption.construct(dic4))
 
         # 5) img2pdf 加密：查 pikepdf
-        dic5 = {'plugins': {'after_album': [{'plugin': 'img2pdf', 'kwargs': {'encrypt': {'type': 'sha256'}}}]}}
+        dic5 = {'plugins': {'after_album': [{'plugin': 'img2pdf', 'kwargs': {'encrypt': {'type': 'sha256', 'password': 'demo'}}}]}}
         with mock.patch('importlib.util.find_spec', side_effect=find_spec_missing('pikepdf')):
             with self.assertRaises(JmcomicException):
                 JmOption.construct(dic5)
@@ -248,23 +248,25 @@ class Test_Plugin(JmTestConfigurable):
         with self.assertRaises(JmcomicException):
             pdf_cls.check_encrypt_param('enabled')
 
-        pdf_plugin = pdf_cls(fake)
-        pdf_plugin.log_enable = False
-        fixed_pwd, is_rand = pdf_plugin.decide_password({'password': 123456}, 'demo.pdf')
-        self.assertEqual(fixed_pwd, '123456')
-        self.assertFalse(is_rand)
+        from unittest.mock import patch
+        with patch.dict(sys.modules, {'pikepdf': object(), 'pyzipper': object()}):
+            pdf_plugin = pdf_cls(fake)
+            pdf_plugin.log_enable = False
+            fixed_pwd, is_rand = pdf_plugin.decide_password({'password': 123456}, 'demo.pdf')
+            self.assertEqual(fixed_pwd, '123456')
+            self.assertFalse(is_rand)
 
-        rand_pwd, is_rand = pdf_plugin.decide_password({'type': 'random'}, 'demo.pdf')
-        self.assertEqual(len(rand_pwd), 48)
-        self.assertTrue(is_rand)
+            rand_pwd, is_rand = pdf_plugin.decide_password({'type': 'random'}, 'demo.pdf')
+            self.assertEqual(len(rand_pwd), 48)
+            self.assertTrue(is_rand)
 
-        # 固定密码必须显式配置 password：缺失时报错，空字符串交由底层加密库处理
-        for plugin in (pdf_plugin, JmModuleConfig.REGISTRY_PLUGIN['zip'](fake)):
-            plugin.log_enable = False
-            with self.assertRaises(JmcomicException) as cm:
-                plugin.decide_password({}, 'demo')
-            self.assertIn('password', str(cm.exception))
-            self.assertEqual(('', False), plugin.decide_password({'password': ''}, 'demo'))
+            # 固定密码必须显式配置 password：缺失时报错，空字符串交由底层加密库处理
+            for plugin in (pdf_plugin, JmModuleConfig.REGISTRY_PLUGIN['zip'](fake)):
+                plugin.log_enable = False
+                with self.assertRaises(JmcomicException) as cm:
+                    plugin.decide_password({}, 'demo')
+                self.assertIn('password', str(cm.exception))
+                self.assertEqual(('', False), plugin.decide_password({'password': ''}, 'demo'))
         print('✅ non-mapping encrypt rejected and decide_password shared across zip & img2pdf.')
 
     def test_favorite_folder_export_retry_and_failure_report(self):
@@ -925,10 +927,14 @@ class Test_Plugin(JmTestConfigurable):
 
             dler = JmDownloader(opt)
             dler.begin_manifest(album)
+            image11, image12 = photo1[0], photo1[1]
+            image21, image22 = photo2[0], photo2[1]
+            image11.save_path, image12.save_path = p1_img1, p1_img2
+            image21.save_path, image22.save_path = p2_img1, p2_img2
             # 模拟两章并发启动：photo1 已下完两张图，photo2 刚下完第一张图
             dler.download_success_dict[album] = {
-                photo1: [(p1_img1, None), (p1_img2, None)],
-                photo2: [(p2_img1, None)],
+                photo1: [(p1_img1, image11), (p1_img2, image12)],
+                photo2: [(p2_img1, image21)],
             }
 
             # 1) photo1 触发 after_photo
@@ -944,7 +950,7 @@ class Test_Plugin(JmTestConfigurable):
             # 2) photo2 随后下完第二张图并触发 after_photo
             with open(p2_img2, 'wb') as f:
                 f.write(b'img_data')
-            dler.download_success_dict[album][photo2].append((p2_img2, None))
+            dler.download_success_dict[album][photo2].append((p2_img2, image22))
             dler.after_photo(photo2)
 
             self.assertTrue(os.path.exists(zip2_path))
@@ -1114,9 +1120,11 @@ class Test_Plugin(JmTestConfigurable):
 
             dler = JmDownloader(opt)
             dler.begin_manifest(album)
+            image1, image2 = photo1[0], photo2[0]
+            image1.save_path, image2.save_path = p1_img, p2_img
             dler.download_success_dict[album] = {
-                photo1: [(p1_img, None)],
-                photo2: [(p2_img, None)],
+                photo1: [(p1_img, image1)],
+                photo2: [(p2_img, image2)],
             }
 
             # after_photo 不应触发任何 zip
@@ -1154,7 +1162,8 @@ class Test_Plugin(JmTestConfigurable):
                 f.write(b'chap1-photo')
             dler_photo = JmDownloader(opt_photo)
             dler_photo.begin_manifest(photo1)
-            dler_photo.download_success_dict[album] = {photo1: [(p1_img_re, None)]}
+            image1.save_path = p1_img_re
+            dler_photo.download_success_dict[album] = {photo1: [(p1_img_re, image1)]}
             dler_photo.after_photo(photo1)
             self.assertTrue(os.path.isfile(os.path.join(zip_photo_base, '[JM145504]第一章.zip')))
             self.assertFalse(os.path.exists(dir1_re))
@@ -1307,6 +1316,7 @@ class Test_Plugin(JmTestConfigurable):
             d1 = JmImageDetail.of('500001', '0', 'https://example.com/b_page1.png', from_photo=photo1, index=1)
             d2 = JmImageDetail.of('500001', '0', 'https://example.com/a_page2.png', from_photo=photo1, index=2)
             d3 = JmImageDetail.of('500002', '0', 'https://example.com/c2.png', from_photo=photo2, index=1)
+            d1.save_path, d2.save_path, d3.save_path = img_p1, img_p2, img_c2
             dler = JmDownloader(opt)
             dler.begin_manifest(album)
             # 故意把第二章和第 2 页排在前面，检验按章节/页码 index 排序

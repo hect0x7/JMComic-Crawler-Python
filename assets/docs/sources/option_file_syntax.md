@@ -242,6 +242,7 @@ plugins:
         # 压缩文件插件，配在不同事件下面，效果不一样。可以选择配在 after_album 或者 after_photo 下
         #   配置在 after_album 下 → 整个本子合并为一个压缩文件
         #   配置在 after_photo 下 → 每个章节各一个压缩文件
+        # 只打包本次成功下载（含缓存命中）的图片，使用图片插件处理后的路径，不包含目录中的其他文件。
 
         zip_dir: D:/jmcomic/zip/ # 压缩文件存放的文件夹
         suffix: zip # 压缩包后缀名，默认 zip，支持 zip 或 7z
@@ -251,9 +252,10 @@ plugins:
         #   base_dir: D:/jmcomic-download/
         #   rule: 'Bd / zip / JM{Aid}-{Atitle}.zip' # 设置压缩文件夹规则，Bd指代base_dir，中间zip表示在{base_dir}下创建一个名为zip的文件夹，JM{Aid}-{Atitle}.zip 表示压缩文件的命名规则(需显式写出后缀名)
 
-        delete_original_file: true # 压缩成功后，删除所有原文件和文件夹
+        delete_original_file: true # 压缩成功后，仅删除本次已打包的图片及其空目录
         
         # 在v2.6.0及以后版本，zip插件还支持设置密码和加密方式，使用encrypt配置项，该配置是可选的，示例如下：
+        # 配置 encrypt 时必须填写 password 或 type: random，空映射 encrypt: {} 会报错。
         # 1. 给压缩包设置一个指定密码
         # encrypt:
         #   password: 123456
@@ -324,6 +326,7 @@ plugins:
       kwargs:
         pdf_dir: D:/pdf/ # pdf存放文件夹
         filename_rule: Pid # pdf命名规则
+        # 不加密时省略 encrypt；配置空映射会报错，加密依赖与密码会在生成 PDF 前检查。
         encrypt: # 可选：设置 pdf 密码（依赖: pip install pikepdf；与 zip 一样支持 password 指定密码或 type: random 随机密码）
           password: 123
           # type: random
