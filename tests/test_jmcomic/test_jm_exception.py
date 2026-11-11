@@ -258,6 +258,10 @@ class Test_RequestRetryAllFailException(unittest.TestCase):
             JmModuleConfig.register_image_domain('cdn-b.example')
             self.assertEqual(['cdn-b.example', 'cdn-new.example', 'cdn-a.example'], JmModuleConfig.DOMAIN_IMAGE_LIST)
 
+            # http 开头裸域名与 http:// 协议头均正常解析
+            self.assertEqual('httpcdn.example.com', JmcomicText.parse_to_jm_domain('httpcdn.example.com/'))
+            self.assertEqual('cdn-http.example.com', JmcomicText.parse_to_jm_domain('http://cdn-http.example.com/'))
+
             # 验证同步与异步 setting() 受 FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN 控制并自动收录 img_host
             JmModuleConfig.DOMAIN_IMAGE_LIST = ['cdn-base.example']
 
@@ -289,3 +293,11 @@ class Test_RequestRetryAllFailException(unittest.TestCase):
         finally:
             JmModuleConfig.DOMAIN_IMAGE_LIST = orig_list
             JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN = orig_flag
+
+    def test_new_postman_normalizes_string_proxies(self):
+        expected = ProxyBuilder.build_by_str('127.0.0.1:7890')
+        self.assertIsInstance(expected, dict)
+        pm = JmModuleConfig.new_postman(proxies='127.0.0.1:7890')
+        self.assertEqual(expected, pm.get_meta_data('proxies'))
+        spm = JmModuleConfig.new_postman(session=True, proxies='127.0.0.1:7890')
+        self.assertEqual(expected, spm.get_meta_data('proxies'))

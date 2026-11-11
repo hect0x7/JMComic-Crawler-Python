@@ -86,7 +86,7 @@ class JmcomicText:
     @classmethod
     def parse_to_jm_domain(cls, text: str):
         text = text.strip()
-        if text.startswith('http'):
+        if text.startswith(('https://', 'http://')):
             return cls.pattern_jm_domain.search(text)[1]
 
         return text.strip('/')

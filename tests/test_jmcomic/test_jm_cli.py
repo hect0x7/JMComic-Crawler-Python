@@ -282,6 +282,14 @@ class Test_Cli(JmTestConfigurable):
         ui.raw_text = 'JM350234'
         self.assertEqual(ui.extract_album_id(), '350234')
 
+    def test_jmv_extract_jm_url(self):
+        """jmv 支持从禁漫链接中提取车号，不混入域名中的 18"""
+        ui = JmViewUI()
+        self.assertEqual(ui.extract_album_id('https://18comic.vip/album/350234/'), '350234')
+        self.assertEqual(ui.extract_album_id('https://18comic.vip/photo/350234'), '350234')
+        self.assertEqual(ui.extract_album_id('https://18comic.vip/album/?id=350234'), '350234')
+        self.assertEqual(ui.extract_album_id('JM 350 234'), '350234')
+
     def test_jmv_extract_no_digits_exits(self):
         """jmv 没有数字时应 exit(1)"""
         ui = JmViewUI()

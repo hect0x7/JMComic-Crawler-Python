@@ -552,12 +552,19 @@ class Postmans:
         return clazz
 
     @classmethod
+    def _normalize_kwargs(cls, kwargs: dict) -> dict:
+        proxies = kwargs.get('proxies', None)
+        if proxies is not None and not isinstance(proxies, dict):
+            kwargs['proxies'] = ProxyBuilder.build_by_str(proxies)
+        return kwargs
+
+    @classmethod
     def new_session(cls, **kwargs) -> Postman:
-        return cls.get_impl_clazz('curl_cffi_session').create(**kwargs)
+        return cls.get_impl_clazz('curl_cffi_session').create(**cls._normalize_kwargs(kwargs))
 
     @classmethod
     def new_postman(cls, **kwargs) -> Postman:
-        return cls.get_impl_clazz('curl_cffi').create(**kwargs)
+        return cls.get_impl_clazz('curl_cffi').create(**cls._normalize_kwargs(kwargs))
 
     @classmethod
     def create(cls, filepath='./postman.yml', data: Optional[dict] = None) -> Postman:

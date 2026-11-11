@@ -212,7 +212,7 @@ class JmViewUI:
             'texts',
             metavar='text',
             nargs='+',
-            help='一个或多个包含数字的禁漫车号，例如 "350234"、"JM438516" 或 "350谁还没看过234"',
+            help='一个或多个禁漫车号、本子链接或包含数字的文本，例如 "350234"、"JM438516"、"https://18comic.vip/album/350234/" 或 "350谁还没看过234"',
         )
         parser.add_argument(
             '--option',
@@ -247,7 +247,16 @@ class JmViewUI:
     def extract_album_id(self, text: Optional[str] = None) -> str:
         import re
         import sys
+        from .jm_toolkit import JmcomicText
+
         target = self.raw_text if text is None else text
+        try:
+            jm_id = JmcomicText.parse_to_jm_id(target.strip())
+            if jm_id.isdigit():
+                return jm_id
+        except Exception:
+            pass
+
         numbers = re.findall(r'\d+', target)
         if not numbers:
             msg = f'❌❌❌ 解析失败: 无法从 "{target}" 中提取到任何数字 ❌❌❌'
