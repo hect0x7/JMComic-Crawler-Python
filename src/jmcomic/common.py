@@ -380,14 +380,15 @@ class ProxyBuilder:
         if addr is None:
             socks_addr = proxies.get('socks')
             if socks_addr:
-                # Python <=3.13 在 macOS (_scproxy) 下会将系统 SOCKS 代理返回为 http://host:port
+                # Python <=3.13 在 macOS (_scproxy) 下会将系统 SOCKS 代理返回为 http://host:port；
+                # 操作系统未显式区分时默认采用 socks5h:// 让代理端执行远端 DNS 解析
                 for bad_prefix in ('http://', 'https://', 'socks://'):
                     if socks_addr.startswith(bad_prefix):
-                        socks_addr = 'socks5://' + socks_addr[len(bad_prefix):]
+                        socks_addr = 'socks5h://' + socks_addr[len(bad_prefix):]
                         break
                 else:
                     if '://' not in socks_addr:
-                        socks_addr = 'socks5://' + socks_addr
+                        socks_addr = 'socks5h://' + socks_addr
                 addr = socks_addr
             else:
                 addr = proxies.get('all')

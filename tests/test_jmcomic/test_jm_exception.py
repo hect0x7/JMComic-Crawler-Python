@@ -326,22 +326,22 @@ class Test_RequestRetryAllFailException(unittest.TestCase):
                 ProxyBuilder.system_proxy(),
             )
 
-        # macOS (_scproxy) 在 Python <=3.13 下会将系统 SOCKS 代理返回为 http://host:port
+        # macOS (_scproxy) 在 Python <=3.13 下会将系统 SOCKS 代理返回为 http://host:port，默认转为 socks5h:// 远端解析
         with patch('urllib.request.getproxies', return_value={'socks': 'http://127.0.0.1:1080'}):
             self.assertEqual(
-                {'http': 'socks5://127.0.0.1:1080', 'https': 'socks5://127.0.0.1:1080'},
+                {'http': 'socks5h://127.0.0.1:1080', 'https': 'socks5h://127.0.0.1:1080'},
                 ProxyBuilder.system_proxy(),
             )
 
         with patch('urllib.request.getproxies', return_value={'socks': 'socks://127.0.0.1:1080'}):
             self.assertEqual(
-                {'http': 'socks5://127.0.0.1:1080', 'https': 'socks5://127.0.0.1:1080'},
+                {'http': 'socks5h://127.0.0.1:1080', 'https': 'socks5h://127.0.0.1:1080'},
                 ProxyBuilder.system_proxy(),
             )
 
         with patch('urllib.request.getproxies', return_value={'socks': '127.0.0.1:1080'}):
             self.assertEqual(
-                {'http': 'socks5://127.0.0.1:1080', 'https': 'socks5://127.0.0.1:1080'},
+                {'http': 'socks5h://127.0.0.1:1080', 'https': 'socks5h://127.0.0.1:1080'},
                 ProxyBuilder.system_proxy(),
             )
 
