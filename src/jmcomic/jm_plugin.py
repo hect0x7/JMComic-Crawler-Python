@@ -381,6 +381,9 @@ class JmOptionPlugin:
             password = self.generate_random_str(48)
             self.log(f'生成随机密码: [{password}] → [{filepath}]', 'encrypt')
         else:
+            # 必须显式配置 password；允许为空字符串，是否可用由底层加密库决定
+            if 'password' not in encrypt_dict:
+                ExceptionTool.raises(f'{self.plugin_key}插件的encrypt参数缺少password，请配置password或使用 type: random')
             password = str(encrypt_dict['password'])
             self.log(f'使用指定密码: [{password}] → [{filepath}]', 'encrypt')
 

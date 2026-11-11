@@ -275,11 +275,10 @@ class AbstractAsyncJmClient(AsyncJmcomicClient):
         return resp
 
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
-    def before_retry(self, e, kwargs, retry_count, url):
+    def before_retry(self, e, retry_count, url):
         jm_log('req.error', str(e), e)
 
-    # noinspection PyUnusedLocal
-    def fallback(self, url, domain_index, retry_count, is_image, retry_errors=None, **kwargs):
+    def fallback(self, url, retry_errors=None):
         tried_domains = list(dict.fromkeys(e['domain'] for e in (retry_errors or []) if e.get('domain')))
         msg = f"请求重试全部失败: [{url}], {tried_domains or self._domain_list}"
         jm_log('req.fallback', msg)
@@ -350,7 +349,7 @@ class AbstractAsyncJmClient(AsyncJmcomicClient):
             except (curl_requests.exceptions.RequestException, OSError, JmcomicException) as e:
                 if domain is not None and fail_dict is not None:
                     fail_dict[domain] = fail_dict.get(domain, 0) + 1
-                self.before_retry(e, req_kwargs, retry, req_url)
+                self.before_retry(e, retry, req_url)
                 retry_errors.append({
                     'domain': domain,
                     'url': req_url,
@@ -358,8 +357,7 @@ class AbstractAsyncJmClient(AsyncJmcomicClient):
                     'error': e,
                 })
 
-        return self.fallback(url_path, len(candidates) if candidates is not None else 1, self._retry_times, is_image,
-                             retry_errors=retry_errors, **kwargs)
+        return self.fallback(url_path, retry_errors)
 
     async def get(self, url, **kwargs):
         await self.setup()

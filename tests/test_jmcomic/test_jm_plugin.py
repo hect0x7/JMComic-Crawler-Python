@@ -257,6 +257,14 @@ class Test_Plugin(JmTestConfigurable):
         rand_pwd, is_rand = pdf_plugin.decide_password({'type': 'random'}, 'demo.pdf')
         self.assertEqual(len(rand_pwd), 48)
         self.assertTrue(is_rand)
+
+        # 固定密码必须显式配置 password：缺失时报错，空字符串交由底层加密库处理
+        for plugin in (pdf_plugin, JmModuleConfig.REGISTRY_PLUGIN['zip'](fake)):
+            plugin.log_enable = False
+            with self.assertRaises(JmcomicException) as cm:
+                plugin.decide_password({}, 'demo')
+            self.assertIn('password', str(cm.exception))
+            self.assertEqual(('', False), plugin.decide_password({'password': ''}, 'demo'))
         print('✅ non-mapping encrypt rejected and decide_password shared across zip & img2pdf.')
 
     def test_favorite_folder_export_retry_and_failure_report(self):

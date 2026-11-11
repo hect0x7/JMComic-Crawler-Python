@@ -254,6 +254,11 @@ class Test_RequestRetryAllFailException(unittest.TestCase):
             self.assertEqual('cdn-new.example', added)
             self.assertEqual(['cdn-new.example', 'cdn-a.example', 'cdn-b.example'], JmModuleConfig.DOMAIN_IMAGE_LIST)
 
+            # img_host 非字符串 / 空值时忽略，不抛异常、不污染列表
+            for bad in (None, '', 123, ['cdn-list.example'], {'host': 'x'}):
+                self.assertIsNone(JmModuleConfig.register_image_domain(bad))
+            self.assertEqual(['cdn-new.example', 'cdn-a.example', 'cdn-b.example'], JmModuleConfig.DOMAIN_IMAGE_LIST)
+
             # 已有节点移至首位且不重复膨胀
             JmModuleConfig.register_image_domain('cdn-b.example')
             self.assertEqual(['cdn-b.example', 'cdn-new.example', 'cdn-a.example'], JmModuleConfig.DOMAIN_IMAGE_LIST)

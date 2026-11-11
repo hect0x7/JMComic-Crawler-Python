@@ -435,7 +435,7 @@ class JmModuleConfig:
         """
         将最新图床域名（如 /setting 返回的 img_host）去重前置加入 DOMAIN_IMAGE_LIST。
         """
-        if not img_host:
+        if not img_host or not isinstance(img_host, str):
             return None
         from .jm_toolkit import JmcomicText
         domain = JmcomicText.parse_to_jm_domain(img_host)

@@ -83,10 +83,7 @@ class AbstractJmClient(JmcomicClient):
     def request_with_retry(self,
                            request,
                            url,
-                           domain_index=0,
-                           retry_count=0,
                            is_image=False,
-                           _retry_errors=None,
                            **kwargs,
                            ):
         """
@@ -100,8 +97,6 @@ class AbstractJmClient(JmcomicClient):
 
         :param request: 请求方法
         :param url: 图片url / path (/album/xxx)
-        :param domain_index: 兼容保留参数
-        :param retry_count: 兼容保留参数
         :param is_image: 是否是图片请求
         :param kwargs: 请求方法的kwargs
         """
@@ -114,11 +109,10 @@ class AbstractJmClient(JmcomicClient):
                                               )
 
         is_path = url.startswith('/')
-        retry_errors = [] if _retry_errors is None else _retry_errors
+        retry_errors = []
 
         if is_path and not self.domain_list:
-            return self.fallback(request, url, 0, self.retry_times, is_image,
-                                 retry_errors=retry_errors, **kwargs)
+            return self.fallback(url, retry_errors)
 
         if is_path:
             req_path, candidates, use_image_domains = url, self.domain_list, False
@@ -161,7 +155,7 @@ class AbstractJmClient(JmcomicClient):
                 # 分别记录主站域名与图床 CDN 域名的失败次数，互不干扰
                 if domain is not None:
                     self._record_domain_failure(domain, use_image_domains)
-                self.before_retry(e, req_kwargs, retry, req_url)
+                self.before_retry(e, retry, req_url)
                 retry_errors.append({
                     'domain': domain,
                     'url': req_url,
@@ -169,15 +163,7 @@ class AbstractJmClient(JmcomicClient):
                     'error': e,
                 })
 
-        return self.fallback(
-            request,
-            url,
-            len(candidates) if candidates is not None else 1,
-            self.retry_times,
-            is_image,
-            retry_errors=retry_errors,
-            **kwargs,
-        )
+        return self.fallback(url, retry_errors)
 
     # noinspection PyMethodMayBeStatic
     def raise_if_resp_should_retry(self, resp, is_image):
@@ -201,7 +187,7 @@ class AbstractJmClient(JmcomicClient):
         return self.client_key
 
     # noinspection PyMethodMayBeStatic, PyUnusedLocal
-    def before_retry(self, e, kwargs, retry_count, url):
+    def before_retry(self, e, retry_count, url):
         jm_log('req.error', str(e))
 
     def enable_cache(self):
@@ -264,8 +250,7 @@ class AbstractJmClient(JmcomicClient):
     def set_domain_list(self, domain_list: List[str]):
         self.domain_list = domain_list
 
-    # noinspection PyUnusedLocal
-    def fallback(self, request, url, domain_index, retry_count, is_image, retry_errors=None, **kwargs):
+    def fallback(self, url, retry_errors=None):
         tried_domains = list(dict.fromkeys(e['domain'] for e in (retry_errors or []) if e.get('domain')))
         msg = f"请求重试全部失败: [{url}], {tried_domains or self.domain_list}"
         jm_log('req.fallback', msg)
