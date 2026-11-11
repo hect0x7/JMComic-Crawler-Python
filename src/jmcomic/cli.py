@@ -244,7 +244,7 @@ class JmViewUI:
         else:
             self.option_path = os.path.abspath(option_str)
 
-    def extract_album_id(self, text: Optional[str] = None) -> str:
+    def extract_album_id(self, text: Optional[str] = None, exit_on_error: bool = True) -> Optional[str]:
         import re
         import sys
         from .jm_toolkit import JmcomicText
@@ -265,12 +265,19 @@ class JmViewUI:
             else:
                 from .api import jm_log
                 jm_log('jmv', msg)
-            sys.exit(1)
+            if exit_on_error:
+                sys.exit(1)
+            return None
         return ''.join(numbers)
 
-    def extract_album_ids(self) -> List[str]:
+    def extract_album_ids(self, exit_on_error: bool = True) -> List[str]:
         texts = self.raw_text_list if self.raw_text_list else ([self.raw_text] if self.raw_text else [])
-        return [self.extract_album_id(t) for t in texts]
+        result = []
+        for t in texts:
+            album_id = self.extract_album_id(t, exit_on_error=exit_on_error)
+            if album_id is not None:
+                result.append(album_id)
+        return result
 
     @staticmethod
     def album_to_dict(album) -> dict:
@@ -364,16 +371,20 @@ class JmViewUI:
         import atexit
         atexit.register(self._pause)
 
-        album_ids = self.extract_album_ids()
-
         from .api import create_option, JmModuleConfig, JmOption, jm_log
         prev_log_flag = JmModuleConfig.FLAG_ENABLE_JM_LOG
         if self.json_output:
             JmModuleConfig.FLAG_ENABLE_JM_LOG = False
 
+        raw_inputs = self.raw_text_list if self.raw_text_list else ([self.raw_text] if self.raw_text else [])
         has_error = False
         json_items = []
         try:
+            album_ids = self.extract_album_ids(exit_on_error=False)
+            has_error = len(album_ids) < len(raw_inputs)
+            if not album_ids:
+                sys.exit(1)
+
             if self.option_path is not None:
                 option = create_option(self.option_path)
                 if self.json_output:
@@ -405,7 +416,7 @@ class JmViewUI:
                 JmModuleConfig.FLAG_ENABLE_JM_LOG = prev_log_flag
 
         if self.json_output and (json_items or not has_error):
-            payload = json_items[0] if len(album_ids) == 1 and len(json_items) == 1 else json_items
+            payload = json_items[0] if len(raw_inputs) == 1 and len(json_items) == 1 else json_items
             print(json.dumps(payload, ensure_ascii=False, indent=2))
 
         if has_error:

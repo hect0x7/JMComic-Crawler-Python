@@ -301,3 +301,33 @@ class Test_RequestRetryAllFailException(unittest.TestCase):
         self.assertEqual(expected, pm.get_meta_data('proxies'))
         spm = JmModuleConfig.new_postman(session=True, proxies='127.0.0.1:7890')
         self.assertEqual(expected, spm.get_meta_data('proxies'))
+
+    def test_system_proxy_preserves_scheme_and_supports_socks(self):
+        from unittest.mock import patch
+
+        with patch('urllib.request.getproxies', return_value={}):
+            self.assertEqual({}, ProxyBuilder.system_proxy())
+
+        with patch('urllib.request.getproxies', return_value={'http': 'http://127.0.0.1:7890'}):
+            self.assertEqual(
+                {'http': 'http://127.0.0.1:7890', 'https': 'http://127.0.0.1:7890'},
+                ProxyBuilder.system_proxy(),
+            )
+
+        with patch('urllib.request.getproxies', return_value={'https': 'https://proxy.example:8443'}):
+            self.assertEqual(
+                {'http': 'https://proxy.example:8443', 'https': 'https://proxy.example:8443'},
+                ProxyBuilder.system_proxy(),
+            )
+
+        with patch('urllib.request.getproxies', return_value={'socks': 'socks5://127.0.0.1:1080'}):
+            self.assertEqual(
+                {'http': 'socks5://127.0.0.1:1080', 'https': 'socks5://127.0.0.1:1080'},
+                ProxyBuilder.system_proxy(),
+            )
+
+        with patch('urllib.request.getproxies', return_value={'all': 'socks4://127.0.0.1:1081'}):
+            self.assertEqual(
+                {'http': 'socks4://127.0.0.1:1081', 'https': 'socks4://127.0.0.1:1081'},
+                ProxyBuilder.system_proxy(),
+            )

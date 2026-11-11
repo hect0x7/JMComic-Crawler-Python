@@ -431,6 +431,9 @@ class JmOption:
                     i += 1
                     continue
                 level = kwargs.pop('level')
+                if level is None:
+                    i += 1
+                    continue
 
                 if group == 'after_album' and level != 'album':
                     # after_album + level=photo → 等价迁移到 after_photo

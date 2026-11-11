@@ -376,13 +376,14 @@ class ProxyBuilder:
         if len(proxies) == 0:
             return {}
 
-        addr = proxies.get('http') or proxies.get('https')
+        addr = (
+            proxies.get('http')
+            or proxies.get('https')
+            or proxies.get('socks')
+            or proxies.get('all')
+        )
         if addr is None:
             return {}
-
-        prot = '://'
-        if prot in addr:
-            addr = addr[addr.find(prot) + len(prot):]
 
         return cls.build_proxy(addr)
 

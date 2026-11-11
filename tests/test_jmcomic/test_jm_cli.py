@@ -438,3 +438,50 @@ class Test_Cli(JmTestConfigurable):
         self.assertIn('missing 999', err_partial.getvalue())
         partial_list = json.loads(out_partial.getvalue())
         self.assertEqual([{'album_id': '100'}], [{'album_id': x['album_id']} for x in partial_list])
+
+        # 4) 多输入中混入无法提取数字的输入：报错但不中断后续有效输入查询，输出 JSON 数组并以退出码 1 结束
+        ui_bad_token = JmViewUI()
+        with patch('sys.argv', ['jmv', 'badinput', '100', '--json']), \
+                patch('atexit.register'), \
+                patch('jmcomic.api.JmOption.default', return_value=fake_option), \
+                patch('sys.stdout', new_callable=StringIO) as out_bad_token, \
+                patch('sys.stderr', new_callable=StringIO) as err_bad_token:
+            with self.assertRaises(SystemExit) as ctx_bad:
+                ui_bad_token.main()
+
+        self.assertEqual(1, ctx_bad.exception.code)
+        self.assertIn('badinput', err_bad_token.getvalue())
+        bad_token_list = json.loads(out_bad_token.getvalue())
+        self.assertIsInstance(bad_token_list, list)
+        self.assertEqual([{'album_id': '100'}], [{'album_id': x['album_id']} for x in bad_token_list])
+
+        # 5) 普通文本模式下多输入混入非法项：后续有效车号依然打印详情，最后退出码 1
+        ui_bad_human = JmViewUI()
+        with patch('sys.argv', ['jmv', 'badinput', '100', '-y']), \
+                patch('atexit.register'), \
+                patch('jmcomic.api.JmOption.default', return_value=fake_option), \
+                patch('sys.stdout', new_callable=StringIO) as out_bad_human:
+            with self.assertRaises(SystemExit) as ctx_human:
+                ui_bad_human.main()
+
+        self.assertEqual(1, ctx_human.exception.code)
+        self.assertIn('Album One', out_bad_human.getvalue())
+
+        # 6) 所有输入均无数字：不创建客户端、不输出空 JSON，恢复日志开关后直接以退出码 1 结束
+        def fail_if_called():
+            raise AssertionError('client should not be created when all inputs are invalid')
+
+        ui_all_bad = JmViewUI()
+        with patch('sys.argv', ['jmv', 'bad_a', 'bad_b', '--json']), \
+                patch('atexit.register'), \
+                patch('jmcomic.api.JmOption.default', return_value=SimpleNamespace(new_jm_client=fail_if_called)), \
+                patch('sys.stdout', new_callable=StringIO) as out_all_bad, \
+                patch('sys.stderr', new_callable=StringIO) as err_all_bad:
+            with self.assertRaises(SystemExit) as ctx_all_bad:
+                ui_all_bad.main()
+
+        self.assertEqual(1, ctx_all_bad.exception.code)
+        self.assertEqual('', out_all_bad.getvalue())
+        self.assertIn('bad_a', err_all_bad.getvalue())
+        self.assertIn('bad_b', err_all_bad.getvalue())
+        self.assertEqual(prev_flag, JmModuleConfig.FLAG_ENABLE_JM_LOG)

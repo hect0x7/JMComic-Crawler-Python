@@ -93,7 +93,7 @@ class Test_DownloadProgress(unittest.TestCase):
     def _new_progress_option():
         option = create_option_by_str('{}')
         option.build_jm_client = lambda: FakeClient(None)
-        option.new_jm_async_client = lambda: FakeAsyncClient(None)
+        option.new_jm_async_client = lambda **kwargs: FakeAsyncClient(None)
         return option
 
     def setUp(self):

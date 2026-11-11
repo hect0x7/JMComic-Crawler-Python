@@ -122,8 +122,9 @@ class PluginFeature(Feature):
         根据 when 动态确定以下插件参数:
         filename_rule
         """
+        from .jm_plugin import JmOptionPlugin
         kwargs = self.kwargs.copy()
-        kwargs.setdefault('filename_rule', '[JM{Aid}]{Atitle}' if when == 'after_album' else '[JM{Pid}]{Ptitle}')
+        kwargs.setdefault('filename_rule', JmOptionPlugin.default_export_filename_rule(when == 'after_album'))
 
         # 动态适配导出目录：当且仅当用户未自定义目录时，根据插件类型自动将 dir 导向 option.dir_rule.base_dir
         if self.plugin_key == 'zip':

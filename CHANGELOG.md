@@ -25,7 +25,8 @@
 ### Fixed
 
 - 修复图片下载失败时重试次数按域名数量成倍放大的问题。
-- 修复 `zip` 插件配置在 `after_album`（未写已废弃的 `level` 参数）时，被自动挪到 `after_photo` 按章压缩并误打过时提示日志的问题；同时补齐 `zip`、`img2pdf`、`long_img` 在 `after_album` 下未填 `filename_rule` 时的默认命名。
+- 修复 `zip` 插件配置在 `after_album`（未写或显式为 `null` 的已废弃 `level` 参数）时，被自动挪到 `after_photo` 按章压缩并误打过时提示日志的问题；统一 `zip`、`img2pdf`、`long_img` 未填 `filename_rule` 时的默认命名（`[JM{Aid}]{Atitle}` / `[JM{Pid}]{Ptitle}`），并优化 `img2pdf` 与 `long_img` 的输入收集与删除原图安全性。
+- 修复 `ProxyBuilder.system_proxy()` 读取系统代理时丢失 `socks5://` / `https://` 等协议头的问题。
 - 修复 `zip` 插件在 `after_photo` 按章压缩多章本子时，误删其他章节原图或重复覆盖压缩包的问题。
 - 修复命令行 `jmcomic` 有下载失败时退出码仍为 `0` 的问题。
 - 修复 `option.copy_option()` 修改复制出来的配置时影响原配置的问题（登录状态仍保持共享）。
