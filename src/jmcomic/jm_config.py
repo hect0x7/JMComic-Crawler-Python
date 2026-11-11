@@ -144,7 +144,7 @@ class JmMagicConstants:
     APP_TOKEN_SECRET_2 = '18comicAPPContent'
     APP_DATA_SECRET = '185Hcomic3PAPP7R'
     API_DOMAIN_SERVER_SECRET = 'diosfjckwpqpdfjkvnqQjsik'
-    APP_VERSION = '2.1.12'
+    APP_VERSION = '2.1.13'
 
 
 # 模块级别共用配置
@@ -195,10 +195,10 @@ class JmModuleConfig:
 
     # 移动端API域名
     DOMAIN_API_LIST = shuffled('''
-    www.cdnhjk.net
-    www.cdngwc.cc
-    www.cdngwc.net
-    www.cdngwc.club
+    www.cdnaspa.vip
+    www.cdnaspa.club
+    www.cdnplaystation6.vip
+    www.cdnplaystation6.cc
     ''')
 
     DOMAIN_API_UPDATED_LIST = None

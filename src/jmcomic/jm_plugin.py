@@ -1840,12 +1840,8 @@ class LongImgPlugin(JmOptionPlugin):
         if not images:
             return
 
+        resample_method = getattr(getattr(Image, 'Resampling', Image), 'LANCZOS')
         try:
-            try:
-                resample_method = Image.Resampling.LANCZOS
-            except AttributeError:
-                resample_method = Image.LANCZOS
-
             min_img_width = min(img.width for img in images)
             total_height = 0
             for i, img in enumerate(images):

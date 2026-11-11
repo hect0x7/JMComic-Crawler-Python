@@ -376,13 +376,23 @@ class ProxyBuilder:
         if len(proxies) == 0:
             return {}
 
-        addr = (
-            proxies.get('http')
-            or proxies.get('https')
-            or proxies.get('socks')
-            or proxies.get('all')
-        )
+        addr = proxies.get('http') or proxies.get('https')
         if addr is None:
+            socks_addr = proxies.get('socks')
+            if socks_addr:
+                # Python <=3.13 在 macOS (_scproxy) 下会将系统 SOCKS 代理返回为 http://host:port
+                for bad_prefix in ('http://', 'https://', 'socks://'):
+                    if socks_addr.startswith(bad_prefix):
+                        socks_addr = 'socks5://' + socks_addr[len(bad_prefix):]
+                        break
+                else:
+                    if '://' not in socks_addr:
+                        socks_addr = 'socks5://' + socks_addr
+                addr = socks_addr
+            else:
+                addr = proxies.get('all')
+
+        if not addr:
             return {}
 
         return cls.build_proxy(addr)
