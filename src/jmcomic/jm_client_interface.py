@@ -898,6 +898,16 @@ class JmcomicClient(
 
         yield from self.do_page_iter(params, page, self.categories_filter)
 
+    def is_api(self) -> bool:
+        """判断是否为 API 客户端，支持子类及相同 client_key 的实现。"""
+        from .jm_client_impl import JmApiClient
+        return isinstance(self, JmApiClient) or self.client_key == JmApiClient.client_key
+
+    def is_html(self) -> bool:
+        """判断是否为 HTML 客户端。"""
+        from .jm_client_impl import JmHtmlClient
+        return isinstance(self, JmHtmlClient) or self.client_key == JmHtmlClient.client_key
+
     def is_given_type(self, ctype: Type['JmcomicClient']) -> bool:
         """
         Client代理的此方法会被路由到内部client的方法
@@ -1309,6 +1319,16 @@ class AsyncJmcomicClient:
 
     def get_cache_dict(self) -> Optional[Dict]:
         raise NotImplementedError
+
+    def is_api(self) -> bool:
+        """判断是否为异步 API 客户端，包含其子类。"""
+        from .jm_async_client import AsyncJmApiClient
+        return isinstance(self, AsyncJmApiClient) or self.client_key == AsyncJmApiClient.client_key
+
+    def is_html(self) -> bool:
+        """判断是否为异步 HTML 客户端，包含其子类。"""
+        from .jm_async_client import AsyncJmHtmlClient
+        return isinstance(self, AsyncJmHtmlClient) or self.client_key == AsyncJmHtmlClient.client_key
 
     def is_given_type(self, ctype: Type['AsyncJmcomicClient']) -> bool:
         if isinstance(self, ctype):

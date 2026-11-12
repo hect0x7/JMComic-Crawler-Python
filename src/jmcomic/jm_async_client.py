@@ -309,7 +309,9 @@ class AbstractAsyncJmClient(AsyncJmcomicClient):
         if is_path:
             req_path, candidates, fail_dict = url_path, self._domain_list, self._domain_fail_count
         else:
-            media_info = JmcomicText.parse_jm_media_url(url_path) if is_image else None
+            media_info = JmcomicText.parse_jm_media_url(
+                url_path, prefer_original=not self.is_api(),
+            ) if is_image else None
             if media_info is not None:
                 req_path, candidates = media_info
                 fail_dict = self._image_domain_fail_count
@@ -318,6 +320,7 @@ class AbstractAsyncJmClient(AsyncJmcomicClient):
 
         retry_errors = []
         for retry in range(self._retry_times + 1):
+            # 每次尝试都按当前失败次数选最小值；同分按候选顺序，不修改全局图床列表。
             domain = min(candidates, key=lambda d: fail_dict.get(d, 0)) if candidates is not None else None
             req_url = self.of_api_url(req_path, domain) if domain is not None else url_path
 

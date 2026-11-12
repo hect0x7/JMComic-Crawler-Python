@@ -349,6 +349,18 @@ class JmOptionPlugin:
         校验 encrypt 配置的类型与必填密码，返回配置（未配置时返回 None）。
         固定密码必须显式提供 password，随机密码使用 type: random。
 
+        配置用法（YAML）：
+        | 配置 | 行为 |
+        | 未配置 encrypt / encrypt: null | 不加密 |
+        | encrypt: {} | 报错，缺少密码 |
+        | encrypt: {password: null} | 报错，null 视为未填写 |
+        | encrypt: {password: ""} | 允许传给底层，由加密框架决定是否支持 |
+        | encrypt: {password: abc} | 使用指定密码 |
+        | encrypt: {type: random} | 生成随机密码 |
+        | encrypt: {type: random, password: abc} | 随机密码优先，忽略 password |
+
+        只有 type: random 可以免填 password；其他 type 仍需提供非 null 的 password。
+
         encrypt 必须是映射（如 {type: random} 或 {password: xxx}），
         写成真值标量（encrypt: enabled）时后续的 encrypt.get(...) 会抛
         AttributeError，绕过了配置校验机制、报错也难以理解，这里统一拦掉。
@@ -362,7 +374,7 @@ class JmOptionPlugin:
                 f'实际类型为{type(encrypt)}'
             )
         # 必须显式配置 password；允许为空字符串，是否可用由底层加密库决定
-        if encrypt.get('type') != 'random' and 'password' not in encrypt:
+        if encrypt.get('type') != 'random' and encrypt.get('password') is None:
             ExceptionTool.raises(f'{cls.plugin_key}插件的encrypt参数缺少password，请配置password或使用 type: random')
         return encrypt
 

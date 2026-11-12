@@ -118,7 +118,9 @@ class AbstractJmClient(JmcomicClient):
             req_path, candidates, use_image_domains = url, self.domain_list, False
         else:
             # 禁漫图床图片链接（https://<domain>/media/...）拆出路径与候选图床列表；普通外链返回 None
-            media_info = JmcomicText.parse_jm_media_url(url) if is_image else None
+            media_info = JmcomicText.parse_jm_media_url(
+                url, prefer_original=not self.is_api(),
+            ) if is_image else None
             if media_info is not None:
                 req_path, candidates = media_info
                 use_image_domains = True
@@ -126,6 +128,7 @@ class AbstractJmClient(JmcomicClient):
                 req_path, candidates, use_image_domains = None, None, False
 
         for retry in range(self.retry_times + 1):
+            # 每次尝试都按当前失败次数选最小值；不重排候选列表或全局图床列表。
             domain = self._pick_domain(candidates, use_image_domains) if candidates is not None else None
             req_url = self.of_api_url(req_path, domain) if domain is not None else url
 

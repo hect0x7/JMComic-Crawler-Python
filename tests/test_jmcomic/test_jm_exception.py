@@ -230,7 +230,6 @@ class Test_RequestRetryAllFailException(unittest.TestCase):
             aresp1 = asyncio.run(async_client.get_jm_image('https://orig-html.example/media/photos/438516/00001.webp'))
             self.assertEqual(b'async-webp', aresp1.content)
             self.assertEqual([
-                'https://orig-html.example/media/photos/438516/00001.webp',
                 'https://img-bad.example/media/photos/438516/00001.webp',
                 'https://img-good.example/media/photos/438516/00001.webp',
             ], async_seen)
@@ -239,6 +238,66 @@ class Test_RequestRetryAllFailException(unittest.TestCase):
             aresp2 = asyncio.run(async_client.get_jm_image('https://img-bad.example/media/photos/438516/00002.webp'))
             self.assertEqual(b'async-webp', aresp2.content)
             self.assertEqual(['https://img-good.example/media/photos/438516/00002.webp'], async_seen)
+
+    def test_image_origin_preference_by_client_type(self):
+        from unittest.mock import patch
+
+        path = '/media/photos/123/00001.webp?v=99'
+        url = 'https://b.example' + path
+
+        class CustomApiClient(JmApiClient):
+            client_key = 'custom_api'
+
+        class CustomAsyncApiClient(AsyncJmApiClient):
+            client_key = 'custom_async_api'
+
+        with patch.object(JmModuleConfig, 'DOMAIN_IMAGE_LIST', ['a.example', 'b.example']):
+            for clazz, api in ((JmApiClient, True), (CustomApiClient, True), (JmHtmlClient, False),
+                               (AsyncJmApiClient, True), (CustomAsyncApiClient, True),
+                               (AsyncJmHtmlClient, False)):
+                with self.subTest(client=clazz.__name__):
+                    # 仅测试图片请求，不启动 API 登录或真实网络连接。
+                    client = object.__new__(clazz)
+                    self.assertEqual(api, client.is_api())
+                    self.assertEqual(not api, client.is_html())
+                    client.update_request_with_specify_domain = lambda *args, **kwargs: None
+                    client._image_domain_fail_count = {}
+                    seen = []
+
+                    def request(req_url, **kwargs):
+                        seen.append(req_url)
+                        return SimpleNamespace(status_code=200, url=req_url, content=b'image', text='ok')
+
+                    if isinstance(client, AsyncJmcomicClient):
+                        client._retry_times = 0
+                        client._has_setup = True
+
+                        async def ensure_session():
+                            pass
+
+                        async def async_request(req_url, **kwargs):
+                            return request(req_url, **kwargs)
+
+                        client._ensure_session = ensure_session
+                        client._session = SimpleNamespace(get=async_request)
+                        run = lambda: asyncio.run(client.get_jm_image(url))
+                    else:
+                        client.after_init = lambda: None
+                        AbstractJmClient.__init__(client, SimpleNamespace(), ['api.example'], retry_times=0)
+                        run = lambda: client.request_with_retry(request, url, is_image=True)
+
+                    run()
+                    self.assertEqual(['https://' + ('a.example' if api else 'b.example') + path], seen)
+
+                    # 历史失败次数优先于候选顺序，HTML 原图床也会被后置。
+                    seen.clear()
+                    client._image_domain_fail_count = {'a.example' if api else 'b.example': 1}
+                    run()
+                    self.assertEqual(['https://' + ('b.example' if api else 'a.example') + path], seen)
+
+        with patch.object(JmModuleConfig, 'DOMAIN_IMAGE_LIST', []):
+            self.assertEqual((path, ['b.example']),
+                             JmcomicText.parse_jm_media_url(url, prefer_original=False))
 
     def test_register_image_domain_and_setting_integration(self):
         from unittest.mock import AsyncMock, Mock, patch

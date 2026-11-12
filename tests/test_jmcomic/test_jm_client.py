@@ -548,7 +548,7 @@ class Test_Client(JmTestConfigurable):
                 self.assertEqual(ans.id, photo.id)
                 self.assertEqual(ans.name, photo.name)
                 # HTML 客户端在未请求 album (fetch_album=False) 时仅能获取通用 SEO 词，仅在 API 客户端断言 tags 恒等
-                if self.client.is_given_type(JmApiClient):
+                if self.client.is_api():
                     self.assertEqual(ans.tags, photo.tags)
 
     def test_search_generator(self):
@@ -607,7 +607,7 @@ class Test_Client(JmTestConfigurable):
             run(*case)
 
     def test_search_advanced(self):
-        if not self.client.is_given_type(JmHtmlClient):
+        if not self.client.is_html():
             return
 
         # noinspection PyTypeChecker

@@ -263,9 +263,11 @@ class Test_Plugin(JmTestConfigurable):
             # 固定密码必须显式配置 password：缺失时报错，空字符串交由底层加密库处理
             for plugin in (pdf_plugin, JmModuleConfig.REGISTRY_PLUGIN['zip'](fake)):
                 plugin.log_enable = False
-                with self.assertRaises(JmcomicException) as cm:
-                    plugin.decide_password({}, 'demo')
-                self.assertIn('password', str(cm.exception))
+                for encrypt in ({}, {'password': None}):
+                    with self.subTest(plugin=plugin.plugin_key, encrypt=encrypt):
+                        with self.assertRaises(JmcomicException) as cm:
+                            plugin.decide_password(encrypt, 'demo')
+                        self.assertIn('password', str(cm.exception))
                 self.assertEqual(('', False), plugin.decide_password({'password': ''}, 'demo'))
         print('✅ non-mapping encrypt rejected and decide_password shared across zip & img2pdf.')
 

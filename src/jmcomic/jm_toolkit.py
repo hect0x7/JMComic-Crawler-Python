@@ -476,20 +476,35 @@ class JmcomicText:
         return cls.format_url(path, image_domain)
 
     @classmethod
-    def parse_jm_media_url(cls, url: str) -> Optional[Tuple[str, List[str]]]:
+    def parse_jm_media_url(cls, url: str, prefer_original: bool = True) -> Optional[Tuple[str, List[str]]]:
         """
         解析禁漫图床链接（https://<domain>/media/...）。
         仅识别路径以 /media/ 开头的禁漫图片链接，避免误改写第三方外链；
-        匹配时返回 (带查询参数的相对路径, 去重候选图床域名列表)，原 URL 域名排首位。
+        匹配时返回 (带查询参数的相对路径, 去重候选图床域名列表)。
+        prefer_original=True 时将原 URL 域名前置，保留 HTML 页面提供的图床优先级；
+        API 传 False，直接使用配置列表，不将随机生成的 URL 域名前置。
+        配置列表为空时兜底使用原域名。请求层仍按历史失败次数选择候选节点。
         """
         match = cls.pattern_jm_media_url.match(url)
         if match is None:
             return None
         orig_domain, media_path = match[1], match[2]
-        candidates = list(dict.fromkeys([
-            orig_domain,
-            *(cls.parse_to_jm_domain(d) for d in JmModuleConfig.DOMAIN_IMAGE_LIST if d),
-        ]))
+        candidates = []
+        # HTML 保留页面指定的原图床；API 跳过这一步，不给随机域名额外优先级。
+        if prefer_original:
+            candidates.append(orig_domain)
+
+        # 按配置顺序补齐备用图床并去重；失败次数相同时，靠前的节点优先。
+        for domain in JmModuleConfig.DOMAIN_IMAGE_LIST:
+            if not domain:
+                continue
+            domain = cls.parse_to_jm_domain(domain)
+            if domain not in candidates:
+                candidates.append(domain)
+
+        # 没有配置可用候选时，仍允许请求原 URL 的图床。
+        if not candidates:
+            candidates.append(orig_domain)
         return media_path, candidates
 
     @classmethod

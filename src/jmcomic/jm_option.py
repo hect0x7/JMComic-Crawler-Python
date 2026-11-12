@@ -662,9 +662,8 @@ class JmOption:
         ExceptionTool.require_true(bool(u), '用户名不能为空')
         ExceptionTool.require_true(bool(p), '密码不能为空')
 
-        from .jm_async_client import AsyncJmApiClient
         client = self.new_jm_async_client(impl=impl)
-        is_api = client.is_given_type(AsyncJmApiClient)
+        is_api = client.is_api()
 
         if not force and self._is_auth_logged_in(is_api):
             return None

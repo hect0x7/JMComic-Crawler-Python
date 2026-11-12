@@ -111,7 +111,7 @@ class Test_Async_Client(JmAsyncTestConfigurable):
             self.assertTrue(list(forum_page_2))
             self.assertEqual(forum_page_1.page_number, 1)
             self.assertEqual(forum_page_2.page_number, 2)
-            if self.async_client.is_given_type(AsyncJmApiClient):
+            if self.async_client.is_api():
                 self.assertGreater(forum_page_1.total, 0)
             else:
                 self.assertIsNone(forum_page_1.total)

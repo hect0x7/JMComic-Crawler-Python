@@ -109,7 +109,7 @@ class Test_Api(JmTestConfigurable):
         if len(exception_list) == 0:
             return
 
-        if self.client.is_given_type(JmApiClient):
+        if self.client.is_api():
             return
 
         for e in exception_list:
