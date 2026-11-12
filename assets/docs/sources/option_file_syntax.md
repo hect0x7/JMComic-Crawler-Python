@@ -337,6 +337,6 @@ plugins:
     - plugin: long_img
       kwargs:
         img_dir: D:/pdf/ # 长图存放文件夹
-        filename_rule: Pname # 长图命名规则
+        filename_rule: Pname # 长图命名规则；如果配置到 after_album 则改成 Aname
   
 ```

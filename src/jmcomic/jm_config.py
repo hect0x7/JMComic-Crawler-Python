@@ -524,7 +524,7 @@ class JmModuleConfig:
             'cookies': None,
             'user_id': None,
         },
-        'dir_rule': {'rule': 'Bd_Pname', 'base_dir': None, 'normalize_zh': None},
+        'dir_rule': {'rule': 'Bd / {Ptitle}', 'base_dir': None, 'normalize_zh': None},
         'download': {
             'cache': True,
             'image': {'decode': True, 'suffix': None},
