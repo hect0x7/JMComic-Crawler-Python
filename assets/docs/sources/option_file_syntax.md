@@ -250,7 +250,7 @@ plugins:
 
         zip_dir: D:/jmcomic/zip/ # 压缩文件存放的文件夹
         suffix: zip # 压缩包后缀名，默认 zip，支持 zip 或 7z
-        filename_rule: Atitle # 同单段 DSL 规则（after_album 下只能用 Axxx；after_photo 下可用 Pxxx 和 Axxx）
+        filename_rule: "[JM{Aid}]{Atitle}" # 整本导出的默认值，同单段 DSL 规则；改到 after_photo 时用 "[JM{Pid}]{Ptitle}"
         # 也可使用 dir_rule 统一指定目录与文件名（优先于 zip_dir / filename_rule / suffix）：
         # dir_rule:
         #   base_dir: D:/jmcomic-download/
@@ -329,7 +329,7 @@ plugins:
     - plugin: img2pdf
       kwargs:
         pdf_dir: D:/pdf/ # pdf存放文件夹
-        filename_rule: Pid # pdf 文件名，同单段 DSL 规则
+        filename_rule: "[JM{Pid}]{Ptitle}" # 按章导出的默认值，同单段 DSL 规则；改到 after_album 时用 "[JM{Aid}]{Atitle}"
         # 不加密时省略 encrypt；配置空映射会报错，加密依赖与密码会在生成 PDF 前检查。
         encrypt: # 可选：设置 pdf 密码（依赖: pip install pikepdf；与 zip 一样支持 password 指定密码或 type: random 随机密码）
           password: 123
@@ -341,6 +341,6 @@ plugins:
     - plugin: long_img
       kwargs:
         img_dir: D:/pdf/ # 长图存放文件夹
-        filename_rule: Pname # 长图文件名，同单段 DSL 规则；如果配置到 after_album 则改成 Aname
+        filename_rule: "[JM{Pid}]{Ptitle}" # 按章导出的默认值，同单段 DSL 规则；改到 after_album 时用 "[JM{Aid}]{Atitle}"
   
 ```

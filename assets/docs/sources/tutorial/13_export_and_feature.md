@@ -77,7 +77,7 @@ download_album('123', option, extra=Feature.export_pdf | Feature.export_zip)
 download_album('123', option, extra=Feature.export_pdf(
     # 下面是自定义参数
     pdf_dir='D:/my_pdfs',          # PDF 保存到 D:/my_pdfs 文件夹
-    filename_rule='Atitle',        # 用本子标题作为文件名
+    filename_rule='[JM{Aid}]{Atitle}', # 整本导出的默认值：车号 + 标题
     delete_original_file=True,     # 合并完 PDF 后删除原图
 ))
 ```
@@ -127,7 +127,7 @@ download_photo('456', option, extra=Feature.export_pdf)
 | `download_album` | 整本合并为 1 个 PDF<br>`[JM本子号]本子标题.pdf` | 整本打包为 1 个 ZIP<br>`[JM本子号]本子标题.zip` | 所有章节合并为 1 张长图<br>`[JM本子号]本子标题.png` |
 | `download_photo` | 该章节导出为 PDF<br>`[JM章节号]章节标题.pdf` | 该章节打包为 ZIP<br>`[JM章节号]章节标题.zip` | 该章节拼接为长图<br>`[JM章节号]章节标题.png` |
 
-当你显式传入参数时（如 `filename_rule='Ptitle'`），**你的配置优先**，不会被自适应覆盖。
+当你显式传入参数时（如 `filename_rule='[JM{Pid}]{Ptitle}'`），**你的配置优先**，不会被自适应覆盖。
 
 > [!TIP]
 > 更多可选参数（如加密密码 `encrypt`、后缀名 `suffix` 等），参考 [Plugin 插件参数大全](../option_file_syntax.md#3-option)。
@@ -143,7 +143,7 @@ plugins:
     - plugin: img2pdf # 合并pdf
       kwargs:
         pdf_dir: ./output
-        filename_rule: Atitle
+        filename_rule: "[JM{Aid}]{Atitle}" # 整本导出的默认值：车号 + 标题
     - plugin: zip # 合并为压缩文件
       kwargs:
         zip_dir: ./output

@@ -94,7 +94,7 @@ plugins:
   after_photo:
     - plugin: zip
       kwargs:
-        filename_rule: Ptitle
+        filename_rule: "[JM{Pid}]{Ptitle}" # 按章导出的默认值：车号 + 标题
         zip_dir: ./downloads
         delete_original_file: true
 ```
