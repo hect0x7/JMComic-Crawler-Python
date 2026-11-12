@@ -126,10 +126,8 @@ class Test_Async_Html_Client(unittest.TestCase):
     def test_dynamic_domain_resolution_matches_sync(self):
         from jmcomic import ResponseUnexpectedException
 
-        old_domain_html = JmModuleConfig.DOMAIN_HTML
         old_domain_html_list = JmModuleConfig.DOMAIN_HTML_LIST
         try:
-            JmModuleConfig.DOMAIN_HTML = None
             JmModuleConfig.DOMAIN_HTML_LIST = None
             option = JmOption.default()
             option.client.src_dict['domain'] = {}
@@ -144,13 +142,12 @@ class Test_Async_Html_Client(unittest.TestCase):
             client._session = fake_session
 
             self.run_async(client.setup())
-            self.assertEqual(JmModuleConfig.DOMAIN_HTML, 'resolved-html.example')
+            self.assertIsNone(JmModuleConfig.DOMAIN_HTML_LIST)
             self.assertEqual(client.get_domain_list(), ['resolved-html.example'])
             self.assertEqual(fake_session.calls[0][1], JmModuleConfig.JM_REDIRECT_URL)
             self.assertFalse(fake_session.calls[0][2]['allow_redirects'])
             self.assertEqual(fake_session.calls[1][1], 'https://step1.example/go')
 
-            JmModuleConfig.DOMAIN_HTML = None
             client_error = AsyncJmHtmlClient(option)
             error_session = _FakeSession()
             error_session.responses.append(_FakeResponse(status_code=500))
@@ -158,7 +155,6 @@ class Test_Async_Html_Client(unittest.TestCase):
             with self.assertRaises(ResponseUnexpectedException):
                 self.run_async(client_error.setup())
         finally:
-            JmModuleConfig.DOMAIN_HTML = old_domain_html
             JmModuleConfig.DOMAIN_HTML_LIST = old_domain_html_list
 
     def test_search_cache_avoids_second_request(self):
@@ -924,6 +920,77 @@ class Test_Async_Html_Client(unittest.TestCase):
         self.run_async(async_html.setup())
         self.assertEqual(async_html._session.cookies.get('AVS'), 'async_html_sess_avs')
         self.run_async(async_html.close())
+
+    def test_copy_option_isolates_configs_while_sharing_auth(self):
+        """copy_option 深拷贝 download/client/plugins 防串扰，同时保持 auth 登录态共享。"""
+        option = JmOption.construct({
+            'dir_rule': {'base_dir': '/tmp/base', 'rule': 'Bd / Pname'},
+            'download': {
+                'cache': True,
+                'threading': {'image': 10, 'photo': 2},
+            },
+            'client': {
+                'impl': 'api',
+                'retry_times': 3,
+                'domain': ['example.com'],
+                'postman': {'meta_data': {'timeout': 20}},
+            },
+            'plugins': {
+                'valid': 'log',
+                'before_photo': [{'plugin': 'skip_photo_with_few_images', 'kwargs': {'at_least_image_count': 3}}],
+            },
+            'auth': {
+                'username': 'shared_user',
+                'password': 'shared_pass',
+                'user_id': '1001',
+                'cookies': {'AVS': 'logged_in_cookie'},
+            },
+        })
+
+        copied = option.copy_option()
+
+        # 修改副本的目录、下载、客户端与插件（含嵌套字典/列表）不污染原 option
+        copied.dir_rule.base_dir = '/tmp/task_1'
+        copied.download.cache = False
+        copied.download.threading.image = 4
+        copied.client.retry_times = 1
+        copied.client.src_dict['domain'].append('other.example.com')
+        copied.client.postman.meta_data['timeout'] = 5
+        copied.plugins['before_photo'][0]['kwargs']['at_least_image_count'] = 99
+        copied.plugins.setdefault('after_image', []).append({'plugin': 'zip', 'kwargs': {}})
+
+        self.assertNotEqual(option.dir_rule.base_dir, copied.dir_rule.base_dir)
+        self.assertTrue(option.download.cache)
+        self.assertEqual(option.download.threading.image, 10)
+        self.assertEqual(option.client.retry_times, 3)
+        self.assertEqual(copied.client.domain, ['example.com', 'other.example.com'])
+        self.assertEqual(option.client.domain, ['example.com'])
+        self.assertEqual(option.client.postman.meta_data['timeout'], 20)
+        self.assertEqual(option.plugins['before_photo'][0]['kwargs']['at_least_image_count'], 3)
+        self.assertNotIn('after_image', option.plugins)
+
+        # auth 保持共享，原 option 已登录时副本直接复用登录态，无需重新登录
+        self.assertIs(copied.auth.src_dict, option.auth.src_dict)
+        self.assertTrue(copied._is_auth_logged_in(is_api=True))
+        copied.update_cookies({'AVS': 'refreshed_cookie'})
+        self.assertEqual(option.auth.cookies['AVS'], 'refreshed_cookie')
+
+    def test_copy_option_shares_empty_auth(self):
+        """直接构造且 auth 为空（None 或 {}）时，copy_option 的副本同样与原 option 共享 auth。"""
+        base = JmOption.default()
+        for auth in (None, {}):
+            option = JmOption(
+                dir_rule={'rule': base.dir_rule.rule_dsl, 'base_dir': base.dir_rule.base_dir},
+                download=base.download.src_dict,
+                client=base.client.src_dict,
+                plugins=base.plugins.src_dict,
+                call_after_init_plugin=False,
+                auth=auth,
+            )
+            copied = option.copy_option()
+            self.assertIs(copied.auth.src_dict, option.auth.src_dict, f'auth={auth!r}')
+            option.auth.cookies = {'AVS': 'logged_in_cookie'}
+            self.assertEqual(copied.auth.cookies['AVS'], 'logged_in_cookie', f'auth={auth!r}')
 
     @unittest.skipUnless(
         os.environ.get('JM_RUN_REAL_ASYNC_HTML') == '1',

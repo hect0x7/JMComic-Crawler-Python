@@ -378,11 +378,23 @@ class ProxyBuilder:
 
         addr = proxies.get('http') or proxies.get('https')
         if addr is None:
-            return {}
+            socks_addr = proxies.get('socks')
+            if socks_addr:
+                # Python <=3.13 在 macOS (_scproxy) 下会将系统 SOCKS 代理返回为 http://host:port；
+                # 操作系统未显式区分时默认采用 socks5h:// 让代理端执行远端 DNS 解析
+                for bad_prefix in ('http://', 'https://', 'socks://'):
+                    if socks_addr.startswith(bad_prefix):
+                        socks_addr = 'socks5h://' + socks_addr[len(bad_prefix):]
+                        break
+                else:
+                    if '://' not in socks_addr:
+                        socks_addr = 'socks5h://' + socks_addr
+                addr = socks_addr
+            else:
+                addr = proxies.get('all')
 
-        prot = '://'
-        if prot in addr:
-            addr = addr[addr.find(prot) + len(prot):]
+        if not addr:
+            return {}
 
         return cls.build_proxy(addr)
 
@@ -552,12 +564,19 @@ class Postmans:
         return clazz
 
     @classmethod
+    def _normalize_kwargs(cls, kwargs: dict) -> dict:
+        proxies = kwargs.get('proxies', None)
+        if proxies is not None and not isinstance(proxies, dict):
+            kwargs['proxies'] = ProxyBuilder.build_by_str(proxies)
+        return kwargs
+
+    @classmethod
     def new_session(cls, **kwargs) -> Postman:
-        return cls.get_impl_clazz('curl_cffi_session').create(**kwargs)
+        return cls.get_impl_clazz('curl_cffi_session').create(**cls._normalize_kwargs(kwargs))
 
     @classmethod
     def new_postman(cls, **kwargs) -> Postman:
-        return cls.get_impl_clazz('curl_cffi').create(**kwargs)
+        return cls.get_impl_clazz('curl_cffi').create(**cls._normalize_kwargs(kwargs))
 
     @classmethod
     def create(cls, filepath='./postman.yml', data: Optional[dict] = None) -> Postman:

@@ -1,6 +1,6 @@
 # Plugin - 插件
 
-plugin(扩展/插件)是v2.2.0新引入的机制，使用插件可以实现灵活无感知的功能增强。
+使用 plugin（扩展/插件）机制可以实现灵活无感知的功能增强。
 
 目前jmcomic已经内置了一些插件，源码位于 src/jmcomic/jm_plugin.py。
 
@@ -74,7 +74,7 @@ create_option('myoption.yml')
 
 ```yaml
 dir_rule:
-  rule: Bd_Aid
+  rule: Bd / Aid / Ptitle
   base_dir: ./downloads
 
 download:
@@ -91,16 +91,15 @@ plugins:
       kwargs:
         145504: 290266  # 只下载本子 145504 中章节 290266 之后的新章节
 
-  after_album:
+  after_photo:
     - plugin: zip
       kwargs:
-        level: photo
         filename_rule: Ptitle
         zip_dir: ./downloads
         delete_original_file: true
 ```
 
-这里的执行顺序是：`find_update` 发起增量下载，下载前按 `auth` 自动登录；每个本子下载完成后，`zip` 插件按章节生成压缩文件并删除已成功压缩的原图片。
+这里的执行顺序是：`find_update` 发起增量下载，下载前按 `auth` 自动登录；每个章节下载完成后，`zip` 插件按章节生成压缩文件并删除已成功压缩的原图片。
 
 
 ## 4. 怎么手动调用插件

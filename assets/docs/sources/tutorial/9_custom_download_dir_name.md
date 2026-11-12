@@ -27,124 +27,115 @@ plugins:
 ---------------
 **_如果上述简单的文本替换无法满足你，或者你需要更灵活的组合逻辑，那么下面的 f-string 语法正适合你。_**
 
-## 1. DirRule 与 f-string 语法
+## 1. 目录规则与单段 DSL
 
 当你使用 `download_album` 下载本子时，本子会以一定的路径规则（DirRule）下载到你的磁盘上。
 
-路径规则通过 `dir_rule.rule` 配置，支持 **f-string 模板语法**，你可以用 `{变量名}` 自由组合出想要的文件夹名。
+如果你希望文件夹里包含本子/章节信息，就可以通过下面的规则定制文件夹名和保存路径。
 
-### 1.1 快速上手
+使用 `dir_rule` 配置：`base_dir` 指定根目录，`rule` 指定各层目录的命名规则。
+
+### 1.1 rule 的组成
+
+`rule` 由根目录 `Bd` 和多段 DSL 组成，段与段之间用 `/` 分隔。每段 DSL 决定一层文件夹的名字，解析后按顺序拼接成保存路径。
+
+例如：
+
+```yaml
+rule: Bd / Atitle / {Pid}-{Ptitle}
+```
+
+这条规则有三段：
+
+| 段           | 规则 | 对应的目录层级 |
+|:-------------|:---|:---|
+| 第一段：固定 | `Bd` | 根目录，即 `base_dir` |
+| 第二段：DSL  | `Atitle` | 以本子标题命名的文件夹 |
+| 第三段：DSL  | `{Pid}-{Ptitle}` | 以章节 ID 和标题组合命名的文件夹 |
+
+`Bd` 放在最前面，然后接下来说明每一段 DSL 怎么写。
+
+### 1.2 一段 DSL 怎么写
+
+**一段 DSL 规则用于生成一个目录名**，支持以下写法：
+
+| 写法 | 示例 | 含义 |
+|:---|:---|:---|
+| 单属性简写 | `Atitle`、`Ptitle` | 直接使用本子标题或章节标题 |
+| f-string 组合 | `{Pid}-{Ptitle}`、`JM{Aid}` | 组合多个属性或固定文字 |
+| 固定文字 | `comics` | 直接使用这段文字作为文件夹名 |
+
+**单属性简写**：本子属性用 `Axxx`，章节属性用 `Pxxx`，其中 `xxx` 是属性名。例如 `Atitle` 表示本子的 `title`，`Ptitle` 表示章节的 `title`。
+
+**组合写法**：需要把多个属性或固定文字放进同一个文件夹名时，用 `{变量名}` 引用属性。例如 `{Pid}-{Ptitle}` 将章节 ID 和标题用 `-` 连接，`JM{Aid}` 在本子 ID 前加上 `JM`。组合写法由 Python 的 `str.format()` 渲染。
+
+**固定文字**：例如 `comics` 会直接生成名为 `comics` 的文件夹。以 `A` 或 `P` 开头的文字会按属性简写解析，应避开这类固定命名。
+
+单个属性优先使用简写，需要组合时再用 `{}`。
+
+### 1.3 完整示例
 
 ```yaml
 dir_rule:
-  base_dir: D:/a/b/c/
-  # 使用 f-string 模板：本子标题作为文件夹名
-  rule: Bd / {Atitle}
+  base_dir: D:/comics/
+  rule: Bd / Atitle / {Pid}-{Ptitle}
 ```
 
-上例表示把图片下载到 `{base_dir}/{本子标题}/` 下。假设本子标题为「社团学姐」，下载结果为：
+假设本子标题为「社团学姐」，当前章节 ID 为 `212214`，章节标题为「第3话」，各段解析后的结果依次是：
 
+- `Bd` → `D:/comics/`
+- `Atitle` → `社团学姐`
+- `{Pid}-{Ptitle}` → `212214-第3话`
+
+最终图片路径为：
+
+```text
+D:/comics/社团学姐/212214-第3话/00001.webp
 ```
-D:/a/b/c/社团学姐/00001.webp
-D:/a/b/c/社团学姐/00002.webp
-...
-```
-
-### 1.2 语法规则
-
-`rule` 由 **分隔符** 切分为多个"片段"，每个片段独立解析后按 `/` 拼接成最终路径：
-
-- 使用 `/` 分隔（推荐）：`Bd / {Atitle} / {Pname}`
-- 使用 `_` 分隔（兼容旧写法）：`Bd_{Atitle}_{Pname}`
-
-> [!IMPORTANT]
->
-> `/` 和 `_` **二选一**，不可混用。含 `/` 时按 `/` 切分，不含 `/` 时按 `_` 切分。
-> 
-> 如果你的文件夹名本身需要包含 `_`，请使用 `/` 作为分隔符，例如：`Bd / {Aid}_{Atitle}`
-
-每个片段中使用 `{变量名}` 引用实体属性，变量名由 **前缀 + 属性名** 组成：
-
-| 前缀 | 含义 | 对应实体类 |
-|:---:|:---|:---|
-| `A` | 本子（Album）| `JmAlbumDetail` |
-| `P` | 章节（Photo）| `JmPhotoDetail` |
-
-例如 `{Atitle}` = 本子的 title，`{Pname}` = 章节的 name。
-
-特殊片段 `Bd` 代表 `base_dir`（根目录），通常放在最前面，也可以省略（会自动补上）。
-
-### 1.3 f-string 示例
-
-```yaml
-# ✅ 本子ID + 本子标题
-rule: Bd / {Aid}-{Atitle}
-# 结果: D:/a/b/c/248965-社团学姐/
-
-# ✅ 【作者】原始名称
-rule: Bd / {Aauthoroname}
-# 结果: D:/a/b/c/【BLVEFO9】喂我吃吧 老師!/
-
-# ✅ 带本子ID的两级目录（本子 → 章节）
-rule: Bd / [{Aid}]{Atitle} / 第{Pindex}話
-# 结果: D:/a/b/c/[248965]社团学姐/第3話/
-
-# ✅ JM车号 + 章节标题
-rule: Bd / JM{Aid} / {Pname}
-# 结果: D:/a/b/c/JM248965/第3话 xxx/
-
-# ✅ 复合格式：作者-ID-原始名称
-rule: Bd / {Aauthor}-{Aid}-{Aoname}
-# 结果: D:/a/b/c/BLVEFO9-248965-喂我吃吧 老師!/
-```
-
-> [!TIP]
-> 每个 `{...}` 内的变量会被 Python 的 `str.format()` 渲染，因此你可以任意组合文字与变量。
-> `{Aid}` 和 `{Pid}` 返回的都是字符串，可以直接拼接。
 
 ---
 
-## 2. 可用变量速查表
+## 2. 可用属性速查表
 
-以下列出了 f-string 中可使用的所有内置变量。
+下表列出常用属性名，可直接作为单段 DSL 简写；需要组合时在属性名外加 `{}`，例如 `Aid` → `JM{Aid}-{Atitle}`。
 
 ### 本子变量（A 前缀）
 
 | 变量名 | 类型 | 说明 | 示例值 |
 |:---|:---|:---|:---|
-| `{Aid}` | str | 本子 ID | `"248965"` |
-| `{Aalbum_id}` | str | 同 `{Aid}` | `"248965"` |
-| `{Aname}` | str | 本子名称（原始完整标题） | `"喂我吃吧 老師! [欶瀾漢化組]..."` |
-| `{Atitle}` | str | 同 `{Aname}` | 同上 |
-| `{Aoname}` | str | 提取出的原始名称（去除作者/汉化组等标签） | `"喂我吃吧 老師!"` |
-| `{Aauthor}` | str | 第一作者 | `"BLVEFO9"` |
-| `{Aauthoroname}` | str | `【作者】原始名称` | `"【BLVEFO9】喂我吃吧 老師!"` |
-| `{Aidoname}` | str | `[ID] 原始名称` | `"[248965] 喂我吃吧 老師!"` |
-| `{Adescription}` | str | 本子描述 | `"..."` |
-| `{Apage_count}` | int | 总页数 | `42` |
-| `{Apub_date}` | str | 发布日期 | `"2023-01-15"` |
-| `{Aupdate_date}` | str | 更新日期 | `"2023-06-20"` |
-| `{Alikes}` | str | 点赞数 | `"1K"` |
-| `{Aviews}` | str | 观看数 | `"40K"` |
-| `{Acomment_count}` | int | 评论数 | `128` |
+| `Aid` | str | 本子 ID | `"248965"` |
+| `Aalbum_id` | str | 同 `Aid` | `"248965"` |
+| `Aname` | str | 本子名称（原始完整标题） | `"喂我吃吧 老師! [欶瀾漢化組]..."` |
+| `Atitle` | str | 同 `Aname` | 同上 |
+| `Aoname` | str | 提取出的原始名称（去除作者/汉化组等标签） | `"喂我吃吧 老師!"` |
+| `Aauthor` | str | 第一作者 | `"BLVEFO9"` |
+| `Aauthoroname` | str | `【作者】原始名称` | `"【BLVEFO9】喂我吃吧 老師!"` |
+| `Aidoname` | str | `[ID] 原始名称` | `"[248965] 喂我吃吧 老師!"` |
+| `Adescription` | str | 本子描述 | `"..."` |
+| `Apage_count` | int | 总页数 | `42` |
+| `Apub_date` | str | 发布日期 | `"2023-01-15"` |
+| `Aupdate_date` | str | 更新日期 | `"2023-06-20"` |
+| `Alikes` | str | 点赞数 | `"1K"` |
+| `Aviews` | str | 观看数 | `"40K"` |
+| `Acomment_count` | int | 评论数 | `128` |
 
 ### 章节变量（P 前缀）
 
 | 变量名 | 类型 | 说明 | 示例值 |
 |:---|:---|:---|:---|
-| `{Pid}` | str | 章节 ID | `"212214"` |
-| `{Pphoto_id}` | str | 同 `{Pid}` | `"212214"` |
-| `{Pname}` | str | 章节名称 | `"94 突然打來"` |
-| `{Ptitle}` | str | 同 `{Pname}` | 同上 |
-| `{Poname}` | str | 章节的原始名称（去除标签） | `"94 突然打來"` |
-| `{Pauthor}` | str | 章节作者（优先取本子作者） | `"BLVEFO9"` |
-| `{Pauthoroname}` | str | `【作者】章节原始名称` | `"【BLVEFO9】94 突然打來"` |
-| `{Pidoname}` | str | `[ID] 章节原始名称` | `"[212214] 94 突然打來"` |
-| `{Psort}` | int | 章节排序值 | `3` |
-| `{Pindex}` | int | 章节在本子中的序号（从1开始） | `3` |
-| `{Palbum_index}` | int | 同 `{Pindex}` | `3` |
-| `{Pindextitle}` | str | `第X話 章节名称` | `"第3話 94 突然打來"` |
-| `{Palbum_id}` | str | 所属本子 ID | `"248965"` |
+| `Pid` | str | 章节 ID | `"212214"` |
+| `Pphoto_id` | str | 同 `Pid` | `"212214"` |
+| `Pname` | str | 章节名称 | `"94 突然打來"` |
+| `Ptitle` | str | 同 `Pname` | 同上 |
+| `Poname` | str | 章节的原始名称（去除标签） | `"94 突然打來"` |
+| `Pauthor` | str | 章节作者（优先取本子作者） | `"BLVEFO9"` |
+| `Pauthoroname` | str | `【作者】章节原始名称` | `"【BLVEFO9】94 突然打來"` |
+| `Pidoname` | str | `[ID] 章节原始名称` | `"[212214] 94 突然打來"` |
+| `Psort` | int | 章节排序值 | `3` |
+| `Pindex` | int | 章节在本子中的序号（从1开始） | `3` |
+| `Palbum_index` | int | 同 `Pindex` | `3` |
+| `Pindextitle` | str | `第X話 章节名称` | `"第3話 94 突然打來"` |
+| `Palbum_id` | str | 所属本子 ID | `"248965"` |
 
 > [!NOTE]
 > 变量的实际来源是实体类的**实例字段**和 **`@property`** 属性。如果你需要更多字段，可以在代码中调用 `album.get_properties_dict()` 或 `photo.get_properties_dict()` 打印查看所有可用的 key。
@@ -160,7 +151,7 @@ rule: Bd / {Aauthor}-{Aid}-{Aoname}
 ```yaml
 dir_rule:
   base_dir: D:/a/b/c/
-  rule: Bd / {Atitle}
+  rule: Bd / Atitle
   normalize_zh: zh-cn # 可选值：None（默认，不转换）/ zh-cn / zh-tw
 ```
 
@@ -178,7 +169,7 @@ dir_rule:
 ```yaml
 dir_rule:
   base_dir: D:/comics/
-  rule: Bd / {Pname}
+  rule: Bd / Pname
 ```
 
 结果：`D:/comics/94 突然打來/00001.webp`
@@ -190,7 +181,7 @@ dir_rule:
 ```yaml
 dir_rule:
   base_dir: D:/comics/
-  rule: Bd / {Atitle} / {Pname}
+  rule: Bd / Atitle / Pname
 ```
 
 结果：`D:/comics/社团学姐/94 突然打來/00001.webp`
@@ -210,7 +201,7 @@ dir_rule:
 也可以直接使用内置的组合属性：
 
 ```yaml
-rule: Bd / {Aauthoroname}
+rule: Bd / Aauthoroname
 ```
 
 效果相同。
@@ -234,7 +225,7 @@ dir_rule:
 ```yaml
 # 直接使用内置属性 Pindextitle
 dir_rule:
-  rule: Bd / {Pindextitle}
+  rule: Bd / Pindextitle
 ```
 
 结果：`./第3話 94 突然打來/00001.webp`
@@ -246,7 +237,7 @@ dir_rule:
 ```yaml
 dir_rule:
   base_dir: D:/comics/
-  rule: Bd / {Apub_date} / [{Aid}]{Aoname}
+  rule: Bd / Apub_date / [{Aid}]{Aoname}
 ```
 
 结果：`D:/comics/2023-01-15/[248965]喂我吃吧 老師!/00001.webp`
@@ -258,29 +249,7 @@ dir_rule:
 ```yaml
 dir_rule:
   base_dir: D:/comics/
-  rule: Bd / {Aauthor} / [{Aid}]{Aoname} / {Pindextitle}
+  rule: Bd / Aauthor / [{Aid}]{Aoname} / Pindextitle
 ```
 
 结果：`D:/comics/BLVEFO9/[248965]喂我吃吧 老師!/第3話 94 突然打來/00001.webp`
-
----
-
-### 兼容旧写法（传统 DSL）
-
-以下旧写法仍然可用，但推荐逐步迁移至 f-string 语法：
-
-```yaml
-# 旧写法（等效）
-rule: Bd_Pname
-
-# f-string 新写法（推荐）
-rule: Bd / {Pname}
-```
-
-```yaml
-# 旧写法
-rule: Bd / Atitle / Pindextitle
-
-# f-string 新写法（推荐）
-rule: Bd / {Atitle} / {Pindextitle}
-```

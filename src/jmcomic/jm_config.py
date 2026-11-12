@@ -144,7 +144,7 @@ class JmMagicConstants:
     APP_TOKEN_SECRET_2 = '18comicAPPContent'
     APP_DATA_SECRET = '185Hcomic3PAPP7R'
     API_DOMAIN_SERVER_SECRET = 'diosfjckwpqpdfjkvnqQjsik'
-    APP_VERSION = '2.1.12'
+    APP_VERSION = '2.1.13'
 
 
 # 模块级别共用配置
@@ -246,11 +246,7 @@ class JmModuleConfig:
     }
 
     # 网页端域名配置
-    # 无需配置，默认为None，需要的时候会发起请求获得
-    # 使用优先级:
-    # 1. DOMAIN_HTML_LIST
-    # 2. [DOMAIN_HTML]
-    DOMAIN_HTML = None
+    # 仅供用户覆盖；为空时由各客户端发现域名，查询结果不回写全局配置。
     DOMAIN_HTML_LIST = None
 
     # 模块级别的可重写类配置
@@ -376,12 +372,9 @@ class JmModuleConfig:
         return clazz
 
     @classmethod
-    @field_cache("DOMAIN_HTML")
     def get_html_domain(cls, postman=None):
         """
-        由于禁漫的域名经常变化，调用此方法可以获取一个当前可用的最新的域名 domain，
-        并且设置把 domain 设置为禁漫模块的默认域名。
-        这样一来，配置文件也不用配置域名了，一切都在运行时动态获取。
+        访问永久网域，获取一个当前可用的域名，不缓存、不修改全局域名配置。
         """
         from .jm_toolkit import JmcomicText
         return JmcomicText.parse_to_jm_domain(cls.get_html_url(postman))
@@ -410,10 +403,9 @@ class JmModuleConfig:
         return url
 
     @classmethod
-    @field_cache("DOMAIN_HTML_LIST")
     def get_html_domain_all(cls, postman=None):
         """
-        访问禁漫发布页，得到所有的禁漫网页域名
+        访问禁漫发布页，得到所有的禁漫网页域名，不缓存、不修改全局域名配置。
 
         :returns: ['18comic.vip', ..., 'jm365.xyz/ZNPJam'], 最后一个是【APP軟件下載】
         """
@@ -431,23 +423,20 @@ class JmModuleConfig:
         return domain_list
 
     @classmethod
-    def get_html_domain_all_via_github(cls,
-                                       postman=None,
-                                       *deprecated_args,
-                                       **deprecated_kwargs,
-                                       ):
+    def register_image_domain(cls, img_host: str | None) -> str | None:
         """
-        已废弃：原 GitHub 仓库不再提供禁漫域名。
-        为保持兼容，当前转发到 get_html_domain_all；该方法将在未来版本移除。
+        将最新图床域名（如 /setting 返回的 img_host）去重前置加入 DOMAIN_IMAGE_LIST。
         """
-        import warnings
-        warnings.warn(
-            'get_html_domain_all_via_github is deprecated because the GitHub repository no longer provides '
-            'JMComic domains; use get_html_domain_all instead.',
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return cls.get_html_domain_all(postman)
+        if not img_host or not isinstance(img_host, str):
+            return None
+        from .jm_toolkit import JmcomicText
+        domain = JmcomicText.parse_to_jm_domain(img_host)
+        if not domain:
+            return None
+        if not cls.DOMAIN_IMAGE_LIST or cls.DOMAIN_IMAGE_LIST[0] != domain:
+            cls.DOMAIN_IMAGE_LIST = [domain] + [d for d in cls.DOMAIN_IMAGE_LIST if d != domain]
+            cls.jm_log('api.setting.img_host', f'收录最新图床域名至首位: [{domain}]')
+        return domain
 
     @classmethod
     def new_html_headers(cls, domain='18comic.vip'):
@@ -515,7 +504,7 @@ class JmModuleConfig:
     # 一般情况下，建议使用option配置文件来定制配置
     # 而如果只想修改几个简单常用的配置，也可以下方的DEFAULT_XXX属性
     JM_OPTION_VER = '2.1'
-    DEFAULT_CLIENT_IMPL = 'api'  # 默认Client实现类型为网页端
+    DEFAULT_CLIENT_IMPL = 'api'  # 默认Client实现类型为移动端
     DEFAULT_CLIENT_CACHE = None  # 默认关闭Client缓存。缓存的配置详见 CacheRegistry
     DEFAULT_PROXIES = ProxyBuilder.system_proxy()  # 默认使用系统代理
 
@@ -527,7 +516,7 @@ class JmModuleConfig:
             'cookies': None,
             'user_id': None,
         },
-        'dir_rule': {'rule': 'Bd_Pname', 'base_dir': None, 'normalize_zh': None},
+        'dir_rule': {'rule': 'Bd / Pname', 'base_dir': None, 'normalize_zh': None},
         'download': {
             'cache': True,
             'image': {'decode': True, 'suffix': None},

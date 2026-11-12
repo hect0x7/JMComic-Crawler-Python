@@ -1,7 +1,7 @@
 # GitHub Actions 测试用
 # 网页端配置
 dir_rule:
-  rule: Bd_Aauthor_Aid_Pindextitle
+  rule: Bd / Aauthor / Aid / Pindextitle
 
 client:
   impl: html

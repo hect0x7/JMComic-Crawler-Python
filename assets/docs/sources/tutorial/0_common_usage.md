@@ -119,7 +119,7 @@ except JmcomicException as e:
 # 因为非当前线程抛出的异常（比如下载章节的线程和下载图片的线程），这些线程如果抛出异常，
 # 当前线程是感知不到的，try-catch下载方法download_album不能捕获到其他线程发生的异常。
 try:
-    album, downloader = download_album(123, check_exception=True)
+    result = download_album(123, check_exception=True)
 except PartialDownloadFailedException as e:
     downloader: JmDownloader = e.downloader
     print(f'下载出现部分失败, 下载失败的章节: {downloader.download_failed_photo}, 下载失败的图片: {downloader.download_failed_image}')

@@ -176,7 +176,13 @@ class DetailEntity(JmBaseEntity, IndexedEntity):
     def get_properties_dict(self):
         import inspect
 
-        prefix = self.__class__.__name__[2]
+        # 自定义本子/章节子类也使用 A/P 前缀，其他实体保留原来的命名约定。
+        if self.is_album():
+            prefix = 'A'
+        elif self.is_photo():
+            prefix = 'P'
+        else:
+            prefix = self.__class__.__name__[2]
         result = {}
 
         # field

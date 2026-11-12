@@ -159,7 +159,9 @@ class BaseDownloader(DownloadCallback):
     def __init__(self, option: JmOption):
         self.option = option
         self.client = None
-        # 下载成功的记录dict
+        # 下载成功记录：album -> photo -> [(recorded_path, image)]
+        # recorded_path 已弃用，仅保留下载完成时的路径快照以兼容元组结构。
+        # 内部读取统一使用 image.save_path，不再回退到 recorded_path。
         self.download_success_dict: Dict[JmAlbumDetail, Dict[JmPhotoDetail, List[Tuple[str, JmImageDetail]]]] = {}
         # 下载失败的记录list
         self.download_failed_image: List[Tuple[JmImageDetail, BaseException]] = []
@@ -445,16 +447,17 @@ class DownloadResult(NamedTuple):
     @property
     def album(self):
         """下载的本子实体。"""
-        from .jm_entity import JmAlbumDetail
-        if isinstance(self.detail, JmAlbumDetail):
+        if self.detail.is_album():
             return self.detail
-        return getattr(self.detail, 'from_album', None)
+        if self.detail.is_photo():
+            # noinspection PyUnresolvedReferences
+            return self.detail.from_album
+        return None
 
     @property
     def photo(self):
         """下载的章节实体（若为章节下载）。"""
-        from .jm_entity import JmPhotoDetail
-        if isinstance(self.detail, JmPhotoDetail):
+        if self.detail.is_photo():
             return self.detail
         return None
 

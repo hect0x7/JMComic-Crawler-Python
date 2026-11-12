@@ -1,15 +1,21 @@
 # 域名与重试策略
 
-访问禁漫时，常遇到网络不畅或默认域名失效的情况。jmcomic 提供了静态配置、动态获取和重试插件机制来应对。
+访问禁漫时，常遇到网络不畅或默认域名失效的情况。jmcomic 支持静态、动态两种配置域名方式，并内置了轮询策略。
 
-下面演示如何配置和获取稳定或最新的可用域名。
+> **💡 默认逻辑（不配置域名时）**
+>
+> 日常使用通常**无需手动配置域名**，jmcomic 会根据客户端类型自动处理：
+> - **移动端（`impl: api`，默认）**：使用内置的 `JmModuleConfig.DOMAIN_API_LIST`，并在初始化时自动拉取最新 API 域名与图床域名。
+> - **网页端（`impl: html`）**：未配置域名时，自动调用 `JmModuleConfig.get_html_domain()` 访问官方永久跳转页获取可用域名。
+>
+> 只有当默认域名在你当前网络下无法访问时，才需要按下面两种方式手动配置。
 
 ## 1. 静态配置域名
 
-如果你的网络环境下，某些域名（如 `18comic.vip`, `18comic.org`）可以稳定访问，最直接的方式是在配置文件中写死这些域名。
+如果你已知某些域名（如 `18comic.vip`, `18comic.org`）在当前网络下可以稳定访问，最直接的方式是在配置文件中写死：
 
 ```yaml
-# option.yml 示例
+# option.yml
 client:
   impl: html
   domain:
@@ -21,78 +27,45 @@ client:
 ```python
 from jmcomic import *
 
-# 通过配置文件构建并获取配置好的 Option 和 Client
-# Option会加载上面的域名列表，在请求时如果第一个域名失败，会自动重试列表中的下一个域名。
+# 加载配置文件；请求失败时会自动按上面配置的域名列表轮询重试
 op = create_option('option.yml')
 cl = op.new_jm_client()
 ```
 
-## 2. 动态获取域名
+## 2. 动态配置域名
 
-如果静态配置的域名失效，可以通过调用以下内置的 API 动态获取最新的禁漫域名。
+如果网页端域名失效，可以在代码中调用内置接口实时抓取最新可用域名，再选择**全局生效**或**局部生效**：
+
+```python
+from jmcomic import *
+
+# ── 第一步：动态获取可用域名（二选一） ──
+# 方式 1（推荐）：访问官方发布页，获取全部可用网页端域名列表
+domain_list = JmModuleConfig.get_html_domain_all()
+
+# 方式 2：访问永久跳转页，仅获取单个重定向新域名
+# domain_list = [JmModuleConfig.get_html_domain()]
+
+
+# ── 第二步：将域名设置生效（二选一） ──
+op = JmOption.default()
+
+# 用法 A【设置到全局】：替换模块默认域名列表，后续所有新创建的网页端 Client 自动生效
+JmModuleConfig.DOMAIN_HTML_LIST = domain_list
+cl = op.new_jm_client(impl='html')
+
+# 用法 B【局部设置到 Client】：仅传给当前 Client 实例，不修改全局配置
+cl = op.new_jm_client(impl='html', domain_list=domain_list)
+```
 
 > [!NOTE]
-> 默认情况下，以下 API 在请求外网时会自动使用系统代理。但在 Linux 服务器等无全局代理的环境中，如果需要手动指定代理，你可以自行创建一个配置了 proxy 的 postman 对象并作为参数传入：
-> `JmModuleConfig.get_html_domain_all(postman=JmModuleConfig.new_postman(proxies={'http': 'http://127.0.0.1:7890', 'https': 'http://127.0.0.1:7890'}))`
+> 上述获取域名的接口默认自动使用系统代理。在 Linux 服务器等无全局代理的环境中，可手动传入带代理的 `postman`：
+> `JmModuleConfig.get_html_domain_all(postman=JmModuleConfig.new_postman(proxies='127.0.0.1:7890'))`
 
+## 3. 内置轮询策略
 
-### 2.1 抓取全部可用域名（推荐）
+无论使用默认域名还是手动配置的域名，同步与异步客户端均默认启用内置的智能轮询与重试机制，无需额外配置插件：
 
-通过请求禁漫的官方发布页，获取所有公告的最新的网页端域名列表。
-
-```python
-from jmcomic import *
-
-# 获取全量域名列表
-domain_list = JmModuleConfig.get_html_domain_all()
-print(f"全量域名列表：{domain_list}")
-
-# 将获取到的域名替换掉全局默认域名列表
-JmModuleConfig.DOMAIN_HTML_LIST = domain_list
-
-op = create_option('option.yml')
-# 新建的 Client 会默认使用刚刚更新的 DOMAIN_HTML_LIST 
-cl = op.new_jm_client()
-```
-
-> [!WARNING]
-> `get_html_domain_all_via_github` 已废弃。原 GitHub 仓库不再提供禁漫域名，兼容入口目前会转发到
-> `get_html_domain_all`，并将在未来版本移除。
-
-### 2.2 获取单个跳转域名
-
-除了获取全部域名，也可以通过访问永久跳转页获取单个重定向用的新域名。
-
-```python
-from jmcomic import *
-
-# 获取当前可用的单一网页端域名
-domain = JmModuleConfig.get_html_domain()
-
-op = JmOption.default()
-op.client = op.new_jm_client(domain_list=[domain], impl='html')
-```
-
-
-## 3. 使用高级重试插件（AdvancedRetryPlugin）
-
-默认的机制是在单次请求报错时，按顺序尝试数组内的下一个域名。
-如果经常遇到连接断开或超时，可以使用 `advanced_retry` 插件。该插件提供：
-
-- 记录历史失败次数
-- 限制单个域名的最大失败次数（超过则拉黑废弃）
-- 对列表循环多轮尝试等容错机制
-
-**在 option.yml 中配置启用：**
-
-```yaml
-plugins:
-  after_init:
-    - plugin: advanced_retry      # 声明并开启高级重试插件
-      kwargs:
-        retry_config:
-          retry_rounds: 3             # 整个域名数组支持轮询尝试的圈数
-          retry_domain_max_times: 5   # 单个域名允许的最大失败次数
-```
-
-配置后，用该 option 构建的 Client 在下载和请求时，就会自动切入高级容错策略。
+- **失败后置轮询**：自动记录各域名的失败次数，每次请求与重试自动挑选当前失败次数最少的节点，故障域名自动后置。
+- **图床 CDN 自动切节点**：下载图片遇到超时、5xx 或空响应时，自动切换 `JmModuleConfig.DOMAIN_IMAGE_LIST` 中的备用图床节点（API 模式还会自动收录服务端下发的最新图床域名至首位）。
+- **重试预算控制**：由配置项 `client.retry_times`（默认 `5`）统一控制单次接口或图片请求失败后的最大额外重试次数（总尝试上限为 `1 + retry_times`，设为 `0` 则不重试）。
