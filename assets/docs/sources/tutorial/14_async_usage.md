@@ -19,10 +19,10 @@ import jmcomic
 
 async def main():
     # 异步下载单个本子
-    album, downloader = await jmcomic.download_album_async('438696')
-
+    result = await jmcomic.download_album_async('438696')
+    print(result.detail.save_path)
     # 返回的 downloader 已释放网络连接和线程池，只用于读取下载结果
-    print(downloader.download_failed_image)
+    print(result.downloader.download_failed_image)
     
     # 异步下载单章节
     await jmcomic.download_photo_async('438696')

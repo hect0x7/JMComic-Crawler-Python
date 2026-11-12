@@ -1,65 +1,38 @@
 # 命令行教程
 
+安装 `jmcomic` 后会自动注册两个命令行工具：`jmcomic`（下载本子/章节）和 `jmv`（查看本子详情）。完整参数可通过 `jmcomic -h` 或 `jmv -h` 查看。
+
 ## 1. jmcomic - 下载本子
 
-### 1.1 基本用法
-
 ```sh
-# 下载album 123 456，下载photo 333。彼此之间使用空格间隔
+# 下载本子 123、456 与章节 333（章节加 p 前缀）
 jmcomic 123 456 p333
-```
 
-### 1.2 自定义option
+# 也支持通过 python -m 调用
+python -m jmcomic 123
 
-#### 通过命令行参数
-使用 --option 参数指定option配置文件路径
-
-```sh
+# 指定 option 配置文件（或配置环境变量 JM_OPTION_PATH="D:/a.yml"）
 jmcomic 123 --option="D:/a.yml"
-```
-
-#### 使用环境变量
-配置环境变量 `JM_OPTION_PATH` 为option配置文件路径
-
-> [!TIP]
-> 请自行google配置环境变量的方式，或使用powershell命令:  `setx JM_OPTION_PATH "D:/a.yml"` 重启后生效
-
-```sh
-jmcomic 123
 ```
 
 ## 2. jmv - 查看本子详情
 
-`jmv` 命令用于快速查看本子详情，无需下载。支持从任意文本中提取数字作为车号。
-
-### 2.1 基本用法
+快速查询本子详情而无需下载，支持直接传入车号、禁漫链接或包含数字的混合文本，也支持一次查询多个车号：
 
 ```sh
-# 直接输入车号
+# 查询单个或多个本子（支持车号、链接及混合文本，-y 跳过结束回车确认）
 jmv 350234
-
-# 从混合文本中提取数字（提取出 350234）
+jmv https://18comic.vip/album/350234/
 jmv 350谁还没看过234
+jmv 350234 JM438516 -y
 
-# JM前缀也可以
-jmv JM350234
+# 输出完整结构化 JSON（单车号输出对象，多车号输出数组；自动静默日志并跳过回车确认）
+jmv 350234 --json
+jmv 350234 JM438516 --json
 ```
 
-### 2.2 附加参数
-
-与 `jmcomic` 命令类似，支持 `--option` 参数和 `JM_OPTION_PATH` 环境变量：
-
-```sh
-jmv 350234 --option="D:/a.yml"
-```
-
-如果希望在执行完毕后立刻退出且不出现“请按回车键关闭窗口...”的停留提示（适用于自动化代码调用或常规终端使用时），可添加 `-y` 选项：
-
-```sh
-jmv 350234 -y
-```
-
-### 2.3 输出示例
+<details markdown="1">
+<summary>查看终端输出示例</summary>
 
 ```text
 🔍 正在查询 禁漫车号 - [350234] 的详情...
@@ -90,4 +63,43 @@ jmv 350234 -y
 ```
 
 > [!NOTE]
-> 当作者、标签、人物、作品超过10个时，会自动截断并显示总数（如 `...等25个`）。
+> 默认终端模式下，当作者、标签、人物、作品超过 10 个时会自动截断并显示总数（如 `...等25个`）；使用 `--json` 时输出完整不截断列表。
+
+</details>
+
+<details markdown="1">
+<summary>查看 --json 输出示例</summary>
+
+```json
+{
+  "album_id": "350234",
+  "name": "xxx",
+  "url": "https://18comic.vip/album/350234/",
+  "cover_url": "https://cdn-msp.jmapiproxy1.cc/media/albums/350234.jpg",
+  "authors": ["Author1", "Author2"],
+  "pub_date": "2022-06-15",
+  "update_date": "2023-01-01",
+  "page_count": 50,
+  "views": "2M",
+  "likes": "77K",
+  "comment_count": 9801,
+  "tags": ["标签1", "标签2"],
+  "actors": ["角色A", "角色B"],
+  "works": ["作品1", "作品2"],
+  "description": "...",
+  "episodes": [
+    {
+      "photo_id": "350234",
+      "index": 1,
+      "title": "上"
+    },
+    {
+      "photo_id": "350235",
+      "index": 2,
+      "title": "下"
+    }
+  ]
+}
+```
+
+</details>

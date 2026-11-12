@@ -36,15 +36,6 @@ nav:
   - 首页: index.md
   - 版本更新计划: roadmap.md
   - 配置文件指南: option_file_syntax.md
-  - Api 文档:
-    - api/client.md
-    - api/command-line.md
-    - api/config.md
-    - api/download.md
-    - api/entity.md
-    - api/option.md
-    - api/plugin.md
-    - api/toolkit.md
   - 使用教程:
     - tutorial/0_common_usage.md
     - tutorial/17_login.md
@@ -61,6 +52,9 @@ nav:
     - tutorial/14_async_usage.md
     - tutorial/15_download_progress.md
     - tutorial/16_shared_executors.md
+
+not_in_nav: |
+  /api/
 
 plugins:
   - search

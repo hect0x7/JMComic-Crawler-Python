@@ -165,6 +165,56 @@ class Test_Cli(JmTestConfigurable):
             ],
         )
 
+    def test_jmcomic_exits_nonzero_on_batch_failures(self):
+        from jmcomic.jm_downloader import BatchResult
+
+        failed_batch = BatchResult()
+        failed_batch.failed['999999'] = RuntimeError('missing')
+        ok_batch = BatchResult()
+
+        # 1) 仅 album 失败 -> exit(1)
+        ui_album = JmcomicUI()
+        ui_album.album_id_list = ['999999']
+        with patch('jmcomic.api.download_album', return_value=failed_batch):
+            with self.assertRaises(SystemExit) as ctx:
+                ui_album.run(SimpleNamespace())
+        self.assertEqual(1, ctx.exception.code)
+
+        # 2) 仅 photo 失败 -> exit(1)
+        ui_photo = JmcomicUI()
+        ui_photo.photo_id_list = ['888888']
+        with patch('jmcomic.api.download_photo', return_value=failed_batch):
+            with self.assertRaises(SystemExit) as ctx:
+                ui_photo.run(SimpleNamespace())
+        self.assertEqual(1, ctx.exception.code)
+
+        # 3) 混合模式其中一个批次有失败 -> exit(1)
+        ui_mixed = JmcomicUI()
+        ui_mixed.album_id_list = ['1']
+        ui_mixed.photo_id_list = ['2']
+        with patch('jmcomic.api.download_album', return_value=ok_batch), \
+                patch('jmcomic.api.download_photo', return_value=failed_batch):
+            with self.assertRaises(SystemExit) as ctx:
+                ui_mixed.run(SimpleNamespace())
+        self.assertEqual(1, ctx.exception.code)
+
+        # 4) 全部成功 -> 不抛 SystemExit
+        ui_ok = JmcomicUI()
+        ui_ok.album_id_list = ['1']
+        with patch('jmcomic.api.download_album', return_value=ok_batch):
+            ui_ok.run(SimpleNamespace())
+
+    def test_jmcomic_mixed_mode_propagates_unhandled_thread_exception(self):
+        ui = JmcomicUI()
+        ui.album_id_list = ['1']
+        ui.photo_id_list = ['2']
+
+        with patch('jmcomic.api.download_album', side_effect=ValueError('auth boom')), \
+                patch('jmcomic.api.download_photo', return_value=None):
+            with self.assertRaises(ValueError) as ctx:
+                ui.run(SimpleNamespace())
+        self.assertIn('auth boom', str(ctx.exception))
+
     def test_jmcomic_download_album(self):
         """jmcomic 真实下载 album 123"""
         JustDownloadSpecificCountImage.count = 5
@@ -199,6 +249,19 @@ class Test_Cli(JmTestConfigurable):
             except OSError as e:
                 self.fail(f"Failed to execute command '{cmd}': {e}")
 
+    def test_python_m_jmcomic_entry(self):
+        """验证 `python -m jmcomic --help` 可直接调用包主入口"""
+        import subprocess
+        import sys
+        res = subprocess.run(
+            [sys.executable, '-m', 'jmcomic', '--help'],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        self.assertEqual(0, res.returncode, msg=res.stderr)
+        self.assertIn('python -m jmcomic', res.stdout)
+
     # -- extract_album_id --
 
     def test_jmv_extract_pure_digits(self):
@@ -218,6 +281,14 @@ class Test_Cli(JmTestConfigurable):
         ui = JmViewUI()
         ui.raw_text = 'JM350234'
         self.assertEqual(ui.extract_album_id(), '350234')
+
+    def test_jmv_extract_jm_url(self):
+        """jmv 支持从禁漫链接中提取车号，不混入域名中的 18"""
+        ui = JmViewUI()
+        self.assertEqual(ui.extract_album_id('https://18comic.vip/album/350234/'), '350234')
+        self.assertEqual(ui.extract_album_id('https://18comic.vip/photo/350234'), '350234')
+        self.assertEqual(ui.extract_album_id('https://18comic.vip/album/?id=350234'), '350234')
+        self.assertEqual(ui.extract_album_id('JM 350 234'), '350234')
 
     def test_jmv_extract_no_digits_exits(self):
         """jmv 没有数字时应 exit(1)"""
@@ -288,3 +359,129 @@ class Test_Cli(JmTestConfigurable):
             self.assertIn(f'...等{len(album.authors)}个', output)
         if len(album.tags) > 10:
             self.assertIn(f'...等{len(album.tags)}个', output)
+
+    def test_jmv_multi_ids_and_json_output(self):
+        import json
+
+        fake_album_1 = SimpleNamespace(
+            album_id='100',
+            name='Album One',
+            authors=[f'author_{i}' for i in range(12)],
+            pub_date='2026-01-01',
+            update_date='2026-01-02',
+            page_count=24,
+            views='10K',
+            likes='1K',
+            comment_count=5,
+            tags=['全彩', '中文'],
+            actors=['角色A'],
+            works=['作品A'],
+            description='简介1',
+            episode_list=[('1001', '1', ' 第1話 ')],
+        )
+        fake_album_2 = SimpleNamespace(
+            album_id='200',
+            name='Album Two',
+            authors=['author_b'],
+            pub_date='2026-02-01',
+            update_date='2026-02-02',
+            page_count=18,
+            views='20K',
+            likes='2K',
+            comment_count=8,
+            tags=['单行本'],
+            actors=[],
+            works=[],
+            description='',
+            episode_list=[('2001', '1', '单章')],
+        )
+        album_map = {'100': fake_album_1, '200': fake_album_2}
+
+        class FakeClient:
+            def get_album_detail(self, aid):
+                if aid not in album_map:
+                    raise RuntimeError(f'missing {aid}')
+                return album_map[aid]
+
+        fake_option = SimpleNamespace(new_jm_client=lambda: FakeClient())
+        prev_flag = JmModuleConfig.FLAG_ENABLE_JM_LOG
+
+        # 1) 单车号 --json：输出纯 JSON 对象，不截断作者列表，自动跳过 pause，恢复日志开关
+        ui_single = JmViewUI()
+        with patch('sys.argv', ['jmv', 'JM100', '--json']),                 patch('atexit.register'),                 patch('jmcomic.api.JmOption.default', return_value=fake_option),                 patch('sys.stdout', new_callable=StringIO) as out_single:
+            ui_single.main()
+
+        self.assertTrue(ui_single.auto_exit)
+        self.assertEqual(prev_flag, JmModuleConfig.FLAG_ENABLE_JM_LOG)
+        data_single = json.loads(out_single.getvalue())
+        self.assertIsInstance(data_single, dict)
+        self.assertEqual('100', data_single['album_id'])
+        self.assertEqual(12, len(data_single['authors']))
+        self.assertEqual([{'photo_id': '1001', 'index': 1, 'title': '第1話'}], data_single['episodes'])
+
+        # 2) 多车号 --json：输出纯 JSON 数组
+        ui_multi = JmViewUI()
+        with patch('sys.argv', ['jmv', '100', 'abc200', '--json']),                 patch('atexit.register'),                 patch('jmcomic.api.JmOption.default', return_value=fake_option),                 patch('sys.stdout', new_callable=StringIO) as out_multi:
+            ui_multi.main()
+
+        data_multi = json.loads(out_multi.getvalue())
+        self.assertIsInstance(data_multi, list)
+        self.assertEqual(['100', '200'], [item['album_id'] for item in data_multi])
+
+        # 3) 多车号部分失败：成功的照常输出，失败写 stderr 并以退出码 1 结束
+        ui_partial = JmViewUI()
+        with patch('sys.argv', ['jmv', '999', '100', '--json']),                 patch('atexit.register'),                 patch('jmcomic.api.JmOption.default', return_value=fake_option),                 patch('sys.stdout', new_callable=StringIO) as out_partial,                 patch('sys.stderr', new_callable=StringIO) as err_partial:
+            with self.assertRaises(SystemExit) as ctx:
+                ui_partial.main()
+
+        self.assertEqual(1, ctx.exception.code)
+        self.assertIn('missing 999', err_partial.getvalue())
+        partial_list = json.loads(out_partial.getvalue())
+        self.assertEqual([{'album_id': '100'}], [{'album_id': x['album_id']} for x in partial_list])
+
+        # 4) 多输入中混入无法提取数字的输入：报错但不中断后续有效输入查询，输出 JSON 数组并以退出码 1 结束
+        ui_bad_token = JmViewUI()
+        with patch('sys.argv', ['jmv', 'badinput', '100', '--json']), \
+                patch('atexit.register'), \
+                patch('jmcomic.api.JmOption.default', return_value=fake_option), \
+                patch('sys.stdout', new_callable=StringIO) as out_bad_token, \
+                patch('sys.stderr', new_callable=StringIO) as err_bad_token:
+            with self.assertRaises(SystemExit) as ctx_bad:
+                ui_bad_token.main()
+
+        self.assertEqual(1, ctx_bad.exception.code)
+        self.assertIn('badinput', err_bad_token.getvalue())
+        bad_token_list = json.loads(out_bad_token.getvalue())
+        self.assertIsInstance(bad_token_list, list)
+        self.assertEqual([{'album_id': '100'}], [{'album_id': x['album_id']} for x in bad_token_list])
+
+        # 5) 普通文本模式下多输入混入非法项：后续有效车号依然打印详情，最后退出码 1
+        ui_bad_human = JmViewUI()
+        with patch('sys.argv', ['jmv', 'badinput', '100', '-y']), \
+                patch('atexit.register'), \
+                patch('jmcomic.api.JmOption.default', return_value=fake_option), \
+                patch('sys.stdout', new_callable=StringIO) as out_bad_human:
+            with self.assertRaises(SystemExit) as ctx_human:
+                ui_bad_human.main()
+
+        self.assertEqual(1, ctx_human.exception.code)
+        self.assertIn('Album One', out_bad_human.getvalue())
+
+        # 6) 所有输入均无数字：不创建客户端、不输出空 JSON，恢复日志开关后直接以退出码 1 结束
+        def fail_if_called():
+            raise AssertionError('client should not be created when all inputs are invalid')
+
+        ui_all_bad = JmViewUI()
+        with patch('sys.argv', ['jmv', 'bad_a', 'bad_b', '--json']), \
+                patch('atexit.register'), \
+                patch('jmcomic.api.JmOption.default', return_value=SimpleNamespace(new_jm_client=fail_if_called)), \
+                patch('sys.stdout', new_callable=StringIO) as out_all_bad, \
+                patch('sys.stderr', new_callable=StringIO) as err_all_bad:
+            with self.assertRaises(SystemExit) as ctx_all_bad:
+                ui_all_bad.main()
+
+        self.assertEqual(1, ctx_all_bad.exception.code)
+        self.assertEqual('', out_all_bad.getvalue())
+        self.assertIn('bad_a', err_all_bad.getvalue())
+        self.assertIn('bad_b', err_all_bad.getvalue())
+        self.assertEqual(prev_flag, JmModuleConfig.FLAG_ENABLE_JM_LOG)

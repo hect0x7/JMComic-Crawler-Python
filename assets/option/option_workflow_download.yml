@@ -3,7 +3,7 @@ log: pretty
 
 dir_rule:
   base_dir: ${JM_DOWNLOAD_DIR}
-  rule: Bd_Aauthor_Atitle_Pindex
+  rule: Bd / Aauthor / Atitle / Pindex
 
 # 登录账号（可选）：从 GitHub Actions 的 secrets 读取，未配置时以未登录状态下载。下载前会用这个账号自动登录
 auth:

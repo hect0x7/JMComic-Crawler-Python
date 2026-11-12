@@ -479,7 +479,7 @@ class Test_Download_Manifest(unittest.TestCase):
             def fake_zip_album(*args, **kwargs):
                 order.append(('zip_album', expected_path))
 
-            def fake_after_zip(_paths):
+            def fake_after_zip(_paths, _photo_dict):
                 order.append(('after_zip', None))
                 self.assertEqual(
                     downloader.manifest_dict[album].export_filepath_dict,
@@ -517,12 +517,12 @@ class Test_Download_Manifest(unittest.TestCase):
                 order.append(('record', detail, filepath))
                 return original_record(detail, filepath)
 
-            def fake_zip_photo(current_photo, image_list, zip_path, path_to_delete, encrypt):
-                self.assertIs(current_photo, photo)
-                self.assertEqual(zip_path, expected_path)
-                order.append(('zip_photo', current_photo, zip_path))
+            def fake_zip_photo(image_list, path_to_delete, f):
+                self.assertIs(image_list, downloader.download_success_dict[album][photo])
+                self.assertEqual(f.filename, expected_path)
+                order.append(('zip_photo', photo, f.filename))
 
-            def fake_after_zip(_paths):
+            def fake_after_zip(_paths, _photo_dict):
                 order.append(('after_zip', None, None))
                 self.assertEqual(
                     downloader.manifest_dict[album].export_filepath_dict,
@@ -561,7 +561,7 @@ class Test_Download_Manifest(unittest.TestCase):
                 order.append(('record', filepath))
                 return original_record(detail, filepath)
 
-            def fake_write(pdf_filepath, current_album, current_photo, encrypt):
+            def fake_write(pdf_filepath, current_album, current_photo, password):
                 self.assertEqual(pdf_filepath, expected_path)
                 self.assertIs(current_album, album)
                 self.assertIsNone(current_photo)
@@ -604,7 +604,7 @@ class Test_Download_Manifest(unittest.TestCase):
                 order.append(('record', detail, filepath))
                 return original_record(detail, filepath)
 
-            def fake_write(pdf_filepath, current_album, current_photo, encrypt):
+            def fake_write(pdf_filepath, current_album, current_photo, password):
                 self.assertEqual(pdf_filepath, expected_path)
                 self.assertIsNone(current_album)
                 self.assertIs(current_photo, photo)
@@ -674,6 +674,81 @@ class Test_Download_Manifest(unittest.TestCase):
 
             self.assertEqual(downloader.manifest_dict[album].export_filepath_dict, {})
             delete_mock.assert_not_called()
+
+    def _invoke_pdf_with_encrypt(self, temp_dir, encrypt, extra_modules, fake_import=None):
+        """以 delete_original_file=True 调用 img2pdf，校验失败时不生成 pdf、不删除原图、不登记导出路径"""
+        album, _, _, downloader = self.new_manifest_downloader(temp_dir)
+        plugin = Img2pdfPlugin(downloader.option)
+        img_path = os.path.join(temp_dir, '00001.jpg')
+        with open(img_path, 'wb') as f:
+            f.write(b'fake')
+        pdf_path = plugin.decide_filepath(album, None, 'Aid', 'pdf', temp_dir, None)
+
+        def fail_convert(*_args, **_kwargs):
+            self.fail('加密校验失败时不应生成 pdf')
+
+        modules = {'img2pdf': SimpleNamespace(convert=fail_convert), **extra_modules}
+        from contextlib import nullcontext
+        import_patch = patch('builtins.__import__', side_effect=fake_import) if fake_import else nullcontext()
+        with patch.dict(sys.modules, modules), import_patch, \
+                patch.object(plugin, 'collect_export_images', return_value=([img_path], [temp_dir], [temp_dir])), \
+                patch.object(plugin, 'execute_deletion') as delete_mock:
+            with self.assertRaises((JmcomicException, PluginValidationException)) as ctx:
+                plugin.invoke(
+                    album=album,
+                    downloader=downloader,
+                    pdf_dir=temp_dir,
+                    filename_rule='Aid',
+                    delete_original_file=True,
+                    encrypt=encrypt,
+                )
+
+        self.assertFalse(os.path.exists(pdf_path))
+        self.assertTrue(os.path.exists(img_path))
+        delete_mock.assert_not_called()
+        self.assertEqual(downloader.manifest_dict[album].export_filepath_dict, {})
+        return ctx.exception
+
+    def test_pdf_encrypt_missing_password_creates_no_pdf(self):
+        with TemporaryDirectory() as temp_dir:
+            e = self._invoke_pdf_with_encrypt(temp_dir, {'type': 'aes'}, {'pikepdf': object()})
+            self.assertIn('password', str(e))
+
+    def test_pdf_encrypt_missing_pikepdf_creates_no_pdf(self):
+        original_import = __import__
+
+        def fake_import(name, *args, **kwargs):
+            if name == 'pikepdf':
+                raise ImportError('pikepdf missing')
+            return original_import(name, *args, **kwargs)
+
+        with TemporaryDirectory() as temp_dir:
+            e = self._invoke_pdf_with_encrypt(temp_dir, {'password': '123'}, {}, fake_import)
+            self.assertIsInstance(e, PluginValidationException)
+            self.assertIn('pikepdf', str(e))
+
+    def test_zip_encrypt_missing_library_raises_validation(self):
+        """zip 配置加密但缺 pyzipper / py7zr 时，抛出明确的依赖缺失异常且不创建压缩包"""
+        original_import = __import__
+        cases = [('pyzipper', {'password': '123'}), ('py7zr', {'password': '123', 'impl': '7z'})]
+        for lib, encrypt in cases:
+            with self.subTest(lib=lib), TemporaryDirectory() as temp_dir:
+                _, _, _, downloader = self.new_manifest_downloader(temp_dir)
+                plugin = ZipPlugin(downloader.option)
+                zip_path = os.path.join(temp_dir, 'a.zip')
+
+                def fake_import(name, *args, **kwargs):
+                    if name == lib:
+                        raise ImportError(f'{lib} missing')
+                    return original_import(name, *args, **kwargs)
+
+                with patch('builtins.__import__', side_effect=fake_import):
+                    with self.assertRaises(PluginValidationException) as ctx:
+                        password, is_random = plugin.decide_password(encrypt, zip_path)
+                        plugin.open_zip_file(zip_path, encrypt, password, is_random)
+
+                self.assertIn(lib, str(ctx.exception))
+                self.assertFalse(os.path.exists(zip_path))
 
     def test_long_img_registers_once_before_optional_deletion(self):
         with TemporaryDirectory() as temp_dir:

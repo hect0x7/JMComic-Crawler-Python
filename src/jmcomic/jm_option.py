@@ -198,7 +198,8 @@ class JmOption:
         # 插件配置
         self.plugins = AdvancedDict(plugins)
         # 认证配置
-        self.auth = AdvancedDict(auth or {})
+        # 仅在未传入时新建，传入空 dict 也直接引用，保证 copy_option 出来的副本与原 option 共享同一 auth
+        self.auth = AdvancedDict(auth if auth is not None else {})
         self.resolve_auth_env()
         self._auth_sync_lock = RLock()
         self._auth_async_lock = None
@@ -249,15 +250,16 @@ class JmOption:
         }
 
     def copy_option(self):
+        from copy import deepcopy
         return self.__class__(
             dir_rule={
                 'rule': self.dir_rule.rule_dsl,
                 'base_dir': self.dir_rule.base_dir,
                 'normalize_zh': self.dir_rule.normalize_zh,
             },
-            download=self.download.src_dict,
-            client=self.client.src_dict,
-            plugins=self.plugins.src_dict,
+            download=deepcopy(self.download.src_dict),
+            client=deepcopy(self.client.src_dict),
+            plugins=deepcopy(self.plugins.src_dict),
             filepath=self.filepath,
             call_after_init_plugin=False,
             auth=self.auth.src_dict,
@@ -422,15 +424,17 @@ class JmOption:
             i = 0
             while i < len(plugin_list):
                 pinfo = plugin_list[i]
-                if pinfo.get('plugin') != 'zip':
+                if not isinstance(pinfo, dict) or pinfo.get('plugin') != 'zip':
                     i += 1
                     continue
-                kwargs = pinfo.get('kwargs') or {}
-                if 'level' not in kwargs:
-                    # 旧版本默认值是 'photo'
-                    level = 'photo'
-                else:
-                    level = kwargs.pop('level')
+                kwargs = pinfo.get('kwargs')
+                if not isinstance(kwargs, dict) or 'level' not in kwargs:
+                    i += 1
+                    continue
+                level = kwargs.pop('level')
+                if level is None:
+                    i += 1
+                    continue
 
                 if group == 'after_album' and level != 'album':
                     # after_album + level=photo → 等价迁移到 after_photo
@@ -445,9 +449,8 @@ class JmOption:
                     log_advice('你的当前配置为：在单章节下载完毕后对全本进行压缩', plugins)
 
                 else:
-                    if level != 'photo':
-                        jm_log('option.migrate',
-                               '[zip 插件迁移] level 参数已过时，你可以直接删除该参数，不会有任何影响')
+                    jm_log('option.migrate',
+                           '[zip 插件迁移] level 参数已过时，你可以直接删除该参数，不会有任何影响')
                     i += 1
 
     def deconstruct(self) -> Dict:
@@ -659,9 +662,8 @@ class JmOption:
         ExceptionTool.require_true(bool(u), '用户名不能为空')
         ExceptionTool.require_true(bool(p), '密码不能为空')
 
-        from .jm_async_client import AsyncJmApiClient
         client = self.new_jm_async_client(impl=impl)
-        is_api = client.is_given_type(AsyncJmApiClient)
+        is_api = client.is_api()
 
         if not force and self._is_auth_logged_in(is_api):
             return None
@@ -715,8 +717,8 @@ class JmOption:
         if is_client_type(JmHtmlClient):
             # 网页端
             domain_list = JmModuleConfig.DOMAIN_HTML_LIST
-            if domain_list is not None:
-                return domain_list
+            if domain_list:
+                return list(domain_list)
             return [JmModuleConfig.get_html_domain()]
 
         ExceptionTool.raises(f'没有配置域名，且是无法识别的client类型: {client_key}')

@@ -17,6 +17,7 @@
 
 - [快速上手(GitHub README)](https://github.com/hect0x7/JMComic-Crawler-Python/tree/master?tab=readme-ov-file#%E5%BF%AB%E9%80%9F%E4%B8%8A%E6%89%8B)
 - [常用类和方法演示](tutorial/0_common_usage.md)
+- [登录指南](tutorial/17_login.md)
 - [下载进度条](tutorial/15_download_progress.md)
 - [Async API用法](tutorial/14_async_usage.md)
 - [下载后转为 PDF / ZIP / 长图](tutorial/13_export_and_feature.md)
@@ -27,6 +28,7 @@
 - [使用GitHub Actions下载本子](./tutorial/1_github_actions.md)
 - [使用GitHub Actions导出收藏夹](tutorial/10_export_favorites.md)
 - [命令行用法教程](tutorial/2_command_line.md)
+- [域名与重试策略](tutorial/12_domain_strategy.md)
 - [测试你的ip能访问哪些禁漫域名](tutorial/8_pick_domain.md)
 
 ## 核心机制
@@ -34,6 +36,7 @@
 - [下载过滤器机制](tutorial/5_filter.md)
 - [插件机制](tutorial/6_plugin.md)
 - [Feature机制](tutorial/13_export_and_feature.md)
+- [下载并发调优 / 复用线程池](tutorial/16_shared_executors.md)
 
 ## 自定义
 

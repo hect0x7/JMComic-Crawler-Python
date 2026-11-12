@@ -89,6 +89,13 @@ class FakeAsyncClient(FakeClient):
 
 class Test_DownloadProgress(unittest.TestCase):
 
+    @staticmethod
+    def _new_progress_option():
+        option = create_option_by_str('{}')
+        option.build_jm_client = lambda: FakeClient(None)
+        option.new_jm_async_client = lambda **kwargs: FakeAsyncClient(None)
+        return option
+
     def setUp(self):
         # 渲染测试固定为支持 ANSI 的终端，不依赖测试宿主的 TERM 设置。
         terminal = patch.dict(os.environ, {'TERM': 'xterm-256color'})
@@ -100,47 +107,53 @@ class Test_DownloadProgress(unittest.TestCase):
         class CustomProgressDownloader(ProgressDownloader):
             pass
 
-        sync = object.__new__(CustomProgressDownloader)
-        async_downloader = object.__new__(AsyncProgressDownloader)
-        with patch.object(ProgressDownloader, 'progress_console', None), patch('sys.stdout', StringIO()):
-            try:
-                sync.start_progress(1, '101')
-                async_downloader.start_progress(1, '202')
-                self.assertIs(sync.progress.console, async_downloader.progress.console)
-                self.assertNotIn('progress_console', CustomProgressDownloader.__dict__)
-            finally:
-                sync.stop_progress()
-                async_downloader.stop_progress()
+        async def run():
+            sync = CustomProgressDownloader(self._new_progress_option())
+            async_downloader = AsyncProgressDownloader(self._new_progress_option())
+            with patch.object(ProgressDownloader, 'progress_console', None), patch('sys.stdout', StringIO()):
+                try:
+                    sync.start_progress(1, '101')
+                    async_downloader.start_progress(1, '202')
+                    self.assertIs(sync.progress.console, async_downloader.progress.console)
+                    self.assertNotIn('progress_console', CustomProgressDownloader.__dict__)
+                finally:
+                    sync.stop_progress()
+                    async_downloader.stop_progress()
+
+        asyncio.run(run())
 
     @unittest.skipUnless(RICH_INSTALLED, '需要安装 rich 才能测试彩色进度插件')
     def test_concurrent_sync_async_progress_keeps_completed_tasks_until_last_exit(self):
         from rich.console import Console
 
-        console = Console(file=StringIO(), force_terminal=True, force_interactive=True, width=100)
-        sync = object.__new__(ProgressDownloader)
-        async_downloader = object.__new__(AsyncProgressDownloader)
-        with patch.object(ProgressDownloader, 'progress_console', console):
-            try:
-                sync.start_progress(1, '101')
-                live = ProgressDownloader.progress_live
-                async_downloader.start_progress(1, '202')
-                self.assertIs(live, ProgressDownloader.progress_live)
-                completed_progress = sync.progress
-                ProgressDownloader.register_progress(completed_progress)
-                self.assertEqual(2, len(ProgressDownloader.displayed_progresses))
-                sync.stop_progress()
-                self.assertIs(live, ProgressDownloader.progress_live)
-                self.assertIn(completed_progress, ProgressDownloader.displayed_progresses)
-                async_downloader.stop_progress()
-                self.assertIsNone(ProgressDownloader.progress_live)
-                self.assertFalse(ProgressDownloader.active_progresses)
-                self.assertFalse(ProgressDownloader.displayed_progresses)
-                sync.start_progress(1, '303')
-                self.assertIsNot(live, ProgressDownloader.progress_live)
-                self.assertEqual(1, len(ProgressDownloader.displayed_progresses))
-            finally:
-                sync.stop_progress()
-                async_downloader.stop_progress()
+        async def run():
+            console = Console(file=StringIO(), force_terminal=True, force_interactive=True, width=100)
+            sync = ProgressDownloader(self._new_progress_option())
+            async_downloader = AsyncProgressDownloader(self._new_progress_option())
+            with patch.object(ProgressDownloader, 'progress_console', console):
+                try:
+                    sync.start_progress(1, '101')
+                    live = ProgressDownloader.progress_live
+                    async_downloader.start_progress(1, '202')
+                    self.assertIs(live, ProgressDownloader.progress_live)
+                    completed_progress = sync.progress
+                    ProgressDownloader.register_progress(completed_progress)
+                    self.assertEqual(2, len(ProgressDownloader.displayed_progresses))
+                    sync.stop_progress()
+                    self.assertIs(live, ProgressDownloader.progress_live)
+                    self.assertIn(completed_progress, ProgressDownloader.displayed_progresses)
+                    async_downloader.stop_progress()
+                    self.assertIsNone(ProgressDownloader.progress_live)
+                    self.assertFalse(ProgressDownloader.active_progresses)
+                    self.assertFalse(ProgressDownloader.displayed_progresses)
+                    sync.start_progress(1, '303')
+                    self.assertIsNot(live, ProgressDownloader.progress_live)
+                    self.assertEqual(1, len(ProgressDownloader.displayed_progresses))
+                finally:
+                    sync.stop_progress()
+                    async_downloader.stop_progress()
+
+        asyncio.run(run())
 
     @unittest.skipUnless(RICH_INSTALLED, '需要安装 rich 才能测试彩色进度插件')
     def test_failed_live_start_does_not_poison_next_download(self):
@@ -165,7 +178,7 @@ class Test_DownloadProgress(unittest.TestCase):
         from rich.console import Console
 
         console = Console(file=StringIO(), force_terminal=True, force_interactive=True)
-        downloader = object.__new__(ProgressDownloader)
+        downloader = ProgressDownloader(self._new_progress_option())
         with patch.object(ProgressDownloader, 'progress_console', console):
             downloader.start_progress(1, '101')
             with patch.object(ProgressDownloader, 'refresh_progress_ui', side_effect=RuntimeError('render failed')):
@@ -193,9 +206,8 @@ class Test_DownloadProgress(unittest.TestCase):
     def test_async_exit_closes_resources_even_if_ui_stop_fails(self):
         from unittest.mock import AsyncMock
 
-        downloader = object.__new__(AsyncProgressDownloader)
-
         async def run():
+            downloader = AsyncProgressDownloader(self._new_progress_option())
             with patch.object(downloader, 'stop_progress', side_effect=RuntimeError('render failed')), \
                     patch.object(JmAsyncDownloader, '__aexit__', new_callable=AsyncMock) as close:
                 with self.assertRaisesRegex(RuntimeError, 'render failed'):

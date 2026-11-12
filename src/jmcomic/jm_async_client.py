@@ -102,7 +102,9 @@ class AbstractAsyncJmClient(AsyncJmcomicClient):
         self._session_lock: asyncio.Lock | None = None
         self._session_lock_loop: asyncio.AbstractEventLoop | None = None
         self._cache: dict | None = None
+        # 主站域名与图床 CDN 域名的请求失败次数统计，分别用于接口轮询与图片切节点重试
         self._domain_fail_count: dict[str, int] = {}
+        self._image_domain_fail_count: dict[str, int] = {}
         self._username: str | None = option.auth.get('username')
         self._user_id: str | None = option.auth.get('user_id')
         self._has_setup = False
@@ -273,12 +275,12 @@ class AbstractAsyncJmClient(AsyncJmcomicClient):
         return resp
 
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
-    def before_retry(self, e, kwargs, retry_count, url):
+    def before_retry(self, e, retry_count, url):
         jm_log('req.error', str(e), e)
 
-    # noinspection PyUnusedLocal
-    def fallback(self, url, domain_index, retry_count, is_image, retry_errors=None, **kwargs):
-        msg = f"请求重试全部失败: [{url}], {self._domain_list}"
+    def fallback(self, url, retry_errors=None):
+        tried_domains = list(dict.fromkeys(e['domain'] for e in (retry_errors or []) if e.get('domain')))
+        msg = f"请求重试全部失败: [{url}], {tried_domains or self._domain_list}"
         jm_log('req.fallback', msg)
         ExceptionTool.raises(
             msg,
@@ -304,52 +306,61 @@ class AbstractAsyncJmClient(AsyncJmcomicClient):
         if is_path and not self._domain_list:
             ExceptionTool.raises(f'无可用 {self.client_key} 域名列表')
 
+        if is_path:
+            req_path, candidates, fail_dict = url_path, self._domain_list, self._domain_fail_count
+        else:
+            media_info = JmcomicText.parse_jm_media_url(
+                url_path, prefer_original=not self.is_api(),
+            ) if is_image else None
+            if media_info is not None:
+                req_path, candidates = media_info
+                fail_dict = self._image_domain_fail_count
+            else:
+                req_path, candidates, fail_dict = None, None, None
+
         retry_errors = []
         for retry in range(self._retry_times + 1):
-            domains = (
-                sorted(self._domain_list, key=lambda d: self._domain_fail_count.get(d, 0))
-                if is_path
-                else [None]
-            )
-            for domain_index, domain in enumerate(domains):
-                req_url = self.of_api_url(url_path, domain) if is_path else url_path
-                req_kwargs = dict(kwargs)
-                self.update_request_with_specify_domain(req_kwargs, domain, is_image=is_image)
+            # 每次尝试都按当前失败次数选最小值；同分按候选顺序，不修改全局图床列表。
+            domain = min(candidates, key=lambda d: fail_dict.get(d, 0)) if candidates is not None else None
+            req_url = self.of_api_url(req_path, domain) if domain is not None else url_path
 
-                if is_path:
-                    jm_log(self.log_topic(), self.decode(req_url))
+            req_kwargs = dict(kwargs)
+            self.update_request_with_specify_domain(req_kwargs, domain, is_image=is_image)
 
-                if domain_index != 0 or retry != 0:
-                    jm_log('req.retry',
-                           ', '.join([
-                               f'次数: [{retry}/{self._retry_times}]',
-                               f'域名: [{domain_index} of {domains}]',
-                               f'路径: [{req_url}]',
-                               f'参数: [{req_kwargs if "login" not in req_url else "#login_form#"}]',
-                           ]))
+            if is_path:
+                jm_log(self.log_topic(), self.decode(req_url))
 
-                try:
-                    if get:
-                        # noinspection PyUnresolvedReferences
-                        resp = await self._session.get(req_url, **req_kwargs)
-                    else:
-                        # noinspection PyUnresolvedReferences
-                        resp = await self._session.post(req_url, **req_kwargs)
+            if retry != 0:
+                domain_desc = f'{domain} of {candidates}' if candidates is not None else 'None'
+                jm_log('req.retry',
+                       ', '.join([
+                           f'次数: [{retry}/{self._retry_times}]',
+                           f'域名: [{domain_desc}]',
+                           f'路径: [{req_url}]',
+                           f'参数: [{req_kwargs if "login" not in req_url else "#login_form#"}]',
+                       ]))
 
-                    return self.raise_if_resp_should_retry(resp, is_image=is_image)
-                except (curl_requests.exceptions.RequestException, OSError, JmcomicException) as e:
-                    if is_path:
-                        self._domain_fail_count[domain] = self._domain_fail_count.get(domain, 0) + 1
-                    self.before_retry(e, req_kwargs, retry, req_url)
-                    retry_errors.append({
-                        'domain': domain if is_path else None,
-                        'url': req_url,
-                        'retry': retry,
-                        'error': e,
-                    })
+            try:
+                if get:
+                    # noinspection PyUnresolvedReferences
+                    resp = await self._session.get(req_url, **req_kwargs)
+                else:
+                    # noinspection PyUnresolvedReferences
+                    resp = await self._session.post(req_url, **req_kwargs)
 
-        return self.fallback(url_path, len(self._domain_list) if is_path else 1, self._retry_times, is_image,
-                             retry_errors=retry_errors, **kwargs)
+                return self.raise_if_resp_should_retry(resp, is_image=is_image)
+            except (curl_requests.exceptions.RequestException, OSError, JmcomicException) as e:
+                if domain is not None and fail_dict is not None:
+                    fail_dict[domain] = fail_dict.get(domain, 0) + 1
+                self.before_retry(e, retry, req_url)
+                retry_errors.append({
+                    'domain': domain,
+                    'url': req_url,
+                    'retry': retry,
+                    'error': e,
+                })
+
+        return self.fallback(url_path, retry_errors)
 
     async def get(self, url, **kwargs):
         await self.setup()
@@ -378,8 +389,6 @@ class AsyncJmHtmlClient(AbstractAsyncJmClient):
     def _default_domain_list(self) -> list[str]:
         if JmModuleConfig.DOMAIN_HTML_LIST:
             return list(JmModuleConfig.DOMAIN_HTML_LIST)
-        if JmModuleConfig.DOMAIN_HTML:
-            return [JmModuleConfig.DOMAIN_HTML]
         return []
 
     async def get_html_url(self) -> str:
@@ -405,15 +414,15 @@ class AsyncJmHtmlClient(AbstractAsyncJmClient):
         return url
 
     async def get_html_domain(self) -> str:
-        """动态获取并缓存禁漫网页域名（对标 JmModuleConfig.get_html_domain）"""
-        if JmModuleConfig.DOMAIN_HTML is None:
-            JmModuleConfig.DOMAIN_HTML = JmcomicText.parse_to_jm_domain(await self.get_html_url())
-        return JmModuleConfig.DOMAIN_HTML
+        """
+        动态获取网页域名，不缓存、不修改全局域名配置。
+        """
+        return JmcomicText.parse_to_jm_domain(await self.get_html_url())
 
     async def get_html_domain_all(self) -> list[str]:
-        """访问禁漫发布页，得到所有的禁漫网页域名（对标 JmModuleConfig.get_html_domain_all）"""
-        if JmModuleConfig.DOMAIN_HTML_LIST is not None:
-            return JmModuleConfig.DOMAIN_HTML_LIST
+        """
+        访问发布页获取全部网页域名，不缓存、不修改全局域名配置。
+        """
         await self._ensure_session()
         # noinspection PyUnresolvedReferences
         resp = await self._session.get(
@@ -424,7 +433,6 @@ class AsyncJmHtmlClient(AbstractAsyncJmClient):
             ExceptionTool.raises_resp(f'请求失败，访问禁漫发布页获取所有域名，HTTP状态码为: {resp.status_code}', resp)
         domain_list = JmcomicText.analyse_jm_pub_html(resp.text)
         jm_log('module.html_domain_all', f'获取禁漫网页全部域名: [{resp.url}] → {domain_list}')
-        JmModuleConfig.DOMAIN_HTML_LIST = domain_list
         return domain_list
 
     async def setup(self):
@@ -929,8 +937,11 @@ class AsyncJmApiClient(AbstractAsyncJmClient):
     async def setting(self) -> JmApiResp:
         """获取服务端的环境配置（包含应用版本等参数）"""
         resp = await self.req_api('/setting')
+        model_data = resp.model_data
+        if JmModuleConfig.FLAG_API_CLIENT_AUTO_UPDATE_DOMAIN:
+            JmModuleConfig.register_image_domain(model_data.get('img_host', None))
 
-        setting_ver = str(resp.model_data.jm3_version)
+        setting_ver = str(model_data.jm3_version)
         if (
                 JmModuleConfig.FLAG_USE_VERSION_NEWER_IF_BEHIND
                 and JmcomicText.compare_versions(setting_ver, JmMagicConstants.APP_VERSION) == 1

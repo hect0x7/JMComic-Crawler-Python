@@ -38,12 +38,11 @@ auth:
 
 # 配置客户端相关
 client:
-  # impl: 客户端实现类，不配置默认会使用JmModuleConfig.DEFAULT_CLIENT_IMPL
+  # impl: 客户端实现类，默认为 api（JmModuleConfig.DEFAULT_CLIENT_IMPL）
   # 可配置:
-  #  html - 表示网页端
-  #  api - 表示APP端
-  # APP端不限ip兼容性好，网页端限制ip地区但效率高
-  impl: html
+  #  api  - 表示APP端（默认，不限ip兼容性好）
+  #  html - 表示网页端（限制ip地区但效率高）
+  impl: api
   
   # async_impl: 指定异步客户端的底层实现类，默认为 null（自动跟随上面的 impl：html -> async_html，api 及其他 -> async_api）
   # 也可显式指定为 async_api 或 async_html
@@ -53,7 +52,7 @@ client:
   # domain: 禁漫域名配置，一般无需配置，jmcomic会根据上面的impl自动设置相应域名
   # 该配置项需要和上面的impl结合使用，因为禁漫网页端和APP端使用的是不同域名，
   # 所以配置是一个dict结构，key是impl的值，value是域名列表，表示这个impl走这些域名。
-  # 域名列表的使用顺序是：先用第一个域名，如果第一个域名重试n次失败，则换下一个域名重试，以此类推。
+  # 域名列表的使用顺序是：每次请求优先选历史失败次数最少的域名（失败多的节点自动后置），单次请求失败后最多额外切换/重试 retry_times 次。
   # 下面是示例：（注意下面这些域名可能会过时，不一定能用）
   domain:
     html:
@@ -62,7 +61,7 @@ client:
     api:
       - www.jmapiproxyxxx.vip
 
-  # retry_times: 请求失败重试次数，默认为5
+  # retry_times: 单次请求失败后的额外重试次数（主站接口与图片下载通用，总尝试上限为 1 + retry_times；设为 0 则失败立即返回不重试），默认为5
   retry_times: 5
 
   # cache: 是否开启客户端级别的缓存，用于缓存已经请求过的元数据（如本子详情、搜索结果等），减少重复网络请求。
@@ -97,11 +96,11 @@ download:
     decode: true # JM的原图是混淆过的，要不要还原？默认为true
     suffix: .jpg # 把图片都转为.jpg格式，默认为null，表示不转换。
   threading:
-    # image: 同时下载的图片数，默认是30张图
+    # image: 同时下载的图片数，默认是20张图
     # 数值大，下得快，配置要求高，对禁漫压力大
     # 数值小，下得慢，配置要求低，对禁漫压力小
     # PS: 禁漫网页一次最多请求50张图
-    image: 30
+    image: 20
     # photo: 同时下载的章节数，不配置默认是cpu的线程数。例如8核16线程的cpu → 16.
     photo: 16
 
@@ -114,30 +113,17 @@ dir_rule:
   # base_dir: ${JM_DIR}/下载文件夹/
   base_dir: D:/a/b/c/
 
-  # rule: 规则dsl。
-  # 本项只建议了解编程的朋友定制，实现在这个类: jmcomic.jm_option.DirRule
-  # 写法:
-  # 1. 以'Bd'开头，表示根目录
-  # 2. 文件夹每增加一层，使用 '_' 或者 '/' 区隔
-  # 3. 用Pxxx或者Ayyy指代文件夹名，意思是 JmPhotoDetail.xxx / JmAlbumDetail的.yyy。
-  # xxx和yyy可以写什么需要看源码，或通过下面代码打印出所有可用的值
-  # 
-  # ```python
-  # import jmcomic
-  # properties: dict = jmcomic.JmOption.default().new_jm_client().get_album_detail(本子id).get_properties_dict()
-  # print(properties)
-  # ```
-  # 
-  # 下面演示如果要使用禁漫网站的默认下载方式，该怎么写:
-  # 规则: 根目录 / 本子id / 章节序号 / 图片文件
-  # rule: 'Bd  / Aid   / Pindex'
-  # rule: 'Bd_Aid_Pindex'
-  # 默认规则是: 根目录 / 章节标题 / 图片文件
+  # rule: 目录层级与命名规则，格式为 Bd（静态）+ 多段 DSL（动态），段与段之间用 / 分割。
+  # 每段 DSL 代表一个目录名规则，可以引用本子或者章节的属性。
+  # 比如，你写 Ptitle，就代表使用章节的标题 来命名这一层文件夹
+  # 本子属性使用 Axxx、章节属性 使用 Pxxx，如果需要组合使用，比如 既要本子属性又要章节属性，那就用 python 的 f-string 语法组合
+  # 常用示例:
+  #   rule: Bd / Ptitle                                   # 根目录 / 章节名称 / 图片
+  #   rule: Bd / Atitle / Ptitle                          # 根目录 / 本子标题 / 章节名称 / 图片
+  #   rule: Bd / Aid / Pindex                             # 根目录 / 本子id / 章节序号 / 图片
+  #   rule: Bd / Aauthor / [JM{Aid}-第{Pindex}章]-{Pname}  # 根目录 / 本子作者 / 组合规则 ——— 例如：[JM350234-第2章]-董卓上
+  # 详细教程见 → https://jmcomic.readthedocs.io/zh-cn/latest/tutorial/9_custom_download_dir_name/
   rule: Bd / Ptitle
-  # jmcomic v2.5.36 以后，支持使用python的f-string的语法组合文件夹名，下为示例
-  # rule: Bd / Aauthor / (JM{Aid}-{Pindex})-{Pname}
-  # {}大括号里的内容同样是写 Axxx 或 Pxxx，其他语法自行参考python f-string的语法
-  # 另外，rule开头的Bd可忽略不写，因为程序会自动插入Bd
 
   # normalize_zh: 可选。控制是否对目录/文件名中的中文进行繁简体规范化。
   #   - None（默认）：不做任何转换，保持历史行为
@@ -168,18 +154,11 @@ dir_rule:
 ```yaml
 # 插件的配置示例
 plugins:
+  # dependencies_strategy: 插件依赖缺失时的处理策略（默认: failed-fast）
+  #   - failed-fast (默认): 启动阶段直接报错并提示安装命令
+  #   - auto-install: 启动时自动调用 pip 安装缺失依赖
+  #   - ignore-only-log: 缺失时仅打印警告日志，初始化阶段不报错
   dependencies_strategy: failed-fast
-  # dependencies_strategy: 插件依赖处理策略（默认: failed-fast）
-  # 只有在不采用全家桶安装时，才需要根据你的使用场景权衡选择以下策略：
-  #   1. failed-fast (默认): 缺失依赖时快速失败，在启动阶段直接报错并给出解决方案。
-  #      - 利：防呆、安全性最高，避免任务跑了一半因为缺依赖而报错或生成物缺失。
-  #      - 弊：只要启用的插件缺少依赖就会阻断运行，必须先安装依赖。
-  #   2. auto-install: 启动时检测到缺失依赖，自动调用 pip 在当前 Python 环境中排队静默安装。
-  #      - 利：省心无感，免去手动执行 pip install 的繁琐步骤。
-  #      - 弊：若处于无外网环境或无系统安装权限（如未激活虚拟环境），安装失败也会严格抛错。
-  #   3. ignore-only-log: 缺失依赖时仅打印 Warning 日志，不阻断运行。
-  #      - 利：容错性最强，不会因缺库中断主流程。
-  #      - 弊：依赖缺失的插件可能在执行阶段被跳过，容易造成“配置了插件却没有产出”的困惑。
 
   after_init:
     - plugin: download_progress
@@ -258,7 +237,7 @@ plugins:
         size: '_3x4' # 可选项，禁漫搜索页的封面图尺寸是 4x3，和详情页不一样，想下搜索页的封面就设置此项
         dir_rule: # 封面图存放路径规则，写法同上
           base_dir: D:/a/b/c/
-          rule: '{Atitle}/{Aid}_cover.jpg'
+          rule: 'Bd/Atitle/{Aid}_cover.jpg'
     
 
   after_album: # 事件（插件被调用的时机）
@@ -267,26 +246,20 @@ plugins:
         # 压缩文件插件，配在不同事件下面，效果不一样。可以选择配在 after_album 或者 after_photo 下
         #   配置在 after_album 下 → 整个本子合并为一个压缩文件
         #   配置在 after_photo 下 → 每个章节各一个压缩文件
-        # （旧的 level 配置已废弃，如果你配置过level，比如level=photo, 请直接改用after_photo）
+        # 只打包本次成功下载（含缓存命中）的图片，使用图片插件处理后的路径，不包含目录中的其他文件。
 
         zip_dir: D:/jmcomic/zip/ # 压缩文件存放的文件夹
-        suffix: zip #压缩包后缀名，默认值为zip，可以指定为zip或者7z
-        filename_rule: Atitle # 压缩文件的命名规则
-        # 请注意⚠ [https://github.com/hect0x7/JMComic-Crawler-Python/issues/223#issuecomment-2045227527]
-        # filename_rule和所在事件有对应关系
-        # 如果配置在 after_photo 下, filename_rule 可以写 Pxxx 和Axxx
-        # 如果配置在 after_album 下, filename_rule 只能写 Axxx，不能写 Pxxx
-
-        # zip插件也支持dir_rule配置项，可以替代旧版本的zip_dir和filename_rule
-        # 请注意⚠ 使用此配置项会使filename_rule，zip_dir，suffix三个配置项无效，与这三个配置项同时存在时仅会使用dir_rule
-        # 示例如下:
-        # dir_rule: # 新配置项，可取代旧的zip_dir和filename_rule
+        suffix: zip # 压缩包后缀名，默认 zip，支持 zip 或 7z
+        filename_rule: "[JM{Aid}]{Atitle}" # 整本导出的默认值，同单段 DSL 规则；改到 after_photo 时用 "[JM{Pid}]{Ptitle}"
+        # 也可使用 dir_rule 统一指定目录与文件名（优先于 zip_dir / filename_rule / suffix）：
+        # dir_rule:
         #   base_dir: D:/jmcomic-download/
-        #   rule: 'Bd / zip / JM{Aid}-{Atitle}.zip'  # 设置压缩文件夹规则，Bd指代base_dir，中间zip表示在{base_dir}下创建一个名为zip的文件夹，JM{Aid}-{Atitle}.zip 表示压缩文件的命名规则(需显式写出后缀名)
+        #   rule: 'Bd / zip / JM{Aid}-{Atitle}.zip' # 设置压缩文件夹规则，Bd指代base_dir，中间zip表示在{base_dir}下创建一个名为zip的文件夹，JM{Aid}-{Atitle}.zip 表示压缩文件的命名规则(需显式写出后缀名)
 
-        delete_original_file: true # 压缩成功后，删除所有原文件和文件夹
+        delete_original_file: true # 压缩成功后，仅删除本次已打包的图片及其空目录
         
         # 在v2.6.0及以后版本，zip插件还支持设置密码和加密方式，使用encrypt配置项，该配置是可选的，示例如下：
+        # 配置 encrypt 时必须填写 password 或 type: random，空映射 encrypt: {} 会报错。
         # 1. 给压缩包设置一个指定密码
         # encrypt:
         #   password: 123456
@@ -329,7 +302,7 @@ plugins:
     - plugin: calibre_metadata # 生成 Calibre 元数据
       kwargs:
         dir_rule:
-          rule: 'Bd/Aid/metadata.opf' # 保存到 base_dir/本子ID/metadata.opf
+          rule: 'Bd / Aid / metadata.opf' # 保存到 base_dir/本子ID/metadata.opf
           base_dir: './'
         include_cover: true # 同时下载封面
         fields:
@@ -352,26 +325,22 @@ plugins:
   after_photo:
     # 把章节的所有图片合并为一个pdf的插件
     # 使用前需要安装依赖库: [pip install img2pdf]
+    # 配在 after_photo 为按章合并（可用 Pxxx/Axxx），配在 after_album 为整本合并（只能用 Axxx）
     - plugin: img2pdf
       kwargs:
         pdf_dir: D:/pdf/ # pdf存放文件夹
-        filename_rule: Pid # pdf命名规则，P代表photo, id代表使用photo.id也就是章节id
-        encrypt: # pdf密码，可选配置项
-          password: 123 # 密码
+        filename_rule: "[JM{Pid}]{Ptitle}" # 按章导出的默认值，同单段 DSL 规则；改到 after_album 时用 "[JM{Aid}]{Atitle}"
+        # 不加密时省略 encrypt；配置空映射会报错，加密依赖与密码会在生成 PDF 前检查。
+        encrypt: # 可选：设置 pdf 密码（依赖: pip install pikepdf；与 zip 一样支持 password 指定密码或 type: random 随机密码）
+          password: 123
+          # type: random
   
-    # img2pdf也支持合并整个本子，把上方的after_photo改为after_album即可。
-    # https://github.com/hect0x7/JMComic-Crawler-Python/discussions/258
-    # 配置到after_album时，需要修改filename_rule参数，不能写Pxx只能写Axx示例如下
-    - plugin: img2pdf
-      kwargs:
-        pdf_dir: D:/pdf/ # pdf存放文件夹
-        filename_rule: Aname # pdf命名规则，A代表album, name代表使用album.name也就是本子名称
-  
-    # 插件来源：https://github.com/hect0x7/JMComic-Crawler-Python/pull/294
     # long_img插件是把所有图片合并为一个png长图，效果和img2pdf类似
+    # 同样支持配在 after_photo 或 after_album
+    # 插件来源：https://github.com/hect0x7/JMComic-Crawler-Python/pull/294
     - plugin: long_img
       kwargs:
         img_dir: D:/pdf/ # 长图存放文件夹
-        filename_rule: Aname # 长图命名规则，同上
+        filename_rule: "[JM{Pid}]{Ptitle}" # 按章导出的默认值，同单段 DSL 规则；改到 after_album 时用 "[JM{Aid}]{Atitle}"
   
 ```
