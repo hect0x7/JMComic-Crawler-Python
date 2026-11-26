@@ -835,8 +835,7 @@ class AsyncJmApiClient(AbstractAsyncJmClient):
         if not resp.encoded_data or resp.res_data.get('name') is None:
             ExceptionTool.raise_missing(resp, jmid)
 
-        # 章节详情在部分异常/受限节点上可能返回 HTTP 200 且保留标题，但 images 为空列表；
-        # 若存在其他备用域名，则记录当前域名失败并依次切换重试，均为空时仍保留原结果并输出告警。
+        # 章节详情在部分异常节点上可能返回空图片列表；存在备用域名时切换重试
         if not is_album and not resp.res_data.get('images') and len(self._domain_list) > 1:
             from urllib.parse import urlsplit
             tried = set()
@@ -847,8 +846,8 @@ class AsyncJmApiClient(AbstractAsyncJmClient):
                 if cur_domain:
                     self._domain_fail_count[cur_domain] = self._domain_fail_count.get(cur_domain, 0) + 1
                 jm_log(
-                    'api.chapter.empty_images',
-                    f'章节[{jmid}]在域名[{cur_domain}]返回空图片列表，尝试切换其他API域名重试',
+                    'api.retry',
+                    f'章节[{jmid}]返回数据不完整，尝试切换域名重试',
                 )
                 try:
                     retry_resp = await self.req_api(url, params={'id': jmid})
@@ -866,10 +865,7 @@ class AsyncJmApiClient(AbstractAsyncJmClient):
                 else:
                     break
             if not resp.res_data.get('images'):
-                jm_log(
-                    'api.chapter.empty_images',
-                    f'章节[{jmid}]切换全部候选API域名后仍返回空图片列表（可能当前IP受限或被风控）',
-                )
+                jm_log('api.retry', f'章节[{jmid}]重试后图片列表仍为空')
 
         return JmApiAdaptTool.parse_entity(resp.res_data, clazz)
 
