@@ -144,7 +144,7 @@ class JmMagicConstants:
     APP_TOKEN_SECRET_2 = '18comicAPPContent'
     APP_DATA_SECRET = '185Hcomic3PAPP7R'
     API_DOMAIN_SERVER_SECRET = 'diosfjckwpqpdfjkvnqQjsik'
-    APP_VERSION = '2.1.13'
+    APP_VERSION = '2.1.14'
 
 
 # 模块级别共用配置
@@ -185,18 +185,20 @@ class JmModuleConfig:
 
     # 移动端图片域名
     DOMAIN_IMAGE_LIST = shuffled('''
+    cdn-msp.jmdanjonproxy.vip
+    cdn-msp2.jmdanjonproxy.vip
+    cdn-msp.jmdanjonproxy.xyz
+    cdn-msp12.jmdanjonproxy.xyz
+    cdn-msp.jmapiproxy3.cc
+    cdn-msp2.jmapiproxy3.cc
     cdn-msp.jmapiproxy1.cc
     cdn-msp.jmapiproxy2.cc
-    cdn-msp2.jmapiproxy2.cc
-    cdn-msp3.jmapiproxy2.cc
-    cdn-msp.jmapinodeudzn.net
-    cdn-msp3.jmapinodeudzn.net
     ''')
 
     # 移动端API域名
     DOMAIN_API_LIST = shuffled('''
-    www.cdnhjk.net
-    www.cdngwc.cc
+    www.cdnbtd.cc
+    www.cdnutc.cc
     www.cdngwc.net
     www.cdngwc.club
     ''')
@@ -452,12 +454,18 @@ class JmModuleConfig:
         return headers
 
     @classmethod
-    @field_cache()
     def get_fix_ts_token_tokenparam(cls):
+        cache_attr = '__cache_get_fix_ts_token_tokenparam__'
+        cached = getattr(cls, cache_attr, None)
+        cur_ver = JmMagicConstants.APP_VERSION
+        if cached is not None and cached[2].endswith(f',{cur_ver}'):
+            return cached
         ts = time_stamp()
         from .jm_toolkit import JmCryptoTool
         token, tokenparam = JmCryptoTool.token_and_tokenparam(ts)
-        return ts, token, tokenparam
+        res = (ts, token, tokenparam)
+        setattr(cls, cache_attr, res)
+        return res
 
     @classmethod
     def jm_log(cls, topic: str, msg, e: BaseException | None = None):

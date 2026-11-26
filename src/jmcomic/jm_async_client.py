@@ -828,11 +828,48 @@ class AsyncJmApiClient(AbstractAsyncJmClient):
     async def fetch_detail_entity(self, jmid, clazz: type[DetailType]) -> DetailType:
         """发起详情页数据请求并解析为指定的实体类型"""
         jmid = JmcomicText.parse_to_jm_id(jmid)
-        url = self.API_ALBUM if issubclass(clazz, JmAlbumDetail) else self.API_CHAPTER
+        is_album = issubclass(clazz, JmAlbumDetail)
+        url = self.API_ALBUM if is_album else self.API_CHAPTER
         resp = await self.req_api(url, params={'id': jmid})
 
         if not resp.encoded_data or resp.res_data.get('name') is None:
             ExceptionTool.raise_missing(resp, jmid)
+
+        # 章节详情在部分异常/受限节点上可能返回 HTTP 200 且保留标题，但 images 为空列表；
+        # 若存在其他备用域名，则记录当前域名失败并依次切换重试，均为空时仍保留原结果并输出告警。
+        if not is_album and not resp.res_data.get('images') and len(self._domain_list) > 1:
+            from urllib.parse import urlsplit
+            tried = set()
+            cur_domain = urlsplit(resp.url).netloc if resp.url else None
+            if cur_domain:
+                tried.add(cur_domain)
+            for _ in range(len(self._domain_list) - 1):
+                if cur_domain:
+                    self._domain_fail_count[cur_domain] = self._domain_fail_count.get(cur_domain, 0) + 1
+                jm_log(
+                    'api.chapter.empty_images',
+                    f'章节[{jmid}]在域名[{cur_domain}]返回空图片列表，尝试切换其他API域名重试',
+                )
+                try:
+                    retry_resp = await self.req_api(url, params={'id': jmid})
+                except Exception:
+                    break
+                if retry_resp.encoded_data and retry_resp.res_data.get('name') is not None:
+                    if retry_resp.res_data.get('images'):
+                        resp = retry_resp
+                        break
+                    retry_domain = urlsplit(retry_resp.url).netloc if retry_resp.url else None
+                    if not retry_domain or retry_domain in tried:
+                        break
+                    tried.add(retry_domain)
+                    cur_domain = retry_domain
+                else:
+                    break
+            if not resp.res_data.get('images'):
+                jm_log(
+                    'api.chapter.empty_images',
+                    f'章节[{jmid}]切换全部候选API域名后仍返回空图片列表（可能当前IP受限或被风控）',
+                )
 
         return JmApiAdaptTool.parse_entity(resp.res_data, clazz)
 
