@@ -1,19 +1,37 @@
 import asyncio
+import base64
+import hashlib
+import json
 import threading
 import unittest
 from types import SimpleNamespace
+
+from Crypto.Cipher import AES
 
 from jmcomic.jm_async_client import AsyncJmApiClient
 from jmcomic.jm_client_impl import JmApiClient
 from jmcomic.jm_config import JmMagicConstants, JmModuleConfig
 from jmcomic.jm_entity import JmPhotoDetail
+from jmcomic.jm_exception import RequestRetryAllFailException
 
 
-def _fake_api_resp(url: str, data: dict):
+def _encrypt_api_data(payload: dict, ts: int) -> str:
+    raw = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+    pad = 16 - (len(raw) % 16)
+    raw += bytes([pad]) * pad
+    key = hashlib.md5(f'{ts}{JmMagicConstants.APP_DATA_SECRET}'.encode('utf-8')).hexdigest().encode('utf-8')
+    return base64.b64encode(AES.new(key, AES.MODE_ECB).encrypt(raw)).decode('ascii')
+
+
+def _fake_http_resp(url: str, payload: dict, ts: int, status_code: int = 200):
+    body = json.dumps({'code': 200, 'data': _encrypt_api_data(payload, ts)})
     return SimpleNamespace(
         url=url,
-        encoded_data='dummy',
-        res_data=data,
+        status_code=status_code,
+        text=body,
+        content=body.encode('utf-8'),
+        request=SimpleNamespace(url=url),
+        json=lambda: json.loads(body),
     )
 
 
@@ -45,80 +63,110 @@ class TestApiResilience(unittest.TestCase):
             else:
                 setattr(JmModuleConfig, cache_attr, orig_cache)
 
-    def test_sync_chapter_empty_images_switches_domain_and_recovers(self):
+    def test_sync_chapter_empty_images_reuses_retry_and_recovers(self):
+        called_urls = []
+
+        class FakePostman:
+            def get(self, url, **kwargs):
+                called_urls.append(url)
+                ts = int(kwargs['headers']['tokenparam'].split(',')[0])
+                if 'bad.example' in url:
+                    return _fake_http_resp(
+                        url,
+                        {'id': 438516, 'name': 'demo', 'series_id': '0', 'series': [], 'tags': '', 'images': []},
+                        ts,
+                    )
+                return _fake_http_resp(
+                    url,
+                    {'id': 438516, 'name': 'demo', 'series_id': '0', 'series': [], 'tags': '', 'images': ['00001.webp', '00002.webp']},
+                    ts,
+                )
+
         client = object.__new__(JmApiClient)
+        client.postman = FakePostman()
         client.domain_list = ['bad.example', 'good.example']
+        client.retry_times = 2
+        client.domain_retry_strategy = None
         client._domain_fail_lock = threading.Lock()
         client._domain_fail_count = {}
         client._image_domain_fail_count = {}
 
-        called_domains = []
-
-        def fake_req_api(url, **kwargs):
-            domain = client._pick_domain(client.domain_list, False)
-            called_domains.append(domain)
-            if domain == 'bad.example':
-                return _fake_api_resp(
-                    f'https://{domain}{url}',
-                    {'id': 438516, 'name': 'demo', 'series_id': '0', 'series': [], 'tags': '', 'images': []},
-                )
-            return _fake_api_resp(
-                f'https://{domain}{url}',
-                {'id': 438516, 'name': 'demo', 'series_id': '0', 'series': [], 'tags': '', 'images': ['00001.webp', '00002.webp']},
-            )
-
-        client.req_api = fake_req_api
         photo = client.fetch_detail_entity('438516', JmPhotoDetail)
-        self.assertEqual(['bad.example', 'good.example'], called_domains)
+        self.assertEqual(
+            ['https://bad.example/chapter?id=438516', 'https://good.example/chapter?id=438516'],
+            called_urls,
+        )
         self.assertEqual(['00001.webp', '00002.webp'], photo.page_arr)
         self.assertEqual(1, client._domain_fail_count.get('bad.example', 0))
 
-    def test_sync_chapter_all_empty_images_returns_gracefully(self):
+    def test_sync_chapter_all_empty_images_raises_retry_all_fail(self):
+        called_urls = []
+
+        class FakePostman:
+            def get(self, url, **kwargs):
+                called_urls.append(url)
+                ts = int(kwargs['headers']['tokenparam'].split(',')[0])
+                return _fake_http_resp(
+                    url,
+                    {'id': 438516, 'name': 'demo', 'series_id': '0', 'series': [], 'tags': '', 'images': []},
+                    ts,
+                )
+
         client = object.__new__(JmApiClient)
+        client.postman = FakePostman()
         client.domain_list = ['d1.example', 'd2.example']
+        client.retry_times = 1
+        client.domain_retry_strategy = None
         client._domain_fail_lock = threading.Lock()
         client._domain_fail_count = {}
         client._image_domain_fail_count = {}
 
-        called_domains = []
+        with self.assertRaises(RequestRetryAllFailException):
+            client.fetch_detail_entity('438516', JmPhotoDetail)
+        self.assertEqual(
+            ['https://d1.example/chapter?id=438516', 'https://d2.example/chapter?id=438516'],
+            called_urls,
+        )
 
-        def fake_req_api(url, **kwargs):
-            domain = client._pick_domain(client.domain_list, False)
-            called_domains.append(domain)
-            return _fake_api_resp(
-                f'https://{domain}{url}',
-                {'id': 438516, 'name': 'demo', 'series_id': '0', 'series': [], 'tags': '', 'images': []},
-            )
+    def test_async_chapter_empty_images_reuses_retry_and_recovers(self):
+        called_urls = []
 
-        client.req_api = fake_req_api
-        photo = client.fetch_detail_entity('438516', JmPhotoDetail)
-        self.assertEqual(['d1.example', 'd2.example'], called_domains)
-        self.assertEqual([], photo.page_arr)
+        class FakeSession:
+            async def get(self, url, **kwargs):
+                called_urls.append(url)
+                ts = int(kwargs['headers']['tokenparam'].split(',')[0])
+                if 'bad.example' in url:
+                    return _fake_http_resp(
+                        url,
+                        {'id': 438516, 'name': 'demo', 'series_id': '0', 'series': [], 'tags': '', 'images': []},
+                        ts,
+                    )
+                return _fake_http_resp(
+                    url,
+                    {'id': 438516, 'name': 'demo', 'series_id': '0', 'series': [], 'tags': '', 'images': ['00001.webp']},
+                    ts,
+                )
 
-    def test_async_chapter_empty_images_switches_domain_and_recovers(self):
         client = object.__new__(AsyncJmApiClient)
+        client._session = FakeSession()
         client._domain_list = ['bad.example', 'good.example']
+        client._retry_times = 2
         client._domain_fail_count = {}
+        client._image_domain_fail_count = {}
+        client._meta_data = {}
         client._cache = None
 
-        called_domains = []
+        async def noop_setup():
+            return None
 
-        async def fake_req_api(url, params=None, **kwargs):
-            domain = min(client._domain_list, key=lambda d: client._domain_fail_count.get(d, 0))
-            called_domains.append(domain)
-            if domain == 'bad.example':
-                return _fake_api_resp(
-                    f'https://{domain}{url}?id=438516',
-                    {'id': 438516, 'name': 'demo', 'series_id': '0', 'series': [], 'tags': '', 'images': []},
-                )
-            return _fake_api_resp(
-                f'https://{domain}{url}?id=438516',
-                {'id': 438516, 'name': 'demo', 'series_id': '0', 'series': [], 'tags': '', 'images': ['00001.webp']},
-            )
+        client.setup = noop_setup
+        client._ensure_session = noop_setup
 
-        client.req_api = fake_req_api
         photo = asyncio.run(client.fetch_detail_entity('438516', JmPhotoDetail))
-        self.assertEqual(['bad.example', 'good.example'], called_domains)
+        self.assertEqual(
+            ['https://bad.example/chapter?id=438516', 'https://good.example/chapter?id=438516'],
+            called_urls,
+        )
         self.assertEqual(['00001.webp'], photo.page_arr)
         self.assertEqual(1, client._domain_fail_count.get('bad.example', 0))
 

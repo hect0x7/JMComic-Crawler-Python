@@ -1,8 +1,12 @@
+from contextvars import ContextVar
 from copy import deepcopy
 from threading import Lock
+from urllib.parse import urlsplit
 
 from .jm_client_interface import *
 from .jm_task_context import bind_jm_task_context
+
+_CURRENT_API_TS: ContextVar[Optional[int]] = ContextVar('_CURRENT_API_TS', default=None)
 
 
 # 抽象基类，实现了域名管理，发请求，重试机制，log，缓存等功能
@@ -920,45 +924,16 @@ class JmApiClient(AbstractJmClient):
             Exception: Raised via ExceptionTool.raise_missing if the API response lacks required data.
         """
         jmid = JmcomicText.parse_to_jm_id(jmid)
-        is_album = issubclass(clazz, JmAlbumDetail)
-        url = self.API_ALBUM if is_album else self.API_CHAPTER
-        full_url = self.append_params_to_url(url, {'id': jmid})
-        resp = self.req_api(full_url)
+        url = self.API_ALBUM if issubclass(clazz, JmAlbumDetail) else self.API_CHAPTER
+        resp = self.req_api(self.append_params_to_url(
+            url,
+            {
+                'id': jmid
+            })
+        )
 
         if not resp.encoded_data or resp.res_data.get('name') is None:
             ExceptionTool.raise_missing(resp, jmid)
-
-        # 章节详情在部分异常节点上可能返回空图片列表；存在备用域名时切换重试
-        if not is_album and not resp.res_data.get('images') and len(self.domain_list) > 1:
-            from urllib.parse import urlsplit
-            tried = set()
-            cur_domain = urlsplit(resp.url).netloc if resp.url else None
-            if cur_domain:
-                tried.add(cur_domain)
-            for _ in range(len(self.domain_list) - 1):
-                if cur_domain:
-                    self._record_domain_failure(cur_domain, False)
-                jm_log(
-                    'api.retry',
-                    f'章节[{jmid}]返回数据不完整，尝试切换域名重试',
-                )
-                try:
-                    retry_resp = self.req_api(full_url)
-                except Exception:
-                    break
-                if retry_resp.encoded_data and retry_resp.res_data.get('name') is not None:
-                    if retry_resp.res_data.get('images'):
-                        resp = retry_resp
-                        break
-                    retry_domain = urlsplit(retry_resp.url).netloc if retry_resp.url else None
-                    if not retry_domain or retry_domain in tried:
-                        break
-                    tried.add(retry_domain)
-                    cur_domain = retry_domain
-                else:
-                    break
-            if not resp.res_data.get('images'):
-                jm_log('api.retry', f'章节[{jmid}]重试后图片列表仍为空')
 
         return JmApiAdaptTool.parse_entity(resp.res_data, clazz)
 
@@ -1290,11 +1265,14 @@ class JmApiClient(AbstractJmClient):
 
     def req_api(self, url, get=True, require_success=True, **kwargs) -> JmApiResp:
         ts = self.decide_headers_and_ts(kwargs, url)
-
-        if get:
-            resp = self.get(url, **kwargs)
-        else:
-            resp = self.post(url, **kwargs)
+        ts_token = _CURRENT_API_TS.set(ts)
+        try:
+            if get:
+                resp = self.get(url, **kwargs)
+            else:
+                resp = self.post(url, **kwargs)
+        finally:
+            _CURRENT_API_TS.reset(ts_token)
 
         resp = JmApiResp(resp, ts)
 
@@ -1350,10 +1328,49 @@ class JmApiClient(AbstractJmClient):
         # 2. 是否是特殊的内容
         # 暂无
 
+    @classmethod
+    def validate_api_resp_for_retry(cls, resp, ts=None):
+        """
+        同步/异步 API 客户端共用的响应重试校验：
+        1. 5xx 服务端异常触发重试；
+        2. 除 /chapter_view_template 外，非 JSON 响应触发重试；
+        3. /chapter 返回空图片列表（images 为空但 name 存在）时触发切域名重试。
+        """
+        code = resp.status_code
+        if code >= 500:
+            msg = JmModuleConfig.JM_ERROR_STATUS_CODE.get(code, f'HTTP状态码: {code}')
+            ExceptionTool.raises_resp(f"禁漫API异常响应, {msg}", resp)
+
+        url = str(getattr(resp, 'url', None) or getattr(getattr(resp, 'request', None), 'url', ''))
+        if cls.API_SCRAMBLE in url:
+            # /chapter_view_template 这个接口不是返回json数据，不做检查
+            return resp
+
+        try:
+            JmcomicText.try_parse_json_object(resp.text)
+        except Exception:
+            ExceptionTool.raises_resp(
+                f'请求不是json格式，强制重试！响应文本: [{JmcomicText.limit_text(resp.text, 200)}]',
+                resp,
+            )
+
+        req_ts = ts if ts is not None else _CURRENT_API_TS.get()
+        if req_ts is not None and urlsplit(url).path.rstrip('/') == cls.API_CHAPTER:
+            api_resp = JmApiResp(resp, req_ts)
+            if api_resp.is_success and api_resp.encoded_data:
+                try:
+                    res_data = api_resp.res_data
+                except Exception:
+                    res_data = None
+                if isinstance(res_data, dict) and res_data.get('name') is not None and not res_data.get('images'):
+                    ExceptionTool.raises_resp('章节返回数据不完整，强制重试！', resp)
+
+        return resp
+
     def raise_if_resp_should_retry(self, resp, is_image):
         """
         该方法会判断resp返回值是否是json格式，
-        如果不是，大概率是禁漫内部异常，需要进行重试
+        如果不是或章节数据不完整，需要进行重试
         """
         resp = super().raise_if_resp_should_retry(resp, is_image)
 
@@ -1362,25 +1379,7 @@ class JmApiClient(AbstractJmClient):
             # 例如图片请求
             return resp
 
-        code = resp.status_code
-        if code >= 500:
-            msg = JmModuleConfig.JM_ERROR_STATUS_CODE.get(code, f'HTTP状态码: {code}')
-            ExceptionTool.raises_resp(f"禁漫API异常响应, {msg}", resp)
-
-        url = resp.request.url
-
-        if self.API_SCRAMBLE in url:
-            # /chapter_view_template 这个接口不是返回json数据，不做检查
-            return resp
-
-        try:
-            JmcomicText.try_parse_json_object(resp.text)
-            return resp
-        except Exception:
-            ExceptionTool.raises_resp(
-                f'请求不是json格式，强制重试！响应文本: [{JmcomicText.limit_text(resp.text, 200)}]',
-                resp,
-            )
+        return self.validate_api_resp_for_retry(resp)
 
     def after_init(self):
         # 自动更新禁漫API域名
